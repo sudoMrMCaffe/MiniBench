@@ -1,0 +1,16 @@
+﻿Nr;Bereich;Testfall;Umgebung;Erwartung;Art;Ergebnis;Datum;Bemerkung
+A1;Bau;Testen.cmd ausfÃ¼hren;Windows 10/11 mit Pester 5/6;alle Pester-Tests bestanden, 0 fehlgeschlagen, Version30.Tests.ps1 dabei;automatisch;;;
+A2;Bau;Bauen.cmd ausfÃ¼hren;Windows-Buildumgebung;Version 3.0.0.0 erzeugt, Archiv\v2.95 mit voriger exe/ps1 gesichert;automatisch;;;
+R1;Referenzen;Eingebettete Referenzdaten bei leerem Datenordner;Leerer Datenordner;5 Referenzprofile werden aus dem Build entpackt, Desktop Mittelklasse dient als Standard;automatisch;;;
+B1;Bericht;Gesamtleistungs-Banner und Profilkarten;HTML-Bericht nach Benchmark;Banner mit Gesamt-Prozentwert und 3 Usecase-Karten (Gaming, BÃ¼ro, Workstation) oben dargestellt;automatisch;;;
+B2;Bericht;Detailtabellen-Optik in CPU, GPU, RAM;HTML-Bericht nach Benchmark;Tabellen mit Messung, Wert, Index, Referenz, Vergleich und Ergebnis in den Ausklappbereichen;automatisch;;;
+G1;Grafik;Frametime-Statistik 0,1 %-Low und Mikroruckler;Rendertest Direct3D 11;Berechnung von Low01Fps und StutterPct (>50 ms), Anzeige in Kurventabelle und Bericht;automatisch;;;
+S1;Ablauf;Sicheres Ãœberspringen langwieriger Schritte;Laufansicht bei Updates / SMART / Benchmark;btnSkipStep nur bei -Skippable aktiv, Abbruch via Add-TestResult ohne Skriptabsturz;automatisch;;;
+S2;Ablauf;Sperre des Ãœberspringens bei kritischen Schritten;Hardware- und Systemerkennung;btnSkipStep bleibt deaktiviert (SKIP_ALLOWED 0);automatisch;;;
+D1;Runtime;Dual-Runtime Start mit PowerShell 7;System mit installiertem PowerShell 7 (pwsh.exe);Leos Minibench startet bevorzugt unter pwsh.exe;manuell;;;
+D2;Runtime;Dual-Runtime Fallback auf Windows PowerShell 5.1;System ohne PowerShell 7 (nur Windows PowerShell 5.1);Nahtloser Start Ã¼ber powershell.exe ohne Fehlermeldung;manuell;;;
+E1;EdgeCase;Fehlende optionale Hilfstools;Minibench-Daten\Tools geleert;Get-VerifiedTool fÃ¤ngt fehlende Tools sauber ab ohne Abbruch;automatisch;;;
+E2;EdgeCase;Defekte JSON-Datei in Datenbank;UngÃ¼ltige Syntax in Minibench-Daten\Datenbank;Get-DbEntries Ã¼berspringt korrupte Datei mit Warnung, gesunde EintrÃ¤ge werden geladen;automatisch;;;
+E3;EdgeCase;SchreibgeschÃ¼tztes Programmverzeichnis;USB-Stick mit Schreibschutz;Resolve-DataDir weicht transparent auf Dokumentenordner aus;automatisch;;;
+H1;Hardware;Testlauf Desktop mit dGPU;AMD Ryzen + Radeon RX / NVIDIA GeForce;VollstÃ¤ndiger Durchlauf Diagnose, Benchmark, Lasttest ohne AuffÃ¤lligkeiten;manuell;;;
+H2;Hardware;Testlauf Notebook mit Hybridgrafik;Intel Core i7/i9 + RTX dGPU + Iris Xe;Beide Grafikadapter erkannt, Rendertest auf beiden GPUs erfolgreich;manuell;;;

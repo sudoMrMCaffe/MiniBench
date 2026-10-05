@@ -560,7 +560,7 @@ Invoke-Section 'Geräte und Treiber' {
     } else { Add-Line '  Keine.' }
 }
 
-Invoke-Section 'Updates' {
+Invoke-Section 'Updates' -Skippable {
     try {
         $au = (New-Object -ComObject Microsoft.Update.AutoUpdate).Results
         Add-Line ('  Letzte erfolgreiche Suche       : {0}' -f $au.LastSearchSuccessDate)
@@ -635,7 +635,7 @@ Invoke-Section 'Installierte Software' {
 }
 
 if ($script:Opt['Integritaet']) {
-    Invoke-Section 'Test: Dateisystem und Systemdateien' {
+    Invoke-Section 'Test: Dateisystem und Systemdateien' -Skippable {
         Add-Sub 'Dateisystem-Onlinescan (chkdsk /scan)'
         $volRes = New-Object System.Collections.ArrayList
         foreach ($v in (Get-Volume | Where-Object { $_.DriveLetter -and $_.FileSystem -in 'NTFS', 'ReFS' -and $_.DriveType -eq 'Fixed' })) {
@@ -701,7 +701,7 @@ if ($script:Opt['Integritaet']) {
 }
 
 if ($script:Opt['Defender'] -and $script:DefenderActive) {
-    Invoke-Section 'Test: Microsoft Defender Schnellscan' {
+    Invoke-Section 'Test: Microsoft Defender Schnellscan' -Skippable {
         $t0 = Get-Date
         $bj = $null
         if (Test-BgJob 'Defender') {
@@ -740,7 +740,7 @@ if ($script:Opt['Defender'] -and $script:DefenderActive) {
 # ---------- SMART-Langtest starten (läuft in der Laufwerksfirmware weiter) ----------
 $script:SmartTests = @()
 if ($script:Opt['SmartLang'] -and $script:Smartctl -and @($script:SmartDevices).Count) {
-    Invoke-Section 'Test: SMART-Langtest wird gestartet' {
+    Invoke-Section 'Test: SMART-Langtest wird gestartet' -Skippable {
         # Schneller Modus: Die Tests wurden schon im Hintergrund gestartet (früherer Start, kürzere Wartezeit am Ende)
         $bj = $null; $early = @{}
         if (Test-BgJob 'SmartLang') { $bj = Wait-BgJob 'SmartLang' 'SMART-Langtest starten' 300; foreach ($e in @($bj.Ergebnis | Where-Object { $_ })) { $early[[string]$e.Name] = $e } }
@@ -835,7 +835,7 @@ if ($script:Opt['Netzwerk']) {
 }
 
 if ($script:Opt['RamTest']) {
-    Invoke-Section 'Test: Arbeitsspeicher (Mustertest)' {
+    Invoke-Section 'Test: Arbeitsspeicher (Mustertest)' -Skippable {
         if (-not $TypesLoaded) { Add-Line '  Übersprungen: C#-Testroutinen nicht verfügbar (Constrained Language Mode / AppLocker).'; return }
         $os = Get-CimCached Win32_OperatingSystem | Select-Object -First 1
         $free = [long]$os.FreePhysicalMemory * 1KB
@@ -866,7 +866,7 @@ Invoke-Section 'Windows-Speicherdiagnose (frühere Ergebnisse)' {
 # CPU-Stabilität und Drosselung: ab v2.7 nur noch im Modul Lasttest (CPU), dort mit eigenem Lastprozess, Sensorkurven
 # und Drosselnachweis. Der kurze Test der Diagnose maß dasselbe mit weniger Aussagekraft.
 
-Invoke-Section 'Energie' {
+Invoke-Section 'Energie' -Skippable {
     $as = Invoke-External -File 'powercfg.exe' -Arguments '/getactivescheme'
     Add-Line ('  ' + $as.Output.Trim())
     Add-Sub 'Verfügbare Standbymodi'
@@ -902,7 +902,7 @@ Invoke-Section 'Energie' {
 
 # ---------- Auf SMART-Langtest warten ----------
 if ($script:SmartTests | Where-Object Status -eq 'läuft') {
-    Invoke-Section 'Test: SMART-Langtest Ergebnis' {
+    Invoke-Section 'Test: SMART-Langtest Ergebnis' -Skippable {
         $deadline = ($script:SmartTests | Sort-Object Start | Select-Object -First 1).Start.AddMinutes($SmartTimeoutMinutes)
         Write-Step ('Warte auf den SMART-Langtest (maximal bis {0:HH:mm} Uhr). Die Schaltfläche "Test beenden" beendet das Warten, der Bericht wird trotzdem erstellt.' -f $deadline)
         $skipWait = $false

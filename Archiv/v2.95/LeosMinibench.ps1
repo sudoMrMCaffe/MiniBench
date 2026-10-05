@@ -221,709 +221,8 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenp
 }
 #endregion
 
-$ScriptVersion = '3.0'
+$ScriptVersion = '2.95'
 $AppName       = 'Leos Minibench'
-# Eingebettete Referenzprofile für Leos Minibench (v3.0)
-$script:EmbeddedReferences = @{
-    'Desktop_HighEnd.json' = @'
-{
-    "Format":  "PC-Diagnose-DB/2",
-    "Name":  "Referenz: Desktop High-End (Ryzen 7600X, RX 6800)",
-    "Computer":  "Referenz-Desktop-HighEnd",
-    "Geraet":  {
-                   "Id":  "REF-REFERENZ-DESKTOP-HIGHEND",
-                   "Guete":  "hoch",
-                   "Quellen":  [
-                                   "Referenzsystem"
-                               ]
-               },
-    "Datum":  "2026-10-01 12:00",
-    "Version":  "2.95",
-    "Quelle":  "Referenz",
-    "Module":  "Benchmark",
-    "Messdauer":  "normal",
-    "System":  "Desktop High-End (AMD B650)",
-    "Hardware":  {
-                     "CPU":  "AMD Ryzen 5 7600X",
-                     "RAM":  "32 GB DDR5-6000",
-                     "GPU":  "Radeon RX 6800",
-                     "IGPU":  null,
-                     "GPUGemessen":  "AMD Radeon RX 6800",
-                     "Datentraeger":  "NVMe PCIe 4.0 SSD 1TB; NVMe PCIe 3.0 SSD 1TB; SATA SSD 1TB",
-                     "Betriebssystem":  "Microsoft Windows 11",
-                     "Mainboard":  "AMD B650 Mainboard",
-                     "WindowsInstalliert":  null
-                 },
-    "Werte":  {
-                  "DISK|NVMe4|SW":  2779,
-                  "RAM|Lesen":  61.9,
-                  "CPU|MT":  38883,
-                  "DISK|NVMe4|R8":  119846,
-                  "DISK|SATA-SSD|SW":  524,
-                  "DISK|NVMe4|SR":  6551,
-                  "RAM|Kopieren":  24.1,
-                  "GPU|REND":  133.3,
-                  "GPU|REND1":  121,
-                  "DISK|SATA-SSD|R8":  73138,
-                  "DISK|SATA-SSD|R1":  11337,
-                  "DISK|NVMe3|R8":  109080,
-                  "DISK|SATA-SSD|SR":  558,
-                  "CPU|AES":  1429,
-                  "DISK|NVMe3|W1":  58294,
-                  "GPU|RPKT":  12285,
-                  "GPU|VMB":  296.1,
-                  "GPU|DWM":  17440,
-                  "DISK|NVMe3|R1":  14090,
-                  "DISK|NVMe3|SW":  2910,
-                  "CPU|ST":  3092,
-                  "DISK|NVMe4|R1":  14178,
-                  "DISK|SATA-SSD|W1":  29740,
-                  "DISK|NVMe3|SR":  3114,
-                  "RAM|Latenz":  80.6,
-                  "RAM|Schreiben":  31.3,
-                  "DISK|NVMe4|W1":  52665,
-                  "CPU|SHA":  2535,
-                  "CPU|DEFL":  296
-              },
-    "Messwerte":  {
-                      "CPU|AMD Ryzen 5 7600X 6-Core Processor|ST":  3092,
-                      "CPU|AMD Ryzen 5 7600X 6-Core Processor|MT":  38883,
-                      "CPU|AMD Ryzen 5 7600X 6-Core Processor|AES":  1429,
-                      "CPU|AMD Ryzen 5 7600X 6-Core Processor|SHA":  2535,
-                      "CPU|AMD Ryzen 5 7600X 6-Core Processor|DEFL":  296,
-                      "RAM|32GB|6000|Lesen":  61.9,
-                      "RAM|32GB|6000|Schreiben":  31.3,
-                      "RAM|32GB|6000|Kopieren":  24.1,
-                      "RAM|32GB|6000|Latenz":  80.6,
-                      "GPU|AMD Radeon RX 6800|VMB":  296.1,
-                      "GPU|AMD Radeon RX 6800|DWM":  17440,
-                      "GPU|AMD Radeon RX 6800|REND|1280x720":  133.3,
-                      "GPU|AMD Radeon RX 6800|REND1|1280x720":  121,
-                      "GPU|AMD Radeon RX 6800|RPKT":  12285,
-                      "DISK|203791800341|SanDisk SDSSDH3 1T02|SR":  554,
-                      "DISK|203791800341|SanDisk SDSSDH3 1T02|SW":  514,
-                      "DISK|203791800341|SanDisk SDSSDH3 1T02|R1":  10433,
-                      "DISK|203791800341|SanDisk SDSSDH3 1T02|R8":  70639,
-                      "DISK|203791800341|SanDisk SDSSDH3 1T02|W1":  29362,
-                      "DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|SR":  563,
-                      "DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|SW":  533,
-                      "DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|R1":  12241,
-                      "DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|R8":  75637,
-                      "DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|W1":  30117,
-                      "DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|SR":  6551,
-                      "DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|SW":  2779,
-                      "DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|R1":  14178,
-                      "DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|R8":  119846,
-                      "DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|W1":  52665,
-                      "DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|SR":  2805,
-                      "DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|SW":  2908,
-                      "DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|R1":  16504,
-                      "DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|R8":  124476,
-                      "DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|W1":  48673,
-                      "DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|SR":  3422,
-                      "DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|SW":  2912,
-                      "DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|R1":  11676,
-                      "DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|R8":  93685,
-                      "DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|W1":  67914,
-                      "WINSAT|CPU":  9.3,
-                      "WINSAT|RAM":  9.3,
-                      "WINSAT|DISK":  9.35,
-                      "WINSAT|GFX":  9.9
-                  },
-    "Ordner":  "",
-    "Laufwerke":  [
-                      {
-                          "Laufwerk":  "SanDisk SDSSDH3 1T02",
-                          "Klasse":  "SATA-SSD",
-                          "SR":  554,
-                          "SW":  514,
-                          "R1":  10433,
-                          "R8":  70639,
-                          "W1":  29362
-                      },
-                      {
-                          "Laufwerk":  "Samsung SSD 860 EVO 1TB",
-                          "Klasse":  "SATA-SSD",
-                          "SR":  563,
-                          "SW":  533,
-                          "R1":  12241,
-                          "R8":  75637,
-                          "W1":  30117
-                      },
-                      {
-                          "Laufwerk":  "SAMSUNG MZVL21T0HCLR-00B00",
-                          "Klasse":  "NVMe PCIe 4.0 x4",
-                          "SR":  6551,
-                          "SW":  2779,
-                          "R1":  14178,
-                          "R8":  119846,
-                          "W1":  52665
-                      },
-                      {
-                          "Laufwerk":  "Lexar SSD NM620 1TB",
-                          "Klasse":  "NVMe PCIe 3.0 x4",
-                          "SR":  2805,
-                          "SW":  2908,
-                          "R1":  16504,
-                          "R8":  124476,
-                          "W1":  48673
-                      },
-                      {
-                          "Laufwerk":  "WDS100T3X0C-00SJG0",
-                          "Klasse":  "NVMe PCIe 3.0 x4",
-                          "SR":  3422,
-                          "SW":  2912,
-                          "R1":  11676,
-                          "R8":  93685,
-                          "W1":  67914
-                      }
-                  ],
-    "Befunde":  {
-                    "Kritisch":  0,
-                    "Warnungen":  0,
-                    "Hinweise":  0,
-                    "Liste":  [
-
-                              ]
-                },
-    "Lasttest":  null,
-    "Rendertest":  [
-                       {
-                           "Grafik":  "AMD Radeon RX 6800",
-                           "Art":  "dGPU",
-                           "Aufloesung":  "1280x720",
-                           "Fps":  133.3,
-                           "Low1":  121,
-                           "Punkte":  12285,
-                           "Bildfehler":  0,
-                           "Treiberreset":  false,
-                           "Fehler":  ""
-                       }
-                   ],
-    "Schreibzugriffe":  null,
-    "Ablauf":  "normal",
-    "Sensoren":  {
-
-                 },
-    "Optimierung":  null,
-    "Akku":  null
-}
-'@
-    'Desktop_Mittelklasse.json' = @'
-{
-    "Format":  "PC-Diagnose-DB/2",
-    "Name":  "Referenz: Desktop Mittelklasse (Ryzen 5600, RX 570)",
-    "Computer":  "Referenz-Desktop-Mittelklasse",
-    "Geraet":  {
-                   "Id":  "REF-REFERENZ-DESKTOP-MITTELKLASSE",
-                   "Guete":  "hoch",
-                   "Quellen":  [
-                                   "Referenzsystem"
-                               ]
-               },
-    "Datum":  "2026-10-01 12:00",
-    "Version":  "2.95",
-    "Quelle":  "Referenz",
-    "Module":  "Benchmark",
-    "Messdauer":  "normal",
-    "System":  "Desktop Mittelklasse (AMD B450)",
-    "Hardware":  {
-                     "CPU":  "AMD Ryzen 5 5600",
-                     "RAM":  "32 GB DDR4-2133",
-                     "GPU":  "Radeon RX 570 Series",
-                     "IGPU":  null,
-                     "GPUGemessen":  "Radeon RX 570 Series",
-                     "Datentraeger":  "NVMe PCIe 3.0 SSD 500GB; SATA SSD 1TB",
-                     "Betriebssystem":  "Microsoft Windows 11",
-                     "Mainboard":  "AMD B450 Mainboard",
-                     "WindowsInstalliert":  null
-                 },
-    "Werte":  {
-                  "DISK|NVMe3|R8":  108045,
-                  "GPU|DWM":  4339,
-                  "RAM|Latenz":  113.2,
-                  "GPU|VMB":  73.7,
-                  "CPU|MT":  30319,
-                  "DISK|HDD|SW":  123,
-                  "GPU|REND":  45.4,
-                  "GPU|REND1":  42.8,
-                  "DISK|HDD|W1":  1412,
-                  "DISK|HDD|R8":  178,
-                  "RAM|Kopieren":  11.5,
-                  "RAM|Schreiben":  13.4,
-                  "CPU|ST":  2731,
-                  "CPU|AES":  1160,
-                  "DISK|HDD|SR":  112,
-                  "DISK|NVMe3|W1":  35518,
-                  "CPU|SHA":  2192,
-                  "GPU|RPKT":  4189,
-                  "RAM|Lesen":  27.5,
-                  "DISK|NVMe3|SW":  2591,
-                  "DISK|NVMe3|R1":  14329,
-                  "DISK|NVMe3|SR":  3095,
-                  "CPU|DEFL":  244,
-                  "DISK|HDD|R1":  104
-              },
-    "Messwerte":  {
-                      "CPU|AMD Ryzen 5 5600 6-Core Processor|ST":  2731,
-                      "CPU|AMD Ryzen 5 5600 6-Core Processor|MT":  30319,
-                      "CPU|AMD Ryzen 5 5600 6-Core Processor|AES":  1160,
-                      "CPU|AMD Ryzen 5 5600 6-Core Processor|SHA":  2192,
-                      "CPU|AMD Ryzen 5 5600 6-Core Processor|DEFL":  244,
-                      "RAM|32GB|2133|Lesen":  27.5,
-                      "RAM|32GB|2133|Schreiben":  13.4,
-                      "RAM|32GB|2133|Kopieren":  11.5,
-                      "RAM|32GB|2133|Latenz":  113.2,
-                      "GPU|Radeon RX 570 Series|VMB":  73.7,
-                      "GPU|Radeon RX 570 Series|DWM":  4339,
-                      "GPU|Radeon RX 570 Series|REND|1280x720":  45.4,
-                      "GPU|Radeon RX 570 Series|REND1|1280x720":  42.8,
-                      "GPU|Radeon RX 570 Series|RPKT":  4189,
-                      "DISK|Z1E7D75M|ST2000DX001-1CM164|SR":  110,
-                      "DISK|Z1E7D75M|ST2000DX001-1CM164|SW":  128,
-                      "DISK|Z1E7D75M|ST2000DX001-1CM164|R1":  106,
-                      "DISK|Z1E7D75M|ST2000DX001-1CM164|R8":  172,
-                      "DISK|Z1E7D75M|ST2000DX001-1CM164|W1":  1339,
-                      "DISK|ZFN03R4F|ST4000DM004-2CV104|SR":  114,
-                      "DISK|ZFN03R4F|ST4000DM004-2CV104|SW":  118,
-                      "DISK|ZFN03R4F|ST4000DM004-2CV104|R1":  103,
-                      "DISK|ZFN03R4F|ST4000DM004-2CV104|R8":  185,
-                      "DISK|ZFN03R4F|ST4000DM004-2CV104|W1":  1485,
-                      "DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|SR":  3095,
-                      "DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|SW":  2591,
-                      "DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|R1":  14329,
-                      "DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|R8":  108045,
-                      "DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|W1":  35518,
-                      "WINSAT|CPU":  9.3,
-                      "WINSAT|RAM":  9.3,
-                      "WINSAT|DISK":  8.8,
-                      "WINSAT|GFX":  8.7
-                  },
-    "Ordner":  "",
-    "Laufwerke":  [
-                      {
-                          "Laufwerk":  "ST2000DX001-1CM164",
-                          "Klasse":  "Festplatte",
-                          "SR":  110,
-                          "SW":  128,
-                          "R1":  106,
-                          "R8":  172,
-                          "W1":  1339
-                      },
-                      {
-                          "Laufwerk":  "ST4000DM004-2CV104",
-                          "Klasse":  "Festplatte",
-                          "SR":  114,
-                          "SW":  118,
-                          "R1":  103,
-                          "R8":  185,
-                          "W1":  1485
-                      },
-                      {
-                          "Laufwerk":  "Samsung SSD 980 1TB",
-                          "Klasse":  "NVMe PCIe 3.0 x4",
-                          "SR":  3095,
-                          "SW":  2591,
-                          "R1":  14329,
-                          "R8":  108045,
-                          "W1":  35518
-                      }
-                  ],
-    "Befunde":  {
-                    "Kritisch":  0,
-                    "Warnungen":  0,
-                    "Hinweise":  0,
-                    "Liste":  [
-
-                              ]
-                },
-    "Lasttest":  null,
-    "Rendertest":  [
-                       {
-                           "Grafik":  "Radeon RX 570 Series",
-                           "Art":  "dGPU",
-                           "Aufloesung":  "1280x720",
-                           "Fps":  45.4,
-                           "Low1":  42.8,
-                           "Punkte":  4189,
-                           "Bildfehler":  0,
-                           "Treiberreset":  false,
-                           "Fehler":  ""
-                       }
-                   ],
-    "Schreibzugriffe":  null,
-    "Ablauf":  "normal",
-    "Sensoren":  {
-
-                 },
-    "Optimierung":  null,
-    "Akku":  null
-}
-'@
-    'MiniPC_APU.json' = @'
-{
-    "Format":  "PC-Diagnose-DB/2",
-    "Name":  "Referenz: Mini-PC / APU (Ryzen 7 255H, Radeon 780M)",
-    "Computer":  "Referenz-MiniPC-APU",
-    "Geraet":  {
-                   "Id":  "REF-REFERENZ-MINIPC-APU",
-                   "Guete":  "hoch",
-                   "Quellen":  [
-                                   "Referenzsystem"
-                               ]
-               },
-    "Datum":  "2026-10-01 12:00",
-    "Version":  "2.95",
-    "Quelle":  "Referenz",
-    "Module":  "Benchmark",
-    "Messdauer":  "normal",
-    "System":  "Mini-PC / APU (AMD Ryzen 7)",
-    "Hardware":  {
-                     "CPU":  "AMD Ryzen 7 H 255 w/ Radeon 780M Graphics",
-                     "RAM":  "32 GB DDR5-5600",
-                     "GPU":  "Radeon 780M Graphics",
-                     "IGPU":  "Radeon 780M Graphics",
-                     "GPUGemessen":  "AMD Radeon 780M Graphics",
-                     "Datentraeger":  "NVMe PCIe 4.0 SSD 1TB",
-                     "Betriebssystem":  "Microsoft Windows 11",
-                     "Mainboard":  "Mini-PC Mainboard",
-                     "WindowsInstalliert":  null
-                 },
-    "Werte":  {
-                  "GPU|DWM":  1670,
-                  "RAM|Latenz":  112,
-                  "GPU|VMB":  28.4,
-                  "CPU|MT":  46553,
-                  "DISK|NVMe4|W1":  54294,
-                  "GPU|REND":  46.8,
-                  "GPU|REND1":  42.3,
-                  "DISK|NVMe4|R8":  34279,
-                  "RAM|Kopieren":  17.4,
-                  "DISK|NVMe4|SR":  4295,
-                  "RAM|Schreiben":  25.4,
-                  "CPU|ST":  2928,
-                  "CPU|AES":  1362,
-                  "CPU|SHA":  2409,
-                  "GPU|RPKT":  4313,
-                  "RAM|Lesen":  58.2,
-                  "DISK|NVMe4|R1":  4519,
-                  "CPU|DEFL":  345,
-                  "DISK|NVMe4|SW":  1140
-              },
-    "Messwerte":  {
-                      "CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|ST":  2928,
-                      "CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|MT":  46553,
-                      "CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|AES":  1362,
-                      "CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|SHA":  2409,
-                      "CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|DEFL":  345,
-                      "RAM|32GB|5600|Lesen":  58.2,
-                      "RAM|32GB|5600|Schreiben":  25.4,
-                      "RAM|32GB|5600|Kopieren":  17.4,
-                      "RAM|32GB|5600|Latenz":  112,
-                      "GPU|AMD Radeon 780M Graphics|VMB":  28.4,
-                      "GPU|AMD Radeon 780M Graphics|DWM":  1670,
-                      "GPU|AMD Radeon 780M Graphics|REND|1280x720":  46.8,
-                      "GPU|AMD Radeon 780M Graphics|REND1|1280x720":  42.3,
-                      "GPU|AMD Radeon 780M Graphics|RPKT":  4313,
-                      "DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|SR":  4295,
-                      "DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|SW":  1140,
-                      "DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|R1":  4519,
-                      "DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|R8":  34279,
-                      "DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|W1":  54294,
-                      "WINSAT|CPU":  9.4,
-                      "WINSAT|RAM":  9.4,
-                      "WINSAT|DISK":  8.45,
-                      "WINSAT|GFX":  8.2
-                  },
-    "Ordner":  "",
-    "Laufwerke":  [
-                      {
-                          "Laufwerk":  "PC801 NVMe SK hynix 1TB",
-                          "Klasse":  "NVMe PCIe 4.0 x4",
-                          "SR":  4295,
-                          "SW":  1140,
-                          "R1":  4519,
-                          "R8":  34279,
-                          "W1":  54294
-                      }
-                  ],
-    "Befunde":  {
-                    "Kritisch":  0,
-                    "Warnungen":  0,
-                    "Hinweise":  0,
-                    "Liste":  [
-
-                              ]
-                },
-    "Lasttest":  null,
-    "Rendertest":  [
-                       {
-                           "Grafik":  "AMD Radeon 780M Graphics",
-                           "Art":  "iGPU",
-                           "Aufloesung":  "1280x720",
-                           "Fps":  46.8,
-                           "Low1":  42.3,
-                           "Punkte":  4313,
-                           "Bildfehler":  0,
-                           "Treiberreset":  false,
-                           "Fehler":  ""
-                       }
-                   ],
-    "Schreibzugriffe":  null,
-    "Ablauf":  "normal",
-    "Sensoren":  {
-
-                 },
-    "Optimierung":  null,
-    "Akku":  null
-}
-'@
-    'Notebook_Standard.json' = @'
-{
-    "Format":  "PC-Diagnose-DB/2",
-    "Name":  "Referenz: Notebook Standard (Core i5, Intel UHD)",
-    "Computer":  "Referenz-Notebook-Standard",
-    "Geraet":  {
-                   "Id":  "REF-REFERENZ-NOTEBOOK-STANDARD",
-                   "Guete":  "hoch",
-                   "Quellen":  [
-                                   "Referenzsystem"
-                               ]
-               },
-    "Datum":  "2026-10-01 12:00",
-    "Version":  "2.95",
-    "Quelle":  "Referenz",
-    "Module":  "Benchmark",
-    "Messdauer":  "normal",
-    "System":  "Notebook Standard (Intel Core i5)",
-    "Hardware":  {
-                     "CPU":  "Intel Core i5-8365U",
-                     "RAM":  "24 GB DDR4-2400",
-                     "GPU":  "UHD Graphics 620",
-                     "IGPU":  "UHD Graphics 620",
-                     "GPUGemessen":  "Intel(R) UHD Graphics 620",
-                     "Datentraeger":  "NVMe PCIe 3.0 SSD 512GB",
-                     "Betriebssystem":  "Microsoft Windows 11",
-                     "Mainboard":  "Notebook Mainboard",
-                     "WindowsInstalliert":  null
-                 },
-    "Werte":  {
-                  "DISK|NVMe3|R8":  112473,
-                  "GPU|DWM":  383,
-                  "RAM|Latenz":  134.4,
-                  "GPU|VMB":  6.5,
-                  "CPU|MT":  14744,
-                  "GPU|REND":  4.8,
-                  "GPU|REND1":  4.7,
-                  "DISK|NVMe3|W1":  22297,
-                  "RAM|Kopieren":  9.9,
-                  "RAM|Schreiben":  13.4,
-                  "CPU|ST":  2133,
-                  "CPU|AES":  1031,
-                  "CPU|SHA":  437,
-                  "GPU|RPKT":  442,
-                  "RAM|Lesen":  28.3,
-                  "DISK|NVMe3|SW":  2424,
-                  "DISK|NVMe3|R1":  15440,
-                  "DISK|NVMe3|SR":  3487,
-                  "CPU|DEFL":  118
-              },
-    "Messwerte":  {
-                      "CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|ST":  2133,
-                      "CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|MT":  14744,
-                      "CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|AES":  1031,
-                      "CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|SHA":  437,
-                      "CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|DEFL":  118,
-                      "RAM|24GB|2400|Lesen":  28.3,
-                      "RAM|24GB|2400|Schreiben":  13.4,
-                      "RAM|24GB|2400|Kopieren":  9.9,
-                      "RAM|24GB|2400|Latenz":  134.4,
-                      "GPU|Intel(R) UHD Graphics 620|VMB":  6.5,
-                      "GPU|Intel(R) UHD Graphics 620|DWM":  383,
-                      "GPU|Intel(R) UHD Graphics 620|REND|1280x720":  4.8,
-                      "GPU|Intel(R) UHD Graphics 620|REND1|1280x720":  4.7,
-                      "GPU|Intel(R) UHD Graphics 620|RPKT":  442,
-                      "DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|SR":  3487,
-                      "DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|SW":  2424,
-                      "DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|R1":  15440,
-                      "DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|R8":  112473,
-                      "DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|W1":  22297,
-                      "WINSAT|CPU":  8.9,
-                      "WINSAT|RAM":  8.9,
-                      "WINSAT|DISK":  9.05,
-                      "WINSAT|GFX":  6.2
-                  },
-    "Ordner":  "",
-    "Laufwerke":  [
-                      {
-                          "Laufwerk":  "SAMSUNG MZVLB512HBJQ-000L7",
-                          "Klasse":  "NVMe PCIe 3.0 x4",
-                          "SR":  3487,
-                          "SW":  2424,
-                          "R1":  15440,
-                          "R8":  112473,
-                          "W1":  22297
-                      }
-                  ],
-    "Befunde":  {
-                    "Kritisch":  0,
-                    "Warnungen":  0,
-                    "Hinweise":  0,
-                    "Liste":  [
-
-                              ]
-                },
-    "Lasttest":  null,
-    "Rendertest":  [
-                       {
-                           "Grafik":  "Intel(R) UHD Graphics 620",
-                           "Art":  "iGPU",
-                           "Aufloesung":  "1280x720",
-                           "Fps":  4.8,
-                           "Low1":  4.7,
-                           "Punkte":  442,
-                           "Bildfehler":  0,
-                           "Treiberreset":  false,
-                           "Fehler":  ""
-                       }
-                   ],
-    "Schreibzugriffe":  null,
-    "Ablauf":  "normal",
-    "Sensoren":  {
-
-                 },
-    "Optimierung":  null,
-    "Akku":  null
-}
-'@
-    'Workstation_Mobil.json' = @'
-{
-    "Format":  "PC-Diagnose-DB/2",
-    "Name":  "Referenz: Workstation Mobil (Core i9-13900H, RTX 3000 Ada)",
-    "Computer":  "Referenz-Workstation-Mobil",
-    "Geraet":  {
-                   "Id":  "REF-REFERENZ-WORKSTATION-MOBIL",
-                   "Guete":  "hoch",
-                   "Quellen":  [
-                                   "Referenzsystem"
-                               ]
-               },
-    "Datum":  "2026-10-01 12:00",
-    "Version":  "2.95",
-    "Quelle":  "Referenz",
-    "Module":  "Benchmark",
-    "Messdauer":  "normal",
-    "System":  "Workstation Mobil (Intel Core i9)",
-    "Hardware":  {
-                     "CPU":  "13th Gen Intel Core i9-13900H",
-                     "RAM":  "64 GB LPDDR5-6000",
-                     "GPU":  "RTX 3000 Ada Generation Laptop GPU",
-                     "IGPU":  "Iris(R) Xe Graphics",
-                     "GPUGemessen":  "NVIDIA RTX 3000 Ada Generation Laptop GPU",
-                     "Datentraeger":  "NVMe PCIe 4.0 SSD 1TB",
-                     "Betriebssystem":  "Microsoft Windows 11",
-                     "Mainboard":  "Mobile Workstation Board",
-                     "WindowsInstalliert":  null
-                 },
-    "Werte":  {
-                  "GPU|DWM":  2850,
-                  "RAM|Latenz":  113.9,
-                  "GPU|VMB":  48.4,
-                  "CPU|MT":  42759,
-                  "GPU|REND":  90.6,
-                  "GPU|REND1":  37.8,
-                  "RAM|Kopieren":  28.5,
-                  "RAM|Schreiben":  47.2,
-                  "CPU|ST":  3464,
-                  "CPU|AES":  1786,
-                  "CPU|SHA":  2409,
-                  "GPU|RPKT":  8354,
-                  "RAM|Lesen":  67.9,
-                  "CPU|DEFL":  295
-              },
-    "Messwerte":  {
-                      "CPU|13th Gen Intel(R) Core(TM) i9-13900H|ST":  3464,
-                      "CPU|13th Gen Intel(R) Core(TM) i9-13900H|MT":  42759,
-                      "CPU|13th Gen Intel(R) Core(TM) i9-13900H|AES":  1786,
-                      "CPU|13th Gen Intel(R) Core(TM) i9-13900H|SHA":  2409,
-                      "CPU|13th Gen Intel(R) Core(TM) i9-13900H|DEFL":  295,
-                      "RAM|64GB|6000|Lesen":  67.9,
-                      "RAM|64GB|6000|Schreiben":  47.2,
-                      "RAM|64GB|6000|Kopieren":  28.5,
-                      "RAM|64GB|6000|Latenz":  113.9,
-                      "GPU|Intel(R) Iris(R) Xe Graphics|VMB":  48.4,
-                      "GPU|Intel(R) Iris(R) Xe Graphics|DWM":  2850,
-                      "GPU|NVIDIA RTX 3000 Ada Generation Laptop GPU|REND|1280x720":  90.6,
-                      "GPU|NVIDIA RTX 3000 Ada Generation Laptop GPU|REND1|1280x720":  37.8,
-                      "GPU|NVIDIA RTX 3000 Ada Generation Laptop GPU|RPKT":  8354,
-                      "GPU|Intel(R) Iris(R) Xe Graphics|REND|1280x720":  23,
-                      "GPU|Intel(R) Iris(R) Xe Graphics|REND1|1280x720":  21.8,
-                      "GPU|Intel(R) Iris(R) Xe Graphics|RPKT":  2124,
-                      "DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|SR":  6689,
-                      "DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|SW":  3974,
-                      "DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|R1":  18211,
-                      "DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|R8":  106690,
-                      "DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|W1":  46373,
-                      "WINSAT|CPU":  9.4,
-                      "WINSAT|RAM":  9.4,
-                      "WINSAT|DISK":  9.45,
-                      "WINSAT|GFX":  8.4
-                  },
-    "Ordner":  "",
-    "Laufwerke":  [
-                      {
-                          "Laufwerk":  "NVMe PC SN820 NVMe WD 4096GB",
-                          "Klasse":  "NVMe",
-                          "SR":  6689,
-                          "SW":  3974,
-                          "R1":  18211,
-                          "R8":  106690,
-                          "W1":  46373
-                      }
-                  ],
-    "Befunde":  {
-                    "Kritisch":  0,
-                    "Warnungen":  0,
-                    "Hinweise":  0,
-                    "Liste":  [
-
-                              ]
-                },
-    "Lasttest":  null,
-    "Rendertest":  [
-                       {
-                           "Grafik":  "NVIDIA RTX 3000 Ada Generation Laptop GPU",
-                           "Art":  "dGPU",
-                           "Aufloesung":  "1280x720",
-                           "Fps":  90.6,
-                           "Low1":  37.8,
-                           "Punkte":  8354,
-                           "Bildfehler":  0,
-                           "Treiberreset":  false,
-                           "Fehler":  ""
-                       },
-                       {
-                           "Grafik":  "Intel(R) Iris(R) Xe Graphics",
-                           "Art":  "iGPU",
-                           "Aufloesung":  "1280x720",
-                           "Fps":  23,
-                           "Low1":  21.8,
-                           "Punkte":  2124,
-                           "Bildfehler":  0,
-                           "Treiberreset":  false,
-                           "Fehler":  ""
-                       }
-                   ],
-    "Schreibzugriffe":  null,
-    "Ablauf":  "normal",
-    "Sensoren":  {
-
-                 },
-    "Optimierung":  null,
-    "Akku":  null
-}
-'@
-}
 #region ---------- Datenordner neben exe bzw. Skript (Berichte, Vergleichsdatenbank, Tools, Laufzeitdaten) ----------
 function Test-WritableDir([string]$Dir) {
     if (-not $Dir) { return $false }
@@ -963,30 +262,19 @@ function Initialize-DbDir {
     }
     $existing = @(Get-ChildItem -LiteralPath $script:DbDir -Filter '*.json' -File -ErrorAction SilentlyContinue)
     if ($existing.Count -eq 0) {
-        if ($script:EmbeddedReferences) {
-            foreach ($k in $script:EmbeddedReferences.Keys) {
-                try {
-                    $target = Join-Path $script:DbDir $k
-                    [IO.File]::WriteAllText($target, $script:EmbeddedReferences[$k], (New-Object Text.UTF8Encoding($false)))
-                } catch { }
-            }
-        }
-        $existing = @(Get-ChildItem -LiteralPath $script:DbDir -Filter '*.json' -File -ErrorAction SilentlyContinue)
-        if ($existing.Count -eq 0) {
-            $refDirs = @(
-                (Join-Path $PSScriptRoot 'Daten\Referenzen'),
-                (Join-Path $PSScriptRoot 'src\Daten\Referenzen'),
-                (Join-Path (Split-Path $PSScriptRoot -Parent) 'src\Daten\Referenzen')
-            )
-            foreach ($rd in $refDirs) {
-                if (Test-Path -LiteralPath $rd) {
-                    $refFiles = @(Get-ChildItem -LiteralPath $rd -Filter '*.json' -File -ErrorAction SilentlyContinue)
-                    if ($refFiles.Count -gt 0) {
-                        foreach ($rf in $refFiles) {
-                            try { Copy-Item -LiteralPath $rf.FullName -Destination (Join-Path $script:DbDir $rf.Name) -Force -ErrorAction SilentlyContinue } catch { }
-                        }
-                        break
+        $refDirs = @(
+            (Join-Path $PSScriptRoot 'Daten\Referenzen'),
+            (Join-Path $PSScriptRoot 'src\Daten\Referenzen'),
+            (Join-Path (Split-Path $PSScriptRoot -Parent) 'src\Daten\Referenzen')
+        )
+        foreach ($rd in $refDirs) {
+            if (Test-Path -LiteralPath $rd) {
+                $refFiles = @(Get-ChildItem -LiteralPath $rd -Filter '*.json' -File -ErrorAction SilentlyContinue)
+                if ($refFiles.Count -gt 0) {
+                    foreach ($rf in $refFiles) {
+                        try { Copy-Item -LiteralPath $rf.FullName -Destination (Join-Path $script:DbDir $rf.Name) -Force -ErrorAction SilentlyContinue } catch { }
                     }
+                    break
                 }
             }
         }
@@ -998,40 +286,11 @@ if ($script:DbDir) { Initialize-DbDir }
 # Ab v2.6: Liegt die DLL zum Hash schon vor, wird sie ohne Schreibprobe direkt geladen (kein Schreibzugriff auf den Stick).
 $script:CacheInfo = New-Object System.Collections.Generic.List[string]
 function Add-CachedType([string]$Name, [string]$Code, [string[]]$References = @()) {
-    $refList = [System.Collections.Generic.List[string]]::new()
-    if ($References) {
-        foreach ($r in $References) { if ($r -and -not $refList.Contains($r)) { $refList.Add($r) } }
-    }
-    if ($PSVersionTable.PSEdition -ne 'Desktop') {
-        # PowerShell 7+ (.NET Core / Roslyn): Wird ReferencedAssemblies verwendet, zieht Roslyn nicht
-        # automatisch den Standard-Referenzsatz heran. Alle Referenz- und Windows-Desktop-Bibliotheken ergänzen.
-        $refDir = Join-Path $PSHOME 'ref'
-        if (Test-Path -LiteralPath $refDir) {
-            foreach ($f in (Get-ChildItem -LiteralPath $refDir -Filter '*.dll' -ErrorAction SilentlyContinue)) {
-                if (-not $refList.Contains($f.FullName)) { $refList.Add($f.FullName) }
-            }
-        }
-        $desktopDlls = @(
-            'System.Windows.Forms.dll',
-            'System.Windows.Forms.Primitives.dll',
-            'System.Drawing.dll',
-            'System.Drawing.Primitives.dll',
-            'System.Drawing.Common.dll',
-            'System.Private.Windows.Core.dll',
-            'System.Private.Windows.GdiPlus.dll'
-        )
-        foreach ($dllName in $desktopDlls) {
-            $fullPath = Join-Path $PSHOME $dllName
-            if ((Test-Path -LiteralPath $fullPath) -and -not $refList.Contains($fullPath)) {
-                $refList.Add($fullPath)
-            }
-        }
-    }
     $sha = [Security.Cryptography.SHA256]::Create()
-    $hash = -join ($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Code + ($refList -join ';') + $PSVersionTable.CLRVersion)) | Select-Object -First 6 | ForEach-Object { $_.ToString('x2') })
+    $hash = -join ($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Code + ($References -join ';') + $PSVersionTable.CLRVersion)) | Select-Object -First 6 | ForEach-Object { $_.ToString('x2') })
     # IgnoreWarnings: Windows PowerShell 5.1 wertet Compilerwarnungen sonst als Fehler (eine Warnung genügt, und alle Routinen fehlen)
     $p = @{ TypeDefinition = $Code; ErrorAction = 'Stop'; IgnoreWarnings = $true }
-    if ($refList.Count) { $p.ReferencedAssemblies = $refList.ToArray() }
+    if ($References.Count) { $p.ReferencedAssemblies = $References }
     if ($script:CacheDir) {
         $dll = Join-Path $script:CacheDir ('{0}-{1}.dll' -f $Name, $hash)
         if (Test-Path -LiteralPath $dll) {
@@ -5056,7 +4315,7 @@ public partial class DiagGui : Form
             diskNums.Add(x[0]);
         }
         clbDisks.Height = Math.Max(48, Math.Min(8, clbDisks.Items.Count) * 21 + 6);
-        clbDisks.ItemCheck += delegate { BeginInvoke(new System.Windows.Forms.MethodInvoker(UpdateSummary)); };
+        clbDisks.ItemCheck += delegate { BeginInvoke(new MethodInvoker(UpdateSummary)); };
         f.Controls.Add(clbDisks);
         Label dh = Lbl("Gemessen wird mit einer Testdatei auf dem Volume mit dem meisten freien Platz. USB-Datenträger sind abgewählt.", 8.75f, false, UI.Muted); dh.Margin = new Padding(3, 3, 3, 0); dh.MaximumSize = new Size(820, 0); f.Controls.Add(dh);
         f.Controls.Add(Section("Rendertest (Grafik)"));
@@ -6665,9 +5924,9 @@ public partial class DiagGui : Form
     {
         base.OnShown(e);
         BringToFront2();
-        BeginInvoke(new System.Windows.Forms.MethodInvoker(BringToFront2));
+        BeginInvoke(new MethodInvoker(BringToFront2));
         // erst nach dem ersten Zeichnen: Startfenster der exe schließen und die Startzeit protokollieren
-        BeginInvoke(new System.Windows.Forms.MethodInvoker(delegate { StartLog.Phase("Oberfläche bereit"); StartLog.SignalReady(); StartLog.Finish(dataDir, version, script); }));
+        BeginInvoke(new MethodInvoker(delegate { StartLog.Phase("Oberfläche bereit"); StartLog.SignalReady(); StartLog.Finish(dataDir, version, script); }));
     }
 
     void BringToFront2()
@@ -6722,7 +5981,7 @@ public partial class DiagGui : Form
         running = true;
         setupView.Visible = false; runView.Visible = true;
         btnCancel.Visible = true; btnCancel.Enabled = true;
-        btnSkipStep.Visible = true; btnSkipStep.Enabled = false;
+        btnSkipStep.Visible = true; btnSkipStep.Enabled = true;
         btnStopWait.Visible = false; btnStopWait.Enabled = true;
         btnHtml.Visible = false; btnFolder.Visible = false; btnNew.Visible = false; btnKi.Visible = false; btnCopy.Visible = false; btnCopy.Text = "KI-Kurzfassung kopieren";
         timer.Start();
@@ -6765,14 +6024,11 @@ public partial class DiagGui : Form
                 SetText(lblStep, Get(p, 3));
                 SetText(lblCounter, String.Format("Schritt {0} von {1}", s, t));
                 if (t > 0) barAll.Value = (s - 1) * 100 / t;
-                btnSkipStep.Enabled = false;
+                btnSkipStep.Enabled = true;
                 log.AppendLine(); log.AppendLine(">> " + Get(p, 3));
                 break;
-            case "SKIP_ALLOWED":
-                btnSkipStep.Enabled = Get(p, 1) == "1";
-                break;
             case "SCHRITT_UEBERSPRINGEN":
-                btnSkipStep.Enabled = false;
+                btnSkipStep.Enabled = true;
                 break;
             case "SUB":
                 int pc = ToInt(p, 1);
@@ -8598,12 +7854,6 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
-        new Eintrag("3.0", "05.10.2026", "Dual-Runtime (PowerShell 7 / 5.1), sicheres Schritt-Überspringen, Frametime-Latenzen (0,1 % Low & Mikroruckler), eingebettete Referenzen und Tabellenoptik",
-            "Dual-Runtime-Unterstützung: Automatische Bevorzugung von PowerShell 7 (pwsh.exe) für maximale Geschwindigkeit mit nahtlosem Fallback auf Windows PowerShell 5.1. " +
-            "Sicheres Überspringen langwieriger Einzelschritte mit dynamischer Freigabe (SKIP_ALLOWED) und sauberem Abbruch von Hintergrundjobs ohne Skriptfehler. " +
-            "Erweiterte Frametime-Analyse im Rendertest: Erfassung von 0,1 %-Low FPS und Mikroruckler-Anteil (Frames über 50 ms) in Messwerten, Kurven und Berichten. " +
-            "Fünf eingebettete Referenzprofile (Desktop High-End bis Notebook Standard) direkt im Build für sofortige Vergleiche ohne externe Dateien, Standard-Referenz Desktop Mittelklasse. " +
-            "Bereinigte Benchmark-Darstellung im HTML-Bericht mit bewährter Detailtabellen-Optik unter Beibehaltung des Gesamtleistungs-Banners und der Profilkarten."),
         new Eintrag("2.95", "05.10.2026", "Anonyme Vergleichsdaten, Gesamtleistungs-Banner, UserBenchmark-Profile, Minidump Crash Inspector, Schritt überspringen",
             "Feste Einbindung von fünf anonymisierten, bereinigten Referenzsystemen von Desktop High-End bis Notebook Standard für sofortige Vergleichbarkeit ab dem ersten Start. " +
             "Gesamtleistungs-Banner im Bericht-Header mit prozentualer Gesamtbewertung zur Referenz. " +
@@ -9125,8 +8375,6 @@ $script:MetricDefs = @(
     # ab v2.6: eigener Rendertest (Direct3D 11), Leitwert = Grafikkarte, sonst die einzige Grafikeinheit
     @{ K = 'GPU|REND';      N = 'Rendertest';              U = 'Bilder/s'; F = 'N0' }
     @{ K = 'GPU|REND1';     N = 'Rendertest 1-%-Low';      U = 'Bilder/s'; F = 'N0' }
-    @{ K = 'GPU|REND01';    N = 'Rendertest 0,1-%-Low';    U = 'Bilder/s'; F = 'N0' }
-    @{ K = 'GPU|STUTTER';   N = 'Mikroruckler-Anteil';     U = '%';        F = 'N1'; L = $true }
     @{ K = 'GPU|RPKT';      N = 'Rendertest Punktzahl';    U = 'Punkte';   F = 'N0' }
 )
 $script:DiskClassNames = [ordered]@{ 'NVMe5' = 'NVMe PCIe 5.0'; 'NVMe4' = 'NVMe PCIe 4.0'; 'NVMe3' = 'NVMe PCIe 3.0'; 'SATA-SSD' = 'SATA-SSD'; 'HDD' = 'Festplatte' }
@@ -9167,7 +8415,7 @@ function Get-DbLatest($Entries, [switch]$ExcludeCurrent) {
 }
 
 # Kleinere Werte sind besser (Latenzen)
-function Test-LowerBetterKey([string]$Key) { return ($Key -match '\|(Latenz|STUTTER)$') }
+function Test-LowerBetterKey([string]$Key) { return ($Key -match '\|Latenz$') }
 
 # Gespeicherte Referenz (Referenz.json im Datenordner, ältere Ablage PC-Diagnose-Referenz.json), sonst $null
 function Get-SavedReference([string]$Path = '') {
@@ -9183,35 +8431,6 @@ function Get-SavedReference([string]$Path = '') {
         $h = @{}
         if ($j.Herkunft) { foreach ($p in $j.Herkunft.PSObject.Properties) { $h[$p.Name] = [string]$p.Value } }
         return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = $f; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId }
-    }
-    # Ab v3.0: Standard-Referenzprofil Desktop_Mittelklasse.json laden, wenn noch keine Referenz definiert ist
-    if (-not $Path) {
-        $defCands = @()
-        if ($script:DbDir) { $defCands += (Join-Path $script:DbDir 'Desktop_Mittelklasse.json') }
-        if ($script:DataDir) { $defCands += (Join-Path (Join-Path $script:DataDir 'Datenbank') 'Desktop_Mittelklasse.json') }
-        foreach ($df in $defCands) {
-            if (-not $df -or -not (Test-Path -LiteralPath $df)) { continue }
-            $j = Read-JsonFile $df
-            if (-not $j) { continue }
-            $w = ConvertTo-ValueTable $j.Werte
-            if (-not $w.Count) { continue }
-            $h = @{}
-            if ($j.Herkunft) { foreach ($p in $j.Herkunft.PSObject.Properties) { $h[$p.Name] = [string]$p.Value } }
-            return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = $df; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId }
-        }
-        if ($script:EmbeddedReferences -and $script:EmbeddedReferences.ContainsKey('Desktop_Mittelklasse.json')) {
-            try {
-                $j = $script:EmbeddedReferences['Desktop_Mittelklasse.json'] | ConvertFrom-Json
-                if ($j) {
-                    $w = ConvertTo-ValueTable $j.Werte
-                    if ($w.Count) {
-                        $h = @{}
-                        if ($j.Herkunft) { foreach ($p in $j.Herkunft.PSObject.Properties) { $h[$p.Name] = [string]$p.Value } }
-                        return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = 'Eingebettet (Desktop_Mittelklasse.json)'; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId }
-                    }
-                }
-            } catch { }
-        }
     }
     return $null
 }
@@ -9629,11 +8848,7 @@ function Add-Finding {
 function Write-Step([string]$Text) { Write-Host ('[{0}]    {1}' -f (Get-Date -Format 'HH:mm:ss'), $Text) -ForegroundColor Gray }
 
 function Invoke-Section {
-    param(
-        [Parameter(Position = 0, Mandatory = $true)][string]$Title,
-        [Parameter(Position = 1, Mandatory = $true)][scriptblock]$Body,
-        [switch]$Skippable
-    )
+    param([string]$Title, [scriptblock]$Body)
     $script:StepNo++
     $total = [math]::Max((Get-PlannedSteps), $script:StepNo)
     Add-Section $Title ('[{0}/{1}] ' -f $script:StepNo, $total)
@@ -9641,16 +8856,13 @@ function Invoke-Section {
     Hide-Sub
     $script:CpCurrent = $Title
     Write-Checkpoint 'START' ('[{0}/{1}] {2}' -f $script:StepNo, $total, $Title)
-    $isSkippable = [bool]($Skippable -or ($Title -match '^(Updates|Test: Microsoft Defender|Test: SMART-Langtest|Test: Arbeitsspeicher \(Mustertest\)|Energie$|Test: Dateisystem und Systemdateien|Benchmark: (Prozessor|Grafik))'))
-    if (Get-Command Send-GuiEvent -ErrorAction SilentlyContinue) { Send-GuiEvent 'SKIP_ALLOWED' $(if ($isSkippable) { '1' } else { '0' }) }
-    if ($isSkippable -and (Get-Command Test-SkipRequested -ErrorAction SilentlyContinue) -and (Test-SkipRequested)) {
+    if ((Get-Command Test-SkipRequested -ErrorAction SilentlyContinue) -and (Test-SkipRequested)) {
         if (Get-Command Send-StepSkipped -ErrorAction SilentlyContinue) { Send-StepSkipped $Title }
         Add-Line ('  ÜBERSPRUNGEN: Schritt durch Benutzer übersprungen.')
-        if (Get-Command Add-TestResult -ErrorAction SilentlyContinue) { Add-TestResult $Title 'ÜBERSPRUNGEN' 'Schritt durch Benutzer übersprungen' }
+        if (Get-Command Add-Test -ErrorAction SilentlyContinue) { Add-Test $Title 'ÜBERSPRUNGEN' 'Schritt durch Benutzer übersprungen' }
         Add-Finding INFO 'Ablauf' ('Schritt "{0}" wurde auf Benutzeranforderung übersprungen.' -f $Title)
         Write-Checkpoint 'SKIP' ('{0} (übersprungen)' -f $Title)
         Save-Partial
-        if (Get-Command Send-GuiEvent -ErrorAction SilentlyContinue) { Send-GuiEvent 'SKIP_ALLOWED' '0' }
         return
     }
     # Vor Abschnitten, bei denen ein Absturz am ehesten droht, den Zwischenstand sofort sichern (sonst gedrosselt)
@@ -9661,11 +8873,11 @@ function Invoke-Section {
     $wasSkipped = $false
     try { & $Body }
     catch {
-        if ($isSkippable -and ($_.Exception -is [System.OperationCanceledException] -or $_.Exception.Message -match 'übersprungen')) {
+        if ($_.Exception -is [System.OperationCanceledException] -or $_.Exception.Message -match 'übersprungen') {
             $wasSkipped = $true
             Send-StepSkipped $Title
             Add-Line ('  ÜBERSPRUNGEN: Schritt durch Benutzer übersprungen.')
-            if (Get-Command Add-TestResult -ErrorAction SilentlyContinue) { Add-TestResult $Title 'ÜBERSPRUNGEN' 'Schritt durch Benutzer übersprungen' }
+            Add-Test $Title 'ÜBERSPRUNGEN' 'Schritt durch Benutzer übersprungen'
             Add-Finding INFO 'Ablauf' ('Schritt "{0}" wurde auf Benutzeranforderung übersprungen.' -f $Title)
             Write-Checkpoint 'SKIP' ('{0} (übersprungen)' -f $Title)
         } else {
@@ -9677,9 +8889,6 @@ function Invoke-Section {
             if ($null -ne $script:SectionErrors) { $script:SectionErrors.Add([pscustomobject]@{ Abschnitt = $Title; Meldung = $_.Exception.Message; Zeile = $ln }) }
             Add-Finding WARNUNG 'Ablauf' ('Abschnitt "{0}" wurde wegen eines Skriptfehlers abgebrochen: {1} (Zeile {2}). Details in Checkpoint.log und in der KI-Datei.' -f $Title, $_.Exception.Message, $ln)
         }
-    }
-    finally {
-        if (Get-Command Send-GuiEvent -ErrorAction SilentlyContinue) { Send-GuiEvent 'SKIP_ALLOWED' '0' }
     }
     $sw.Stop()
     $script:Timings.Add([pscustomobject]@{ Abschnitt = $Title; Dauer = ('{0:hh\:mm\:ss}' -f $sw.Elapsed) })
@@ -9914,10 +9123,6 @@ function Wait-BgJob([string]$Key, [string]$Activity = '', [int]$TimeoutSec = 360
     while ($j.Status -in 'wartet', 'läuft') {
         Update-BgJobs -Force
         if ($j.Status -notin 'wartet', 'läuft') { break }
-        if ((Get-Command Test-SkipRequested -ErrorAction SilentlyContinue) -and (Test-SkipRequested)) {
-            Stop-BgJob $j 'Vom Benutzer übersprungen'
-            break
-        }
         if ($Activity) { Show-Sub $Activity ('läuft im Hintergrund seit {0:mm\:ss}' -f $(if ($j.Start) { (Get-Date) - $j.Start } else { [TimeSpan]::Zero })) }
         if ($sw.Elapsed.TotalSeconds -ge $TimeoutSec) { Stop-BgJob $j ('nach {0} Minuten abgebrochen' -f [math]::Max(1, [int]($TimeoutSec / 60))); break }
         Start-Sleep -Milliseconds 400
@@ -10798,14 +10003,21 @@ function New-HtmlReport {
                 }
                 [void]$sb.Append('</tbody></table></div><p class="note tight">Lesen und Schreiben sequentiell mit 1 MiB-Blöcken, 4K-Werte in Zugriffen pro Sekunde, jeweils ohne Windows-Cache. Details beim Überfahren einer Zeile.</p>')
             } else {
-                [void]$sb.Append('<div class="tw"><table><thead><tr><th>Messung</th><th class="r">Wert</th><th>Index</th><th>Referenz</th><th>Vergleich</th><th>Ergebnis</th></tr></thead><tbody>')
+                [void]$sb.Append('<div class="bench-cols">')
+                $word = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { Get-BenchRatingWord $g.RefPct } else { (ConvertTo-HtmlText $g.Status) }
+                $pctTxt = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { ('{0} %' -f $g.RefPct) } else { '' }
+                $bar = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { Get-RefBar $g.RefPct $gc -Small } else { '' }
+                [void]$sb.Append(('<div class="bcol bcol-main"><div class="bname">Gesamtwert</div><div class="bscore">{0}</div><div class="bword">{1}</div><div class="bbar">{2}</div></div>' -f
+                    $pctTxt, (ConvertTo-HtmlText $word), $bar))
+
                 foreach ($b in $g.Items) {
                     $c = $bcls[[string]$b.Status]; if (-not $c) { $c = 'info' }
-                    [void]$sb.Append(('<tr><td>{0}{1}</td><td class="num r">{2}</td><td class="idx">{3}</td><td class="num nw">{4}</td><td class="nw">{5}</td><td><span class="badge {6}">{7}</span></td></tr>' -f
-                        (ConvertTo-HtmlText $b.Messung), $(if ($b.Hinweis) { '<small class="hint">' + (ConvertTo-HtmlText $b.Hinweis) + '</small>' } else { '' }), (ConvertTo-HtmlText $b.Anzeige),
-                        (& $idxHtml $b.Index $b.Status), ((Get-RefBar $b.RefPct 'info' -Small) + (ConvertTo-HtmlText $b.Referenz)), (Get-DeltaHtml $b.Vergleich), $c, (ConvertTo-HtmlText $b.Status)))
+                    $subBar = if ($null -ne $b.RefPct -and [double]$b.RefPct -gt 0) { Get-RefBar $b.RefPct 'info' -Small } else { '' }
+                    $delta = Get-DeltaHtml $b.Vergleich
+                    [void]$sb.Append(('<div class="bcol"><div class="bname" title="{0}">{1}</div><div class="bval">{2}</div><div class="bbar">{3}</div><div class="bdelta">{4}</div></div>' -f
+                        (ConvertTo-HtmlText $b.Hinweis), (ConvertTo-HtmlText $b.Messung), (ConvertTo-HtmlText $b.Anzeige), $subBar, $delta))
                 }
-                [void]$sb.Append('</tbody></table></div>')
+                [void]$sb.Append('</div>')
                 if ($gk -eq 'GPU') { [void]$sb.Append((New-RenderChartsHtml)) }
             }
             [void]$sb.Append('</details>')
@@ -12562,7 +11774,6 @@ public class GpuRun
     public double Seconds;
     public long MeasuredFrames;
     public double AvgFps, Low1Fps, MinFps, MaxFps, MedianMs, P99Ms, MaxMs, Score;
-    public double Low01Fps, StutterPct;
     public string RefHash = "";
     public int ImageChecks, ImageErrors;
     public double[] FpsPerSecond = new double[0];
@@ -12855,8 +12066,8 @@ float4 PS(VO i) : SV_Target
     // Punktzahl = Ø Bilder/s x Pixel je Bild / 10 000 (bei 1280x720 rund 92 x Bilder/s).
     public static double[] Stats(float[] frameMs, double seconds, int width, int height)
     {
-        // Rückgabe: Ø Bilder/s, 1-%-Low, Median ms, 99.-Perzentil ms, längste ms, Punktzahl, 0,1-%-Low, Mikroruckler-%
-        double[] r = new double[8];
+        // Rückgabe: Ø Bilder/s, 1-%-Low, Median ms, 99.-Perzentil ms, längste ms, Punktzahl
+        double[] r = new double[6];
         if (frameMs == null || frameMs.Length == 0 || seconds <= 0) return r;
         float[] s = (float[])frameMs.Clone();
         Array.Sort(s);
@@ -12870,12 +12081,6 @@ float4 PS(VO i) : SV_Target
         r[3] = s[Math.Min(n - 1, (int)Math.Ceiling(n * 0.99) - 1)];
         r[4] = s[n - 1];
         r[5] = r[0] * width * height / 10000.0;
-        int idx999 = Math.Min(n - 1, Math.Max(0, (int)Math.Ceiling(n * 0.999) - 1));
-        double p999 = s[idx999];
-        r[6] = p999 > 0 ? 1000.0 / p999 : 0;
-        int stutterCount = 0;
-        for (int i = 0; i < n; i++) { if (s[i] > 50.0f) stutterCount++; }
-        r[7] = (double)stutterCount / n * 100.0;
         return r;
     }
 
@@ -12906,10 +12111,10 @@ float4 PS(VO i) : SV_Target
 
     public static double HistMid(int k) { return HistBase * Math.Exp((k + 0.5) * HistLog); }
 
-    // Kennzahlen aus dem Histogramm, Rückgabe wie Stats: Ø Bilder/s, 1-%-Low, Median ms, 99.-Perzentil ms, längste ms, Punktzahl, 0,1-%-Low, Mikroruckler-%
+    // Kennzahlen aus dem Histogramm, Rückgabe wie Stats: Ø Bilder/s, 1-%-Low, Median ms, 99.-Perzentil ms, längste ms, Punktzahl
     public static double[] StatsHist(long[] hist, double maxMs, double seconds, int width, int height)
     {
-        double[] r = new double[8];
+        double[] r = new double[6];
         long n = 0; for (int k = 0; k < hist.Length; k++) n += hist[k];
         if (n == 0 || seconds <= 0) return r;
         r[0] = n / seconds;
@@ -12922,26 +12127,17 @@ float4 PS(VO i) : SV_Target
         }
         double wAvg = sum / worst;
         r[1] = wAvg > 0 ? 1000.0 / wAvg : 0;
-        long half = (n + 1) / 2, p99 = (long)Math.Ceiling(n * 0.99), p999 = (long)Math.Ceiling(n * 0.999), c = 0;
-        bool hasMed = false, hasP99 = false;
-        double p999Val = 0;
+        long half = (n + 1) / 2, p99 = (long)Math.Ceiling(n * 0.99), c = 0;
+        bool hasMed = false;
         for (int k = 0; k < hist.Length; k++)
         {
             if (hist[k] == 0) continue;
             c += hist[k];
             if (!hasMed && c >= half) { r[2] = HistMid(k); hasMed = true; }
-            if (!hasP99 && c >= p99) { r[3] = HistMid(k); hasP99 = true; }
-            if (c >= p999) { p999Val = HistMid(k); break; }
+            if (c >= p99) { r[3] = HistMid(k); break; }
         }
         r[4] = maxMs;
         r[5] = r[0] * width * height / 10000.0;
-        r[6] = p999Val > 0 ? 1000.0 / p999Val : 0;
-        long stutterCount = 0;
-        for (int k = 0; k < hist.Length; k++)
-        {
-            if (hist[k] > 0 && HistMid(k) > 50.0) stutterCount += hist[k];
-        }
-        r[7] = (double)stutterCount / n * 100.0;
         return r;
     }
 
@@ -12954,13 +12150,11 @@ float4 PS(VO i) : SV_Target
         r.FrameMs = fm; r.FpsPerSecond = fps;
         double sec = r.Seconds > 0 ? r.Seconds : r.ElapsedSec;
         if (sec <= 0 || r.MeasuredFrames <= 0) return;
-        double[] st = hc > fm.Length ? StatsHist(h, hmax, sec, r.Width, r.Height) : fm.Length > 0 ? Stats(fm, sec, r.Width, r.Height) : new double[8];
+        double[] st = hc > fm.Length ? StatsHist(h, hmax, sec, r.Width, r.Height) : fm.Length > 0 ? Stats(fm, sec, r.Width, r.Height) : new double[6];
         // Ø Bilder/s aus allen gemessenen Bildern (auch denen, deren Bildzeit wegen einer Messpause nicht gewertet wurde)
         r.AvgFps = r.MeasuredFrames / sec;
         r.Low1Fps = st[1]; r.MedianMs = st[2]; r.P99Ms = st[3]; r.MaxMs = st[4];
         r.Score = r.AvgFps * r.Width * r.Height / 10000.0;
-        r.Low01Fps = st[6];
-        r.StutterPct = st[7];
         if (fps.Length > 0) { double mn = double.MaxValue, mx = 0; foreach (double v in fps) { mn = Math.Min(mn, v); mx = Math.Max(mx, v); } r.MinFps = mn; r.MaxFps = mx; }
         else { r.MinFps = r.AvgFps; r.MaxFps = r.AvgFps; }
     }
@@ -16643,7 +15837,7 @@ function ConvertTo-RenderResult($Run, $Adapter) {
         Name = $(if ($Run.AdapterName) { [string]$Run.AdapterName } else { [string]$Adapter.Name }); Art = [string]$Adapter.Art; Bezeichnung = [string]$Adapter.Bezeichnung; Index = [int]$Adapter.Index
         Ok = ([bool]$Run.Ok -and -not $hung); Fehler = $err; Haengt = $hung; Aufloesung = ('{0}x{1}' -f $Run.Width, $Run.Height); Width = [int]$Run.Width; Height = [int]$Run.Height
         Ebene = [string]$Run.FeatureLevel; Sekunden = [math]::Round($sec, 1); Bilder = [long]$Run.MeasuredFrames
-        Fps = [math]::Round([double]$Run.AvgFps, 1); Low1 = [math]::Round([double]$Run.Low1Fps, 1); Low01 = [math]::Round([double]$Run.Low01Fps, 1); Mikroruckler = [math]::Round([double]$Run.StutterPct, 2); MinFps = [math]::Round([double]$Run.MinFps, 1); MaxFps = [math]::Round([double]$Run.MaxFps, 1)
+        Fps = [math]::Round([double]$Run.AvgFps, 1); Low1 = [math]::Round([double]$Run.Low1Fps, 1); MinFps = [math]::Round([double]$Run.MinFps, 1); MaxFps = [math]::Round([double]$Run.MaxFps, 1)
         MedianMs = [math]::Round([double]$Run.MedianMs, 2); P99Ms = [math]::Round([double]$Run.P99Ms, 2); MaxMs = [math]::Round([double]$Run.MaxMs, 1); Punkte = [math]::Round([double]$Run.Score)
         Treiberreset = [bool]$Run.DeviceRemoved; ResetGrund = [string]$Run.RemovedReason; Esc = [bool]$Run.EscPressed
         Bildpruefungen = [int]$Run.ImageChecks; Bildfehler = [int]$Run.ImageErrors; Referenzbild = [string]$Run.RefHash
@@ -16785,17 +15979,11 @@ function New-RenderChartsHtml {
     foreach ($r in $runs) { $ser += @{ Name = ('{0} ({1})' -f $r.Name, $r.Bezeichnung); Cls = $cls[$k % $cls.Count]; Points = @(Get-FrameTimePoints $r.Bildzeiten) }; $k++ }
     $svg = New-MultiLineSvg $ser 'ms' @() @() 'N1'
     if ($svg) { [void]$sb.Append('<h3>Rendertest: Bildzeiten (ms, längste je Abschnitt)</h3>' + $svg) }
-    [void]$sb.Append('<div class="tw"><table><thead><tr><th>Grafikeinheit</th><th>Auflösung</th><th class="r">Ø Bilder/s</th><th class="r">1-%-Low</th><th class="r">0,1-%-Low</th><th class="r">Mikroruckler</th><th class="r">Bildzeit Median</th><th class="r">99 %</th><th class="r">Punktzahl</th><th>Bildprüfung</th></tr></thead><tbody>')
+    [void]$sb.Append('<div class="tw"><table><thead><tr><th>Grafikeinheit</th><th>Auflösung</th><th class="r">Ø Bilder/s</th><th class="r">1-%-Low</th><th class="r">Bildzeit Median</th><th class="r">99 %</th><th class="r">Punktzahl</th><th>Bildprüfung</th></tr></thead><tbody>')
     foreach ($r in @($script:GpuRender)) {
-        [void]$sb.Append(('<tr><td>{0}<small class="hint">{1}{2}</small></td><td class="nw">{3}</td><td class="num r">{4}</td><td class="num r">{5}</td><td class="num r">{6}</td><td class="num r">{7}</td><td class="num r">{8}</td><td class="num r">{9}</td><td class="num r">{10}</td><td>{11}</td></tr>' -f
+        [void]$sb.Append(('<tr><td>{0}<small class="hint">{1}{2}</small></td><td class="nw">{3}</td><td class="num r">{4}</td><td class="num r">{5}</td><td class="num r">{6}</td><td class="num r">{7}</td><td class="num r">{8}</td><td>{9}</td></tr>' -f
             (ConvertTo-HtmlText $r.Name), (ConvertTo-HtmlText $r.Bezeichnung), $(if ($r.Ebene) { ', Direct3D Feature-Level ' + $r.Ebene } else { '' }), $r.Aufloesung,
-            $(if ($r.Ok) { '{0:N1}' -f $r.Fps } else { ConvertTo-HtmlText $r.Fehler }),
-            $(if ($r.Ok) { '{0:N1}' -f $r.Low1 } else { '' }),
-            $(if ($r.Ok) { '{0:N1}' -f $r.Low01 } else { '' }),
-            $(if ($r.Ok) { '{0:N1} %' -f $r.Mikroruckler } else { '' }),
-            $(if ($r.Ok) { '{0:N2} ms' -f $r.MedianMs } else { '' }),
-            $(if ($r.Ok) { '{0:N2} ms' -f $r.P99Ms } else { '' }),
-            $(if ($r.Ok) { '{0:N0}' -f $r.Punkte } else { '' }),
+            $(if ($r.Ok) { '{0:N1}' -f $r.Fps } else { ConvertTo-HtmlText $r.Fehler }), $(if ($r.Ok) { '{0:N1}' -f $r.Low1 }), $(if ($r.Ok) { '{0:N2} ms' -f $r.MedianMs }), $(if ($r.Ok) { '{0:N2} ms' -f $r.P99Ms }), $(if ($r.Ok) { '{0:N0}' -f $r.Punkte }),
             $(if ($r.Bildpruefungen) { $(if ($r.Bildfehler) { '{0} von {1} abweichend' -f $r.Bildfehler, $r.Bildpruefungen } else { 'gleich ({0}x)' -f $r.Bildpruefungen }) } else { '' })))
     }
     [void]$sb.Append('</tbody></table></div>')
@@ -17585,7 +16773,7 @@ Invoke-Section 'Geräte und Treiber' {
     } else { Add-Line '  Keine.' }
 }
 
-Invoke-Section 'Updates' -Skippable {
+Invoke-Section 'Updates' {
     try {
         $au = (New-Object -ComObject Microsoft.Update.AutoUpdate).Results
         Add-Line ('  Letzte erfolgreiche Suche       : {0}' -f $au.LastSearchSuccessDate)
@@ -17660,7 +16848,7 @@ Invoke-Section 'Installierte Software' {
 }
 
 if ($script:Opt['Integritaet']) {
-    Invoke-Section 'Test: Dateisystem und Systemdateien' -Skippable {
+    Invoke-Section 'Test: Dateisystem und Systemdateien' {
         Add-Sub 'Dateisystem-Onlinescan (chkdsk /scan)'
         $volRes = New-Object System.Collections.ArrayList
         foreach ($v in (Get-Volume | Where-Object { $_.DriveLetter -and $_.FileSystem -in 'NTFS', 'ReFS' -and $_.DriveType -eq 'Fixed' })) {
@@ -17726,7 +16914,7 @@ if ($script:Opt['Integritaet']) {
 }
 
 if ($script:Opt['Defender'] -and $script:DefenderActive) {
-    Invoke-Section 'Test: Microsoft Defender Schnellscan' -Skippable {
+    Invoke-Section 'Test: Microsoft Defender Schnellscan' {
         $t0 = Get-Date
         $bj = $null
         if (Test-BgJob 'Defender') {
@@ -17765,7 +16953,7 @@ if ($script:Opt['Defender'] -and $script:DefenderActive) {
 # ---------- SMART-Langtest starten (läuft in der Laufwerksfirmware weiter) ----------
 $script:SmartTests = @()
 if ($script:Opt['SmartLang'] -and $script:Smartctl -and @($script:SmartDevices).Count) {
-    Invoke-Section 'Test: SMART-Langtest wird gestartet' -Skippable {
+    Invoke-Section 'Test: SMART-Langtest wird gestartet' {
         # Schneller Modus: Die Tests wurden schon im Hintergrund gestartet (früherer Start, kürzere Wartezeit am Ende)
         $bj = $null; $early = @{}
         if (Test-BgJob 'SmartLang') { $bj = Wait-BgJob 'SmartLang' 'SMART-Langtest starten' 300; foreach ($e in @($bj.Ergebnis | Where-Object { $_ })) { $early[[string]$e.Name] = $e } }
@@ -17860,7 +17048,7 @@ if ($script:Opt['Netzwerk']) {
 }
 
 if ($script:Opt['RamTest']) {
-    Invoke-Section 'Test: Arbeitsspeicher (Mustertest)' -Skippable {
+    Invoke-Section 'Test: Arbeitsspeicher (Mustertest)' {
         if (-not $TypesLoaded) { Add-Line '  Übersprungen: C#-Testroutinen nicht verfügbar (Constrained Language Mode / AppLocker).'; return }
         $os = Get-CimCached Win32_OperatingSystem | Select-Object -First 1
         $free = [long]$os.FreePhysicalMemory * 1KB
@@ -17891,7 +17079,7 @@ Invoke-Section 'Windows-Speicherdiagnose (frühere Ergebnisse)' {
 # CPU-Stabilität und Drosselung: ab v2.7 nur noch im Modul Lasttest (CPU), dort mit eigenem Lastprozess, Sensorkurven
 # und Drosselnachweis. Der kurze Test der Diagnose maß dasselbe mit weniger Aussagekraft.
 
-Invoke-Section 'Energie' -Skippable {
+Invoke-Section 'Energie' {
     $as = Invoke-External -File 'powercfg.exe' -Arguments '/getactivescheme'
     Add-Line ('  ' + $as.Output.Trim())
     Add-Sub 'Verfügbare Standbymodi'
@@ -17927,7 +17115,7 @@ Invoke-Section 'Energie' -Skippable {
 
 # ---------- Auf SMART-Langtest warten ----------
 if ($script:SmartTests | Where-Object Status -eq 'läuft') {
-    Invoke-Section 'Test: SMART-Langtest Ergebnis' -Skippable {
+    Invoke-Section 'Test: SMART-Langtest Ergebnis' {
         $deadline = ($script:SmartTests | Sort-Object Start | Select-Object -First 1).Start.AddMinutes($SmartTimeoutMinutes)
         Write-Step ('Warte auf den SMART-Langtest (maximal bis {0:HH:mm} Uhr). Die Schaltfläche "Test beenden" beendet das Warten, der Bericht wird trotzdem erstellt.' -f $deadline)
         $skipWait = $false
@@ -18353,7 +17541,7 @@ $script:BenchT0 = Get-Date; $script:BenchPause = $null
 Start-PauseWatch
 
 if ($script:BenchSel['CPU']) {
-    Invoke-Section 'Benchmark: Prozessor' -Skippable {
+    Invoke-Section 'Benchmark: Prozessor' {
         Initialize-Bench
         Set-BenchSensorPart 'Prozessor'
         Set-BenchPausePart 'Prozessor'
@@ -18472,7 +17660,7 @@ if ($script:BenchSel['RAM']) {
 }
 
 if ($script:BenchSel['GPU']) {
-    Invoke-Section 'Benchmark: Grafik' -Skippable {
+    Invoke-Section 'Benchmark: Grafik' {
         Initialize-Bench
         Set-BenchSensorPart 'Grafik'
         Set-BenchPausePart 'Grafik'
@@ -18577,7 +17765,7 @@ if ($script:BenchSel['GPU']) {
                         $isLead = -not $leadDone; $leadDone = $true
                         if ($isLead) { $renderFps = $res.Fps; $script:BenchGpuMeasured = $res.Name }
                         $bStat = $(if ($st -eq 'Fehler') { 'Warnung' } else { 'OK' })
-                        $hint = ('{0}, {1}, Direct3D-Feature-Level {2}, Ø {3:N1} Bilder/s, 1-%-Low {4:N1}, 0,1-%-Low {5:N1}, Mikroruckler {6:N1} %, Bildzeit Median {7:N2} ms, 99 % {8:N2} ms, Bildprüfung {9}' -f $res.Name, $res.Aufloesung, $res.Ebene, $res.Fps, $res.Low1, $res.Low01, $res.Mikroruckler, $res.MedianMs, $res.P99Ms, $(if ($res.Bildfehler) { '{0} von {1} abweichend' -f $res.Bildfehler, $res.Bildpruefungen } else { 'bitgleich' }))
+                        $hint = ('{0}, {1}, Direct3D-Feature-Level {2}, Ø {3:N1} Bilder/s, 1-%-Low {4:N1}, Bildzeit Median {5:N2} ms, 99 % {6:N2} ms, Bildprüfung {7}' -f $res.Name, $res.Aufloesung, $res.Ebene, $res.Fps, $res.Low1, $res.MedianMs, $res.P99Ms, $(if ($res.Bildfehler) { '{0} von {1} abweichend' -f $res.Bildfehler, $res.Bildpruefungen } else { 'bitgleich' }))
                         # Bildratengrenze (ab v2.65): Gegenprobe mit einem Viertel der Rechenlast vor der Messung
                         if ($res.Grenze -and $res.Grenze.Begrenzt) {
                             Add-Finding WARNUNG 'Grafik' ('{0} ({1}): {2}' -f $res.Name, $res.Bezeichnung, $res.Grenze.Text)
@@ -18587,10 +17775,8 @@ if ($script:BenchSel['GPU']) {
                         }
                         Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Rendertest' + $suffix) -Wert $res.Fps -Einheit 'Bilder/s' -Anzeige ('{0:N0} Bilder/s' -f $res.Fps) -Key ('GPU|' + $res.Name + '|REND|' + $res.Aufloesung) -RefKey $(if ($isLead -and $res.Aufloesung -eq '1280x720') { 'GPU|REND' } else { '' }) -Hinweis $hint -Status $bStat
                         Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Rendertest 1-%-Low' + $suffix) -Wert $res.Low1 -Einheit 'Bilder/s' -Anzeige ('{0:N0} Bilder/s' -f $res.Low1) -Key ('GPU|' + $res.Name + '|REND1|' + $res.Aufloesung) -RefKey $(if ($isLead -and $res.Aufloesung -eq '1280x720') { 'GPU|REND1' } else { '' }) -Hinweis 'Bilder/s aus den langsamsten 1 % der Bildzeiten (Ruckler)'
-                        Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Rendertest 0,1-%-Low' + $suffix) -Wert $res.Low01 -Einheit 'Bilder/s' -Anzeige ('{0:N0} Bilder/s' -f $res.Low01) -Key ('GPU|' + $res.Name + '|REND01|' + $res.Aufloesung) -RefKey $(if ($isLead -and $res.Aufloesung -eq '1280x720') { 'GPU|REND01' } else { '' }) -Hinweis 'Bilder/s aus dem 99,9. Perzentil der Bildzeiten (0,1 % Low)'
-                        Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Mikroruckler-Anteil' + $suffix) -Wert $res.Mikroruckler -Einheit '%' -Anzeige ('{0:N1} %' -f $res.Mikroruckler) -Key ('GPU|' + $res.Name + '|STUTTER') -RefKey $(if ($isLead) { 'GPU|STUTTER' } else { '' }) -Hinweis 'Anteil der Bilder mit Bildzeit über 50 ms'
                         Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Rendertest Punktzahl' + $suffix) -Wert $res.Punkte -Einheit 'Punkte' -Anzeige ('{0:N0} Punkte' -f $res.Punkte) -Key ('GPU|' + $res.Name + '|RPKT') -RefKey $(if ($isLead) { 'GPU|RPKT' } else { '' }) -Hinweis 'Ø Bilder/s x Pixel je Bild / 10 000, vergleichbar über die Auflösungen'
-                        Add-Line ('  {0} ({1}): Ø {2:N1} Bilder/s, 1-%-Low {3:N1}, 0,1-%-Low {4:N1}, Mikroruckler {5:N1} %, Punktzahl {6:N0}, {7:N0} Bilder in {8:N1} s' -f $res.Name, $res.Bezeichnung, $res.Fps, $res.Low1, $res.Low01, $res.Mikroruckler, $res.Punkte, $res.Bilder, $res.Sekunden)
+                        Add-Line ('  {0} ({1}): Ø {2:N1} Bilder/s, 1-%-Low {3:N1}, Punktzahl {4:N0}, {5:N0} Bilder in {6:N1} s' -f $res.Name, $res.Bezeichnung, $res.Fps, $res.Low1, $res.Punkte, $res.Bilder, $res.Sekunden)
                         try {
                             $csv = Join-Path $RawDir ('Rendertest_{0}.csv' -f (Get-SafeName $res.Name))
                             $acc = 0.0

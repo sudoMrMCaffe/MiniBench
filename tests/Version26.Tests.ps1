@@ -141,7 +141,7 @@ Describe 'Rendertest: Kennzahlen' {
         [math]::Round($r[5]) | Should -Be ([math]::Round(1000 / 10.4 * 1280 * 720 / 10000))
     }
     It 'leere Messung ergibt Nullen' {
-        @([GpuStatsTest]::Stats([float[]]@(), 0, 1280, 720)) | Should -Be @(0, 0, 0, 0, 0, 0)
+        @([GpuStatsTest]::Stats([float[]]@(), 0, 1280, 720)) | Should -Be @(0, 0, 0, 0, 0, 0, 0, 0)
     }
     It 'Prüfsumme des Referenzbilds unterscheidet sich schon bei einem Byte' {
         $a = [byte[]](1..100); $b = [byte[]](1..100); $b[50] = 0

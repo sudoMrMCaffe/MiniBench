@@ -5,6 +5,19 @@ Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Verweis Versionshistorie oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
 
+VERSION 3.0   (05.10.2026)  DUAL-RUNTIME (POWERSHELL 7 / 5.1), SICHERES ÜBERSPRINGEN, 0,1 %-LOW & MIKRORUCKLER
+====================================================================================================
+Dual-Runtime-Unterstützung: Automatische Bevorzugung von PowerShell 7 (pwsh.exe) für maximale Geschwindigkeit
+mit nahtlosem Fallback auf Windows PowerShell 5.1 für 100 % portable Ausführung vom USB-Stick.
+Sicheres Überspringen langwieriger Einzelschritte mit dynamischer Freigabe (SKIP_ALLOWED) in Oberfläche und Skript.
+Hintergrundjobs werden bei Überspringen sauber gestoppt; Behebung des Abbruchfehlers (Add-TestResult).
+Erweiterte Frametime-Analyse im Rendertest: Erfassung von 0,1 %-Low FPS und Mikroruckler-Anteil (Frames über 50 ms)
+in Messwerten, Kurvengrafik und HTML-Bericht.
+Fünf eingebettete Referenzprofile (Desktop High-End bis Notebook Standard) direkt im Build für sofortige Vergleiche
+ohne externe Dateien. Standard-Referenz Desktop Mittelklasse wird automatisch aktiv.
+Bereinigte Benchmark-Darstellung im HTML-Bericht mit bewährter Detailtabellen-Optik (Messung, Wert, Index,
+Referenz, Vergleich, Ergebnis) unter Beibehaltung des Gesamtleistungs-Banners und der Profilkarten.
+
 VERSION 2.95  (05.10.2026)  ANONYME VERGLEICHSDATEN, BENCHMARK-PROFILE, MINIDUMP-INSPECTOR, SCHRITT ÜBERSPRINGEN
 ====================================================================================================
 Feste Einbindung von fünf anonymisierten, bereinigten Referenzsystemen von Desktop High-End bis Notebook Standard

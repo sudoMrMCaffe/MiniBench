@@ -1,4 +1,4 @@
-﻿# Reihenfolge der Quelltextteile für LeosMinibench.ps1 (Bauen.cmd fügt sie in dieser Reihenfolge zusammen).
+# Reihenfolge der Quelltextteile für LeosMinibench.ps1 (Bauen.cmd fügt sie in dieser Reihenfolge zusammen).
 # Zeilen mit #>> EINBINDEN in einem Teil werden durch die genannte Datei ersetzt (Oberfläche und Testroutinen in C#).
 
 00_Kopf.ps1
@@ -6,6 +6,7 @@ Kern\Ereigniskanal.ps1
 Kern\Kodierung.ps1
 Kern\Adminrechte.ps1
 Kern\Version.ps1
+Kern\Referenzen_Eingebettet.ps1
 Kern\Datenordner.ps1
 Kern\Datenpflege.ps1
 Kern\Startzeit.ps1

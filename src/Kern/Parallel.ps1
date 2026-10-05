@@ -101,6 +101,10 @@ function Wait-BgJob([string]$Key, [string]$Activity = '', [int]$TimeoutSec = 360
     while ($j.Status -in 'wartet', 'läuft') {
         Update-BgJobs -Force
         if ($j.Status -notin 'wartet', 'läuft') { break }
+        if ((Get-Command Test-SkipRequested -ErrorAction SilentlyContinue) -and (Test-SkipRequested)) {
+            Stop-BgJob $j 'Vom Benutzer übersprungen'
+            break
+        }
         if ($Activity) { Show-Sub $Activity ('läuft im Hintergrund seit {0:mm\:ss}' -f $(if ($j.Start) { (Get-Date) - $j.Start } else { [TimeSpan]::Zero })) }
         if ($sw.Elapsed.TotalSeconds -ge $TimeoutSec) { Stop-BgJob $j ('nach {0} Minuten abgebrochen' -f [math]::Max(1, [int]($TimeoutSec / 60))); break }
         Start-Sleep -Milliseconds 400

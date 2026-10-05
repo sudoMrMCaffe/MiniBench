@@ -169,7 +169,7 @@ $script:BenchT0 = Get-Date; $script:BenchPause = $null
 Start-PauseWatch
 
 if ($script:BenchSel['CPU']) {
-    Invoke-Section 'Benchmark: Prozessor' {
+    Invoke-Section 'Benchmark: Prozessor' -Skippable {
         Initialize-Bench
         Set-BenchSensorPart 'Prozessor'
         Set-BenchPausePart 'Prozessor'
@@ -288,7 +288,7 @@ if ($script:BenchSel['RAM']) {
 }
 
 if ($script:BenchSel['GPU']) {
-    Invoke-Section 'Benchmark: Grafik' {
+    Invoke-Section 'Benchmark: Grafik' -Skippable {
         Initialize-Bench
         Set-BenchSensorPart 'Grafik'
         Set-BenchPausePart 'Grafik'
@@ -393,7 +393,7 @@ if ($script:BenchSel['GPU']) {
                         $isLead = -not $leadDone; $leadDone = $true
                         if ($isLead) { $renderFps = $res.Fps; $script:BenchGpuMeasured = $res.Name }
                         $bStat = $(if ($st -eq 'Fehler') { 'Warnung' } else { 'OK' })
-                        $hint = ('{0}, {1}, Direct3D-Feature-Level {2}, Ø {3:N1} Bilder/s, 1-%-Low {4:N1}, Bildzeit Median {5:N2} ms, 99 % {6:N2} ms, Bildprüfung {7}' -f $res.Name, $res.Aufloesung, $res.Ebene, $res.Fps, $res.Low1, $res.MedianMs, $res.P99Ms, $(if ($res.Bildfehler) { '{0} von {1} abweichend' -f $res.Bildfehler, $res.Bildpruefungen } else { 'bitgleich' }))
+                        $hint = ('{0}, {1}, Direct3D-Feature-Level {2}, Ø {3:N1} Bilder/s, 1-%-Low {4:N1}, 0,1-%-Low {5:N1}, Mikroruckler {6:N1} %, Bildzeit Median {7:N2} ms, 99 % {8:N2} ms, Bildprüfung {9}' -f $res.Name, $res.Aufloesung, $res.Ebene, $res.Fps, $res.Low1, $res.Low01, $res.Mikroruckler, $res.MedianMs, $res.P99Ms, $(if ($res.Bildfehler) { '{0} von {1} abweichend' -f $res.Bildfehler, $res.Bildpruefungen } else { 'bitgleich' }))
                         # Bildratengrenze (ab v2.65): Gegenprobe mit einem Viertel der Rechenlast vor der Messung
                         if ($res.Grenze -and $res.Grenze.Begrenzt) {
                             Add-Finding WARNUNG 'Grafik' ('{0} ({1}): {2}' -f $res.Name, $res.Bezeichnung, $res.Grenze.Text)
@@ -403,8 +403,10 @@ if ($script:BenchSel['GPU']) {
                         }
                         Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Rendertest' + $suffix) -Wert $res.Fps -Einheit 'Bilder/s' -Anzeige ('{0:N0} Bilder/s' -f $res.Fps) -Key ('GPU|' + $res.Name + '|REND|' + $res.Aufloesung) -RefKey $(if ($isLead -and $res.Aufloesung -eq '1280x720') { 'GPU|REND' } else { '' }) -Hinweis $hint -Status $bStat
                         Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Rendertest 1-%-Low' + $suffix) -Wert $res.Low1 -Einheit 'Bilder/s' -Anzeige ('{0:N0} Bilder/s' -f $res.Low1) -Key ('GPU|' + $res.Name + '|REND1|' + $res.Aufloesung) -RefKey $(if ($isLead -and $res.Aufloesung -eq '1280x720') { 'GPU|REND1' } else { '' }) -Hinweis 'Bilder/s aus den langsamsten 1 % der Bildzeiten (Ruckler)'
+                        Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Rendertest 0,1-%-Low' + $suffix) -Wert $res.Low01 -Einheit 'Bilder/s' -Anzeige ('{0:N0} Bilder/s' -f $res.Low01) -Key ('GPU|' + $res.Name + '|REND01|' + $res.Aufloesung) -RefKey $(if ($isLead -and $res.Aufloesung -eq '1280x720') { 'GPU|REND01' } else { '' }) -Hinweis 'Bilder/s aus dem 99,9. Perzentil der Bildzeiten (0,1 % Low)'
+                        Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Mikroruckler-Anteil' + $suffix) -Wert $res.Mikroruckler -Einheit '%' -Anzeige ('{0:N1} %' -f $res.Mikroruckler) -Key ('GPU|' + $res.Name + '|STUTTER') -RefKey $(if ($isLead) { 'GPU|STUTTER' } else { '' }) -Hinweis 'Anteil der Bilder mit Bildzeit über 50 ms'
                         Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Rendertest Punktzahl' + $suffix) -Wert $res.Punkte -Einheit 'Punkte' -Anzeige ('{0:N0} Punkte' -f $res.Punkte) -Key ('GPU|' + $res.Name + '|RPKT') -RefKey $(if ($isLead) { 'GPU|RPKT' } else { '' }) -Hinweis 'Ø Bilder/s x Pixel je Bild / 10 000, vergleichbar über die Auflösungen'
-                        Add-Line ('  {0} ({1}): Ø {2:N1} Bilder/s, 1-%-Low {3:N1}, Punktzahl {4:N0}, {5:N0} Bilder in {6:N1} s' -f $res.Name, $res.Bezeichnung, $res.Fps, $res.Low1, $res.Punkte, $res.Bilder, $res.Sekunden)
+                        Add-Line ('  {0} ({1}): Ø {2:N1} Bilder/s, 1-%-Low {3:N1}, 0,1-%-Low {4:N1}, Mikroruckler {5:N1} %, Punktzahl {6:N0}, {7:N0} Bilder in {8:N1} s' -f $res.Name, $res.Bezeichnung, $res.Fps, $res.Low1, $res.Low01, $res.Mikroruckler, $res.Punkte, $res.Bilder, $res.Sekunden)
                         try {
                             $csv = Join-Path $RawDir ('Rendertest_{0}.csv' -f (Get-SafeName $res.Name))
                             $acc = 0.0

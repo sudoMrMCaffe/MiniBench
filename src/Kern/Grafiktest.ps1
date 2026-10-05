@@ -119,7 +119,7 @@ function ConvertTo-RenderResult($Run, $Adapter) {
         Name = $(if ($Run.AdapterName) { [string]$Run.AdapterName } else { [string]$Adapter.Name }); Art = [string]$Adapter.Art; Bezeichnung = [string]$Adapter.Bezeichnung; Index = [int]$Adapter.Index
         Ok = ([bool]$Run.Ok -and -not $hung); Fehler = $err; Haengt = $hung; Aufloesung = ('{0}x{1}' -f $Run.Width, $Run.Height); Width = [int]$Run.Width; Height = [int]$Run.Height
         Ebene = [string]$Run.FeatureLevel; Sekunden = [math]::Round($sec, 1); Bilder = [long]$Run.MeasuredFrames
-        Fps = [math]::Round([double]$Run.AvgFps, 1); Low1 = [math]::Round([double]$Run.Low1Fps, 1); MinFps = [math]::Round([double]$Run.MinFps, 1); MaxFps = [math]::Round([double]$Run.MaxFps, 1)
+        Fps = [math]::Round([double]$Run.AvgFps, 1); Low1 = [math]::Round([double]$Run.Low1Fps, 1); Low01 = [math]::Round([double]$Run.Low01Fps, 1); Mikroruckler = [math]::Round([double]$Run.StutterPct, 2); MinFps = [math]::Round([double]$Run.MinFps, 1); MaxFps = [math]::Round([double]$Run.MaxFps, 1)
         MedianMs = [math]::Round([double]$Run.MedianMs, 2); P99Ms = [math]::Round([double]$Run.P99Ms, 2); MaxMs = [math]::Round([double]$Run.MaxMs, 1); Punkte = [math]::Round([double]$Run.Score)
         Treiberreset = [bool]$Run.DeviceRemoved; ResetGrund = [string]$Run.RemovedReason; Esc = [bool]$Run.EscPressed
         Bildpruefungen = [int]$Run.ImageChecks; Bildfehler = [int]$Run.ImageErrors; Referenzbild = [string]$Run.RefHash
@@ -261,11 +261,17 @@ function New-RenderChartsHtml {
     foreach ($r in $runs) { $ser += @{ Name = ('{0} ({1})' -f $r.Name, $r.Bezeichnung); Cls = $cls[$k % $cls.Count]; Points = @(Get-FrameTimePoints $r.Bildzeiten) }; $k++ }
     $svg = New-MultiLineSvg $ser 'ms' @() @() 'N1'
     if ($svg) { [void]$sb.Append('<h3>Rendertest: Bildzeiten (ms, längste je Abschnitt)</h3>' + $svg) }
-    [void]$sb.Append('<div class="tw"><table><thead><tr><th>Grafikeinheit</th><th>Auflösung</th><th class="r">Ø Bilder/s</th><th class="r">1-%-Low</th><th class="r">Bildzeit Median</th><th class="r">99 %</th><th class="r">Punktzahl</th><th>Bildprüfung</th></tr></thead><tbody>')
+    [void]$sb.Append('<div class="tw"><table><thead><tr><th>Grafikeinheit</th><th>Auflösung</th><th class="r">Ø Bilder/s</th><th class="r">1-%-Low</th><th class="r">0,1-%-Low</th><th class="r">Mikroruckler</th><th class="r">Bildzeit Median</th><th class="r">99 %</th><th class="r">Punktzahl</th><th>Bildprüfung</th></tr></thead><tbody>')
     foreach ($r in @($script:GpuRender)) {
-        [void]$sb.Append(('<tr><td>{0}<small class="hint">{1}{2}</small></td><td class="nw">{3}</td><td class="num r">{4}</td><td class="num r">{5}</td><td class="num r">{6}</td><td class="num r">{7}</td><td class="num r">{8}</td><td>{9}</td></tr>' -f
+        [void]$sb.Append(('<tr><td>{0}<small class="hint">{1}{2}</small></td><td class="nw">{3}</td><td class="num r">{4}</td><td class="num r">{5}</td><td class="num r">{6}</td><td class="num r">{7}</td><td class="num r">{8}</td><td class="num r">{9}</td><td class="num r">{10}</td><td>{11}</td></tr>' -f
             (ConvertTo-HtmlText $r.Name), (ConvertTo-HtmlText $r.Bezeichnung), $(if ($r.Ebene) { ', Direct3D Feature-Level ' + $r.Ebene } else { '' }), $r.Aufloesung,
-            $(if ($r.Ok) { '{0:N1}' -f $r.Fps } else { ConvertTo-HtmlText $r.Fehler }), $(if ($r.Ok) { '{0:N1}' -f $r.Low1 }), $(if ($r.Ok) { '{0:N2} ms' -f $r.MedianMs }), $(if ($r.Ok) { '{0:N2} ms' -f $r.P99Ms }), $(if ($r.Ok) { '{0:N0}' -f $r.Punkte }),
+            $(if ($r.Ok) { '{0:N1}' -f $r.Fps } else { ConvertTo-HtmlText $r.Fehler }),
+            $(if ($r.Ok) { '{0:N1}' -f $r.Low1 } else { '' }),
+            $(if ($r.Ok) { '{0:N1}' -f $r.Low01 } else { '' }),
+            $(if ($r.Ok) { '{0:N1} %' -f $r.Mikroruckler } else { '' }),
+            $(if ($r.Ok) { '{0:N2} ms' -f $r.MedianMs } else { '' }),
+            $(if ($r.Ok) { '{0:N2} ms' -f $r.P99Ms } else { '' }),
+            $(if ($r.Ok) { '{0:N0}' -f $r.Punkte } else { '' }),
             $(if ($r.Bildpruefungen) { $(if ($r.Bildfehler) { '{0} von {1} abweichend' -f $r.Bildfehler, $r.Bildpruefungen } else { 'gleich ({0}x)' -f $r.Bildpruefungen }) } else { '' })))
     }
     [void]$sb.Append('</tbody></table></div>')

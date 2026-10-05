@@ -1,4 +1,4 @@
-﻿# Lasttest im HTML-Bericht: Drosselnachweis und Kurven für Temperatur, Takt, Leistung und Lüfter.
+# Lasttest im HTML-Bericht: Drosselnachweis und Kurven für Temperatur, Takt, Leistung und Lüfter.
 # Ab v2.7 auch für den Benchmark: eigene Messreihe, Marken am Beginn jedes Abschnitts, ohne Drosselnachweis.
 function New-LoadChartsHtml {
     param($Series = $script:LoadSeries, $Throttle = $script:LoadThrottle, $Abort = $script:LoadAbort, $Limits = $script:LoadLimits, $Marken = $null, $GpuLoad = $script:GpuLoad)
@@ -189,21 +189,14 @@ function New-HtmlReport {
                 }
                 [void]$sb.Append('</tbody></table></div><p class="note tight">Lesen und Schreiben sequentiell mit 1 MiB-Blöcken, 4K-Werte in Zugriffen pro Sekunde, jeweils ohne Windows-Cache. Details beim Überfahren einer Zeile.</p>')
             } else {
-                [void]$sb.Append('<div class="bench-cols">')
-                $word = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { Get-BenchRatingWord $g.RefPct } else { (ConvertTo-HtmlText $g.Status) }
-                $pctTxt = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { ('{0} %' -f $g.RefPct) } else { '' }
-                $bar = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { Get-RefBar $g.RefPct $gc -Small } else { '' }
-                [void]$sb.Append(('<div class="bcol bcol-main"><div class="bname">Gesamtwert</div><div class="bscore">{0}</div><div class="bword">{1}</div><div class="bbar">{2}</div></div>' -f
-                    $pctTxt, (ConvertTo-HtmlText $word), $bar))
-
+                [void]$sb.Append('<div class="tw"><table><thead><tr><th>Messung</th><th class="r">Wert</th><th>Index</th><th>Referenz</th><th>Vergleich</th><th>Ergebnis</th></tr></thead><tbody>')
                 foreach ($b in $g.Items) {
                     $c = $bcls[[string]$b.Status]; if (-not $c) { $c = 'info' }
-                    $subBar = if ($null -ne $b.RefPct -and [double]$b.RefPct -gt 0) { Get-RefBar $b.RefPct 'info' -Small } else { '' }
-                    $delta = Get-DeltaHtml $b.Vergleich
-                    [void]$sb.Append(('<div class="bcol"><div class="bname" title="{0}">{1}</div><div class="bval">{2}</div><div class="bbar">{3}</div><div class="bdelta">{4}</div></div>' -f
-                        (ConvertTo-HtmlText $b.Hinweis), (ConvertTo-HtmlText $b.Messung), (ConvertTo-HtmlText $b.Anzeige), $subBar, $delta))
+                    [void]$sb.Append(('<tr><td>{0}{1}</td><td class="num r">{2}</td><td class="idx">{3}</td><td class="num nw">{4}</td><td class="nw">{5}</td><td><span class="badge {6}">{7}</span></td></tr>' -f
+                        (ConvertTo-HtmlText $b.Messung), $(if ($b.Hinweis) { '<small class="hint">' + (ConvertTo-HtmlText $b.Hinweis) + '</small>' } else { '' }), (ConvertTo-HtmlText $b.Anzeige),
+                        (& $idxHtml $b.Index $b.Status), ((Get-RefBar $b.RefPct 'info' -Small) + (ConvertTo-HtmlText $b.Referenz)), (Get-DeltaHtml $b.Vergleich), $c, (ConvertTo-HtmlText $b.Status)))
                 }
-                [void]$sb.Append('</div>')
+                [void]$sb.Append('</tbody></table></div>')
                 if ($gk -eq 'GPU') { [void]$sb.Append((New-RenderChartsHtml)) }
             }
             [void]$sb.Append('</details>')

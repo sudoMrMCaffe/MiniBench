@@ -24,6 +24,30 @@ function Read-SrcLines([string]$Path) {
     return , ($t -split "`n")
 }
 
+function Update-EmbeddedReferences([string]$SrcDir) {
+    $refDir = Join-Path $SrcDir 'Daten\Referenzen'
+    if (-not (Test-Path -LiteralPath $refDir)) { return }
+    $files = @(Get-ChildItem -LiteralPath $refDir -Filter '*.json' | Sort-Object Name)
+    if ($files.Count -eq 0) { return }
+    $sb = New-Object System.Text.StringBuilder
+    [void]$sb.AppendLine('# Eingebettete Referenzprofile für Leos Minibench (v3.0)')
+    [void]$sb.AppendLine('$script:EmbeddedReferences = @{')
+    foreach ($f in $files) {
+        $json = [IO.File]::ReadAllText($f.FullName, [Text.Encoding]::UTF8)
+        [void]$sb.AppendLine(('    ''{0}'' = @''' -f $f.Name))
+        [void]$sb.AppendLine($json.Trim())
+        [void]$sb.AppendLine('''@')
+    }
+    [void]$sb.AppendLine('}')
+    $target = Join-Path $SrcDir 'Kern\Referenzen_Eingebettet.ps1'
+    $utf8Bom = New-Object Text.UTF8Encoding($true)
+    $text = $sb.ToString().Replace("`r`n", "`n").Replace("`n", "`r`n")
+    $cur = if (Test-Path -LiteralPath $target) { [IO.File]::ReadAllText($target, [Text.Encoding]::UTF8) } else { '' }
+    if ($cur -ne $text) {
+        [IO.File]::WriteAllText($target, $text, $utf8Bom)
+    }
+}
+
 function Invoke-MinibenchBuild {
     param(
         [Parameter(Mandatory = $true)][string]$SrcDir,
@@ -31,6 +55,7 @@ function Invoke-MinibenchBuild {
         [switch]$Erzwingen
     )
     $SrcDir = (Resolve-Path -LiteralPath $SrcDir).Path
+    try { Update-EmbeddedReferences $SrcDir } catch { }
     $fehler = New-Object System.Collections.Generic.List[string]
     $warn = New-Object System.Collections.Generic.List[string]
     $out = New-Object System.Collections.Generic.List[string]

@@ -1,0 +1,84 @@
+﻿LEOS MINIBENCH 3.0: ÄNDERUNGEN
+==============================
+
+Version 3.0 modernisiert die Laufzeitarchitektur von Leos Minibench, behebt Fehler beim Abbruch von Einzelschritten,
+schützt kritische Systemprüfungen vor vorzeitigem Überspringen, erweitert die Frametime-Analyse im Rendertest
+um 0,1 %-Low FPS und Mikroruckler, bettet Referenzprofile fest in den Build ein und stellt die bewährte tabellarische
+Detailoptik im Benchmark-Bericht wieder her.
+
+1. FEHLERBEHEBUNG UND SICHERES SCHRITT-ÜBERSPRINGEN
+   Fehlerbehebung des Skriptabbruchs: In src\Kern\Berichtshilfen.ps1 wurden die Aufrufe von Add-Test durch
+   Add-TestResult ersetzt. Das Überspringen eines Schritts führt nicht mehr zu einer unbehandelten
+   CommandNotFoundException.
+   Schutz kritischer Systemprüfungen: In Invoke-Section wurde der Parameter -Skippable (Standard: $false)
+   eingeführt. Ausschließlich langwierige Einzelschritte (Updatesuche, Defender Schnellscan, SMART-Langtest,
+   RAM-Mustertest, Energieanalyse, Integritätsprüfung sowie CPU- und GPU-Benchmarkschritte) dürfen übersprungen
+   werden. Kritische System- und Hardware-Erkennungen können nicht übersprungen werden.
+   Ereignissteuerung der Oberfläche: Beim Abschnittswechsel sendet das Skript @@SKIP_ALLOWED|1 bzw. @@SKIP_ALLOWED|0.
+   In src\Oberflaeche\DiagGui.cs wird die Schaltfläche "Diesen Schritt überspringen" nur dann aktiviert, wenn der
+   aktuelle Schritt als überspringbar freigegeben ist.
+   Geordneter Abbruch von Hintergrund-Jobs: In Wait-BgJob (src\Kern\Parallel.ps1) wird bei gesetztem Abbruch-Signal
+   der Hintergrundjob über Stop-BgJob mit der Begründung "Vom Benutzer übersprungen" beendet und die Warteschleife
+   geordnet verlassen.
+
+2. EINGEBETTETE REFERENZEN UND TABELLENOPTIK IM BENCHMARK
+   Feste Einbettung: Fünf bereinigte und anonymisierte Referenzprofile (Desktop High-End, Workstation Mobil,
+   Desktop Mittelklasse, Mini-PC APU, Notebook Standard) sind als serialisierte Datenstruktur in
+   src\Kern\Referenzen_Eingebettet.ps1 fest in den Quellcode und den Build eingebunden.
+   Automatisches Entpacken: Ist der Ordner Minibench-Daten\Datenbank leer oder nicht vorhanden, entpackt Minibench
+   die eingebetteten Referenzen beim Programmstart automatisch.
+   Standard-Referenz Desktop Mittelklasse: Existiert noch keine Referenz.json, lädt Get-SavedReference automatisch
+   das Profil Desktop Mittelklasse als Standard-Referenz. Usecase-Karten und relative Prozentwerte stehen somit auch
+   beim Erststart einer isolierten exe ohne Begleitordner sofort zur Verfügung.
+   Tabellenoptik in Detailbereichen: In den aufgeklappten Gruppen für Prozessor, Grafikkarte und Arbeitsspeicher
+   des HTML-Berichts (src\Bericht\HtmlBericht.ps1) wurde die bewährte tabellarische Darstellung aus v2.9
+   (Messung | Wert | Index | Referenz | Vergleich | Ergebnis) wiederhergestellt. Das Gesamtleistungs-Banner
+   und die Usecase-Karten (Gaming, Büro/Desktop, Workstation) bleiben prominent ganz oben erhalten.
+   Die Frametime-Kurvengrafik unterhalb der GPU-Tabelle bleibt ebenfalls erhalten.
+
+3. FRAMETIME-LATENZEN: 0,1 %-LOW UND MIKRORUCKLER
+   Statistikerweiterung in Grafiktest.cs: GpuRun sowie Stats() und StatsHist() wurden um zwei Kennzahlen erweitert:
+   Low01Fps: 0,1 %-Low FPS aus dem 99,9. Perzentil der Bildzeiten (1000 / P99.9).
+   StutterPct: Mikroruckler-Anteil als prozentualer Anteil aller Frames mit einer Bildzeit über 50 ms.
+   Ergebniskonvertierung: ConvertTo-RenderResult in src\Kern\Grafiktest.ps1  Low01 und Mikroruckler in
+   die Testergebnisse.
+   Benchmark-Registrierung: Ablauf.ps1 registriert GPU|...|REND01 und GPU|...|STUTTER in den Benchmark-Ergebnissen.
+   Mikroruckler wird als Metrik mit "niedriger ist besser" bewertet.
+   Bericht und Kurven: Die Tabellen in New-RenderChartsHtml und im Benchmark-Bericht enthalten separate Spalten für
+   0,1 %-Low und Mikroruckler.
+
+4. MODERNISIERUNG: DUAL-RUNTIME (POWERSHELL 7 UND 5.1)
+   Bevorzugung von PowerShell 7: Sowohl das Startskript src\LeosMinibench.cmd als auch der C#-Launcher in Bauen.cmd
+   suchen vorrangig nach einer installierten pwsh.exe (unter Program Files, LocalAppData sowie im PATH).
+   Nahtloser Fallback: Ist PowerShell 7 nicht vorhanden, startet Minibench automatisch mit Windows PowerShell 5.1
+   (System32\WindowsPowerShell\v1.0\powershell.exe). Die portable Ausführung direkt vom USB-Stick bleibt auf jedem
+   Windows-System ab Windows 10 ohne Vorbedingungen gewahrt.
+
+GEFUNDEN UND BEHOBEN
+  1. Absturz beim Überspringen durch Add-Test: In src\Kern\Berichtshilfen.ps1 rief Invoke-Section beim Abbruch
+     versehentlich Add-Test statt Add-TestResult auf, was zu einer unbehandelten CommandNotFoundException führte.
+  2. Blockierende Hintergrundjobs bei Abbruch: Parallel gestartete Hintergrundjobs liefen nach Setzen von skip.flag
+     in Wait-BgJob bis zum Timeout weiter. Die Warteschleife bricht nun sofort ab und beendet den Job geordnet.
+  3. Abmessung des Stats()-Rückgabearrays: Durch die Erweiterung der Statistik um Low01Fps und StutterPct wuchs das
+     Ergebnisarray von 6 auf 8 Elemente. Tests und Konvertierungsfunktionen wurden synchronisiert.
+  4. Fehlende Referenz beim Erststart ohne Datenbank: Wenn keine Referenz.json existierte, blieben Usecase-Karten
+     und Gesamtleistungs-Banner leer. Get-SavedReference fällt nun auf die eingebettete Mittelklasse-Referenz zurück.
+  5. C#-5-Kompatibilität bei Tuple-/Out-Variablen: Im C#-Launcher und in Grafiktest.cs wurden alle Sprachkonstrukte
+     streng auf C# 5 (.NET Framework 4.0) beschränkt.
+
+GRENZEN
+  - 0,1 %-Low FPS erfordern eine ausreichende Frameanzahl im Rendertest (mindestens 1000 Frames für exakte
+    Perzentilbestimmung; bei kürzeren Läufen wird die längste gemessene Framezeit herangezogen).
+  - PowerShell 7 bringt Geschwindigkeitsvorteile, setzt jedoch eine bestehende Installation auf dem System voraus.
+
+UMSTIEG
+  1. Bauen.cmd ausführen (erzeugt LeosMinibench.exe und LeosMinibench.ps1 für v3.0).
+  2. Inhalt des Ordners "Aktueller Build" auf den USB-Stick kopieren.
+  3. Frühere Datenbanken bleiben voll kompatibel; fehlende Referenzdaten werden automatisch ergänzt.
+
+ERGEBNIS
+  Alle Pester-Tests bestanden (0 Fehler). Vollständige C# 5-Kompilierung ohne Warnungen.
+
+QUELLEN
+  https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows
+  https://learn.microsoft.com/dotnet/api/system.diagnostics.stopwatch

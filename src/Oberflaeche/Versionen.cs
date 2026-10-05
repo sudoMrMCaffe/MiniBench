@@ -1,4 +1,4 @@
-﻿// Versionshistorie (ab v2.7): Seite Versionen der Oberfläche und Doku\Versionshistorie.txt.
+// Versionshistorie (ab v2.7): Seite Versionen der Oberfläche und Doku\Versionshistorie.txt.
 // Jede neue Version bekommt hier oben einen Eintrag (ein Test prüft, dass es einen für $ScriptVersion gibt).
 // Einzelheiten stehen in Doku\Änderungen_vX.Y.txt. Für 1.0 bis 2.1 gibt es keine Änderungsdateien mehr; die Einträge
 // nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
@@ -11,6 +11,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.0", "05.10.2026", "Dual-Runtime (PowerShell 7 / 5.1), sicheres Schritt-Überspringen, Frametime-Latenzen (0,1 % Low & Mikroruckler), eingebettete Referenzen und Tabellenoptik",
+            "Dual-Runtime-Unterstützung: Automatische Bevorzugung von PowerShell 7 (pwsh.exe) für maximale Geschwindigkeit mit nahtlosem Fallback auf Windows PowerShell 5.1. " +
+            "Sicheres Überspringen langwieriger Einzelschritte mit dynamischer Freigabe (SKIP_ALLOWED) und sauberem Abbruch von Hintergrundjobs ohne Skriptfehler. " +
+            "Erweiterte Frametime-Analyse im Rendertest: Erfassung von 0,1 %-Low FPS und Mikroruckler-Anteil (Frames über 50 ms) in Messwerten, Kurven und Berichten. " +
+            "Fünf eingebettete Referenzprofile (Desktop High-End bis Notebook Standard) direkt im Build für sofortige Vergleiche ohne externe Dateien, Standard-Referenz Desktop Mittelklasse. " +
+            "Bereinigte Benchmark-Darstellung im HTML-Bericht mit bewährter Detailtabellen-Optik unter Beibehaltung des Gesamtleistungs-Banners und der Profilkarten."),
         new Eintrag("2.95", "05.10.2026", "Anonyme Vergleichsdaten, Gesamtleistungs-Banner, UserBenchmark-Profile, Minidump Crash Inspector, Schritt überspringen",
             "Feste Einbindung von fünf anonymisierten, bereinigten Referenzsystemen von Desktop High-End bis Notebook Standard für sofortige Vergleichbarkeit ab dem ersten Start. " +
             "Gesamtleistungs-Banner im Bericht-Header mit prozentualer Gesamtbewertung zur Referenz. " +

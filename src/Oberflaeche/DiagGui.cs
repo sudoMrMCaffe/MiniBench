@@ -683,7 +683,7 @@ public partial class DiagGui : Form
             diskNums.Add(x[0]);
         }
         clbDisks.Height = Math.Max(48, Math.Min(8, clbDisks.Items.Count) * 21 + 6);
-        clbDisks.ItemCheck += delegate { BeginInvoke(new MethodInvoker(UpdateSummary)); };
+        clbDisks.ItemCheck += delegate { BeginInvoke(new System.Windows.Forms.MethodInvoker(UpdateSummary)); };
         f.Controls.Add(clbDisks);
         Label dh = Lbl("Gemessen wird mit einer Testdatei auf dem Volume mit dem meisten freien Platz. USB-Datenträger sind abgewählt.", 8.75f, false, UI.Muted); dh.Margin = new Padding(3, 3, 3, 0); dh.MaximumSize = new Size(820, 0); f.Controls.Add(dh);
         f.Controls.Add(Section("Rendertest (Grafik)"));
@@ -2292,9 +2292,9 @@ public partial class DiagGui : Form
     {
         base.OnShown(e);
         BringToFront2();
-        BeginInvoke(new MethodInvoker(BringToFront2));
+        BeginInvoke(new System.Windows.Forms.MethodInvoker(BringToFront2));
         // erst nach dem ersten Zeichnen: Startfenster der exe schließen und die Startzeit protokollieren
-        BeginInvoke(new MethodInvoker(delegate { StartLog.Phase("Oberfläche bereit"); StartLog.SignalReady(); StartLog.Finish(dataDir, version, script); }));
+        BeginInvoke(new System.Windows.Forms.MethodInvoker(delegate { StartLog.Phase("Oberfläche bereit"); StartLog.SignalReady(); StartLog.Finish(dataDir, version, script); }));
     }
 
     void BringToFront2()
@@ -2349,7 +2349,7 @@ public partial class DiagGui : Form
         running = true;
         setupView.Visible = false; runView.Visible = true;
         btnCancel.Visible = true; btnCancel.Enabled = true;
-        btnSkipStep.Visible = true; btnSkipStep.Enabled = true;
+        btnSkipStep.Visible = true; btnSkipStep.Enabled = false;
         btnStopWait.Visible = false; btnStopWait.Enabled = true;
         btnHtml.Visible = false; btnFolder.Visible = false; btnNew.Visible = false; btnKi.Visible = false; btnCopy.Visible = false; btnCopy.Text = "KI-Kurzfassung kopieren";
         timer.Start();
@@ -2392,11 +2392,14 @@ public partial class DiagGui : Form
                 SetText(lblStep, Get(p, 3));
                 SetText(lblCounter, String.Format("Schritt {0} von {1}", s, t));
                 if (t > 0) barAll.Value = (s - 1) * 100 / t;
-                btnSkipStep.Enabled = true;
+                btnSkipStep.Enabled = false;
                 log.AppendLine(); log.AppendLine(">> " + Get(p, 3));
                 break;
+            case "SKIP_ALLOWED":
+                btnSkipStep.Enabled = Get(p, 1) == "1";
+                break;
             case "SCHRITT_UEBERSPRINGEN":
-                btnSkipStep.Enabled = true;
+                btnSkipStep.Enabled = false;
                 break;
             case "SUB":
                 int pc = ToInt(p, 1);

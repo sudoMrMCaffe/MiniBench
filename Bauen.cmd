@@ -164,8 +164,36 @@ static class Program
 
         StringBuilder extra = new StringBuilder();
         foreach (string a in args) extra.Append(' ').Append(Quote(a));
-        string ps = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe");
-        if (!File.Exists(ps)) ps = "powershell.exe";
+        string ps = null;
+        string pfPwsh = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"PowerShell\7\pwsh.exe");
+        string laPwsh = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\PowerShell\pwsh.exe");
+        if (File.Exists(pfPwsh)) ps = pfPwsh;
+        else if (File.Exists(laPwsh)) ps = laPwsh;
+        else
+        {
+            string pathEnv = Environment.GetEnvironmentVariable("PATH");
+            if (!string.IsNullOrEmpty(pathEnv))
+            {
+                foreach (string p in pathEnv.Split(';'))
+                {
+                    try
+                    {
+                        string trimmed = p.Trim();
+                        if (trimmed.Length > 0)
+                        {
+                            string cand = Path.Combine(trimmed, "pwsh.exe");
+                            if (File.Exists(cand)) { ps = cand; break; }
+                        }
+                    }
+                    catch { }
+                }
+            }
+        }
+        if (ps == null)
+        {
+            string ps5 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe");
+            ps = File.Exists(ps5) ? ps5 : "powershell.exe";
+        }
 
         string evName = "Local\\LeosMinibench-Bereit-" + me;
         EventWaitHandle ready = null;

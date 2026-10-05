@@ -31,6 +31,8 @@ $script:MetricDefs = @(
     # ab v2.6: eigener Rendertest (Direct3D 11), Leitwert = Grafikkarte, sonst die einzige Grafikeinheit
     @{ K = 'GPU|REND';      N = 'Rendertest';              U = 'Bilder/s'; F = 'N0' }
     @{ K = 'GPU|REND1';     N = 'Rendertest 1-%-Low';      U = 'Bilder/s'; F = 'N0' }
+    @{ K = 'GPU|REND01';    N = 'Rendertest 0,1-%-Low';    U = 'Bilder/s'; F = 'N0' }
+    @{ K = 'GPU|STUTTER';   N = 'Mikroruckler-Anteil';     U = '%';        F = 'N1'; L = $true }
     @{ K = 'GPU|RPKT';      N = 'Rendertest Punktzahl';    U = 'Punkte';   F = 'N0' }
 )
 $script:DiskClassNames = [ordered]@{ 'NVMe5' = 'NVMe PCIe 5.0'; 'NVMe4' = 'NVMe PCIe 4.0'; 'NVMe3' = 'NVMe PCIe 3.0'; 'SATA-SSD' = 'SATA-SSD'; 'HDD' = 'Festplatte' }
@@ -71,7 +73,7 @@ function Get-DbLatest($Entries, [switch]$ExcludeCurrent) {
 }
 
 # Kleinere Werte sind besser (Latenzen)
-function Test-LowerBetterKey([string]$Key) { return ($Key -match '\|Latenz$') }
+function Test-LowerBetterKey([string]$Key) { return ($Key -match '\|(Latenz|STUTTER)$') }
 
 # Gespeicherte Referenz (Referenz.json im Datenordner, ältere Ablage PC-Diagnose-Referenz.json), sonst $null
 function Get-SavedReference([string]$Path = '') {
@@ -87,6 +89,35 @@ function Get-SavedReference([string]$Path = '') {
         $h = @{}
         if ($j.Herkunft) { foreach ($p in $j.Herkunft.PSObject.Properties) { $h[$p.Name] = [string]$p.Value } }
         return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = $f; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId }
+    }
+    # Ab v3.0: Standard-Referenzprofil Desktop_Mittelklasse.json laden, wenn noch keine Referenz definiert ist
+    if (-not $Path) {
+        $defCands = @()
+        if ($script:DbDir) { $defCands += (Join-Path $script:DbDir 'Desktop_Mittelklasse.json') }
+        if ($script:DataDir) { $defCands += (Join-Path (Join-Path $script:DataDir 'Datenbank') 'Desktop_Mittelklasse.json') }
+        foreach ($df in $defCands) {
+            if (-not $df -or -not (Test-Path -LiteralPath $df)) { continue }
+            $j = Read-JsonFile $df
+            if (-not $j) { continue }
+            $w = ConvertTo-ValueTable $j.Werte
+            if (-not $w.Count) { continue }
+            $h = @{}
+            if ($j.Herkunft) { foreach ($p in $j.Herkunft.PSObject.Properties) { $h[$p.Name] = [string]$p.Value } }
+            return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = $df; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId }
+        }
+        if ($script:EmbeddedReferences -and $script:EmbeddedReferences.ContainsKey('Desktop_Mittelklasse.json')) {
+            try {
+                $j = $script:EmbeddedReferences['Desktop_Mittelklasse.json'] | ConvertFrom-Json
+                if ($j) {
+                    $w = ConvertTo-ValueTable $j.Werte
+                    if ($w.Count) {
+                        $h = @{}
+                        if ($j.Herkunft) { foreach ($p in $j.Herkunft.PSObject.Properties) { $h[$p.Name] = [string]$p.Value } }
+                        return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = 'Eingebettet (Desktop_Mittelklasse.json)'; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId }
+                    }
+                }
+            } catch { }
+        }
     }
     return $null
 }

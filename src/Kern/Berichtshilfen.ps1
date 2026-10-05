@@ -38,7 +38,11 @@ function Add-Finding {
 function Write-Step([string]$Text) { Write-Host ('[{0}]    {1}' -f (Get-Date -Format 'HH:mm:ss'), $Text) -ForegroundColor Gray }
 
 function Invoke-Section {
-    param([string]$Title, [scriptblock]$Body)
+    param(
+        [Parameter(Position = 0, Mandatory = $true)][string]$Title,
+        [Parameter(Position = 1, Mandatory = $true)][scriptblock]$Body,
+        [switch]$Skippable
+    )
     $script:StepNo++
     $total = [math]::Max((Get-PlannedSteps), $script:StepNo)
     Add-Section $Title ('[{0}/{1}] ' -f $script:StepNo, $total)
@@ -46,13 +50,16 @@ function Invoke-Section {
     Hide-Sub
     $script:CpCurrent = $Title
     Write-Checkpoint 'START' ('[{0}/{1}] {2}' -f $script:StepNo, $total, $Title)
-    if ((Get-Command Test-SkipRequested -ErrorAction SilentlyContinue) -and (Test-SkipRequested)) {
+    $isSkippable = [bool]($Skippable -or ($Title -match '^(Updates|Test: Microsoft Defender|Test: SMART-Langtest|Test: Arbeitsspeicher \(Mustertest\)|Energie$|Test: Dateisystem und Systemdateien|Benchmark: (Prozessor|Grafik))'))
+    if (Get-Command Send-GuiEvent -ErrorAction SilentlyContinue) { Send-GuiEvent 'SKIP_ALLOWED' $(if ($isSkippable) { '1' } else { '0' }) }
+    if ($isSkippable -and (Get-Command Test-SkipRequested -ErrorAction SilentlyContinue) -and (Test-SkipRequested)) {
         if (Get-Command Send-StepSkipped -ErrorAction SilentlyContinue) { Send-StepSkipped $Title }
         Add-Line ('  ÜBERSPRUNGEN: Schritt durch Benutzer übersprungen.')
-        if (Get-Command Add-Test -ErrorAction SilentlyContinue) { Add-Test $Title 'ÜBERSPRUNGEN' 'Schritt durch Benutzer übersprungen' }
+        if (Get-Command Add-TestResult -ErrorAction SilentlyContinue) { Add-TestResult $Title 'ÜBERSPRUNGEN' 'Schritt durch Benutzer übersprungen' }
         Add-Finding INFO 'Ablauf' ('Schritt "{0}" wurde auf Benutzeranforderung übersprungen.' -f $Title)
         Write-Checkpoint 'SKIP' ('{0} (übersprungen)' -f $Title)
         Save-Partial
+        if (Get-Command Send-GuiEvent -ErrorAction SilentlyContinue) { Send-GuiEvent 'SKIP_ALLOWED' '0' }
         return
     }
     # Vor Abschnitten, bei denen ein Absturz am ehesten droht, den Zwischenstand sofort sichern (sonst gedrosselt)
@@ -63,11 +70,11 @@ function Invoke-Section {
     $wasSkipped = $false
     try { & $Body }
     catch {
-        if ($_.Exception -is [System.OperationCanceledException] -or $_.Exception.Message -match 'übersprungen') {
+        if ($isSkippable -and ($_.Exception -is [System.OperationCanceledException] -or $_.Exception.Message -match 'übersprungen')) {
             $wasSkipped = $true
             Send-StepSkipped $Title
             Add-Line ('  ÜBERSPRUNGEN: Schritt durch Benutzer übersprungen.')
-            Add-Test $Title 'ÜBERSPRUNGEN' 'Schritt durch Benutzer übersprungen'
+            if (Get-Command Add-TestResult -ErrorAction SilentlyContinue) { Add-TestResult $Title 'ÜBERSPRUNGEN' 'Schritt durch Benutzer übersprungen' }
             Add-Finding INFO 'Ablauf' ('Schritt "{0}" wurde auf Benutzeranforderung übersprungen.' -f $Title)
             Write-Checkpoint 'SKIP' ('{0} (übersprungen)' -f $Title)
         } else {
@@ -79,6 +86,9 @@ function Invoke-Section {
             if ($null -ne $script:SectionErrors) { $script:SectionErrors.Add([pscustomobject]@{ Abschnitt = $Title; Meldung = $_.Exception.Message; Zeile = $ln }) }
             Add-Finding WARNUNG 'Ablauf' ('Abschnitt "{0}" wurde wegen eines Skriptfehlers abgebrochen: {1} (Zeile {2}). Details in Checkpoint.log und in der KI-Datei.' -f $Title, $_.Exception.Message, $ln)
         }
+    }
+    finally {
+        if (Get-Command Send-GuiEvent -ErrorAction SilentlyContinue) { Send-GuiEvent 'SKIP_ALLOWED' '0' }
     }
     $sw.Stop()
     $script:Timings.Add([pscustomobject]@{ Abschnitt = $Title; Dauer = ('{0:hh\:mm\:ss}' -f $sw.Elapsed) })

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -66,6 +66,7 @@ public class GpuRun
     public double Seconds;
     public long MeasuredFrames;
     public double AvgFps, Low1Fps, MinFps, MaxFps, MedianMs, P99Ms, MaxMs, Score;
+    public double Low01Fps, StutterPct;
     public string RefHash = "";
     public int ImageChecks, ImageErrors;
     public double[] FpsPerSecond = new double[0];
@@ -358,8 +359,8 @@ float4 PS(VO i) : SV_Target
     // Punktzahl = Ø Bilder/s x Pixel je Bild / 10 000 (bei 1280x720 rund 92 x Bilder/s).
     public static double[] Stats(float[] frameMs, double seconds, int width, int height)
     {
-        // Rückgabe: Ø Bilder/s, 1-%-Low, Median ms, 99.-Perzentil ms, längste ms, Punktzahl
-        double[] r = new double[6];
+        // Rückgabe: Ø Bilder/s, 1-%-Low, Median ms, 99.-Perzentil ms, längste ms, Punktzahl, 0,1-%-Low, Mikroruckler-%
+        double[] r = new double[8];
         if (frameMs == null || frameMs.Length == 0 || seconds <= 0) return r;
         float[] s = (float[])frameMs.Clone();
         Array.Sort(s);
@@ -373,6 +374,12 @@ float4 PS(VO i) : SV_Target
         r[3] = s[Math.Min(n - 1, (int)Math.Ceiling(n * 0.99) - 1)];
         r[4] = s[n - 1];
         r[5] = r[0] * width * height / 10000.0;
+        int idx999 = Math.Min(n - 1, Math.Max(0, (int)Math.Ceiling(n * 0.999) - 1));
+        double p999 = s[idx999];
+        r[6] = p999 > 0 ? 1000.0 / p999 : 0;
+        int stutterCount = 0;
+        for (int i = 0; i < n; i++) { if (s[i] > 50.0f) stutterCount++; }
+        r[7] = (double)stutterCount / n * 100.0;
         return r;
     }
 
@@ -403,10 +410,10 @@ float4 PS(VO i) : SV_Target
 
     public static double HistMid(int k) { return HistBase * Math.Exp((k + 0.5) * HistLog); }
 
-    // Kennzahlen aus dem Histogramm, Rückgabe wie Stats: Ø Bilder/s, 1-%-Low, Median ms, 99.-Perzentil ms, längste ms, Punktzahl
+    // Kennzahlen aus dem Histogramm, Rückgabe wie Stats: Ø Bilder/s, 1-%-Low, Median ms, 99.-Perzentil ms, längste ms, Punktzahl, 0,1-%-Low, Mikroruckler-%
     public static double[] StatsHist(long[] hist, double maxMs, double seconds, int width, int height)
     {
-        double[] r = new double[6];
+        double[] r = new double[8];
         long n = 0; for (int k = 0; k < hist.Length; k++) n += hist[k];
         if (n == 0 || seconds <= 0) return r;
         r[0] = n / seconds;
@@ -419,17 +426,26 @@ float4 PS(VO i) : SV_Target
         }
         double wAvg = sum / worst;
         r[1] = wAvg > 0 ? 1000.0 / wAvg : 0;
-        long half = (n + 1) / 2, p99 = (long)Math.Ceiling(n * 0.99), c = 0;
-        bool hasMed = false;
+        long half = (n + 1) / 2, p99 = (long)Math.Ceiling(n * 0.99), p999 = (long)Math.Ceiling(n * 0.999), c = 0;
+        bool hasMed = false, hasP99 = false;
+        double p999Val = 0;
         for (int k = 0; k < hist.Length; k++)
         {
             if (hist[k] == 0) continue;
             c += hist[k];
             if (!hasMed && c >= half) { r[2] = HistMid(k); hasMed = true; }
-            if (c >= p99) { r[3] = HistMid(k); break; }
+            if (!hasP99 && c >= p99) { r[3] = HistMid(k); hasP99 = true; }
+            if (c >= p999) { p999Val = HistMid(k); break; }
         }
         r[4] = maxMs;
         r[5] = r[0] * width * height / 10000.0;
+        r[6] = p999Val > 0 ? 1000.0 / p999Val : 0;
+        long stutterCount = 0;
+        for (int k = 0; k < hist.Length; k++)
+        {
+            if (hist[k] > 0 && HistMid(k) > 50.0) stutterCount += hist[k];
+        }
+        r[7] = (double)stutterCount / n * 100.0;
         return r;
     }
 
@@ -442,11 +458,13 @@ float4 PS(VO i) : SV_Target
         r.FrameMs = fm; r.FpsPerSecond = fps;
         double sec = r.Seconds > 0 ? r.Seconds : r.ElapsedSec;
         if (sec <= 0 || r.MeasuredFrames <= 0) return;
-        double[] st = hc > fm.Length ? StatsHist(h, hmax, sec, r.Width, r.Height) : fm.Length > 0 ? Stats(fm, sec, r.Width, r.Height) : new double[6];
+        double[] st = hc > fm.Length ? StatsHist(h, hmax, sec, r.Width, r.Height) : fm.Length > 0 ? Stats(fm, sec, r.Width, r.Height) : new double[8];
         // Ø Bilder/s aus allen gemessenen Bildern (auch denen, deren Bildzeit wegen einer Messpause nicht gewertet wurde)
         r.AvgFps = r.MeasuredFrames / sec;
         r.Low1Fps = st[1]; r.MedianMs = st[2]; r.P99Ms = st[3]; r.MaxMs = st[4];
         r.Score = r.AvgFps * r.Width * r.Height / 10000.0;
+        r.Low01Fps = st[6];
+        r.StutterPct = st[7];
         if (fps.Length > 0) { double mn = double.MaxValue, mx = 0; foreach (double v in fps) { mn = Math.Min(mn, v); mx = Math.Max(mx, v); } r.MinFps = mn; r.MaxFps = mx; }
         else { r.MinFps = r.AvgFps; r.MaxFps = r.AvgFps; }
     }

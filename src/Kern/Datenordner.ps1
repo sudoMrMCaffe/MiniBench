@@ -37,19 +37,30 @@ function Initialize-DbDir {
     }
     $existing = @(Get-ChildItem -LiteralPath $script:DbDir -Filter '*.json' -File -ErrorAction SilentlyContinue)
     if ($existing.Count -eq 0) {
-        $refDirs = @(
-            (Join-Path $PSScriptRoot 'Daten\Referenzen'),
-            (Join-Path $PSScriptRoot 'src\Daten\Referenzen'),
-            (Join-Path (Split-Path $PSScriptRoot -Parent) 'src\Daten\Referenzen')
-        )
-        foreach ($rd in $refDirs) {
-            if (Test-Path -LiteralPath $rd) {
-                $refFiles = @(Get-ChildItem -LiteralPath $rd -Filter '*.json' -File -ErrorAction SilentlyContinue)
-                if ($refFiles.Count -gt 0) {
-                    foreach ($rf in $refFiles) {
-                        try { Copy-Item -LiteralPath $rf.FullName -Destination (Join-Path $script:DbDir $rf.Name) -Force -ErrorAction SilentlyContinue } catch { }
+        if ($script:EmbeddedReferences) {
+            foreach ($k in $script:EmbeddedReferences.Keys) {
+                try {
+                    $target = Join-Path $script:DbDir $k
+                    [IO.File]::WriteAllText($target, $script:EmbeddedReferences[$k], (New-Object Text.UTF8Encoding($false)))
+                } catch { }
+            }
+        }
+        $existing = @(Get-ChildItem -LiteralPath $script:DbDir -Filter '*.json' -File -ErrorAction SilentlyContinue)
+        if ($existing.Count -eq 0) {
+            $refDirs = @(
+                (Join-Path $PSScriptRoot 'Daten\Referenzen'),
+                (Join-Path $PSScriptRoot 'src\Daten\Referenzen'),
+                (Join-Path (Split-Path $PSScriptRoot -Parent) 'src\Daten\Referenzen')
+            )
+            foreach ($rd in $refDirs) {
+                if (Test-Path -LiteralPath $rd) {
+                    $refFiles = @(Get-ChildItem -LiteralPath $rd -Filter '*.json' -File -ErrorAction SilentlyContinue)
+                    if ($refFiles.Count -gt 0) {
+                        foreach ($rf in $refFiles) {
+                            try { Copy-Item -LiteralPath $rf.FullName -Destination (Join-Path $script:DbDir $rf.Name) -Force -ErrorAction SilentlyContinue } catch { }
+                        }
+                        break
                     }
-                    break
                 }
             }
         }
@@ -61,11 +72,40 @@ if ($script:DbDir) { Initialize-DbDir }
 # Ab v2.6: Liegt die DLL zum Hash schon vor, wird sie ohne Schreibprobe direkt geladen (kein Schreibzugriff auf den Stick).
 $script:CacheInfo = New-Object System.Collections.Generic.List[string]
 function Add-CachedType([string]$Name, [string]$Code, [string[]]$References = @()) {
+    $refList = [System.Collections.Generic.List[string]]::new()
+    if ($References) {
+        foreach ($r in $References) { if ($r -and -not $refList.Contains($r)) { $refList.Add($r) } }
+    }
+    if ($PSVersionTable.PSEdition -ne 'Desktop') {
+        # PowerShell 7+ (.NET Core / Roslyn): Wird ReferencedAssemblies verwendet, zieht Roslyn nicht
+        # automatisch den Standard-Referenzsatz heran. Alle Referenz- und Windows-Desktop-Bibliotheken ergänzen.
+        $refDir = Join-Path $PSHOME 'ref'
+        if (Test-Path -LiteralPath $refDir) {
+            foreach ($f in (Get-ChildItem -LiteralPath $refDir -Filter '*.dll' -ErrorAction SilentlyContinue)) {
+                if (-not $refList.Contains($f.FullName)) { $refList.Add($f.FullName) }
+            }
+        }
+        $desktopDlls = @(
+            'System.Windows.Forms.dll',
+            'System.Windows.Forms.Primitives.dll',
+            'System.Drawing.dll',
+            'System.Drawing.Primitives.dll',
+            'System.Drawing.Common.dll',
+            'System.Private.Windows.Core.dll',
+            'System.Private.Windows.GdiPlus.dll'
+        )
+        foreach ($dllName in $desktopDlls) {
+            $fullPath = Join-Path $PSHOME $dllName
+            if ((Test-Path -LiteralPath $fullPath) -and -not $refList.Contains($fullPath)) {
+                $refList.Add($fullPath)
+            }
+        }
+    }
     $sha = [Security.Cryptography.SHA256]::Create()
-    $hash = -join ($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Code + ($References -join ';') + $PSVersionTable.CLRVersion)) | Select-Object -First 6 | ForEach-Object { $_.ToString('x2') })
+    $hash = -join ($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Code + ($refList -join ';') + $PSVersionTable.CLRVersion)) | Select-Object -First 6 | ForEach-Object { $_.ToString('x2') })
     # IgnoreWarnings: Windows PowerShell 5.1 wertet Compilerwarnungen sonst als Fehler (eine Warnung genügt, und alle Routinen fehlen)
     $p = @{ TypeDefinition = $Code; ErrorAction = 'Stop'; IgnoreWarnings = $true }
-    if ($References.Count) { $p.ReferencedAssemblies = $References }
+    if ($refList.Count) { $p.ReferencedAssemblies = $refList.ToArray() }
     if ($script:CacheDir) {
         $dll = Join-Path $script:CacheDir ('{0}-{1}.dll' -f $Name, $hash)
         if (Test-Path -LiteralPath $dll) {
