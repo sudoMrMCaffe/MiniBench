@@ -6,22 +6,22 @@
 
 **Portable Diagnose-, Benchmark-, Stresstest-, Reparatur- und Optimierungs-Suite für Windows 10 & 11.**
 
-[![Version](https://img.shields.io/badge/Version-2.95-0284c7.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-3.1-0284c7.svg)](CHANGELOG.md)
 [![Changelog](https://img.shields.io/badge/Changelog-MD-6366f1.svg)](CHANGELOG.md)
 [![Plattform](https://img.shields.io/badge/Windows-10%20%7C%2011%20(x64)-0078d4.svg)]()
-[![Laufzeit](https://img.shields.io/badge/PowerShell-5.1%2B%20%7C%20C%23%205-1e293b.svg)]()
-[![Tests](https://img.shields.io/badge/Tests-500%2B%20bestanden-22c55e.svg)](tests/)
+[![Laufzeit](https://img.shields.io/badge/PowerShell-5.1%20%7C%20C%23%205-1e293b.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-580%2B%20bestanden-22c55e.svg)](tests/)
 [![Portabel](https://img.shields.io/badge/USB-Zero--Footprint-f59e0b.svg)]()
 
 <br/>
 
 <a href="https://github.com/sudoMrMCaffe/MiniBench/raw/main/Aktueller%20Build/LeosMinibench.exe">
-  <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20Download-LeosMinibench.exe%20(v2.9)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Download LeosMinibench.exe" />
+  <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20Download-LeosMinibench.exe%20(v3.1)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Download LeosMinibench.exe" />
 </a>
 
 <br/><br/>
 
-<img src="Doku/Screenshots/Oberflaeche.png" alt="Leos Minibench 2.9 Oberfläche" width="850" />
+<img src="Doku/Screenshots/Oberflaeche.png" alt="Leos Minibench 3.1 Oberfläche" width="850" />
 
 </div>
 

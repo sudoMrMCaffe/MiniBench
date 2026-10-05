@@ -2,6 +2,20 @@
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
 
+## v3.1 (05.10.2026)
+
+* **Vergleichsseite & Deserialisierung:** Fehlerbehebung beim Laden von Systemen in der Benutzeroberfläche; strukturierte Fehlerbehandlung und Logging im JSON-Parser (`DbEntry.Load`).
+* **Eingebettete Referenzdaten:** Fünf anonyme Referenzprofile (Desktop High-End bis Notebook Standard) direkt im Skript eingebettet; automatisches Entpacken bei leerem Datenbankordner für sofortige Systemvergleiche ab dem Erststart.
+* **Prozessor-Benchmark (CPU-Regression behoben):** Verbindlicher Start über Windows PowerShell 5.1; Beseitigung von RyuJIT-Laufzeitverlangsamungen und Sensor-Abfragekollisionen unter Last.
+* **Grafik-Benchmark (Robustheit bei niedrigen Bildraten):** Fehlerbehebung beim Rendertest auf Einsteiger- und Mobil-GPUs (z. B. Intel UHD Graphics 620 auf Dell-Notebooks); kein Verwerfen von Messwerten bei aktiver Vorschau; Fallback-Erkennung und erweiterte Direct3D 11 Feature-Levels (11_1, 9_3) für Hybrid-Grafiksysteme.
+
+## v3.0 (05.10.2026)
+
+* **Sicheres Schritt-Überspringen:** Gezieltes Überspringen langwieriger Einzelschritte (`-Skippable`) mit dynamischer Freigabe (`@@SKIP_ALLOWED`) und geordnetem Hintergrund-Job-Abbruch.
+* **Frametime-Latenzen:** Erfassung von 0,1 %-Low FPS und Mikroruckler-Anteil (Frames über 50 ms) in Messwerten, Kurventabellen und HTML-Bericht.
+* **Benchmark-Detailtabellen:** Bereinigte Darstellung im HTML-Bericht mit bewährter tabellarischer Struktur (Messung, Wert, Index, Referenz, Vergleich, Ergebnis) bei Beibehaltung des Gesamtleistungs-Banners und der Profilkarten.
+* **Referenzprofile:** Fünf bereinigte Referenzsysteme als Standardauswahl; Desktop Mittelklasse dient als Standard-Vergleich.
+
 ## v2.95 (05.10.2026)
 
 * **Anonyme Vergleichsdaten fest eingebaut:** Fünf bereinigte Referenzsysteme von Desktop High-End bis Notebook Standard werden bei der Ersteinrichtung automatisch in die lokale Vergleichsdatenbank kopiert.

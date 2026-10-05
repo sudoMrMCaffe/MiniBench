@@ -8,7 +8,8 @@ src                 Quelltext. Reihenfolge der Teile in src\Bauplan.txt. Kern in
                     Module je Ordner src\Module\<Name> mit Vertrag.psd1 (Modulvertrag) und Ablauf.ps1,
                     Oberfläche in src\Oberflaeche\DiagGui.cs (C#), Versionshistorie in src\Oberflaeche\Versionen.cs,
                     Sensoren in src\Kern\Sensoren.ps1 und Sensoren.cs, Datenpflege in src\Kern\Datenpflege.ps1.
-Bauen.cmd           fügt src zu Aktueller Build\LeosMinibench.ps1 zusammen, baut .exe, schreibt Stand.txt, verschiebt
+Bauen.cmd           fügt src zu Aktueller Build\LeosMinibench.ps1 zusammen, baut .exe, schreibt Stand.txt,
+                    passt README.md automatisch an die aktuelle Version und Testanzahl an, verschiebt
                     ab 2.7 den vorigen Build nach Archiv\v<alte Version> und räumt Aktueller Build\Minibench-Daten auf
                     (Datenpflege nach Archiv\Minibench-Daten).
 Aktueller Build     nie von Hand ändern, entsteht bei jedem Bau neu. Inhalt kommt auf den USB-Stick (exe, ps1, cmd, Stand).
@@ -46,10 +47,11 @@ Minibench-Daten     Datenordner neben der exe: Berichte, Datenbank (JSON, Format
 ## Abschluss jeder Version
 1. Version in src\Kern\Version.ps1 erhöhen.
 2. Eintrag oben in src\Oberflaeche\Versionen.cs und Doku\Versionshistorie.txt neu erzeugen (ein Test verlangt beides).
-3. Die vorige Version sichert Bauen.cmd selbst nach Archiv\vX.Y; nur wenn nicht gebaut wird, von Hand sichern.
-4. Doku\Änderungen_vX.Y.txt im Stil der bisherigen Dateien (Abschnitte, Grenzen, Umstieg, Quellen).
-5. Doku\Testmatrix_vX.Y.csv mit Prüfpunkten für echte Hardware (Intel, AMD, Notebook, PC mit dGPU und iGPU).
-6. Geänderte Dateien in den Ordner zurückschreiben, Bauen.cmd ausführen lassen (oder den Nutzer darum bitten).
-7. claude/PC-Diagnose_v2.0_Stand.md im Projekt aktualisieren.
-8. Roadmap-Dokument aktualisieren: https://claude.ai/code/artifact/557250c0-e59a-42d3-8cbd-b345d03eca7a
+3. CHANGELOG.md um die wesentlichen Änderungen der Version ergänzen.
+4. Die vorige Version sichert Bauen.cmd selbst nach Archiv\vX.Y; README.md wird von Bauen.cmd automatisch auf die gebaute Version und Testanzahl aktualisiert.
+5. Doku\Änderungen_vX.Y.txt im Stil der bisherigen Dateien (Abschnitte, Grenzen, Umstieg, Quellen).
+6. Doku\Testmatrix_vX.Y.csv mit Prüfpunkten für echte Hardware (Intel, AMD, Notebook, PC mit dGPU und iGPU).
+7. Geänderte Dateien in den Ordner zurückschreiben, Bauen.cmd ausführen lassen (oder den Nutzer darum bitten).
+8. claude/PC-Diagnose_v2.0_Stand.md im Projekt aktualisieren.
+9. Roadmap-Dokument aktualisieren: https://claude.ai/code/artifact/557250c0-e59a-42d3-8cbd-b345d03eca7a
  (Tabelle "Rückmeldungen aus dem Praxistest": Status der erledigten Punkte auf Erledigt, Roadmap-Stand).

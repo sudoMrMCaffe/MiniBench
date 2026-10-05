@@ -15,6 +15,7 @@ param([string]$Here, [string]$A1 = '')
 #   3. baut die exe und legt exe, ps1, LeosMinibench.cmd und Stand.txt in "Aktueller Build"
 #   4. ab v2.7: verschiebt den vorigen Build nach Archiv\v<alte Version> und räumt die Daten im Aktuellen Build auf
 #      (Datenpflege: Lasttests vor v2.67, unvollständige und kurze Läufe nach Archiv\Minibench-Daten)
+#   5. passt README.md automatisch an die gebaute Version an
 # Aufruf: Bauen.cmd [ohnetests]
 # Benötigt nur Windows (csc.exe des .NET Framework 4), keine Downloads.
 $ohneTests = ([string]$A1).Trim().ToLowerInvariant() -eq 'ohnetests'
@@ -393,6 +394,22 @@ try {
     [void]$st.AppendLine('Ein Ordner Minibench-Daten hier im Aktuellen Build entsteht nur, wenn das Programm von hier gestartet wurde; er gehört nicht auf den Stick.')
     [void]$st.AppendLine('Diesen Ordner nicht von Hand ändern: Bauen.cmd erzeugt ihn bei jedem Bau neu aus src.')
     [IO.File]::WriteAllText((Join-Path $build 'Stand.txt'), $st.ToString(), $utf8Bom)
+
+    # 5. README.md an die aktuelle Version anpassen
+    $readmeFile = Join-Path $Here 'README.md'
+    if (Test-Path -LiteralPath $readmeFile) {
+        $rmText = [IO.File]::ReadAllText($readmeFile, [Text.Encoding]::UTF8)
+        $rmText = [regex]::Replace($rmText, '(?i)(https://img\.shields\.io/badge/Version-)[^-\s]+(-[0-9a-fA-F]+\.svg)', ('${1}' + $ver + '${2}'))
+        $rmText = [regex]::Replace($rmText, '(?i)(Download-LeosMinibench\.exe%20\(v)[^\)]+(\))', ('${1}' + $ver + '${2}'))
+        $rmText = [regex]::Replace($rmText, 'alt="Leos Minibench [0-9.]+', ('alt="Leos Minibench ' + $ver))
+        if ($testInfo -match '(\d+)\s+bestanden') {
+            $passCount = [int]$Matches[1]
+            $roundedTests = [math]::Floor($passCount / 10) * 10
+            $rmText = [regex]::Replace($rmText, '(?i)(https://img\.shields\.io/badge/Tests-)\d+%2B(%20bestanden-[0-9a-fA-F]+\.svg)', ('${1}' + $roundedTests + '%2B${2}'))
+        }
+        [IO.File]::WriteAllText($readmeFile, $rmText, $utf8Bom)
+        Write-Host ('  README   : Version {0} in README.md aktualisiert' -f $ver)
+    }
 
     # 5. Datenpflege im Aktuellen Build (ab v2.7): Lasttests vor v2.67, unvollständige und kurze Läufe nach
     #    Archiv\Minibench-Daten des Projektordners. Fehler hier verhindern den Bau nicht.

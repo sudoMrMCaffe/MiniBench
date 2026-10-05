@@ -195,4 +195,19 @@ Describe 'Version 3.1: Release und Dokumentation' {
             Remove-Item $out -Force -ErrorAction SilentlyContinue
         }
     }
+
+    It 'README.md und CHANGELOG.md sind auf Version 3.1 aktualisiert' {
+        $rm = [IO.File]::ReadAllText((Join-Path $global:MinibenchRepoRoot 'README.md'))
+        $rm | Should -Match 'https://img\.shields\.io/badge/Version-3\.1-'
+        $rm | Should -Match 'Download-LeosMinibench\.exe%20\(v3\.1\)'
+        $cl = [IO.File]::ReadAllText((Join-Path $global:MinibenchRepoRoot 'CHANGELOG.md'))
+        $cl | Should -Match '## v3\.1'
+    }
+
+    It 'Bauen.cmd aktualisiert README.md automatisch' {
+        $global:V31Cmd | Should -Match 'README\.md'
+        $global:V31Cmd | Should -Match 'badge/Version-'
+        $global:V31Cmd | Should -Match 'Download-LeosMinibench'
+    }
 }
+
