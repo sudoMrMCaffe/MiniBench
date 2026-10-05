@@ -1,0 +1,206 @@
+﻿LEOS MINIBENCH 2.6: ÄNDERUNGEN
+==============================
+
+Version 2.6 fasst die geplanten Versionen 2.5 und 2.6 der Roadmap zusammen und setzt die Rückmeldungen aus dem
+Praxistest vom 02.10.2026 um (ULB-PC10039 mit Hybridgrafik, Läufe mit 2.4). Schwerpunkte: ein Lasttest, der
+eigenständig durchläuft und immer ein Ergebnis liefert, ein eigener Rendertest auf jeder Grafikeinheit, ein
+schneller Modus mit parallelen Prüfungen, ein schnellerer Start mit Startfenster und deutlich weniger
+Schreibzugriffe auf den Stick. Eine Version 2.5 gibt es nicht als eigenen Stand.
+
+1. LASTTEST LÄUFT EIGENSTÄNDIG DURCH (PRAXISTEST)
+Im Praxistest brach der Lasttest nach wenigen Sekunden ohne Ergebnis ab oder blieb stehen. Belegt und behoben sind
+drei Ursachen:
+  CPU-Lasttest         Das Zählen unplausibler Sensorwerte schrieb in eine Eigenschaft eines Hashtable-Eintrags
+                       ($tabelle[$k].Anzahl++). In Windows PowerShell 5.1 wirft das bei einem neuen Eintrag eine
+                       Ausnahme, der Abschnitt endete nach rund 15 Sekunden. Neu: Register-BadReadings mit eigener
+                       Zählung, Sensoren und Buchführung stehen in try/catch und können die Last nie beenden.
+  Datenträgerlast      [math]::Max(256MB, ...) mischte Int32 und Double; PowerShell 5.1 findet dafür keine
+                       eindeutige Überladung. Neu: Get-DiskStressBytes (256 MB bis 4 GB, 10 % des freien Platzes).
+  Sensoren öffnen      LibreHardwareMonitor blieb auf einzelnen Notebooks beim Öffnen hängen. DiagSensors.OpenTimed
+                       wartet höchstens 30 Sekunden, ReadTimed höchstens 5 Sekunden je Abfrage. Danach läuft der
+                       Lasttest mit den Windows-Werten weiter, der Bericht nennt den Grund.
+Zusätzlich abgesichert: Ein try/finally um alle Lasten beendet CPU-, RAM-, Datenträger- und Grafiklast bei jedem
+Fehler, damit nichts in Folgemodule hineinläuft. Ein hängender Lese- oder Schreibzugriff im Datenträgertest (sterbendes
+Laufwerk, abgezogener USB-Datenträger) wird 2 Minuten nach dem geplanten Ende aufgegeben und als WARNUNG gemeldet.
+Ende, Fortschritt und "läuft bis" berücksichtigen Komponenten, die beim Start entfallen.
+
+2. ALLE GRAFIKEINHEITEN WERDEN GETESTET (PRAXISTEST)
+Auf ULB-PC10039 wurden Grafikkarte und Prozessorgrafik erkannt, getestet wurde aber nur die Prozessorgrafik. Ursache:
+Die Grafiklast lief über WinSAT, und WinSAT misst immer die Einheit, die den Desktop ausgibt. Die WinSAT-Schleife im
+Lasttest ist entfallen. Neu ist ein eigener Rendertest (Abschnitt 3), der sein Direct3D-Gerät gezielt auf jedem
+DXGI-Adapter anlegt. Lasttest und Benchmark testen damit jede echte Grafikeinheit; Software-Renderer (Microsoft Basic
+Render Driver) und virtuelle Adapter (Parsec, Remote, Hyper-V, DisplayLink) bleiben außen vor, doppelte Einträge
+desselben Adapters fallen über die LUID weg. Reihenfolge: Grafikkarte vor Prozessorgrafik.
+
+3. RENDERTEST (DIRECT3D 11)
+Kern\Grafiktest.cs rendert eine feste Szene (Fell-Torus mit Rauschfunktion, 72 Schritte je Pixel) in eine Textur
+außerhalb des Bildschirms. Damit gibt es kein VSync und keine Bildwiederholrate als Grenze. Der Shader wird zur Laufzeit
+mit d3dcompiler_47.dll übersetzt (Bestandteil von Windows 10 und 11), alle Aufrufe laufen über die COM-Funktionstabellen.
+Es wird kein Fremdprogramm gebraucht und nichts installiert.
+Entscheidung Direct3D 11 statt OpenGL: OpenGL lässt unter Windows nicht zu, die Grafikeinheit zu wählen. Der Treiber
+nimmt die, auf der das Fenster liegt; bei Hybridgrafik entscheidet ein Profil im Treiber. Direct3D 11 erzeugt das Gerät
+auf einem bestimmten Adapter (D3D11CreateDevice mit IDXGIAdapter1), das ist die Voraussetzung für "alle Grafikeinheiten".
+Einstellungen: Auflösung 1280x720 oder 1920x1080 (-GpuAufloesung), Anzeige Fenster, Vollbild oder ohne (-GpuAnzeige).
+Das Vorschaufenster zeigt etwa zweimal je Sekunde das aktuelle Bild, Esc oder Schließen beendet den Test.
+Messung: Zeitpunkt, zu dem jedes Bild fertig ist (Event-Query, zwei Bilder in Arbeit). Kennzahlen je Grafikeinheit:
+  Ø Bilder/s           alle gemessenen Bilder geteilt durch die Messdauer
+  1-%-Low              Bilder/s aus dem Mittel der langsamsten 1 % der Bildzeiten (Ruckler)
+  Bildzeiten           Median, 99. Perzentil, längste
+  Punktzahl            Ø Bilder/s x Pixel je Bild / 10 000, damit über die Auflösungen vergleichbar
+Bildzeiten unmittelbar nach dem Auslesen der Vorschau oder einer Bildprüfung zählen nicht für Perzentile und 1-%-Low,
+weil sie eine Messpause und keine Leistung der Grafik zeigen. Für lange Lasttests stehen die Bildzeiten zusätzlich in
+einem Histogramm (0,01 ms bis 60 s, Auflösung 0,1 %), die Kennzahlen bleiben damit auch nach Stunden richtig.
+Bildprüfung: Vor der Last entsteht ein Referenzbild zu einem festen Zeitpunkt der Szene (Prüfsumme FNV-1a über alle
+Pixel). Im Lasttest wird es alle 30 Sekunden und am Ende erneut gerendert und verglichen. Jede Abweichung ist ein
+Bildfehler und spricht für Fehler im Grafikspeicher oder Grafikchip unter Last.
+Treiber-Reset: Meldet Direct3D DXGI_ERROR_DEVICE_REMOVED, HUNG oder RESET, steht der Grund aus GetDeviceRemovedReason
+im Bericht. Zusätzlich werden Ereignisse 4101 (Display) aus dem Systemprotokoll der Grafikeinheit zugeordnet (über den
+Treibernamen, sonst der ersten Einheit). Antwortet die Grafikeinheit 10 Sekunden lang nicht, gilt das als Hänger; lässt
+sich der Rendertest gar nicht mehr beenden, folgt die WARNUNG "Grafiktreiber reagiert nicht" mit den Werten bis dahin.
+Benchmark: Rendertest nach WinSAT und vor PCIe, je Grafikeinheit 6 s Aufwärmen und 20 s Messung (Kurzmessung 3 s und
+10 s), Einheiten nacheinander. Neue Werte "Rendertest", "Rendertest 1-%-Low" und "Rendertest Punktzahl", Referenz und
+Vergleich über GPU|REND, GPU|REND1 (nur 1280x720) und GPU|RPKT, Bildzeiten als Rendertest_<Grafik>.csv im Anhang.
+Die WinSAT-Bewertung bleibt unverändert und steht weiter im Bericht.
+Lasttest: Grafiklast 5 bis 240 Minuten auf allen Grafikeinheiten gleichzeitig, zusammen mit CPU-, RAM- und
+Datenträgerlast. Vor dem Start erscheint ein Hinweis (Leistungsgrenze, Lüfter, Abbruchschwelle, Netzteil am Notebook,
+Abbruch mit Esc). Bilder/s-Verlauf je Einheit als Kurve neben Temperatur, Takt und Leistung, Einbruch der Bilder/s
+zwischen erster und letzter Minute ab 15 % als Hinweis auf Drosselung, Auslastung, Temperatur und Leistung je Einheit.
+Abbruch mit "Test beenden" oder Esc im Fenster des Rendertests; Geräte, Fenster und Puffer werden in jedem Fall
+freigegeben.
+Bericht, KI-Datei, Datenbank: Abschnitt Rendertest mit Bildzeitkurven im HTML-Bericht, Lastkurven "Rendertest
+(Bilder/s)" und "Grafik-Auslastung", Hinweise zur Gewichtung von TDR und Bildfehlern in der KI-Datei, Datenbankfeld
+Rendertest (Benchmark) und Sensoren.Last.Rendertest (Lasttest).
+
+4. SCHNELLER MODUS (ROADMAP 2.5)
+Neue Option auf der Seite Diagnose und Parameter -SchnellerModus. Updatesuche, Defender-Schnellscan, Energieanalyse und
+der Start des SMART-Langtests laufen in einem Runspace-Pool (höchstens drei gleichzeitig) neben den übrigen Prüfungen.
+Messungen (RAM, CPU, Netzwerk, Benchmark, Lasttest) bleiben exklusiv: Vor jeder exklusiven Messung wartet der Lauf, bis
+die Hintergrundprüfungen fertig sind. Welche Schritte parallel laufen dürfen, steht im Modulvertrag (Felder Parallel,
+Nach, Exklusiv); die Prüfung des Vertrags lässt Parallel nur für lesende Schritte zu und weist unbekannte Abhängigkeiten
+und Zyklen ab. Die Oberfläche zeigt eine Zeile "Parallel im Hintergrund" mit dem Stand je Aufgabe (Ereignis @@PAR).
+Abbruch nach Frist ohne Blockieren (BeginStop), die Standby-Sperre wird auch nach einem Abbruch der Energieanalyse wieder
+gesetzt. Der Bericht nennt im Kopf "Ablauf: schneller Modus" und je Prüfung, wie lange sie parallel lief.
+
+5. START (ROADMAP 2.5)
+Startfenster innerhalb einer Sekunde: LeosMinibench.exe zeigt sofort ein kleines Fenster mit Symbol, Version und
+Fortschritt und schließt es, sobald die Oberfläche gezeichnet ist (benanntes Ereignis), PowerShell endet oder
+3 Minuten vergehen. Das Skript wird ins lokale TEMP entpackt statt auf den Stick (Rückfall: Datenordner).
+Startzeitmessung: exe, Skript und Oberfläche schreiben ihre Phasen in eine Statusdatei; die Oberfläche hängt den Start
+als Block an Minibench-Daten\Laufzeit\Start.log an (gekürzt ab 200 KB). LeosMinibench.exe -StartAuswertung (oder das
+Skript mit diesem Schalter) wertet Start.log je Ort aus (Stick, Festplatte) und legt Startauswertung.txt ab: Median bis
+zur bedienbaren Oberfläche und je Phase Zeitpunkt und Dauer.
+Schneller: Die Oberfläche liest Datenträgerliste und Geräte-ID im Hintergrund, die übersetzten C#-Routinen kommen ohne
+Schreibprobe aus dem Cache. Ob der Start messbar schneller ist, zeigt erst der Vergleich auf echter Hardware
+(Testmatrix S1 bis S4, Messhilfe Doku\Startzeit_messen.ps1).
+
+6. WENIGER SCHREIBZUGRIFFE AUF DEN STICK (ROADMAP 2.5)
+Lokaler Arbeitsordner: Rohdaten, Konsolenprotokoll und Werkzeugausgaben sammeln sich in %TEMP%\LeosMinibench\Lauf_<PID>
+und gehen am Ende gebündelt als Anhang.zip in den Berichtsordner. Ziel.txt nennt den Berichtsordner; bricht ein Lauf
+ab, sichert der nächste Start die Rohdaten als Anhang_unterbrochen.zip dorthin. Ist dieser Ordner nicht erreichbar
+(z. B. Stick nach dem Absturz unter anderem Laufwerksbuchstaben), geht das ZIP in den Berichtsordner des neuen Laufs.
+Ein Arbeitsordner wird nur gelöscht, wenn seine Rohdaten gesichert sind.
+Checkpoints gedrosselt: Schrittwechsel und Befunde werden sofort geschrieben, Pulse und Parallelmeldungen gesammelt und
+höchstens alle 10 Sekunden. Der Zwischenstand des Berichts entsteht höchstens einmal je Minute und sofort vor riskanten
+Abschnitten. Der Abschnitt "Schreibzugriffe" im Bericht nennt Vorgänge und Datenmenge auf dem Laufwerk des Datenordners
+(Windows-Leistungszähler, vorher und nachher) sowie die Zahl der eigenen Checkpoint-Blöcke und Zwischenstände.
+
+7. SYMBOL (ROADMAP 2.5)
+Neues Programmsymbol: blaues L als Rakete (schräg, mit Flamme). Symbol.ico mit 16, 24, 32, 48, 64, 128 und 256 px (bis
+64 px als Bitmap, darüber PNG), Symbol.png für Startfenster und Kopf der Oberfläche. Die Varianten liegen in
+Doku\Symbol als SVG (A: L-Rakete, gewählt; B: Kachel; C: Umriss) mit Vorschaubildern. Die Oberfläche setzt eine eigene
+AppUserModelID, damit die Taskleiste das Symbol zeigt und nicht das von PowerShell.
+
+8. AUFBAU
+Neue Teile: Kern\Grafiktest.cs und .ps1, Kern\Parallel.ps1, Kern\Startzeit.ps1, Oberflaeche\Start.cs, Symbol.ico,
+Symbol.png. Geändert: 00_Kopf.ps1, Kern\Sensoren.cs und .ps1, Kern\Testroutinen.ps1, Kern\Datenordner.ps1,
+Kern\Grundgeruest.ps1, Kern\Berichtshilfen.ps1, Kern\Checkpoints_Absturzanalyse.ps1, Kern\Ereigniskanal.ps1,
+Kern\Modulvertrag.ps1, Kern\Referenz_Vergleich.ps1, Kern\Datenbank.ps1, Kern\Version.ps1, Diagnose\Hilfsfunktionen.ps1,
+Bericht\HtmlBericht.ps1, Bericht\KI-Datei.ps1, Ablauf\Start.ps1, Ablauf\Abschluss.ps1, Module Diagnose, Benchmark und
+Lasttest (Ablauf und Vertrag), Oberflaeche\DiagGui.cs und Oberflaeche.ps1, Bauplan.txt, Bauen.cmd (Launcher).
+Neue Parameter: -SchnellerModus, -GpuAufloesung 1280x720|1920x1080, -GpuAnzeige Fenster|Vollbild|Aus, -StartAuswertung.
+Modulvertrag: neue Felder Parallel, Nach und Exklusiv je Schritt.
+@@-Ereignisse: SENSLEAD hat 15 Felder (zusätzlich Bilder/s der ersten und zweiten Grafikeinheit), neu PAR|Schlüssel|
+Titel|Status|Dauer.
+Datenbank: Rendertest, Schreibzugriffe, Ablauf (Kern), Sensoren.Last.Rendertest. Format bleibt PC-Diagnose-DB/2.
+Add-CachedType übersetzt mit IgnoreWarnings: Windows PowerShell 5.1 wertet eine Compilerwarnung sonst als Fehler, und
+alle C#-Routinen fielen weg.
+
+9. TESTS
+Pester-Tests in 11 Dateien. Neu tests\Version26.Tests.ps1: jeder Fund aus dem Praxistest als Testfall (Größe der
+Testdatei, Zählung unplausibler Werte, Zeitlimits der Sensoren), Rendertest (Einstellungen, Auswahl der Grafikeinheiten,
+Kennzahlen aus Liste und Histogramm, Prüfsumme, Bildzeitkurven, Einbruch der Bilder/s, Befunde, Zuordnung von TDR,
+Funktionstabellen im Quelltext), schneller Modus (Vertrag, Planung, Abhängigkeiten), Start.log, Launcher, Symbolgrößen,
+Arbeitsordner und Wiederherstellung, Schreibzähler, Drosselung der Checkpoints und Zwischenstände, Stoppcodes ab
+0x80000000. Gesamtläufe (tests\Lauf.Tests.ps1) neu mit Lasttest Datenträger, Lasttest Grafik auf zwei Einheiten,
+Benchmark Grafik, Diagnose im schnellen Modus sowie den Fehlerfällen Treiber-Reset, Bildfehler und keine Grafikeinheit;
+der Rendertest läuft dort als Attrappe (tests\Daten\Lauf\DiagGpu_Attrappe.cs).
+Der Renderer selbst lief unter Linux mit Wine (Direct3D 11 über llvmpipe): Gerät, Shader, Referenzbild, Bildprüfung,
+Fenster, Vollbild, Stop und Kennzahlen.
+
+GEFUNDEN UND BEHOBEN VOR DER ÜBERGABE (Tests, Wine und Codeprüfung)
+  1. Die Rückstandskontrolle hätte beim Start über LeosMinibench.cmd den Ordner %TEMP%\LeosMinibench gelöscht, bevor
+     Anhang.zip entstand; die Rohdaten des Laufs wären verloren gewesen. Jetzt nur Einträge beendeter Prozesse.
+  2. Ø Bilder/s und Punktzahl wären in Lasttests über etwa 30 Minuten zu niedrig gewesen (Liste der Bildzeiten auf
+     2 Millionen begrenzt). Jetzt aus allen Bildern, Perzentile aus dem Histogramm.
+  3. Ein hängender Datenträgertest hätte den Lasttest ohne Ende blockiert, nach "Test beenden" kreiste die Schleife
+     ohne Pause.
+  4. Ohne try/finally liefen nach einem Fehler RAM- und Grafiklast in Folgemodule weiter.
+  5. Im schnellen Modus hätte eine hängende Updatesuche den Lauf trotz Frist blockiert (PowerShell.Stop wartet auf den
+     COM-Aufruf); nach einem Abbruch der Energieanalyse blieb die Standby-Sperre ausgesetzt.
+  6. Das Auslesen der Vorschau (Prüfsumme und Bitmap im Renderthread) hätte das 1-%-Low deutlich verfälscht. Jetzt eine
+     Kopie, das Bild entsteht im Fensterthread, die betroffenen Bildzeiten zählen nicht.
+  7. Stoppcodes ab 0x80000000 (z. B. 0xDEADDEAD) ließen die Absturzanalyse abbrechen; danach wäre jeder Start an
+     derselben Stelle gescheitert. Das gab es schon vor 2.6.
+  8. Ein abgebrochener Lauf hätte seine Rohdaten verloren, wenn der Stick danach einen anderen Laufwerksbuchstaben bekam.
+  9. Der Benchmark hätte nach einem hängenden Grafiktreiber unbegrenzt gewartet; ein nicht mehr antwortender
+     Rendertest stand im Lasttest als "Ø 0 Bilder/s" ohne Befund.
+ 10. In 32-Bit-PowerShell wäre der Grafikspeicher ab 2 GB negativ gewesen.
+ 11. Ein zu spät erzeugtes Vorschaufenster wäre bis zum Prozessende offen geblieben.
+ 12. Sensorwerte und Live-Bilder/s gab es nur für zwei Grafikeinheiten; eine dritte bekam die Werte der
+     Prozessorgrafik. Zuordnung jetzt über den Namen, der Status zeigt die Bilder/s aller Einheiten.
+ 13. Der Launcher las die Statusdatei exklusiv; gleichzeitige Startphasen von Skript und Oberfläche gingen verloren.
+     Argumente mit Backslash vor einem Anführungszeichen wurden falsch übergeben.
+ 14. Unter Wine kamen die Bildzeiten mit drei Bildern in Arbeit gebündelt an; es bleibt bei zwei.
+ 15. Der Text des schnellen Modus war auf der Seite Diagnose abgeschnitten; jetzt kurzer Schalter mit Erklärung darunter.
+ 16. Rendertest, Schreibzugriffe und Ablauf fehlten in den bekannten Datenbankfeldern.
+ 17. Durch Bearbeitung unter Linux standen viele Dateien mit LF statt CRLF; alle Teile wieder mit BOM und CRLF,
+     Bauen.cmd mit CRLF ohne BOM.
+ 18. Erster Testlauf unter Windows (Pester 6.2, ULB-PC10039): vier Fehler, alle im Testgerüst, keiner im Programm.
+     Der Zusammenbau meldete Bauplan.txt, LeosMinibench.cmd, Symbol.ico und Symbol.png als unbenutzt, weil -Include
+     in Windows PowerShell 5.1 zusammen mit -LiteralPath nicht filtert (jetzt Where-Object auf die Endung). Tests
+     lasen JSON ohne -Encoding UTF8 und damit als ANSI. Der PawnIO-Test zählte den Aufruf von nvidia-smi mit, den es
+     nur auf einem PC mit NVIDIA-Treiber gibt. Windows sperrt geladene DLLs und offene Dateien: die Attrappe der
+     Sensorbibliothek liegt jetzt außerhalb von TestDrive, der Checkpoint-Test liest geteilt und schließt den Strom
+     in jedem Fall.
+
+GRENZEN
+  Auf echter Windows-Hardware ist 2.6 noch nicht gelaufen. Pester-Tests und Gesamtläufe liefen unter Linux mit
+  PowerShell 7 und Attrappen, der Renderer unter Wine mit Software-Rendering. Werte für Bilder/s, Startzeit und
+  Schreibzugriffe gibt es erst mit der Testmatrix.
+  Der Rendertest ist eine Volllast ähnlich FurMark, aber kein Spiele-Benchmark. Ob er eine Grafikkarte so stark heizt
+  wie FurMark, zeigt erst der Abgleich (Testmatrix G5).
+  Bildzeiten sind die Abstände, in denen fertige Bilder gemeldet werden. Bei Treibern, die Abfragen bündeln, wirken
+  Median und 1-%-Low schlechter als die reine GPU-Leistung; Ø Bilder/s und Punktzahl bleiben richtig.
+  Live-Kurven und Sensorwerte zeigen höchstens zwei Grafikeinheiten; getestet und bewertet werden alle.
+  Bei Hybridgrafik meldet die Prozessorgrafik oft keine eigene Temperatur. Leistung und Auslastung stehen dann ohne
+  Temperatur im Bericht.
+  Der schnelle Modus spart nur, wenn Updatesuche, Defenderscan oder SMART gewählt sind. Updatesuche und Defenderscan
+  belasten Datenträger und CPU; deshalb warten alle Messungen, bis sie fertig sind.
+
+UMSTIEG
+  1. Bauen.cmd ausführen, Inhalt von Aktueller Build auf den Stick kopieren. Version 2.4 liegt unter Archiv\v2.4.
+     Auf ULB-PC10039 fehlt Pester 5; dort Bauen.cmd ohnetests oder vorher Pester 5 installieren.
+  2. Startzeit vorher und nachher messen: Doku\Startzeit_messen.ps1 mit der exe von 2.4 und 2.6 je fünfmal vom Stick.
+  3. Testmatrix_v2.6.csv abarbeiten, zuerst ULB-PC10039 (Hybridgrafik) und ein Desktop mit Grafikkarte.
+  4. Rückmeldungen mit Bericht, Anhang.zip und Checkpoint.log an die Roadmap.
+
+Quellen
+  https://learn.microsoft.com/windows/win32/api/d3d11/nf-d3d11-d3d11createdevice
+  https://learn.microsoft.com/windows/win32/api/dxgi/nf-dxgi-idxgifactory1-enumadapters1
+  https://learn.microsoft.com/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-getdata (D3D11_QUERY_EVENT)
+  https://learn.microsoft.com/windows/win32/api/d3dcompiler/nf-d3dcompiler-d3dcompile
+  https://learn.microsoft.com/windows/win32/api/d3d11/nf-d3d11-id3d11device-getdeviceremovedreason
+  https://learn.microsoft.com/windows-hardware/drivers/display/timeout-detection-and-recovery (TDR, Ereignis 4101)
+  https://learn.microsoft.com/dotnet/api/system.management.automation.runspaces.runspacepool
+  https://learn.microsoft.com/windows/win32/api/shellapi/nf-shellapi-commandlinetoargvw
+  https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/add-type (IgnoreWarnings)

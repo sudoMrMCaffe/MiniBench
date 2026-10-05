@@ -1,0 +1,89 @@
+{
+  "Format": "PC-Diagnose-DB/1",
+  "Name": "DESKTOP-F9HRMRR (Ryzen 5 5600, 32 GB DDR4-2133, Radeon RX 570 Series)",
+  "Computer": "DESKTOP-F9HRMRR",
+  "Datum": "2026-09-30 17:42",
+  "Version": "1.8",
+  "Quelle": "Import aus PC-Diagnose_AlexPC",
+  "Module": "Import",
+  "Messdauer": "unbekannt",
+  "System": "Micro-Star International Co., Ltd MS-7B86",
+  "Hardware": {
+    "CPU": "AMD Ryzen 5 5600",
+    "RAM": "32 GB DDR4-2133",
+    "GPU": "Radeon RX 570 Series",
+    "Datentraeger": "ST2000DX001-1CM164 (1,82 TB, SATA, Healthy); ST4000DM004-2CV104 (3,64 TB, SATA, Healthy); Samsung SSD 980 1TB (931,5 GB, NVMe, Healthy); Innostor Innostor (58,6 GB, USB, Healthy)",
+    "Betriebssystem": "Microsoft Windows 11 Pro 25H2 (Build 26200.9457)",
+    "Mainboard": "",
+    "WindowsInstalliert": ""
+  },
+  "Werte": {
+    "DISK|NVMe3|SW": 1968.0,
+    "DISK|NVMe3|R1": 13207.0,
+    "DISK|HDD|SW": 128.0,
+    "RAM|Latenz": 119.4,
+    "DISK|NVMe3|SR": 3049.0,
+    "GPU|VMB": 72.5,
+    "RAM|Lesen": 26.9,
+    "DISK|HDD|R8": 182.0,
+    "DISK|HDD|SR": 118.0,
+    "CPU|AES": 1061.0,
+    "DISK|NVMe3|R8": 106814.0,
+    "RAM|Kopieren": 13.2,
+    "CPU|SHA": 2180.0,
+    "GPU|DWM": 4272.0,
+    "CPU|MT": 27919.0,
+    "DISK|HDD|R1": 111.0,
+    "RAM|Schreiben": 13.0,
+    "DISK|NVMe3|W1": 34896.0,
+    "CPU|DEFL": 225.0,
+    "DISK|HDD|W1": 1460.0,
+    "CPU|ST": 2685.0
+  },
+  "Laufwerke": [
+    {
+      "Laufwerk": "ST2000DX001-1CM164 (I:)",
+      "Klasse": "Festplatte",
+      "SR": 116.0,
+      "SW": 139.0,
+      "R1": 115.0,
+      "R8": 180.0,
+      "W1": 1402.0
+    },
+    {
+      "Laufwerk": "ST4000DM004-2CV104 (D:)",
+      "Klasse": "Festplatte",
+      "SR": 119.0,
+      "SW": 117.0,
+      "R1": 107.0,
+      "R8": 185.0,
+      "W1": 1517.0
+    },
+    {
+      "Laufwerk": "Samsung SSD 980 1TB (C:)",
+      "Klasse": "NVMe PCIe 3.0 x4",
+      "SR": 3049.0,
+      "SW": 1968.0,
+      "R1": 13207.0,
+      "R8": 106814.0,
+      "W1": 34896.0
+    }
+  ],
+  "Befunde": {
+    "Kritisch": 0,
+    "Warnungen": 5,
+    "Hinweise": 4,
+    "Liste": [
+      "[WARNUNG] Geräte: Videocontroller für Multimedia: Code 28 (kein Treiber installiert).",
+      "[WARNUNG] Speicherplatz: Laufwerk H: nur 7,8 % frei (62,4 GB).",
+      "[WARNUNG] Stabilität: Unerwartetes Herunterfahren (EventLog 6008): 3x, zuletzt 30.09.2026 17:37.",
+      "[WARNUNG] Stabilität: Unerwartetes Abschalten (Kernel-Power 41): 3x, zuletzt 30.09.2026 17:36.",
+      "[WARNUNG] Systemdateien: SFC hat Integritätsverletzungen gefunden. Reparatur: DISM /Online /Cleanup-Image /RestoreHealth, danach sfc /scannow (oder Skript mit -Repair).",
+      "[INFO] Grafik: Grafiktreiber für Radeon RX 570 Series ist älter als 2 Jahre (30.03.2023).",
+      "[INFO] RAM: Gemischte RAM-Module (unterschiedliche Teilenummern).",
+      "[INFO] Updates: Windows-Update Installationsfehler (20): 1x, zuletzt 18.09.2026 17:04. Nur Store-Apps betroffen, meist harmlos (0x80073D02: App war beim Update geöffnet).",
+      "[INFO] Updates: 9 Updates stehen zur Installation bereit."
+    ]
+  },
+  "Lasttest": ""
+}

@@ -1,0 +1,101 @@
+﻿LEOS MINIBENCH 2.9: ÄNDERUNGEN
+==============================
+
+Version 2.9 setzt die Phasen 0 und 1 der Projekt-Roadmap um: Fundament, Bereinigung, Ergonomie,
+Gesamtbild, Optimierungs-Presets und die Überarbeitung der Vergleichsseite.
+
+1. ARM64-ERKENNUNG UND WARNHINWEISE (PHASE 0)
+Die Hardware- und Sensor-Erkennung erkennt ARM64-Systeme (z. B. Qualcomm Snapdragon X Elite und Plus).
+Da tiefgehende Mainboard- und Kernsensoren x86/x64-Treiber voraussetzen, setzt die Sensorsitzung LhmGrund
+auf ARM64 und gibt einen klaren Hinweis aus: "ARM64-Architektur erkannt: Tiefgehende Kern- und Mainboard-Sensoren
+erfordern x86/x64-Treiber und stehen nur eingeschränkt zur Verfügung". In Diagnose- und HTML/Text-Berichten
+wird dieser Umstand als Informations-Befund sauber aufgeführt, ohne Fehlalarme auszulösen.
+
+2. HIGH-DPI-UNTERSTÜTZUNG (PER-MONITOR V2, PHASE 0)
+Das in Bauen.cmd erzeugte Anwendungsmanifest wurde um Per-Monitor V2 DPI-Awareness erweitert:
+<dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2, PerMonitor</dpiAwareness>
+sowie das klassische <dpiAware>true/pm</dpiAware>. WinForms-Steuerelemente, Schriften und Diagramme skalieren
+auf Bildschirmen mit 150 % bis 225 % Skalierung scharf und ohne abgeschnittene Beschriftungen.
+
+3. MODULARISIERUNG DER C#-OBERFLÄCHE (PHASE 0)
+Die bisher monolithische DiagGui.cs (über 3.200 Zeilen) wurde in logische Teilklassen modularisiert:
+- DiagGui_Steuerelemente.cs: Wiederverwendbare Steuerelemente (UI-Farben/Stile, FlatBar, NavItem, StatCard, TabStrip, SensorChart).
+- DiagGui_Modelle.cs: Datenmodelle (DbEntry, ChangeEntry, ContractStep, OptItem).
+- DiagGui_Vergleich.cs: Vergleichsdatenbank, Spaltensortierung (DbItemComparer) und Umbenennungsdialog.
+- DiagGui_Seiten.cs: Hilfs- und Infoseiten (Versionen, Änderungsprotokoll mit Rückgängig-Funktion).
+- DiagGui.cs: Hauptformular, Navigation, Laufansichten, Diagnose-, Benchmark-, Lasttest- und Optimierungsseite.
+Alle Teilklassen sind über #>> EINBINDEN in Oberflaeche.ps1 eingebunden und bleiben vollständig zu C# 5 kompatibel.
+Verwaiste Dateien im src-Ordner wurden geprüft; alle Quelltextdateien werden sauber im Bauplan geführt.
+
+4. NEUGEWICHTUNG IM GESAMTBILD (PHASE 1)
+Die Bewertungslogik im Systemvergleich (Referenz_Vergleich.ps1, HtmlBericht.ps1, Bausteine_Systemvergleich.ps1)
+wurde realitätsnäher austariert:
+- Im Gesamtwert erhalten Prozessor (Gewicht 2,0) und Grafik (Gewicht 2,0) ein doppelt so hohes Gewicht wie
+  Arbeitsspeicher (1,0) und Datenträger (1,0).
+- Innerhalb der Grafikbewertung wird die tatsächlich gemessene FPS-Renderleistung (Direct3D 11 Rendertest)
+  dreifach (Gewicht 3,0) gegenüber theoretischen Durchsatzwerten (VMB, Gewicht 1,0) gewichtet.
+- Das geometrische Mittel (Get-GeoMean) unterstützt jetzt eine flexible Gewichtungsreihe.
+- Auch DbEntry in der Oberfläche berechnet den Gesamtindex (OverallScore) nach dieser gewichteten Formel.
+
+5. VOREINSTELLUNGS-PRESET „LEOS EMPFEHLUNG“ (PHASE 1)
+Das bisherige Preset "Standard" wurde durch die optimierte Voreinstellung "Leos Empfehlung" abgelöst.
+Sie ist beim Öffnen der Optimierungsseite standardmäßig aktiv. Textuelle Hinweise und Tooltips erläutern,
+dass Leos Empfehlung auf Systemerhalt, Datenschutz und Hintergrundentlastung ohne rein geschmackliche
+Änderungen ausgelegt ist.
+
+6. MODUL WARTUNG UND KATALOGBEREINIGUNG (PHASE 1)
+Das bisherige Modul "Reparatur" heißt nun "Wartung":
+- Der Modulvertrag (src\Module\Wartung\Vertrag.psd1) umfasst jetzt 22 strukturierte Wartungsmaßnahmen.
+- Wartungs- und Aufräumskripte (Datenträgerbereinigung, temporäre Dateien, Komponentenspeicher, Windows Update Caches)
+  wurden aus dem Optimierungskatalog in das Modul Wartung überführt.
+- Der Optimierungskatalog (Module\Optimierung\Katalog.psd1) wurde von der Kategorie "Bereinigung" und redundanten
+  Einträgen befreit (151 gezielte Einträge verbleiben).
+- Volle Rückwärtskompatibilität: Aufrufe mit -Reparaturen und -Module Reparatur werden nahtlos auf Wartung abgebildet.
+
+7. VERGLEICHSSEITE: EDITIERBARER SYSTEMNAME UND SPALTENSORTIERUNG (PHASE 1)
+- Editierbarer Systemname: Nutzer können über die neue Schaltfläche "Name ändern ..." den Anzeigenamen eines
+  Systems anpassen (z. B. für Notizen wie "Vor Reinigung" oder "Neuer Treiber"). Der Wert wird im Feld "Name" der
+  jeweiligen JSON-Datei persistiert, ohne die eigentliche Geräteidentität oder Hardwareerkennung zu verändern.
+- Sortierbare Tabellenspalten: Klicks auf die Spaltenköpfe der Vergleichstabelle sortieren die Liste aufsteigend
+  und absteigend über die Klasse DbItemComparer nach System, Datum, Gesamtwertung, Prozessor, Grafik, RAM oder GPU-FPS.
+- Ergonomie: Jedes neue Bedienelement verfügt über aussagekräftige Hinweistexte beim Überfahren mit der Maus (Tip(...)).
+
+GEFUNDEN UND BEHOBEN
+  1. Fehlende UTF-8-BOM bei Dateibearbeitung: Windows PowerShell 5.1 liest textbasierte Dateien ohne BOM als
+     ANSI (Windows-1252), wodurch Umlaute wie 'ü' als 'Ã¼' interpretiert wurden und Modulvertrag-Prüfungen
+     fehlschlugen. Alle Dateien werden strikt als UTF-8 mit BOM (0xEF 0xBB 0xBF) gespeichert.
+  2. using-Direktiven in C#-Teildateien (CS1529): Bei der Zusammenführung der modularen .cs-Dateien führten
+     using-Anweisungen in Teildateien zu Compiler-Fehlern. Alle using-Direktiven wurden zentral an den Kopf von
+     DiagGui.cs verschoben.
+  3. Gültigkeitsbereich von Schrift- und Hilfsressourcen: Die Variable wsBold und die Hilfsfunktion RunHelper
+     wurden im Zuge der Modularisierung isoliert und standen anderen Methoden nicht zur Verfügung. Beide wurden
+     in den gemeinsamen Klassenkontext von DiagGui integriert.
+  4. Modulvertrag und Test-Assertions: Die Anpassung von Reparatur zu Wartung erforderte die Aktualisierung
+     der Array- und Namensabgleiche in tests\Modulvertrag.Tests.ps1 auf 22 Schritte und den neuen Namen.
+  5. Preset Leos Empfehlung im Optimierungsmodul: Das Preset auf der Optimierungsseite wählte bisher 107
+     Einträge aus der früheren Vorlage Standard. Es synchronisiert nun exakt mit der Voreinstellung Leos Empfehlung
+     (72 optimierte Einträge) aus Voreinstellungen.json bzw. dem internen Standardkatalog.
+  6. Y-Achsenskalierung für Bildraten und Auslastung: Diagramme für Rendertest (Bilder/s) und Prozent-Auslastung
+     begannen bisher beim gemessenen Minimalwert, wodurch kleine Schwankungen (z. B. 39 bis 42 FPS) optisch wie
+     extreme Einbrüche wirkten. Beide Diagrammtypen (HTML-Bericht und Oberfläche) beginnen nun sauber bei einer
+     Nulllinie (0 Bilder/s bzw. 0-100 %).
+
+GRENZEN
+  - Auf nativer ARM64-Hardware steht der PawnIO-Kerneltreiber für Hardware-Registerzugriffe nicht zur Verfügung.
+    Sensordaten stützen sich auf Windows-Leistungsindikatoren und ACPI.
+  - Das Umbenennen von Systemen auf der Vergleichsseite erfordert Schreibrechte im Ordner Minibench-Daten\Datenbank.
+    Bei schreibgeschützten Medien bleibt der ursprüngliche Computername aktiv.
+
+UMSTIEG
+  1. Bauen.cmd ausführen (baut LeosMinibench.exe und LeosMinibench.ps1, archiviert den vorigen Stand).
+  2. Inhalt des Ordners "Aktueller Build" auf den USB-Stick kopieren.
+  3. Bestehende Datenbanken (PC-Diagnose-DB/2) bleiben voll kompatibel; ältere Läufe ohne "Name"-Feld zeigen
+     automatisch weiterhin den Rechnernamen (Computer).
+
+ERGEBNIS
+  100 % bestandene Pester-Tests (517 bestanden, 0 fehlgeschlagen, 100 übersprungen). Fehlerfreie Kompilierung
+  der C#-Oberfläche unter .NET Framework 4 / C# 5.
+
+QUELLEN
+  https://learn.microsoft.com/windows/win32/hidpi/high-dpi-desktop-application-development-on-windows
+  https://learn.microsoft.com/windows/win32/sbscs/application-manifests#dpiawareness

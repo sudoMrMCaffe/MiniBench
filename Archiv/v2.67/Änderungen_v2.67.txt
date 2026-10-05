@@ -1,0 +1,103 @@
+﻿LEOS MINIBENCH 2.67: ÄNDERUNGEN
+===============================
+
+Version 2.67 behebt die ungleichmäßige CPU-Last, die auch mit 2.66 blieb (Lasttest CPU 2 Minuten auf ULB-PC10039 am
+03.10.2026 um 13:32, Task-Manager mit stark schwankenden Kurven auf allen 20 logischen Prozessoren).
+
+1. BEFUND AUS DEM LAUF VOM 03.10.2026 13:32
+Die mit 2.66 eingeführte Messung zeigte: 33 Unterbrechungen über 50 ms in 34 Sekunden, längste 347 ms, zusammen 7,3 s,
+also rund 21 % der Zeit. Im selben Zeitraum liefen 33 Speicherbereinigungen der Generation 0 (dazu 2 der Generation 1).
+Jede Speicherbereinigung (GC) hielt die Last also im Mittel rund 220 ms an.
+Ursache: Für eine GC muss .NET jeden Thread des Prozesses an einer sicheren Stelle anhalten. Die CPU-Rechenschleife rief
+in jedem Durchgang Math.Sin auf, eine Funktion im Laufzeitkern. Steckt ein Thread gerade darin, kann .NET ihn nicht
+anhalten, lässt ihn weiterlaufen und versucht es erneut, unter Windows im Zeittakt von 15,6 ms. Bei 20 Threads sind
+mehrere Versuche nötig. Die Aufteilung in kurze Abschnitte aus 2.66 half deshalb nicht. Die GC-Läufe kommen von der
+PowerShell-Abfrageschleife (Sensoren, Status), die im selben Prozess bei jeder Abfrage viele Objekte anlegt.
+
+2. CPU- UND RAM-LAST IN EINEM EIGENEN PROZESS
+Lasttest (CPU und RAM) und CPU-Stabilitätstest der Diagnose starten die Last jetzt in einem zweiten PowerShell-Prozess.
+Er lädt nur die übersetzte Bibliothek aus dem Cache des Datenordners und fordert danach keinen Speicher mehr an; dort
+gibt es keine Speicherbereinigung, die Last läuft ohne Unterbrechung.
+  Start               %TEMP%\LeosMinibench\Last_<PID>_<cpu|ram>_<Zeit>\Lastprozess.ps1, gestartet wie der
+                      Arbeitsprozess mit powershell.exe -File (kein -EncodedCommand, das Virenscanner als verdächtig werten).
+  Verständigung       status.txt, alle 250 ms eine Zeile mit Prüfsumme (Rechendurchläufe bzw. geprüfte Bytes, Fehler,
+                      Unterbrechungen, GC-Läufe); Datei stop zum Beenden; ergebnis.txt mit dem Ergebnis des RAM-Tests.
+  Sicherheit          Der Lastprozess endet von selbst, wenn der Arbeitsprozess endet, eine Stoppdatei erscheint oder die
+                      geplante Dauer plus Reserve abgelaufen ist. "Lauf abbrechen" beendet ihn mit dem Arbeitsprozess
+                      (taskkill /T). Am Ende wird sein Ordner gelöscht; Reste beendeter Läufe entfernt die
+                      Rückstandskontrolle.
+  Rückfall            Startet der Lastprozess nicht, endet er ohne Rückmeldung oder meldet er sich nicht innerhalb von
+                      30 Sekunden, läuft die Last wie bis 2.66 im Arbeitsprozess. Der Bericht nennt den Grund.
+  Ausgaben            Ausgaben des Lastprozesses gehen nicht auf den Ereigniskanal zur Oberfläche.
+Bericht: "Prozessor: ... eigener Prozess" in der Liste der Lasten, "Unterbrechungen der CPU-Last (eigener Prozess)",
+"Unterbrechungen der RAM-Last (eigener Prozess)" und, wenn Grafik oder Datenträger mitliefen, "Unterbrechungen im
+Arbeitsprozess (Grafik, Datenträger, Sensoren)". Ohne eigenen Prozess wie bisher "Unterbrechungen der Last".
+
+3. LASTSCHLEIFEN OHNE AUFRUFE
+Auch im Rückfall und für den Renderthread im Arbeitsprozess soll eine GC sofort anhalten können:
+  CPU                 Sinus als Polynom (Fehler unter 0,001), Bitmuster über eine Union statt BitConverter. Die Schleife
+                      enthält keinen Aufruf mehr; der JIT übersetzt solche Schleifen so, dass die GC sie an jeder Stelle
+                      anhalten kann. Die Rechenfehlerprüfung bleibt gleich (Referenzwerte werden bei jedem Start berechnet).
+  RAM                 Muster direkt in der Schleife statt über Expected(), Fehlermeldung nur im seltenen Fehlerzweig.
+  Benchmark           Speicherkopie (memcpy) in Stücken zu 1 MB.
+Die Zahl der Rechendurchläufe ist mit 2.66 nicht vergleichbar (anderer Sinus), unter sich bleibt sie es.
+
+4. AUFBAU
+Geändert: Kern\Testroutinen.cs (DiagCpu.WorkPart, DiagRam.FillSlice und VerifySlice, DiagBench.MemCopyGBs, neu
+DiagLoadHost und LoadJob), Kern\Testroutinen.ps1 (Start-LoadJob, Get-LoadJobPauseText), Module Lasttest und Diagnose
+(Ablauf), Ablauf\Abschluss.ps1 (Rückstandskontrolle kennt Last_-Ordner), Kern\Version.ps1.
+Neu: Umgebungsvariable MINIBENCH_LAST_INTERN=1 erzwingt die Last im Arbeitsprozess (Vergleich, Fehlersuche).
+Datenbank: Feld Unterbrechungen im Lasttest-Eintrag nennt jetzt jede Last einzeln. Keine neuen Parameter, keine neuen
+@@-Ereignisse.
+
+5. TESTS
+Pester-Tests in 14 Dateien. Neu tests\Version267.Tests.ps1: Lastschleifen ohne Aufrufe (Quelltext), Genauigkeit des
+Polynoms, Lastprozess für CPU und RAM mit echtem PowerShell-Kindprozess (Durchläufe, Stopp, Ergebnistext, keine GC und
+keine Unterbrechung im Lastprozess), Rückfall bei fehlendem Programm und bei kaputter Bibliothek, kein Nachstarten nach
+Stopp, Aufräumen, Statuszeile mit Prüfsumme, Rückstandskontrolle. Das Testgerüst der Gesamtläufe übersetzt die
+Testroutinen jetzt als Datei, damit auch dort der Lastprozess läuft; Lasttest CPU sowie Benchmark und Lasttest prüfen
+die Zeile "Unterbrechungen der CPU-Last (eigener Prozess)".
+Ergebnis in der Sandbox (PowerShell 7.4 unter Linux, Nachbau der Pester-5-Befehle): siehe ERGEBNIS.
+
+GEFUNDEN UND BEHOBEN VOR DER ÜBERGABE (Tests und Codeprüfung)
+  1. Die Ordner der Lastprozesse blieben im TEMP liegen, die Rückstandskontrolle kannte den Namen nicht. Jetzt löscht
+     der Lauf sie am Ende, Reste beendeter Läufe entfernt die Rückstandskontrolle.
+  2. Nach "Test beenden" hätte ein gescheiterter Lastprozess die Last im Arbeitsprozess neu gestartet. Jetzt nicht mehr.
+  3. Endete der Lastprozess zwischen zwei Abfragen, hätte die letzte Zeile gefehlt und der Lauf als gescheitert
+     gegolten. Nach dem Ende wird die Statusdatei noch einmal gelesen.
+  4. War der Arbeitsprozess schon beendet, als der Lastprozess startete, wäre die Prüfung auf ihn ausgefallen und die
+     Last bis zum Zeitlimit gelaufen. Jetzt endet der Lastprozess sofort.
+  5. Ein gleich benannter Ordner (CPU-Test der Diagnose, danach Lasttest) hätte von einem gerade beendeten Lastprozess
+     noch gesperrt sein können. Jetzt hat jede Last einen eigenen Ordner.
+  6. Fehlermeldungen des Lastprozesses kamen als CLIXML mit Farbcodes; jetzt als kurzer Text im Bericht.
+  7. Die Umwandlung double nach long ist im 32-Bit-JIT ein Hilfsaufruf; jetzt nach int, das geht ohne Aufruf.
+  8. Erster Bau auf ULB-PC10039 (deutsches Windows): Ein Test erwartete die englische Fehlermeldung von Add-Type
+     ("Bad IL format"); das deutsche Windows meldet "Im Modul wurde ein Assemblymanifest erwartet". Der Test prüft jetzt
+     nur noch Exitcode, Dateiname und Rückfall.
+
+GRENZEN
+  Auf echter Hardware ist 2.67 noch nicht gelaufen. Die Messung im Lastprozess zeigt, ob die Last dort ohne
+  Unterbrechung lief (erwartet: keine über 50 ms, keine Speicherbereinigung).
+  Ist der Datenordner schreibgeschützt, gibt es keine zwischengespeicherte Bibliothek; dann läuft die Last im
+  Arbeitsprozess (dank der Schleifen ohne Aufrufe trotzdem deutlich gleichmäßiger als in 2.66).
+  Die Grafiklast bleibt im Arbeitsprozess (Vorschaufenster, Bildprüfung). Der Renderthread steht dort während einer GC
+  nur noch für deren eigentliche Dauer (wenige Millisekunden).
+  Gegen Unterbrechungen durch Treiber, Thermik oder Leistungslimit des Notebooks hilft das nicht; ULB-PC10039 erreichte
+  im Lauf 99 °C bei TjMax 100 °C und taktete auf rund 2,5 GHz herunter.
+  Eine Richtlinie, die PowerShell-Kindprozesse oder Skripte im TEMP sperrt (AppLocker, WDAC), führt zum Rückfall.
+
+UMSTIEG
+  1. Bauen.cmd ausführen, Inhalt von Aktueller Build auf den Stick kopieren. Version 2.66 liegt unter Archiv\v2.66.
+  2. Lasttest CPU 2 Minuten mit Task-Manager daneben (Testmatrix U1). Im Task-Manager erscheint ein zweiter Prozess
+     "Windows PowerShell" mit der Last.
+  3. Rückmeldung mit Bericht und Anhang.zip.
+
+ERGEBNIS
+  Tests in der Sandbox: 519 bestanden, 0 fehlgeschlagen, 4 übersprungen (Gesamtläufe eingeschlossen).
+
+Quellen
+  https://github.com/dotnet/runtime/blob/main/docs/design/coreclr/botr/threading.md (Anhalten für die GC, Hijacking, FCalls)
+  https://github.com/dotnet/runtime/blob/main/docs/design/coreclr/jit/ryujit-overview.md (voll unterbrechbarer Code)
+  https://learn.microsoft.com/dotnet/standard/garbage-collection/fundamentals
+  https://learn.microsoft.com/dotnet/api/system.diagnostics.processstartinfo.redirectstandardoutput
+  https://learn.microsoft.com/windows/win32/api/processthreadsapi/nf-processthreadsapi-openprocess

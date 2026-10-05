@@ -1,0 +1,19 @@
+﻿Nr;Bereich;Testfall;Umgebung;Erwartung;Art;Ergebnis;Datum;Bemerkung
+A1;Bau;Testen.cmd ausführen;ULB-PC10039 mit Pester 6.2;alle Pester-Tests bestanden, 0 fehlgeschlagen (Gesamtläufe übersprungen), Version28.Tests.ps1 dabei;automatisch;;;
+A2;Bau;Bauen.cmd ausführen;ULB-PC10039;Version 2.80.0.0, Archiv\v2.7 mit exe, ps1, Stand_v2.7.txt und Änderungen_v2.7.txt;automatisch;;;
+S1;Sensoren;Benchmark ohne LibreHardwareMonitor im Tools-Ordner, Rückfrage mit Nein beantworten;TORRENT;Rückfrage vor dem Start; Bericht nennt "LibreHardwareMonitor fehlt im Tools-Ordner" statt PawnIO; GPU-Temperatur, GPU-Takt, Speichertakt und GPU-Auslastung der RX 6800 aus dem Windows-Grafiktreiber in Tabelle und Kurven; Quellen mit Windows-Grafiktreiber;manuell;;;
+S2;Sensoren;Lasttest Grafik 2 Minuten ohne LibreHardwareMonitor;TORRENT;GPU-Temperatur steigt in der Kurve, Abbruchschwelle GPU greift auf diese Werte, keine unplausiblen Werte;manuell;;;
+S3;Sensoren;Benchmark ohne LibreHardwareMonitor;ULB-PC10039;Werte für RTX 3000 (nvidia-smi) und Iris Xe (Windows-Grafiktreiber), CPU-Paketleistung aus Energy Meter, falls vorhanden; Vergleich mit Task-Manager (Leistung, GPU) innerhalb weniger Grad bzw. Prozent;manuell;;;
+S4;Sensoren;Rückfrage vor dem Benchmark mit Ja beantworten;TORRENT;Sensorwerkzeuge werden geholt, danach Lauf mit LibreHardwareMonitor und PawnIO 2.2.0.0, CPU-Temperatur und Leistung vorhanden;manuell;;;
+K1;Kurven;Benchmark normal, HTML-Bericht öffnen;beliebig;Abschnittsbeschriftungen über der Zeichenfläche ohne Überschneidung (Arbeitsspeicher und Grafik getrennt lesbar), y-Achse ohne doppelte Werte;manuell;;;
+O1;Optimierung;Seite Optimierung öffnen, Zustand prüfen;ULB-PC10039;Kategorien aufklappbar, Zähler stimmen, Zustand je Eintrag nach höchstens einer Minute, Benutzer genannt, verwaltete Einträge markiert (Domänen-PC);manuell;;;
+O2;Optimierung;Vorlage Minimal anwenden, mit Wiederherstellungspunkt;VM oder Testrechner mit Windows 11;Rückfrage mit Zusammenfassung, Wiederherstellungspunkt angelegt, Abschnitte je Kategorie, Kennzahlen vorher und nachher, keine Fehler;manuell;;;
+O3;Optimierung;Seite Änderungen nach O2: alle Einträge der Optimierung zurücknehmen;VM oder Testrechner;Registry, Dienste und Aufgaben wieder wie vorher, Zustand prüfen zeigt die Einträge als offen;manuell;;;
+O4;Optimierung;Vorlage Standard mit Apps und Bereinigung;VM;Apps entfernt, Eingriffe im Änderungsprotokoll mit Weg zurück, Neustart-Hinweis, Explorer-Einstellungen nach Abmelden aktiv;manuell;;;
+O5;Optimierung;Leos Minibench mit anderem Administratorkonto starten (Ausführen als), Eintrag Dateiendungen anwenden;VM mit zwei Konten;Einstellung landet beim angemeldeten Benutzer (HKEY_USERS\SID), Bericht nennt ihn;manuell;;;
+O6;Optimierung;Werkzeuge holen, DDU auf einer VM mit Grafiktreiber;VM;DDU-Prüfsumme stimmt, nach Neustart abgesicherter Modus, DDU entfernt Treiber, danach Normalstart, Ordner LeosMinibench-DDU weg;manuell;;;
+O7;Optimierung;Reparatur und Optimierung mit "Alte Wiederherstellungspunkte löschen" in einem Lauf;VM;nach dem Löschen wird ein neuer Wiederherstellungspunkt angelegt, Bericht nennt ihn;manuell;;;
+B1;Bericht;Diagnose vollständig;ULB-PC10039;WLAN als eine Zeile zur Standortfreigabe, Zuverlässigkeit als Befund ohne Wiederholung der Erklärung, Laufzeit mit Minuten;manuell;;;
+B2;Bericht;Benchmark mit Haken Referenz;TORRENT;vorn "Dieser Lauf wird als Referenz gespeichert" bzw. "ersetzt am Ende die Referenz", HTML und KI-Datei passend; Arbeitsspeicher und Datenträger mit Kurzergebnis; Unterbrechungen ohne WinSAT;manuell;;;
+B3;Bericht;Benchmark Datenträger;ULB-PC10039;SN820 als "NVMe PCIe 4.0 (geschätzt)", Index um 120 statt 268;manuell;;;
+B4;Bericht;Diagnose;TORRENT;TPM-Hersteller "AMD 6.32.0.6" ohne Lücke, Textbericht ohne Nullbytes;manuell;;;

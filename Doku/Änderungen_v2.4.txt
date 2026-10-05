@@ -1,0 +1,201 @@
+﻿LEOS MINIBENCH 2.4: ÄNDERUNGEN
+==============================
+
+Version 2.4 setzt die Rückmeldungen aus dem Praxistest vom 01.10.2026 um (TORRENT, ULB-PC10039, DESKTOP-2KDA9KP,
+Läufe mit 2.3). Schwerpunkte: vollständiger Bericht auch bei einzelnen Modulen, Takt wie im Task-Manager, plausible
+Sensorwerte, Grafikkarte und Prozessorgrafik getrennt, Akkubericht, kein Standby während eines Laufs, Referenz aus
+Bestwerten und Hilfswerkzeuge, die auf Wunsch auf dem PC bleiben.
+
+1. KEIN LEERER BERICHT MEHR (NUR LASTTEST)
+Im Praxistest entstand mit "nur Lasttest" ein Bericht ohne Inhalt. In den Protokollen ließ sich die Ursache nicht
+eindeutig belegen; abgesichert ist jetzt jeder Weg dorthin:
+  Abschnittsfehler     Bricht ein Abschnitt ab, steht das als WARNUNG Ablauf mit Meldung und Zeile in den Befunden,
+                       nicht nur in den Details.
+  Modulprüfung         Liefert ein gewähltes Modul kein Ergebnis, folgen WARNUNG Ablauf, Testergebnis "Fehler" und ein
+                       eigener Abschnitt "<Modul>: kein Ergebnis" mit dem Grund (Abschnitt abgebrochen, nach Absturz
+                       übersprungen oder kein Schritt ausgeführt).
+  Absturzanalyse       Ist nur ein Schritt gewählt, wird nach einem Absturz im letzten Lauf nichts übersprungen; es
+                       bleibt bei einem Hinweis. Sonst wäre der einzige Schritt weggefallen.
+  Lasttest             Sensorfehler brechen den Lasttest nicht mehr ab. TjMax wird nicht mehr als leeres Objekt {} in
+                       die Datenbank geschrieben.
+
+2. FLACKERN DER OBERFLÄCHE
+Die Kurven zeichnen gepuffert (DoubleBuffered für alle Steuerelemente, einmal je Takt statt bei jedem Wert). Listen und
+Statuszeile werden nur bei geänderten Werten neu gesetzt (BeginUpdate, SuspendLayout). Takt der Anzeige 250 ms.
+In der Liste der Live-Ansicht stehen Grenzwerte grau mit Erklärung, verworfene Werte rot als "unplausibel".
+
+3. TAKT WIE IM TASK-MANAGER, PLAUSIBLE SENSORWERTE
+Takt: Neu ist DiagPdh (Kern\Sensoren.cs), Windows-Leistungszähler über PdhAddEnglishCounter und damit unabhängig von
+der Sprache. Takt wie im Task-Manager = Processor Frequency x % Processor Performance / 100. Diese Zahl steht jetzt in
+Diagnose, Lasttest, Kurven, HTML-Bericht und KI-Datei als "Takt wie Task-Manager". Daneben steht getrennt der höchste
+Kerntakt laut LibreHardwareMonitor. Ohne Leistungszähler bleibt WMI der Ersatz, ohne beides das Mittel der Kerntakte.
+Zwischen zwei Abfragen liegen mindestens 250 ms, damit die Ratenzähler auch beim ersten Aufruf stimmen.
+Grenzwerte: Warning und Critical Temperature der NVMe, Temp. Threshold, Thermal Sensor ... Limit und ähnliche
+Herstellerangaben bekommen die Art Grenzwert. Sie zählen nie als Temperatur, nie für Kurven, Leitwerte oder Befunde.
+Im Praxistest stand die Abschalttemperatur 94 °C als Datenträgertemperatur im Bericht.
+Plausibilität: Unmögliche Werte werden verworfen (Status unplausibel, Rohwert und Grund bleiben erhalten). Grenzen:
+  Leistung Grafikkarte    NVIDIA: höchstes Power-Limit laut nvidia-smi plus 5 % Messtoleranz
+                          sonst Desktop-Karte 700 W, Notebook-Grafik 200 W, Prozessorgrafik 80 W
+  Leistung CPU            500 W
+  Temperatur              unter minus 30 °C oder ab 150 °C, bei Datenträger, RAM und Akku ab 120 °C
+  Takt                    CPU über 9000 MHz, GPU über 5000 MHz, Speicher über 40000 MHz
+  Lüfter, Last, Spannung  außerhalb physikalisch möglicher Bereiche
+Im Praxistest meldete die Iris-Xe-Grafik von ULB-PC10039 dauerhaft 590 W; dieser Wert wird jetzt verworfen.
+Neues Ereignis @@SENSBAD|Index|Rohwert|Grund für die Live-Ansicht.
+Weitere Korrekturen: Der CPU-Stabilitätstest der Diagnose zeigt die echte CPU-Temperatur und kennzeichnet ACPI-Werte; die
+Meldungen "Leistung unter Basistakt" und Drosselbefund im Lasttest sind zu einem Befund zusammengefasst.
+
+4. GRAFIKKARTE UND PROZESSORGRAFIK
+Get-GpuKind ordnet jede Grafikeinheit ein: dGPU, iGPU, virtuell (Parsec, Basic Display, Remote) oder unbekannt.
+Sensoren: Leitwert ist die Grafikkarte (bei mehreren die mit der höchsten Last), die Prozessorgrafik steht getrennt
+daneben (Kurven, Lasttest-Verlauf.csv, Datenbank Last.IGpu). Der frühere Rückfall "Gerät mit der größten Leistung"
+ist entfallen; er hat im Praxistest die 590 W der Iris Xe zum GPU-Wert gemacht.
+Inventar: Zeile Art je Einheit, im Kasten System alle Einheiten mit Kennzeichnung, welche den Desktop ausgibt.
+Benchmark: WinSAT misst die Einheit, über die Windows den Desktop ausgibt. Welche das war, steht jetzt fest: Die
+Treiberversion in winsat-dwm.xml (64 Bit, 4 x 16 Bit) wird dekodiert und dem Adapter zugeordnet, ersatzweise über den
+eigenen Grafikspeicher. Jeder GPU-Wert nennt die gemessene Einheit. Referenz und Vergleich nutzen nur die Grafikkarte;
+ein Wert der Prozessorgrafik wird nicht mehr gegen eine Grafikkarte verglichen.
+Neue Option "Grafikkarte zusätzlich messen" (Seite Benchmark, Parameter -BenchGpuWahl, Vorgabe aus): Hat WinSAT die
+Prozessorgrafik gemessen, trägt Leos Minibench für winsat.exe die Grafikkarte als bevorzugte GPU ein
+(HKCU\Software\Microsoft\DirectX\UserGpuPreferences, "GpuPreference=2;"), misst ein zweites Mal und nimmt die
+Einstellung sofort zurück. Risikostufe Ändern, Eintrag im Änderungsprotokoll mit Gegenbefehl. Ohne Datenordner für das
+Protokoll wird nichts umgestellt. Bricht ein Lauf zwischen Umstellen und Zurücknehmen ab, nimmt der nächste Start die
+Einstellung zurück (Restore-TemporaryChanges, Status auf der Seite Änderungen).
+
+5. KI-DATEI EINDEUTIG
+Neuer Block "Regeln zur Gewichtung (verbindlich)" direkt nach dem Auftrag:
+  1. Grenzwerte sind keine Messwerte.
+  2. Systemdateien: Einordnung von DISM und SFC steht vorab; Hash-Abweichungen bei intaktem Speicher sind meist folgenlos.
+  3. Reihenfolge der Dringlichkeit: Datenverlust vor Stabilität vor Leistung vor Komfort.
+  4. INFO nur mit zusätzlichem Beleg aufwerten; unplausible Werte sind verworfene Sensorfehler.
+  5. Lizenz und Aktivierung nicht bewerten.
+  6. ACPI-Thermalzone ist keine CPU-Temperatur.
+Neue Abschnitte SYSTEMDATEIEN (Einordnung) und AKKU. Sensoren getrennt nach Messwerten und GRENZWERTEN. In
+smartctl-Ausgaben sind Schwellen markiert ([Grenzwert laut Hersteller, keine Messung]) und Zeitzähler wie "Warning Comp.
+Temperature Time" ([Minuten oberhalb des Grenzwerts, keine Temperatur]). Benchmark-Werte gerundet (kein
+Gleitkommarest aus WinSAT mehr), Referenzwerte mit Herkunft, Vergleich in aufsteigender Reihenfolge. Der
+Lasttest-Verlauf zeigt die Spalte Thermalzone nur, wenn sie sich bewegt und keine echte Temperatur vorliegt.
+DISM und SFC ergeben zusammen einen Befund statt zweier:
+  keine Verletzungen               kein Befund
+  Abweichungen, Speicher intakt    INFO (im Praxistest bisher WARNUNG)
+  reparierbar                      WARNUNG mit Abhilfe Reparaturmodul
+  nicht reparierbar                KRITISCH (DISM) bzw. WARNUNG (nur SFC) mit Abhilfe Inplace-Upgrade
+Scheitert SFC, bleibt der DISM-Befund erhalten.
+
+6. LIZENZBEFUNDE ENTFERNT
+Aktivierung und Lizenz erzeugen keinen Befund mehr. Der Status steht weiter im Inventar (Aktivierung).
+
+7. SORTIERUNG AUFSTEIGEND
+Vergleichsbalken im Systemvergleich und im HTML-Bericht stehen aufsteigend nach Wert, nicht gemessene am Ende, das
+eigene System hervorgehoben. Die Vergleichstabelle des Benchmarks hat die Spalte "Reihenfolge (niedrig nach hoch)",
+die Laufwerkstabelle ist nach sequenziellem Lesen sortiert. Sensoren stehen in fester Reihenfolge: Gruppe (CPU, GPU,
+RAM, Mainboard, Datenträger, Akku), Grafikkarte vor Prozessorgrafik, Art, Name mit Zahlen numerisch (Core #2 vor #10).
+
+8. SMART-LANGTEST HÖCHSTENS 120 MINUTEN
+Vorgabe für -SmartTimeoutMinutes jetzt 120 statt 360. Auf der Seite Diagnose einstellbar: 30, 60, 90, 120, 180, 240
+oder 360 Minuten. Danach entsteht der Bericht ohne Ergebnis des Langtests, der Test läuft im Laufwerk weiter.
+
+9. KEIN STANDBY WÄHREND EINES LAUFS
+DiagPower setzt beim Start eine Systemanforderung (SetThreadExecutionState ES_CONTINUOUS und ES_SYSTEM_REQUIRED) und
+zusätzlich PowerCreateRequest mit SystemRequired und ExecutionRequired, damit auch Modern Standby nicht greift. Der
+Bildschirm darf ausgehen. Für powercfg /energy wird die Sperre kurz ausgesetzt, damit sie die Messung nicht verfälscht.
+Am Laufende wird sie aufgehoben; bei Abbruch oder Absturz endet sie mit dem Prozess. Kopf und Abschnitt "Standby
+während des Laufs" nennen den Zustand. Benchmark: Lag beim Start schon mehr als 15 % CPU-Last an, wird eine
+Verschlechterung um 15 % oder mehr gegenüber früheren Läufen nur als INFO gemeldet.
+
+10. AKKUBERICHT
+powercfg /batteryreport wird als XML ausgewertet (Zahlen ohne Tausendertrennzeichen), die HTML-Fassung dient als
+Ersatz (Tausenderpunkt oder Tausenderkomma, Zyklen "-" = nicht gemeldet). Zusammengeführt mit WMI ergibt sich je Akku:
+Name, Hersteller, Chemie, Designkapazität, volle Ladekapazität, Verschleiß, Ladezyklen, geschätzte Laufzeit voll und im
+Neuzustand, Kapazitätsverlauf. Befund ab 30 % Verschleiß INFO, ab 50 % WARNUNG. HTML-Bericht mit Kennzahlen und
+Verlaufskurve, Datenbankfeld Akku. Im Praxistest waren diese Angaben leer.
+
+11. HILFSWERKZEUGE JE GERÄT BEHALTEN
+Neue Einstellung auf der Seite Sensoren live: "Hilfswerkzeuge" jedes Mal fragen, nach dem Lauf entfernen oder auf
+diesem PC behalten. Gilt für PawnIO und für smartmontools, die Leos Minibench per winget installiert hat. Gespeichert
+je Gerätekennung in Minibench-Daten\Geraete.json (Format Minibench-Geraete/1) zusammen mit der Treiberwahl. Der
+Startdialog fragt Treiber und Behalten gemeinsam und bietet "Wahl für diesen PC merken". Parameter
+-WerkzeugeBehalten entfernen|behalten.
+Behalten: Markierung weg, Eintrag "bleibt auf Wunsch installiert" als Hinweis im Änderungsprotokoll mit Gegenbefehl,
+die Rückstandskontrolle führt die Werkzeuge unter "Auf Wunsch auf diesem PC behalten" und zählt sie nicht als Reste.
+Wieder entfernen: Steht die Einstellung ausdrücklich auf entfernen, deinstalliert der nächste Lauf früher behaltene
+Werkzeuge. Bei "jedes Mal fragen" ohne Antwort bleiben sie. PawnIO wird nur entfernt, wenn die installierte Version der
+behaltenen entspricht; ist der Treiber inzwischen weg, wird der Eintrag gelöscht. So entfernt Leos Minibench nie einen
+PawnIO, den ein anderes Programm mitgebracht hat.
+Außerdem: Die exe räumt beim Start entpackte LeosMinibench_<PID>.ps1 früherer Starts aus dem Laufzeitordner, deren
+Prozess nicht mehr läuft (im Praxistest lagen dort mehrere Kopien).
+
+12. REFERENZ TORRENT AUS BESTWERTEN
+Die Standardreferenz ist jetzt TORRENT mit dem besten Wert je Messgröße aus allen Läufen von TORRENT in der
+Vergleichsdatenbank (bei Latenzen der niedrigste), Kurzmessungen zählen nicht. Bericht und KI-Datei nennen je Wert die
+Herkunft ("Lauf vom 01.10.2026 (v2.3)" oder "eingebaut"). Neue Läufe von TORRENT ziehen die Referenz beim nächsten
+Benchmark nach. Eine gespeicherte Referenz.json oder "Median der Datenbank" gehen weiter vor.
+
+13. AUFBAU
+Geänderte Teile in src: 00_Kopf.ps1, Kern\Sensoren.ps1 und .cs, Kern\Testroutinen.ps1 und .cs, Kern\Grundgeruest.ps1,
+Kern\Werkzeuge.ps1, Kern\Referenz_Vergleich.ps1, Kern\Aenderungen.ps1, Kern\Berichtshilfen.ps1, Kern\Datenbank.ps1,
+Kern\Checkpoints_Absturzanalyse.ps1, Diagnose\Hilfsfunktionen.ps1, Bericht\KI-Datei.ps1, Bericht\HtmlBericht.ps1,
+Bericht\Stil.ps1, Bericht\Bausteine_Systemvergleich.ps1, Ablauf\Start.ps1, Ablauf\Abschluss.ps1, alle Module außer
+Reparatur, Oberflaeche\DiagGui.cs und Oberflaeche.ps1, Bauen.cmd (Launcher).
+Neue Parameter: -WerkzeugeBehalten, -BenchGpuWahl. Geänderte Vorgabe: -SmartTimeoutMinutes 120.
+Modulvertrag Benchmark: Risiko Ändern, neuer Schritt GpuWahl (Option, Rückgängig über das Protokoll).
+@@-Ereignisse: SENSLEAD hat 13 Felder (T, CPU-Temperatur, CPU-Takt wie Task-Manager, CPU-Leistung, GPU-Temperatur,
+GPU-Takt, GPU-Leistung, Lüfter, CPU-Last, höchster Kerntakt, Temperatur, Takt und Leistung der Prozessorgrafik).
+Neu SENSBAD|Index|Rohwert|Grund.
+Datenbank: Hardware.IGPU, Hardware.GPUGemessen, Akku, Sensoren.Last mit CpuMHzMax, Gpu, IGpu, IGpuTempMax, IGpuWMax,
+Unplausibel. Format bleibt PC-Diagnose-DB/2.
+
+14. TESTS
+Pester-Tests in 10 Dateien. Neu:
+  tests\Praxistest.Tests.ps1   jeder Fund aus dem Praxistest als Testfall: Grenzwerte, 590 W, Power-Limit, Art der
+                               Grafikeinheit, Hybridgrafik, Takt wie Task-Manager, Sortierung, Akku (HTML beider
+                               Notebooks, XML-Probe, Schwellen), DISM und SFC, WinSAT-Treiberversion und Zuordnung,
+                               Bestwerte, Vergleichsreihenfolge, smartctl-Markierung, Modulprüfung, Abschnittsfehler,
+                               Geraete.json und behaltener PawnIO
+  tests\Lauf.Tests.ps1         ganze Läufe als eigener Prozess mit Attrappen und Zeitraffer: nur Lasttest CPU, nur
+                               Lasttest RAM, nur Benchmark, Diagnose Funktionstest, Benchmark mit Lasttest. Geprüft:
+                               DONE, Bericht mit Inhalt, kein abgebrochener Abschnitt, Standby gesetzt und aufgehoben,
+                               HTML-Bericht. Unter Windows nur mit Testen.cmd -Gesamtlauf.
+  tests\Daten\Akku, WinSAT     Auszüge der echten Dateien aus dem Praxistest (Seriennummern entfernt)
+Ergänzt: Aenderungen.Tests.ps1 (GPU-Wahl sofort und nach Abbruch beim nächsten Start zurück), Modulvertrag.Tests.ps1
+(Optionen mit Schalter, SMART-Dauer und Werkzeug-Einstellung in der Oberfläche).
+
+GEFUNDEN UND BEHOBEN VOR DER ÜBERGABE (Tests und Codeprüfung)
+  1. Die neue Liste der Abschnittsfehler blieb immer leer (leere Liste gilt in PowerShell als falsch); die
+     Modulprüfung hätte "kein Schritt ausgeführt" statt der echten Fehlermeldung genannt.
+  2. Die erste PDH-Abfrage folgte ohne Abstand auf das Öffnen; die CPU-Last beim Benchmark-Start wäre falsch gewesen.
+  3. Set-SensorClassification brach unter PowerShell 7.4 mit "Argument types do not match" ab (@() über eine Liste);
+     Momentaufnahme und CPU-Test der Diagnose waren davon betroffen.
+  4. Eine Klammer zu viel im Akku-Teil des HTML-Berichts verhinderte den Bau.
+  5. Eine liegen gebliebene GPU-Wahl nach Abbruch wäre nie zurückgenommen worden; ohne Datenordner wäre sie ohne
+     Protokoll gesetzt worden.
+  6. Ein früher behaltener PawnIO hätte nach Deinstallation und Neuinstallation durch ein anderes Programm entfernt
+     werden können; jetzt nur bei gleicher Version.
+  7. Scheiterte SFC, ging der DISM-Befund verloren.
+  8. Bei "jedes Mal fragen" ohne Dialog hätte ein Lauf behaltene Werkzeuge entfernt.
+  9. Das Testgerüst legte Ordner TESTPC und tester im Testordner an.
+ 10. Virtuelle Anzeigeadapter konnten Leit-GPU werden.
+
+GRENZEN
+  Die Abweichung "Takt wie Task-Manager" gegen den Task-Manager (Ziel höchstens 5 %) ist nur auf echter Hardware
+  prüfbar (Testmatrix T1 bis T3).
+  Für AMD- und Intel-Grafikkarten gibt es kein ausgelesenes Power-Limit; dort gelten die festen Obergrenzen.
+  WinSAT misst auf vielen Notebooks auch mit GPU-Wahl die Prozessorgrafik, wenn der Desktop über sie läuft. Der Bericht
+  sagt das dann ausdrücklich.
+  Die Ursache des leeren Berichts im Praxistest ist nicht belegt. Tritt er wieder auf, Checkpoint.log und Fehler.txt
+  aus dem Berichtsordner aufheben.
+  Gesamtläufe laufen nur mit Attrappen unter Linux und PowerShell 7; LibreHardwareMonitor, PawnIO, WinSAT und powercfg
+  sind dort nicht beteiligt.
+
+UMSTIEG
+  1. Bauen.cmd ausführen, Inhalt von Aktueller Build auf den Stick kopieren. Version 2.3 liegt unter Archiv\v2.3.
+  2. Seite Sensoren live: Hilfswerkzeuge einstellen (Vorgabe "jedes Mal fragen", danach wird wie bisher entfernt).
+  3. Auf Notebooks mit Grafikkarte im Benchmark "Grafikkarte zusätzlich messen" anhaken, wenn beide Werte gebraucht werden.
+  4. Testmatrix_v2.4.csv auf TORRENT, einem Intel-Notebook mit Hybridgrafik und einem Notebook mit Akku abarbeiten.
+
+Quellen
+  https://learn.microsoft.com/windows/win32/api/pdh/nf-pdh-pdhaddenglishcounterw
+  https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-powercreaterequest
+  https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-setthreadexecutionstate
+  https://learn.microsoft.com/windows-hardware/design/device-experiences/powercfg-command-line-options (/batteryreport)
+  https://docs.nvidia.com/deploy/nvidia-smi/index.html (power.limit, power.max_limit)

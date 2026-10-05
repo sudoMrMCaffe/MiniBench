@@ -1,0 +1,23 @@
+﻿# Leos Minibench - Git Ignore
+# Verhindert, dass lokale Testdaten, Caches und temporäre Dateien ins Repository gelangen.
+
+# Lokale Datenordner (Berichte, Caches, Absturz-Checkpoints aus Entwicklungs-Läufen)
+**/Minibench-Daten/
+Minibench-Daten/
+Aktueller Build/Minibench-Daten/
+Archiv/Minibench-Daten/
+
+# Temporäre Log- und Testdateien
+*.log
+*.tmp
+*.bak
+
+# IDE & Editor Artefakte
+.vs/
+.vscode/
+*.suo
+*.user
+
+# Betriebssystem-Artefakte
+Thumbs.db
+Desktop.ini

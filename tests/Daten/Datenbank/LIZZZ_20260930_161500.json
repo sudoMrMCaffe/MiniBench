@@ -1,0 +1,74 @@
+{
+  "Format": "PC-Diagnose-DB/1",
+  "Name": "LIZZZ (Ryzen 5 3600, 16 GB DDR4-3200, Radeon RX 5700 XT)",
+  "Computer": "LIZZZ",
+  "Datum": "2026-09-30 16:15",
+  "Version": "1.8",
+  "Quelle": "Import aus PC-Diagnose_LizPC",
+  "Module": "Import",
+  "Messdauer": "unbekannt",
+  "System": "System manufacturer System Product Name",
+  "Hardware": {
+    "CPU": "AMD Ryzen 5 3600",
+    "RAM": "16 GB DDR4-3200",
+    "GPU": "AMD Radeon RX 5700 XT",
+    "Datentraeger": "SPCC Solid State Disk (476,9 GB, SATA, Healthy); Innostor Innostor (58,6 GB, USB, Healthy)",
+    "Betriebssystem": "Microsoft Windows 11 Pro 25H2 (Build 26200.9457)",
+    "Mainboard": "",
+    "WindowsInstalliert": ""
+  },
+  "Werte": {
+    "RAM|Latenz": 88.9,
+    "DISK|SATA-SSD|R1": 9357.0,
+    "DISK|SATA-SSD|W1": 22417.0,
+    "RAM|Lesen": 21.9,
+    "CPU|AES": 1148.0,
+    "DISK|SATA-SSD|R8": 50564.0,
+    "RAM|Kopieren": 10.5,
+    "CPU|SHA": 2032.0,
+    "GPU|DWM": 8183.0,
+    "CPU|MT": 28286.0,
+    "RAM|Schreiben": 9.5,
+    "DISK|SATA-SSD|SW": 449.0,
+    "CPU|DEFL": 215.0,
+    "DISK|SATA-SSD|SR": 519.0,
+    "GPU|VMB": 138.9,
+    "CPU|ST": 2565.0
+  },
+  "Laufwerke": [
+    {
+      "Laufwerk": "SPCC Solid State Disk (C:)",
+      "Klasse": "SATA-SSD",
+      "SR": 519.0,
+      "SW": 449.0,
+      "R1": 9357.0,
+      "R8": 50564.0,
+      "W1": 22417.0
+    }
+  ],
+  "Befunde": {
+    "Kritisch": 1,
+    "Warnungen": 10,
+    "Hinweise": 6,
+    "Liste": [
+      "[KRITISCH] Stabilität: Bluescreens (BugCheck 1001): 1x, zuletzt 29.09.2026 17:59.",
+      "[WARNUNG] Datenträger: SATA-Controller Reset (storahci 129): 207x, zuletzt 30.09.2026 15:59.",
+      "[WARNUNG] Datenträger: Datenträger: Auslagerungsfehler (disk 51): 1x, zuletzt 27.09.2026 11:10.",
+      "[WARNUNG] Datenträger: Datenträger: E/A wiederholt (disk 153): 237x, zuletzt 30.09.2026 15:59.",
+      "[WARNUNG] Lizenz: Windows ist per KMS-Volumenlizenz (GVLK) aktiviert, obwohl der PC in keiner Domäne ist. Das deutet auf eine inoffizielle Aktivierung hin, Lizenz prüfen.",
+      "[WARNUNG] Stabilität: Unerwartetes Abschalten (Kernel-Power 41): 9x, zuletzt 30.09.2026 16:12.",
+      "[WARNUNG] Stabilität: Unerwartetes Herunterfahren (EventLog 6008): 8x, zuletzt 30.09.2026 16:12.",
+      "[WARNUNG] Stabilität: Zuverlässigkeitsindex nur 2,2 von 10.",
+      "[WARNUNG] Stabilität: 1 Absturzabbilder in den letzten 14 Tagen (Analyse z. B. mit WinDbg oder BlueScreenView).",
+      "[WARNUNG] Systemdateien: Komponentenspeicher: Repairable. Reparatur: DISM /Online /Cleanup-Image /RestoreHealth oder Skript mit -Repair.",
+      "[WARNUNG] Systemdateien: SFC hat Integritätsverletzungen gefunden. Reparatur: DISM /Online /Cleanup-Image /RestoreHealth, danach sfc /scannow (oder Skript mit -Repair).",
+      "[INFO] CPU: Virtualisierung ist in der Firmware deaktiviert (für WSL, Hyper-V, Sandbox nötig).",
+      "[INFO] Dienste: 5 automatische Dienste laufen nicht und haben einen Fehlercode.",
+      "[INFO] RAM: Nur ein Modul verbaut, vermutlich Single-Channel-Betrieb (geringere Speicherbandbreite).",
+      "[INFO] SMART: smartmontools fehlt, kein SMART-Langtest und keine Detailattribute. Skript mit -InstallSmartmontools erneut starten.",
+      "[INFO] Speicherplatz: 1 große Absturzabbilder belegen 2,3 GB (z. B. C:\\WINDOWS\\LiveKernelReports\\WATCHDOG-20250528-1259.dmp), löschbar wenn nicht mehr zur Analyse nötig.",
+      "[INFO] Updates: 1 Updates stehen zur Installation bereit."
+    ]
+  },
+  "Lasttest": ""
+}

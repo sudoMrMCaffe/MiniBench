@@ -1,0 +1,18 @@
+﻿LEOS MINIBENCH: AKTUELLER BUILD
+===============================
+Version   : 2.66 (Dateiversion 2.66.0.0)
+Gebaut    : 03.10.2026 13:26 auf ULB-PC10039
+Tests     : 418 bestanden, 0 fehlgeschlagen, 92 übersprungen (Pester 6.2.0, PowerShell 5.1.26100.9444)
+Quelltext : 36 Teile aus src, 14.398 Zeilen
+
+Dateien (SHA-256 zur Kontrolle auf dem Stick: Get-FileHash <Datei>)
+  LeosMinibench.exe         1.107 KB  7e1ce255e01cfb1aeb32d4f335da54d18576226fd6b9ce2da1bf4bc5a4efb31a
+  LeosMinibench.ps1         1.035 KB  3e514fe21f99ba00e8fd3baaef51d348e86b707f20da3ffc45f05101bef36244
+  LeosMinibench.cmd             1 KB  2238c6583cfb33fb714e6e74a5d251d0c451f9ec950230a04e2046b48d29529a
+  Änderungen_v2.66.txt         12 KB  ab7eea157c9704f5c1965d69447bba875b103d70146aa01d7feb39ef1638199a
+
+Für den USB-Stick: den Inhalt dieses Ordners auf den Stick kopieren und vorhandene Dateien ersetzen.
+LeosMinibench.exe genügt allein; LeosMinibench.ps1 und .cmd sind für den Start ohne exe.
+Der Ordner Minibench-Daten auf dem Stick (Berichte, Datenbank, Tools, Änderungsprotokoll) bleibt dabei erhalten.
+Ein Ordner Minibench-Daten hier im Aktuellen Build entsteht nur, wenn das Programm von hier gestartet wurde; er gehört nicht auf den Stick.
+Diesen Ordner nicht von Hand ändern: Bauen.cmd erzeugt ihn bei jedem Bau neu aus src.

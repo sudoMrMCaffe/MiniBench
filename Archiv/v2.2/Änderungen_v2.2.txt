@@ -1,0 +1,105 @@
+﻿LEOS MINIBENCH 2.2: ÄNDERUNGEN
+==============================
+
+Version 2.2 bringt keine neue Prüfung und keine neue Messung. Sie baut das Fundament um, auf dem ab 2.3 Sensoren,
+Wartung und Optimierung aufsetzen. Bedienung, Berichte und Ablage bleiben wie in 2.1.
+
+1. QUELLTEXT IN TEILEN (Ordner src)
+Das Programm liegt jetzt in 40 Dateien statt in einer:
+  src\Bauplan.txt            Reihenfolge der Teile
+  src\Zusammenbau.ps1        fügt die Teile zusammen (für Bauen.cmd und die Tests)
+  src\00_Kopf.ps1            Hilfe und Parameter
+  src\Kern\                  Datenordner, Grundgerüst, Risikostufen, Modulvertrag, Geräteidentität,
+                             Änderungsprotokoll, Werkzeuge, Datenbank, Testroutinen (C# als eigene .cs-Datei)
+  src\Oberflaeche\           Oberfläche: Oberflaeche.ps1 und DiagGui.cs
+  src\Bericht\               HTML-Bericht, Stil, Systemvergleich, KI-Datei
+  src\Diagnose\              SMART und Auswertungshilfen
+  src\Module\<Name>\         je Modul Ablauf.ps1 und Vertrag.psd1 (Diagnose, Benchmark, Lasttest, Reparatur)
+  src\Ablauf\                Start und Abschluss eines Laufs
+Bauen.cmd fügt alles zu einer LeosMinibench.ps1 und einer LeosMinibench.exe zusammen und legt sie mit
+LeosMinibench.cmd, dieser Änderungsdatei und Stand.txt in den Ordner "Aktueller Build". Dessen Inhalt kommt auf den Stick.
+Stand.txt nennt Version, Baudatum, Testergebnis und SHA-256 jeder Datei. Ausgeliefert wird weiter eine Datei (exe).
+Aktueller Build ist ein Erzeugnis: Änderungen nur in src vornehmen und neu bauen.
+
+ORDNER DES PROJEKTS
+  Aktueller Build   was auf den Stick gehört (wird bei jedem Bau ersetzt, Minibench-Daten darin bleibt)
+  src               Quelltext
+  tests             Pester-Tests mit Testdaten
+  Doku              Änderungsdateien, Testmatrix, Beispielberichte
+  Archiv            frühere Versionen (1.8, 2.0, 2.1)
+  Minibench-Daten   Daten der Läufe auf diesem PC
+  Bauen.cmd, Testen.cmd
+Kontrolle beim Umbau: Die Teile ergeben zusammengesetzt Byte für Byte die Version 2.1.
+
+2. MODULVERTRAG
+Jedes Modul beschreibt sich in src\Module\<Name>\Vertrag.psd1: Name, Seite in der Navigation, Adminpflicht, höchste
+Risikostufe, Neustartbedarf, zugehörige Parameter, Datenbankfelder und alle Schritte mit Titel, Risikostufe, Neustart
+und Weg zurück. Das Skript liest daraus die Prüfungen der Diagnose, die Messungen des Benchmarks sowie Reihenfolge und
+Titel der Reparaturen. Die Seite Reparatur der Oberfläche baut sich aus dem Vertrag auf (Text, Dauer, Vorauswahl,
+"Übliche Auswahl"). Unbekannte Modulnamen bei -Module werden gemeldet statt still ignoriert.
+Die @@-Zeilen zwischen Arbeitsprozess und Oberfläche bleiben das Protokoll.
+
+3. RISIKOSTUFEN
+  Lesen        verändert nichts (Diagnose, Benchmark, Lasttest)
+  Ändern       mit Vorher-Wert protokolliert und rückgängig machbar: Schnellstart, Zeitdienst, Energiesparpläne
+  Eingriff     nicht automatisch umkehrbar, abgesichert über den Wiederherstellungspunkt: DISM, SFC, Dateisystem,
+               Windows Update, Netzwerk, Temp, WMI, Druck, Geräte; außerdem "smartmontools holen" der Diagnose
+  Zerstörend   noch kein Schritt; Freigabe nur mit der vollständigen Seriennummer des Ziels, Systemlaufwerk gesperrt
+Die Stufe steht auf der Seite Reparatur hinter jeder Maßnahme, in der Rückfrage vor dem Start, je Reparatur im Bericht
+und als "Risikostufe dieses Laufs" im Kopf von TXT- und HTML-Bericht.
+Wird bei Eingriffen bewusst kein Wiederherstellungspunkt angelegt, steht das als Hinweis im Bericht.
+
+4. ÄNDERUNGSPROTOKOLL MIT RÜCKGÄNGIG
+Ablage: Minibench-Daten\Änderungen\<PC>\<Datum>.json, gesicherte Dateien im gleichnamigen Ordner. Die Datei entsteht
+nur, wenn wirklich etwas geändert wurde, und wird nach jedem Eintrag sofort geschrieben (übersteht einen Absturz).
+  Schnellstart deaktivieren   Registry-Wert HiberbootEnabled mit Vorher-Wert
+  Zeit synchronisieren        Starttyp von w32time, falls er deaktiviert war
+  Energiesparpläne            alle Pläne werden vorher mit powercfg /export gesichert; schlägt die Sicherung fehl,
+                              wird nichts zurückgesetzt. Rückgängig stellt eigene Pläne und den aktiven Plan wieder her.
+  Windows Update zurücksetzen umbenannte Ordner als Hinweis mit dem Weg zurück
+  Wiederherstellungspunkt     Nummer des Punkts als Hinweis (Weg zurück für alle Eingriffe des Laufs)
+Neue Seite "Änderungen" in der Oberfläche: Liste aller Einträge mit Vorher und Nachher, Rückgängig für die angehakten.
+Sicherungen beim Rückgängig: nur auf dem Gerät, auf dem die Änderung entstand (Geräteidentität), nur wenn der Wert noch
+so ist, wie das Werkzeug ihn hinterlassen hat (sonst "übersprungen"), nur Dateien aus dem eigenen Protokollordner.
+Der Bericht listet die Einträge des Laufs im Abschnitt Änderungsprotokoll.
+
+5. WERKZEUG-MANIFEST MIT SHA-256
+Minibench-Daten\Tools\Tools.json hält je Werkzeug Datei, Version, SHA-256, Lizenz, Quelle und Herkunft fest.
+Ausgeführt wird eine Datei vom Stick nur, wenn ihr Hash passt. Eine veränderte oder fehlende Datei erscheint als
+Warnung "Werkzeuge" im Bericht. smartctl, das per winget geholt wird, landet automatisch im Manifest.
+Übergang: Ein smartctl.exe aus 2.1 wird beim ersten Start einmalig aufgenommen (Hinweis im Bericht).
+smartctl.exe direkt neben dem Skript wird nicht mehr ausgeführt, nur noch aus Minibench-Daten\Tools.
+Grenze: Wer Datei und Tools.json gemeinsam austauscht, wird nicht erkannt; das löst erst die Signatur.
+
+6. DATENBANKFORMAT 2 MIT GERÄTEIDENTITÄT
+Neue Einträge haben Format PC-Diagnose-DB/2 und ein Feld Geraet: Kennung (SHA-256 aus System-UUID, Seriennummer und
+Modell des Mainboards bzw. BIOS-Seriennummer), Güte (hoch, mittel, niedrig) und die verwendeten Quellen. Seriennummern
+stehen nicht im Klartext in der Datenbank. Platzhalter wie "To be filled by O.E.M." werden erkannt und verworfen.
+Wirkung: "frühere Läufe auf diesem PC" (Vergleichsspalte im Benchmark) und das Weglassen des eigenen Geräts bei
+Median-Referenz und Platzierung funktionieren auch nach Neuinstallation oder Umbenennung.
+Einträge im Format 1 bleiben lesbar und werden über den Computernamen zugeordnet; trägt ein Gerät mit Kennung diesen
+Namen, gehören sie zu ihm.
+
+7. PESTER-TESTS (Ordner tests)
+140 Tests in 7 Dateien: Zusammenbau, Modulvertrag (auch gegen die Oberfläche), Risikostufen, Änderungsprotokoll mit
+Rückgängig, Werkzeug-Manifest, Datenbank und Geräteidentität, Auswertungen mit Fällen aus den Läufen vom 30.09.2026
+(RAM F4-3200C16 bei AlexPC, Bluescreen 0x1A und Kernel-Power 41 bei LizPC, CBS.log-Auswertung).
+Bauen.cmd führt die Tests vor dem Bau der exe aus und lässt den Aktuellen Build bei Fehlern unverändert.
+Testen.cmd führt nur die Tests aus und ändert nichts am Aktuellen Build.
+Voraussetzung einmalig: Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck
+Ohne Pester 5 baut Bauen.cmd weiter, meldet aber, dass die Tests übersprungen wurden.
+
+8. TESTMATRIX
+Doku\Testmatrix_v2.2.csv (in Excel öffnen): automatische Tests und die Prüfungen auf echter Hardware, die vor der Freigabe
+abzuhaken sind, je Gerät und Windows-Version.
+
+9. GEFUNDEN UND BEHOBEN DURCH DIE TESTS
+  1. CBS.log: Dateinamen mit mehreren Punkten (z. B. Microsoft.Windows.Shell.dll) wurden abgeschnitten.
+  2. Rückgängig von Binär- und Mehrfachtext-Werten hätte den falschen Datentyp geschrieben (vor dem ersten Einsatz behoben).
+  3. Die Modulverträge meldeten anfangs einen zu niedrigen Neustartbedarf.
+
+UMSTIEG
+  1. Optional Pester 5 installieren (siehe 7.).
+  2. Bauen.cmd ausführen: erzeugt den Ordner Aktueller Build neu.
+  3. Inhalt von Aktueller Build auf den Stick kopieren.
+  4. Version 2.1 liegt gesichert in Archiv\v2.1.

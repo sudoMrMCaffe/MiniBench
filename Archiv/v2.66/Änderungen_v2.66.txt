@@ -1,0 +1,134 @@
+﻿LEOS MINIBENCH 2.66: ÄNDERUNGEN
+===============================
+
+Version 2.66 setzt die Rückmeldungen vom 03.10.2026 um: ungleichmäßige CPU- und GPU-Last in Benchmark, CPU-Test und
+Lasttest (auf mehreren PCs bestätigt, Screenshots TORRENT mit Task-Manager und HWiNFO), unzuverlässige Sensorwerte im
+letzten Lauf auf DESKTOP-F9HRMRR (Ryzen 5 5600, RX 570), ein genauerer Auftrag an die KI und keine Rückfrage mehr vor
+dem Grafik-Lasttest.
+
+1. GLEICHMÄSSIGE LAST (URSACHE IM PROGRAMM)
+Befund: Im CPU-Stabilitätstest brach die Last auf allen 12 Kernen gleichzeitig ein, im Takt der Abfragen (alle 3 s),
+gesamt 77 bis 89 % statt 100 %. Im Lasttest sprang die 3D-Auslastung der RX 6800 zwischen rund 10 und 99 %, die
+Bilder/s lagen bei Ø 102 (min 20) gegen 133 im Benchmark mit der Grafik allein (1-%-Low dort 121, also gleichmäßig).
+Auf dem Ryzen 5 5600 fiel der Rendertest im Lasttest bis auf 9 Bilder/s.
+Ursache: CPU-, RAM- und Grafiklast laufen als Threads im selben .NET-Prozess wie die PowerShell-Abfrageschleife. Jede
+Speicherbereinigung (GC) hält alle Threads des Prozesses an und wartet, bis jeder einen sicheren Punkt erreicht.
+  CPU-Last            Ein Rechendurchlauf (DiagCpu.Work) sind 1,5 Mio. Schritte mit Math.Sin, einem Aufruf in den
+                      Laufzeitkern. Eine solche Schleife ist nur am Methodenende anhaltbar. Laut Berichten dauert ein
+                      Durchlauf 73 ms (TORRENT, 29.575 Durchläufe in 180 s auf 12 Threads) bis 94 ms (Ryzen 5 5600).
+  RAM-Last            Der Mustertest bearbeitete je Thread einen ganzen 256-MB-Block am Stück.
+In dieser Zeit standen alle übrigen Threads, auch der Renderthread; die Grafikkarte lief leer. PowerShell erzeugt bei
+jeder Abfrage viele Objekte und damit mehrere GC-Läufe, daher die regelmäßigen Einbrüche.
+Neu:
+  DiagCpu             Der Durchlauf läuft in Abschnitten zu 5.000 Schritten (WorkPart, nie eingebettet). Das Ergebnis
+                      ist bitgleich zu bisher, die Rechenfehlerprüfung bleibt unverändert.
+  DiagRam             Schreiben und Prüfen in Abschnitten zu 2 MB (FillSlice, VerifySlice). Ein Abbruch greift jetzt
+                      auch innerhalb eines Blocks.
+  GC-Modus            Während Benchmark, CPU-Test und Lasttest SustainedLowLatency (keine blockierende Gen-2-
+                      Bereinigung), danach wieder der vorherige Modus.
+  Messung             DiagPause: ein Thread mit höchster Priorität schläft je 2 ms und misst, wie viel später er wieder
+                      läuft. Lücken ab 50 ms zählen als Unterbrechung. Bericht: "Unterbrechungen der Last" im Lasttest
+                      und CPU-Test, "Unterbrechungen während der Messungen" im Benchmark, jeweils mit den GC-Läufen je
+                      Generation. Ab einer Unterbrechung von 250 ms oder zusammen mehr als 2 % der Dauer gibt es einen
+                      INFO-Befund. Damit lässt sich auf echter Hardware belegen, dass die Last gleichmäßig läuft.
+Nicht geändert: Der Benchmark Prozessor misst nacheinander Einzelkern- und Mehrkernleistung. Die Auslastung im
+Task-Manager wechselt dabei zwangsläufig zwischen einem Kern und allen Kernen.
+
+2. SENSOREN: VERZÖGERTE ABFRAGEN STATT AUSFALL (RYZEN 5 5600)
+Befund: Im Lauf vom 02.10.2026 18:41 lieferte LibreHardwareMonitor nach 95 Sekunden CPU-Test eine Abfrage erst nach mehr
+als 5 Sekunden. Bis v2.65 galt die Bibliothek damit für den ganzen Lauf als ausgefallen: CPU-Temperatur "n/v" ab
+18:43:36, im Lasttest keine CPU-Temperatur und keine GPU-Werte. Wahrscheinliche Ursache: Die SMART-Abfrage der beiden
+Seagate-Festplatten (ST2000DX001, ST4000DM004) wartete auf das Anlaufen aus dem Ruhezustand.
+Neu:
+  Verspätet           Eine verspätete Abfrage läuft im Hintergrund weiter. Bis sie fertig ist, gelten die letzten Werte
+                      (höchstens 10 Sekunden alt, damit die Abbruchschwelle nicht mit alten Temperaturen arbeitet), danach
+                      die Ersatzquellen. Ausgefallen ist die Bibliothek erst, wenn eine Abfrage 30 Sekunden hängt.
+                      Eine schon länger fertige Abfrage wird verworfen und neu gelesen.
+  Priorität           Der Lesethread läuft mit höchster Priorität, die Lastthreads können ihn nicht verdrängen.
+  Datenträger         Datenträger werden in einem eigenen Thread höchstens alle 30 Sekunden gelesen und halten die
+                      übrigen Werte nicht mehr auf. Die Momentaufnahme der Diagnose und der Leerlaufwert vor dem
+                      Lasttest warten bis 15 Sekunden auf sie.
+  Bericht             Verzögerte Abfragen stehen im Lasttest und im CPU-Test: "LibreHardwareMonitor antwortete 2x
+                      verzögert (längste Abfrage 6,4 s), bis dahin galten die letzten Werte".
+  Schließen           Laufende Abfragen werden vor dem Schließen bis 10 s (Datenträger 20 s) abgewartet.
+
+3. KI-DATEI: WEG IN DER OBERFLÄCHE UND FERTIGE POWERSHELL-BEFEHLE
+Abschnitt C des Auftrags verlangt jetzt je Lösungsschritt beide Wege:
+  In der Oberfläche   genauer Klickpfad (Einstellungen, Systemsteuerung, Geräte-Manager, Datenträgerverwaltung,
+                      BIOS/UEFI) oder die passende Reparatur in Leos Minibench.
+  PowerShell          ein fertiger Befehlsblock für PowerShell als Administrator, der die Änderung sofort umsetzt, mit
+                      Werten aus den Daten statt Platzhaltern, einer Prüfzeile und dem Befehl zum Rückgängigmachen.
+Zum Schluss von C stehen alle Befehle noch einmal in einem Block in der empfohlenen Reihenfolge; riskante Befehle nur
+auskommentiert mit Warnung. Geht ein Schritt nicht per Befehl (BIOS, Hardwaretausch), sagt die KI das ausdrücklich.
+Die Reparaturen von Leos Minibench stehen als Liste im Auftrag (aus dem Modulvertrag, damit immer aktuell). Neu in den
+Hinweisen zu den Daten: was "Unterbrechungen der Last" bedeutet.
+
+4. OBERFLÄCHE
+Keine Rückfrage mehr vor dem Grafik-Lasttest. Die Abbruchschwelle wirkt weiter, Esc im Vorschaufenster und "Test
+beenden" beenden den Test wie bisher.
+
+5. AUFBAU
+Geändert: Kern\Testroutinen.cs (DiagCpu.WorkPart, DiagRam.FillSlice und VerifySlice, neue Klasse DiagPause),
+Kern\Testroutinen.ps1 (Start-PauseWatch, Stop-PauseWatch, Get-PauseAssessment), Kern\Sensoren.cs (ReadTimed,
+Datenträgerthread, ResetStats), Kern\Sensoren.ps1 (Get-SensorDelayText, StorageWaitMs), Kern\Version.ps1,
+Bericht\KI-Datei.ps1, Module Diagnose, Benchmark und Lasttest (Ablauf), Oberflaeche\DiagGui.cs.
+DiagSensors (C#): HangAfterMs, StaleMaxMs, LastStale, SlowReads, MaxReadMs, StorageIntervalMs, StorageWaitMs,
+ResetStats(). Datenbank: im Lasttest-Eintrag zusätzlich Unterbrechungen (Text). Datenbankformat unverändert
+PC-Diagnose-DB/2. Keine neuen Parameter und keine neuen @@-Ereignisse.
+
+6. TESTS
+Pester-Tests in 13 Dateien. Neu tests\Version266.Tests.ps1: Rechendurchlauf in Abschnitten bitgleich zum Durchlauf am
+Stück, RAM-Test in Abschnitten ohne Fehler, Unterbrechungsmessung (GC-Zähler, Wiederherstellung des GC-Modus, Start
+ohne Stop, Stop ohne Start), Bewertung der Unterbrechungen, KI-Auftrag, keine Rückfrage vor dem Grafiktest.
+Sensoren.Tests.ps1 mit nachgebauter Bibliothek: verspätete Abfrage liefert die letzten Werte, keine zweite Abfrage
+während der ersten, Ausfall erst nach HangAfterMs, länger fertige Abfrage wird neu gelesen, Datenträger mit 1,5 s
+Anlaufzeit halten die übrigen Werte nicht auf, Momentaufnahme wartet auf sie, ohne als verzögert zu zählen.
+Gesamtläufe: Lasttest CPU sowie Benchmark und Lasttest prüfen die neuen Zeilen zu den Unterbrechungen.
+Ergebnis in der Sandbox (PowerShell 7.4 unter Linux, Nachbau der Pester-5-Befehle wie bei 2.65): siehe Abschnitt
+ERGEBNIS unten. Maßgeblich ist der Lauf mit Pester 6.2 in Bauen.cmd.
+
+GEFUNDEN UND BEHOBEN VOR DER ÜBERGABE (Tests und Codeprüfung)
+  1. Eine verspätete Sensorabfrage, die lange vor dem nächsten Abruf fertig war, wäre als frisch übernommen worden, und
+     die längste Abfragedauer hätte die Wartezeit bis zum Abruf mitgezählt. Jetzt zählt das Ende der Abfrage; ist sie
+     älter als 10 Sekunden, wird neu gelesen.
+  2. Alte Werte galten zunächst bis 30 Sekunden, Ausfall erst nach 60 Sekunden: Die Abbruchschwelle hätte so lange mit
+     alten Temperaturen gearbeitet. Jetzt 10 und 30 Sekunden.
+  3. Scheiterte der Start des Lesethreads, wäre ein nie gestarteter Thread gemerkt worden und jede weitere Abfrage
+     gescheitert. Jetzt erst starten, dann merken.
+  4. Endete die Unterbrechungsmessung nicht rechtzeitig, hätte ein neuer Start den alten Thread wiederbelebt und doppelt
+     gezählt. Jetzt hat jede Messung eine eigene Nummer.
+  5. Im CPU-Test lief der Start der Messung außerhalb von try/finally; ein Fehler beim Start der Last hätte die Messung
+     und den GC-Modus bis zum Benchmark stehen lassen. Stop ohne laufende Messung liefert jetzt nichts statt alter Zähler.
+  6. Verzögerte Abfragen aus der Diagnose wären im Lasttest mitgezählt worden. Zähler werden je Abschnitt zurückgesetzt.
+  7. Eine nur langsame Datenträgerabfrage hätte das Schließen von LibreHardwareMonitor verhindert (PawnIO wäre danach
+     nicht entfernbar gewesen). Längere Wartezeit beim Schließen.
+  8. Die Momentaufnahme wartet bis 15 Sekunden auf die Datenträger; das Zeitlimit der Abfrage war aber 5 Sekunden, sie
+     wäre als verzögert gezählt worden. Die Wartezeit zählt jetzt zum Zeitlimit.
+  9. Die Schwelle der Unterbrechungsmessung lag zunächst bei 30 ms. Bei 15,6 ms Zeitgebertakt unter Windows hätte ein
+     verpasster Takt fast gereicht; jetzt 50 ms.
+
+GRENZEN
+  Auf echter Windows-Hardware ist 2.66 noch nicht gelaufen. Die Ursache der Einbrüche ist aus den Berichten und
+  Screenshots abgeleitet; die neue Unterbrechungsmessung soll sie auf TORRENT und dem Ryzen 5 5600 belegen (Testmatrix
+  U1 bis U4). Bleiben Unterbrechungen über 50 ms, nennt der Bericht die GC-Läufe dazu.
+  Gegen Unterbrechungen durch Treiber oder Systemlatenz (DPC) hilft die Änderung nicht. Die Messung zeigt sie trotzdem
+  an, weil dann auch der Messthread steht.
+  Dass die Festplatten die Ursache der langen Sensorabfrage auf dem Ryzen 5 5600 waren, ist wahrscheinlich, aber nicht
+  belegt. Andere Ursachen (SMU-Abfrage über PawnIO, Treiber der RX 570) fängt die verzögerte Abfrage ebenso ab.
+  Ohne Rückfrage startet der Grafik-Lasttest sofort; an Notebooks das Netzteil vorher anschließen.
+
+UMSTIEG
+  1. Bauen.cmd ausführen, Inhalt von Aktueller Build auf den Stick kopieren. Version 2.65 liegt unter Archiv\v2.65.
+  2. Testmatrix_v2.66.csv abarbeiten, zuerst U1 und U2 (TORRENT, Task-Manager daneben) und S1 (Ryzen 5 5600).
+  3. Rückmeldungen mit Bericht und Anhang.zip an die Roadmap.
+
+ERGEBNIS
+  Tests in der Sandbox: 507 bestanden, 0 fehlgeschlagen, 4 übersprungen (Gesamtläufe eingeschlossen).
+
+Quellen
+  https://github.com/dotnet/runtime/blob/main/docs/design/coreclr/botr/threading.md (Anhalten für die GC, sichere Punkte)
+  https://github.com/dotnet/runtime/blob/main/docs/design/coreclr/botr/garbage-collection.md
+  https://learn.microsoft.com/dotnet/standard/garbage-collection/latency (GCLatencyMode.SustainedLowLatency)
+  https://learn.microsoft.com/dotnet/api/system.runtime.compilerservices.methodimploptions (NoInlining)
+  https://learn.microsoft.com/windows/win32/api/synchapi/nf-synchapi-sleep (Auflösung des Zeitgebers)
+  https://github.com/LibreHardwareMonitor/LibreHardwareMonitor (Computer.IsStorageEnabled, IHardware.Update)

@@ -1,0 +1,178 @@
+﻿LEOS MINIBENCH 2.65: ÄNDERUNGEN
+===============================
+
+Version 2.65 setzt die Rückmeldungen zu den Läufen vom 02.10.2026 auf ULB-PC10039 (Precision 5480, RTX 3000 Ada und
+Iris Xe) und TORRENT (Ryzen 5 7600X, RX 6800) um. Schwerpunkte: Lasttest mit vollständigen Sensorwerten und
+gleichmäßiger Last, Auswahl der Grafikeinheit, Warnung bei Bildratengrenze, flüssige Vorschau des Rendertests,
+Referenz nur noch über den Haken, Zuverlässigkeit vorn im Bericht, Voreinstellungen zum Weitergeben, kürzere Texte.
+
+1. LASTTEST: SENSORWERTE WIEDER VOLLSTÄNDIG (BEFUND AUS DEN LÄUFEN)
+In beiden Läufen fehlten im Lasttest alle Leitwerte: keine CPU-Temperatur, kein GPU-Takt, keine GPU-Temperatur, keine
+Leistung, in der Sensoransicht wie im Bericht. Die Momentaufnahme der Diagnose war richtig. Ursache: Der Lasttest rief
+@(Get-SensorReadings) auf. Die Funktion gibt ihre Liste schon als ein Array mit vorangestelltem Komma zurück; @() packte
+sie ein zweites Mal ein. Die Auswertung sah dann ein einziges Objekt aus allen Werten. Get-SensorLead verwarf es, und
+Register-BadReadings zählte es als einen unplausiblen Wert. Daher die lange Zeile "Verworfene Sensorwerte" mit allen
+Sensornamen und dem höchsten Rohwert NaN im Bericht von ULB-PC10039.
+Neu: ConvertTo-FlatReadings löst ein Array im Array auf. Get-SensorLead und Register-BadReadings nutzen es immer, der
+Lasttest packt nicht mehr ein. Der Lasttest nennt jetzt je Grafikeinheit Takt (Ø und max), Temperatur und Leistung;
+die Statuszeile und der Reiter Sensoren zeigen GPU-Temperatur, -Takt und -Leistung.
+
+2. LASTTEST: GLEICHMÄSSIGE LAST UND BILDER/S
+TORRENT zeigte im Verlauf 4 bis 85 Bilder/s, tatsächlich lief der Rendertest mit Ø 103. Zwei Ursachen:
+  Messpunkt            Die Kurve nahm die Bilder/s der letzten halben Sekunde, und die fiel oft genau in das Lesen der
+                       Sensoren. Neu: Bilder/s als Mittel seit dem letzten Messpunkt (Get-FpsSince).
+  RAM-Test             Der RAM-Mustertest lief mit normaler Priorität auf allen Kernen und nahm dem Grafiktreiber und der
+                       CPU-Last die Rechenzeit. Neu: eine Stufe unter normal, zusammen mit der CPU-Last auf höchstens einem
+                       Viertel der Threads (mindestens 2). Nach dem Lasttest gelten wieder die alten Werte.
+Der Renderer fragt fertige Bilder ohne erneutes Flush ab (D3D11_ASYNC_GETDATA_DONOTFLUSH).
+Nicht behoben, weil es kein Fehler ist: Auf ULB-PC10039 sinken nach rund 30 Sekunden Grafiklast CPU-Takt und Bilder/s
+der Iris Xe auf etwa die Hälfte. Dann greift das Leistungslimit des Notebooks (CPU-Leistung 44 % vom Basistakt). Der
+Bericht meldet das wie bisher als Einbruch der Bilder/s.
+
+3. LASTTEST: OPTIONEN UND STARTSICHERHEIT
+  2 Minuten            Jede Komponente auch mit 2 Minuten. Die Vorgaben bleiben 15 Minuten (CPU, RAM, Grafik) und
+                       10 Minuten (Datenträger).
+  Grafikeinheit        Auswahl auf den Seiten Benchmark und Lasttest (synchron): alle, nur Grafikkarte, nur
+                       Prozessorgrafik oder eine bestimmte Einheit. Parameter -GpuAuswahl Alle|Grafikkarte|
+                       Prozessorgrafik|Name:<Name>. Passt eine Voreinstellung auf einem anderen PC zu keiner Einheit,
+                       werden alle getestet und der Bericht sagt es.
+  Laufwerke und GPU    Der Lauf mit Datenträger- und Grafiklast um 13:02 auf ULB-PC10039 hinterließ einen leeren
+                       Berichtsordner, die Protokolle lagen im TEMP des Admin-Kontos. Die genaue Ursache ließ sich deshalb
+                       nicht belegen. Abgesichert sind die zwei WMI-Abfragen, die in diesem Fall dazukommen und hängen
+                       können: Der freie Platz kommt jetzt über .NET (Get-DriveSpace statt Get-Volume). Die Temperaturen
+                       der Zuverlässigkeitszähler laufen in einem eigenen Runspace mit 15 Sekunden Zeitlimit und werden
+                       danach in diesem Lauf nicht mehr abgefragt. Auf FAT32 ist die Testdatei kleiner als 4 GB.
+                       Gesamtlauf "Lasttest Datenträger und Grafik" neu in den Tests.
+  Protokoll            Endet ein Lauf ohne Bericht (Abbruch, Fehler, Hänger), schreibt die Oberfläche
+                       Protokoll_ohne_Bericht.txt (Argumente, letzter Schritt, Protokoll der Oberfläche) sowie Konsole.log
+                       und Checkpoint.log aus dem Arbeitsordner in den Berichtsordner. Dazu meldet der Arbeitsprozess den
+                       Berichtsordner gleich nach dem Anlegen (Ereignis @@ORDNER|Berichtsordner|Arbeitsordner).
+
+4. BILDRATENGRENZE ERKENNEN
+Vor Benchmark und Lasttest rendert der Rendertest je Grafikeinheit 1,5 Sekunden mit voller und 1,5 Sekunden mit einem
+Viertel der Rechenlast. Begrenzt nur die Grafikeinheit, steigen die Bilder/s mit weniger Last deutlich. Steigen sie um
+weniger als 30 %, gibt es eine WARNUNG. Liegt der Wert knapp unter der Bildwiederholrate eines Monitors oder einer
+üblichen Grenze (30 bis 240 Hz), heißt sie "Bildratengrenze aktiv" mit dem Hinweis, wo man sie abschaltet (AMD Radeon
+Chill oder Frame Rate Target Control, NVIDIA Max. Bildrate, Intel Frame Limiter). Sonst lautet sie allgemeiner:
+Treibergrenze oder Prozessor. Im Benchmark wird der Rendertest dann gelb, im Lasttest erscheint der Befund gleich nach
+den ersten Sekunden. TORRENT (134 Bilder/s, 1-%-Low 125, Monitor 144 Hz) ist der Prüffall in den Tests.
+Grenze: Ob der Treiber eine Grenze auch ohne Present-Aufruf durchsetzt, zeigt erst TORRENT mit eingeschalteter Grenze
+(Testmatrix B1, B2).
+
+5. VORSCHAU DES RENDERTESTS FLÜSSIG
+Bisher kam etwa zweimal je Sekunde ein Bild. Neu sind es rund 30: Drei Kopien wechseln sich ab und werden ohne Warten
+ausgelesen. Drei Puffer wechseln zwischen Renderthread und Fenster, es entstehen keine neuen Speicherblöcke je Bild.
+Gezeichnet wird mit StretchDIBits direkt auf das Fenster (verkleinert mit HALFTONE). Das Bild nach einer Vorschaukopie
+zählt nicht für 1-%-Low und Perzentile, wohl aber für Ø Bilder/s.
+
+6. BERICHT
+  Akku                 unverändert (Rückmeldung: "super").
+  Referenz             Keine eingebauten Referenzwerte mehr (TORRENT vom 30.09.2026 und "Bestwerte aus allen Läufen"
+                       entfallen). Referenz ist nur, was mit "Dieses System als Referenz festlegen" in
+                       Minibench-Daten\Referenz.json gespeichert wurde, oder auf Wunsch der Median der Datenbank.
+                       Ohne Referenz zeigt der Benchmark Index und Verlauf, ohne Prozentwerte, und sagt das. Speichert
+                       derselbe PC erneut, bleiben Messgrößen erhalten, die der neue Lauf nicht gemessen hat; ein anderer
+                       PC ersetzt die Referenz ganz. Herkunft je Messgröße steht in der Datei. Der Systemvergleich nimmt
+                       die gespeicherte Referenz, ohne sie je Messgröße das beste der verglichenen Systeme.
+  Zuverlässigkeit      Der Zuverlässigkeitsindex von Windows steht oben im Textbericht (ZUVERLÄSSIGKEIT: 5,2 von 10
+                       (mittel)), als vierte Karte im HTML-Bericht und in der KI-Datei. Unter 7 folgt eine kurze
+                       Erklärung, was den Wert senkt, mit den Ursachen der letzten 28 Tage aus dem Zuverlässigkeitsverlauf
+                       (Programmabstürze mit dem häufigsten Programm, Windows-Fehler, fehlgeschlagene Updates und
+                       Installationen). Unter 5 WARNUNG, 5 bis 7 Hinweis. Erfolgreiche Updates zählen nicht.
+  Grafik               Bildratengrenze im Rendertest-Abschnitt; im Lasttest Takt, Temperatur und Leistung je Einheit.
+
+7. VOREINSTELLUNGEN
+Neu unten neben Start: Auswahlliste "Voreinstellung" mit "Speichern ..." und "Löschen". Gespeichert wird die Auswahl
+aller Seiten: Module, Umfang und Prüfungen der Diagnose, Messungen, Messdauer, Referenzwahl und Rendertest des
+Benchmarks, Komponenten, Dauer, Laufwerk und Abbruchschwellen des Lasttests, Reparaturen, Anonymisierung, PawnIO-Treiber
+und Hilfswerkzeuge. Nicht gespeichert werden die Laufwerksauswahl des Benchmarks und Vergleichssysteme, weil sie je PC
+anders sind. "Dieses System als Referenz festlegen" wird nie aus einer Voreinstellung gesetzt.
+Mit "Beim Start automatisch laden" lädt die Oberfläche die Voreinstellung bei jedem Start. Ist dazu der PawnIO-Treiber
+festgelegt, entfällt die Rückfrage. Wer den Stick weitergibt, legt die Voreinstellung fest, die andere Person klickt nur
+noch Start. Sicherheitsfragen (Reparatur, Grafik-Volllast) bleiben. Ablage: Minibench-Daten\Voreinstellungen.json
+(Format Minibench-Voreinstellungen/1); die Wahl je Gerät in Geraete.json ändert eine Voreinstellung nicht.
+
+8. KÜRZERE TEXTE
+Lange und umständliche Formulierungen gekürzt, zum Beispiel:
+  "Takt wie Task-Manager"                                         jetzt "Takt" bzw. "CPU-Takt", Sensorname "CPU gesamt"
+  "Grafikkarte zusätzlich messen, wenn WinSAT nur die Prozessorgrafik erreicht (GPU-Wahl für winsat.exe kurz umgestellt
+   und sofort zurückgesetzt, steht im Änderungsprotokoll)"       jetzt "Bei Hybridgrafik WinSAT zusätzlich auf der
+                                                                  Grafikkarte messen (kurze Umstellung, steht im
+                                                                  Änderungsprotokoll)", unter dem Rendertest
+  "GPU-Wahl für winsat.exe zurückgesetzt: C:\WINDOWS\..."         jetzt "Grafikwahl für WinSAT wieder zurückgesetzt."
+  "Zweite Messung mit bevorzugter Grafikkarte lief wieder auf ..." jetzt "WinSAT erreicht hier nur die Prozessorgrafik ..."
+  "Abbruch, wenn die Temperatur 20 Messpunkte in Folge auf oder über der Schwelle liegt, GPU 3"
+                                                                  jetzt "Der Test endet, wenn die CPU rund eine Minute
+                                                                  oder die GPU rund 10 Sekunden darüber liegt."
+  "1 große Absturzabbilder belegen"                               jetzt "Ein großes Absturzabbild belegt"
+Dazu die Erklärungen auf den Seiten Diagnose (schneller Modus), Lasttest, Sensoren live und Benchmark.
+
+9. AUFBAU
+Geändert: 00_Kopf.ps1 (Parameter -GpuAuswahl), Kern\Grafiktest.cs und .ps1, Kern\Testroutinen.cs, Kern\Sensoren.ps1,
+Kern\Referenz_Vergleich.ps1, Kern\Grundgeruest.ps1, Kern\Ereigniskanal.ps1, Kern\Berichtshilfen.ps1, Kern\Version.ps1,
+Diagnose\Hilfsfunktionen.ps1, Bericht\HtmlBericht.ps1, Bericht\Stil.ps1, Bericht\KI-Datei.ps1,
+Bericht\Bausteine_Systemvergleich.ps1, Ablauf\Abschluss.ps1, Module Diagnose, Benchmark und Lasttest (Ablauf),
+Oberflaeche\DiagGui.cs und Oberflaeche.ps1 (Liste der Grafikeinheiten für die Auswahl).
+Neue Funktionen: ConvertTo-FlatReadings, Get-StorageTempRaw, Get-GpuLoadLine, Select-RenderAdapters,
+Get-DisplayRefreshRates, Get-FpsLimitAssessment, Get-FpsSince, Get-DriveSpace, Get-StabilityAssessment, Split-TextLines,
+Get-SavedReference, Test-HasReference. Entfallen: Get-BestReference, $script:RefDefault, $script:RefComputer.
+@@-Ereignisse: neu ORDNER|Berichtsordner|Arbeitsordner.
+GpuRun (C#): PreviewHz, ProbeLimit, ProbeMs, ProbeDone, ProbeFpsFull, ProbeFpsLight. DiagRam: MaxThreads, LowPriority.
+Referenz.json: zusätzlich Computer, GeraetId, Herkunft. Datenbankformat unverändert PC-Diagnose-DB/2.
+
+10. TESTS
+Pester-Tests in 12 Dateien. Neu tests\Version265.Tests.ps1: doppelt verpackte Sensorwerte ergeben dieselben Leitwerte,
+Zählung unplausibler Werte je Sensor, Zeitlimit der Zuverlässigkeitszähler, Auswahl der Grafikeinheiten, Bewertung der
+Bildratengrenze (TORRENT 134 Bilder/s bei 144 Hz), Bilder/s seit dem letzten Messpunkt, Zuverlässigkeit (ULB-PC10039
+5,24 und TORRENT 10), Voreinstellungen (jeder gespeicherte Wert wird angewendet), 2 Minuten, Protokoll ohne Bericht,
+kürzere Texte. Praxistest.Tests.ps1: Referenz nur über den Haken (laden, ergänzen, ersetzen, keine eingebauten Werte).
+Gesamtläufe neu: Lasttest nur Prozessorgrafik, Lasttest Datenträger und Grafik, Lasttest und Benchmark Grafik mit
+Bildratengrenze (Attrappe mit MINIBENCH_TEST_GPU_GRENZE).
+Ergebnis in der Sandbox (PowerShell 7.4 unter Linux): 482 bestanden, 0 fehlgeschlagen, 6 übersprungen. Pester selbst
+war in der Sandbox nicht erreichbar; die Tests liefen mit einem Nachbau der genutzten Pester-5-Befehle, der auf dem
+Stand 2.6 dieselben 426 bestandenen Tests ergab wie Pester 5.6.1. Maßgeblich ist der Lauf mit Pester 6.2 in Bauen.cmd.
+Die Oberfläche lief unter mono und Xvfb: Voreinstellung speichern, beim Start laden, Auswahl der Grafikeinheit,
+2 Minuten, Fußzeile.
+
+GEFUNDEN UND BEHOBEN VOR DER ÜBERGABE (Tests und Codeprüfung)
+  1. ConvertTo-FlatReadings und Split-TextLines gaben ihr Ergebnis zunächst selbst mit Komma zurück. Mit @() um den
+     Aufruf wäre derselbe Fehler wie im Lasttest wieder entstanden; jetzt ohne Komma.
+  2. Der Systemvergleich hätte ohne gespeicherte Referenz die Laufwerke weggelassen, weil der Bezug vor dem schnellsten
+     Laufwerk berechnet wurde; ebenso mit einer Referenz ohne NVMe-4.0-Laufwerk. Jetzt danach, mit Rückfall je Messgröße.
+  3. Die Vorschaukopie mit 30 Bildern je Sekunde ging ungeprüft in die Bildzeiten ein; Fenster und "ohne Anzeige"
+     hätten sich bei schnellen Grafikkarten im 1-%-Low unterschieden. Jetzt zählt das Bild danach nicht.
+  4. Thread-Priorität des RAM-Tests: Wurde LowPriority während eines Blocks zurückgesetzt, blieben Threads auf niedriger
+     Priorität. Jetzt einmal je Durchlauf gelesen.
+  5. Protokoll ohne Bericht nannte als letzten Schritt schon "Abgebrochen" statt des Schritts, an dem der Lauf stand.
+  6. Die Oberfläche las nur Referenz.json, das Skript auch die ältere PC-Diagnose-Referenz.json.
+  7. Eine Voreinstellung mit einem System der Datenbank als Referenz hätte beim Laden die gespeicherte Referenz gewählt.
+  8. Die Fußzeile mit Voreinstellung war unter mono zu niedrig, die Zeile mit der Anonymisierung wurde abgeschnitten.
+  9. Im Testgerüst ersetzte die Funktion Get-DriveSpace die Attrappe von Get-Volume; außerhalb von Windows nutzt sie
+     jetzt Get-Volume, unter Windows nur .NET.
+
+GRENZEN
+  Auf echter Windows-Hardware ist 2.65 noch nicht gelaufen. Die Ursache des Startproblems mit Datenträger und Grafik
+  ist nicht belegt, nur die wahrscheinlichen Hängestellen sind abgesichert. Endet der Lauf erneut ohne Bericht, liegen
+  die Protokolle jetzt im Berichtsordner (Testmatrix L3).
+  Die Gegenprobe kostet je Grafikeinheit rund 3,5 Sekunden. Begrenzt der Prozessor oder der Treiber (sehr schnelle
+  Grafikkarte bei 720p), meldet sie dasselbe wie eine Bildratengrenze, nur ohne Bezug auf eine Bildwiederholrate.
+  Ohne festgelegte Referenz gibt es im Benchmark keine Prozentwerte. Auf dem Stick liegt nach dem TORRENT-Lauf vom
+  02.10.2026 bereits eine Referenz.json (TORRENT), sie gilt weiter.
+  Die Vorschau mit 30 Bildern je Sekunde kopiert bei 1920x1080 rund 250 MB/s über PCIe in den Arbeitsspeicher; für
+  Messungen ohne jede Nebenlast bleibt die Anzeige "ohne Anzeige".
+
+UMSTIEG
+  1. Bauen.cmd ausführen, Inhalt von Aktueller Build auf den Stick kopieren. Version 2.6 liegt unter Archiv\v2.6.
+  2. Wer weitergeben will: Auswahl treffen, "Speichern ..." mit "Beim Start automatisch laden", Stick weitergeben.
+  3. Testmatrix_v2.65.csv abarbeiten, zuerst L3 (Datenträger und Grafik auf ULB-PC10039) und B1 (TORRENT mit Grenze).
+  4. Rückmeldungen mit Bericht, Anhang.zip und gegebenenfalls Protokoll_ohne_Bericht.txt an die Roadmap.
+
+Quellen
+  https://learn.microsoft.com/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-getdata (D3D11_ASYNC_GETDATA_DONOTFLUSH)
+  https://learn.microsoft.com/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-map (D3D11_MAP_FLAG_DO_NOT_WAIT)
+  https://learn.microsoft.com/windows/win32/api/wingdi/nf-wingdi-stretchdibits
+  https://learn.microsoft.com/previous-versions/windows/desktop/racapi/win32-reliabilitystabilitymetrics
+  https://learn.microsoft.com/previous-versions/windows/desktop/racapi/win32-reliabilityrecords
+  https://learn.microsoft.com/dotnet/api/system.io.driveinfo
+  https://learn.microsoft.com/dotnet/api/system.threading.tasks.paralleloptions.maxdegreeofparallelism
+  https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_arrays (Komma-Operator, @())

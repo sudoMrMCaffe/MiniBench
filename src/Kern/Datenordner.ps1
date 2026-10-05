@@ -1,0 +1,133 @@
+﻿#region ---------- Datenordner neben exe bzw. Skript (Berichte, Vergleichsdatenbank, Tools, Laufzeitdaten) ----------
+function Test-WritableDir([string]$Dir) {
+    if (-not $Dir) { return $false }
+    try {
+        New-Item -ItemType Directory -Path $Dir -Force -ErrorAction Stop | Out-Null
+        $probe = Join-Path $Dir ('.schreibtest_{0}.tmp' -f $PID)
+        [IO.File]::WriteAllText($probe, 'x'); Remove-Item $probe -Force -ErrorAction SilentlyContinue
+        return $true
+    } catch { return $false }
+}
+function Resolve-DataDir {
+    $cands = @()
+    if ($DatenDir) { $cands += $DatenDir.TrimEnd('\') }
+    if ($PSScriptRoot -and $PSScriptRoot -notlike "$env:TEMP*") { $cands += (Join-Path $PSScriptRoot 'Minibench-Daten') }
+    foreach ($c in $cands) {
+        # frühere Versionen: Ordner PC-Diagnose-Daten daneben übernehmen
+        $old = Join-Path (Split-Path $c -Parent) 'PC-Diagnose-Daten'
+        if (-not (Test-Path -LiteralPath $c) -and (Test-Path -LiteralPath $old)) { try { Rename-Item -LiteralPath $old -NewName (Split-Path $c -Leaf) -ErrorAction Stop } catch { } }
+        if (Test-WritableDir $c) { return $c }
+    }
+    # Notlösung bei schreibgeschütztem Speicherort (z. B. gesperrter USB-Stick): Dokumente des Benutzers
+    $doc = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Leos Minibench'
+    if (Test-WritableDir $doc) { $script:DataDirFallback = $true; return $doc }
+    return ''
+}
+$script:DataDirFallback = $false
+$script:DataDir  = Resolve-DataDir
+$script:DbDir    = $(if ($script:DataDir) { Join-Path $script:DataDir 'Datenbank' } else { '' })
+$script:CacheDir = $(if ($script:DataDir) { Join-Path $script:DataDir 'Cache' } else { '' })
+$script:CpDir    = $(if ($script:DataDir) { Join-Path (Join-Path $script:DataDir 'Laufzeit') $env:COMPUTERNAME } else { Join-Path $env:TEMP ('LeosMinibench_' + $env:COMPUTERNAME) })
+
+# C#-Code einmal kompilieren und als DLL im Datenordner zwischenspeichern (spart bei jedem Start einige Sekunden).
+# Ab v2.6: Liegt die DLL zum Hash schon vor, wird sie ohne Schreibprobe direkt geladen (kein Schreibzugriff auf den Stick).
+$script:CacheInfo = New-Object System.Collections.Generic.List[string]
+function Add-CachedType([string]$Name, [string]$Code, [string[]]$References = @()) {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    $hash = -join ($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Code + ($References -join ';') + $PSVersionTable.CLRVersion)) | Select-Object -First 6 | ForEach-Object { $_.ToString('x2') })
+    # IgnoreWarnings: Windows PowerShell 5.1 wertet Compilerwarnungen sonst als Fehler (eine Warnung genügt, und alle Routinen fehlen)
+    $p = @{ TypeDefinition = $Code; ErrorAction = 'Stop'; IgnoreWarnings = $true }
+    if ($References.Count) { $p.ReferencedAssemblies = $References }
+    if ($script:CacheDir) {
+        $dll = Join-Path $script:CacheDir ('{0}-{1}.dll' -f $Name, $hash)
+        if (Test-Path -LiteralPath $dll) {
+            try { Add-Type -Path $dll -ErrorAction Stop; $script:CacheInfo.Add(('{0} aus dem Cache' -f $Name)); return } catch { }
+        }
+        if (Test-WritableDir $script:CacheDir) {
+            Get-ChildItem -LiteralPath $script:CacheDir -Filter ('{0}-*.dll' -f $Name) -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+            try { Add-Type @p -OutputAssembly $dll -OutputType Library } catch { Remove-Item $dll -Force -ErrorAction SilentlyContinue }
+            if (Test-Path -LiteralPath $dll) { try { Add-Type -Path $dll -ErrorAction Stop; $script:CacheInfo.Add(('{0} übersetzt und zwischengespeichert' -f $Name)); return } catch { } }
+        }
+    }
+    Add-Type @p
+    $script:CacheInfo.Add(('{0} übersetzt (ohne Cache)' -f $Name))
+}
+
+# ---------- Lokaler Arbeitsordner (ab v2.6) ----------
+# Rohdaten, Konsolenprotokoll und Werkzeugausgaben sammeln sich während des Laufs im lokalen TEMP
+# (%TEMP%\LeosMinibench\Lauf_<PID>) und gehen am Laufende gebündelt als Anhang.zip in den Berichtsordner.
+# Ziel.txt nennt den Berichtsordner: Bricht ein Lauf ab, sichert der nächste Start die Rohdaten dorthin.
+function New-RunWorkDir([string]$Target) {
+    try {
+        $d = Join-Path (Join-Path ([IO.Path]::GetTempPath()) 'LeosMinibench') ('Lauf_{0}' -f $PID)
+        New-Item -ItemType Directory -Path (Join-Path $d 'Anhang') -Force -ErrorAction Stop | Out-Null
+        [IO.File]::WriteAllText((Join-Path $d 'Ziel.txt'), [string]$Target, (New-Object Text.UTF8Encoding($false)))
+        return $d
+    } catch { return '' }
+}
+
+# Arbeitsordner abgebrochener Läufe (Prozess läuft nicht mehr): Rohdaten als Anhang_unterbrochen.zip in den
+# Berichtsordner des abgebrochenen Laufs, danach löschen. Fehlt dieser Ordner (z. B. Stick nach dem Absturz unter
+# anderem Laufwerksbuchstaben), geht das ZIP in den Berichtsordner dieses Laufs ($Fallback). Gelöscht wird nur, was
+# gesichert ist oder keine Rohdaten enthält. Rückgabe: Texte für die Rückstandskontrolle.
+function Restore-StaleWorkDirs([string]$Fallback = '') {
+    $out = New-Object System.Collections.Generic.List[string]
+    $base = Join-Path ([IO.Path]::GetTempPath()) 'LeosMinibench'
+    if (-not (Test-Path -LiteralPath $base)) { return $out.ToArray() }
+    foreach ($d in @(Get-ChildItem -LiteralPath $base -Directory -Filter 'Lauf_*' -ErrorAction SilentlyContinue)) {
+        $id = 0
+        if (-not [int]::TryParse($d.Name.Substring(5), [ref]$id) -or $id -eq $PID) { continue }
+        $alive = $false
+        try { $pr = Get-Process -Id $id -ErrorAction Stop; $alive = ($pr.ProcessName -match 'powershell|pwsh') } catch { }
+        if ($alive) { continue }
+        $msg = ''; $safe = $true
+        try {
+            $zf = Join-Path $d.FullName 'Ziel.txt'
+            $tgt = $(if (Test-Path -LiteralPath $zf) { ([IO.File]::ReadAllText($zf)).Trim() } else { '' })
+            $raw = Join-Path $d.FullName 'Anhang'
+            if ((Test-Path -LiteralPath $raw) -and @(Get-ChildItem -LiteralPath $raw -Force -ErrorAction SilentlyContinue).Count) {
+                $safe = $false
+                $dest = $(if ($tgt -and (Test-Path -LiteralPath $tgt)) { $tgt } elseif ($Fallback -and (Test-Path -LiteralPath $Fallback)) { $Fallback } else { '' })
+                if ($dest) {
+                    $zip = Join-Path $dest $(if ($dest -eq $tgt) { 'Anhang_unterbrochen.zip' } else { 'Anhang_unterbrochen_{0}.zip' -f $id })
+                    if (Test-Path -LiteralPath $zip) { $safe = $true }
+                    else {
+                        Compress-Archive -Path (Join-Path $raw '*') -DestinationPath $zip -Force -ErrorAction Stop
+                        $safe = (Test-Path -LiteralPath $zip)
+                        $msg = ('Rohdaten eines abgebrochenen Laufs gesichert nach {0}{1}' -f $zip, $(if ($dest -ne $tgt) { ' (ursprünglicher Berichtsordner {0} nicht erreichbar)' -f $tgt } else { '' }))
+                    }
+                } else { $msg = 'kein Berichtsordner erreichbar' }
+            }
+        } catch { $safe = $false; $msg = ('Sichern fehlgeschlagen: {0}' -f $_.Exception.Message) }
+        if (-not $safe) { $out.Add(('Arbeitsordner eines abgebrochenen Laufs behalten, weil seine Rohdaten nicht gesichert sind (nicht entfernbar ohne Datenverlust): {0} ({1})' -f $d.FullName, $msg)); continue }
+        try { Remove-Item -LiteralPath $d.FullName -Recurse -Force -ErrorAction Stop; $out.Add(('Arbeitsordner eines abgebrochenen Laufs entfernt: {0}{1}' -f $d.FullName, $(if ($msg) { ' (' + $msg + ')' } else { '' }))) }
+        catch { $out.Add(('Arbeitsordner eines abgebrochenen Laufs nicht entfernbar: {0} ({1})' -f $d.FullName, $_.Exception.Message)) }
+    }
+    return $out.ToArray()
+}
+
+# Schreibzugriffe auf das Laufwerk eines Pfads (Windows-Leistungszähler, Rohwerte = Summe seit dem Systemstart).
+# Gezählt wird alles, was auf dieses Laufwerk schreibt; auf einem USB-Stick ist das praktisch nur Leos Minibench.
+function Get-VolumeWriteCounter([string]$Path) {
+    try {
+        $root = [IO.Path]::GetPathRoot($Path)
+        if ($root -notmatch '^([A-Za-z]):') { return $null }
+        $name = $Matches[1].ToUpperInvariant() + ':'
+        $c = Get-CimInstance Win32_PerfRawData_PerfDisk_LogicalDisk -Filter ("Name='{0}'" -f $name) -ErrorAction Stop | Select-Object -First 1
+        if (-not $c) { return $null }
+        $art = ''; try { $art = [string](New-Object IO.DriveInfo($root)).DriveType } catch { }
+        return [pscustomobject]@{ Laufwerk = $name; Vorgaenge = [double]$c.DiskWritesPersec; Bytes = [double]$c.DiskWriteBytesPersec; Art = $art; Zeit = (Get-Date) }
+    } catch { return $null }
+}
+
+# Unterschied zweier Zählerstände (32-Bit-Zähler der Vorgänge laufen bei 2^32 über)
+function Get-WriteDelta($Before, $After) {
+    if (-not $Before -or -not $After -or $Before.Laufwerk -ne $After.Laufwerk) { return $null }
+    $ops = [double]$After.Vorgaenge - [double]$Before.Vorgaenge; if ($ops -lt 0) { $ops += 4294967296 }
+    $by = [double]$After.Bytes - [double]$Before.Bytes; if ($by -lt 0) { $by = 0 }
+    $art = switch ([string]$After.Art) { 'Removable' { 'Wechseldatenträger (USB-Stick)' } 'Fixed' { 'fest eingebautes Laufwerk' } 'Network' { 'Netzlaufwerk' } default { [string]$After.Art } }
+    return [pscustomobject]@{ Laufwerk = $After.Laufwerk; Art = $art; Vorgaenge = [long]$ops; MB = [math]::Round($by / 1MB, 1); Sekunden = [math]::Round(($After.Zeit - $Before.Zeit).TotalSeconds) }
+}
+#endregion
+
+

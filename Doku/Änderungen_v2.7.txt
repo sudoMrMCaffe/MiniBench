@@ -1,0 +1,156 @@
+﻿LEOS MINIBENCH 2.7: ÄNDERUNGEN
+==============================
+
+Version 2.7 setzt die Wunschliste vom 03.10.2026 um: Hinweise beim Überfahren mit der Maus, Sensorwerte auch für den
+Benchmark im Bericht, eine Versionshistorie von 1.0 bis heute, kein doppelter CPU-Test mehr in der Diagnose und ein
+aufgeräumter Daten- und Build-Ordner. Die in der Roadmap für 2.7 geplanten Themen Wartung und Druckerhilfe rücken eine
+Version nach hinten (2.8).
+
+1. HINWEISE BEIM ÜBERFAHREN MIT DER MAUS
+Jedes Bedienelement erklärt sich nach einer knappen halben Sekunde: was es tut, wie lange es dauert, ob es etwas am PC
+verändert und was mit dem Ergebnis geschieht. Abgedeckt sind die Modulliste, alle Prüfungen der Diagnose, alle
+Messungen des Benchmarks, Komponenten, Dauer und Abbruchschwellen des Lasttests, jede Reparatur (mit Risikostufe,
+Neustartbedarf und Dauer aus dem Modulvertrag), die Seiten Sensoren, Vergleichsdatenbank und Änderungen, die
+Voreinstellungen, der Start und in der Laufansicht die Schaltflächen, die vier Zählkarten und die Reiter.
+Die Hinweise brechen nach rund 90 Zeichen um und bleiben bis zu 30 Sekunden stehen.
+
+2. SENSOREN WÄHREND DES BENCHMARKS
+Der Benchmark öffnet die Sensoren wie der Lasttest (LibreHardwareMonitor, Rückfrage zu PawnIO wie bei Diagnose und
+Lasttest, Ersatzquellen) und misst zuerst den Leerlauf. Gelesen wird in den Wartepausen, in denen der Arbeitsprozess
+ohnehin auf eine Messung wartet (Prozessor und Arbeitsspeicher, Datenträger, Rendertest, WinSAT): höchstens alle
+2 Sekunden ein Messpunkt, kein zusätzlicher Thread. Während der Laufwerksmessung fragt LibreHardwareMonitor die
+Datenträger nicht ab, damit SMART-Abfragen die 4K-Werte nicht stören.
+  Textbericht        Abschnitt "Sensoren während des Benchmarks" am Ende von "Auswertung und Vergleich": Quellen,
+                     Leerlauf, eine Tabelle je Abschnitt (Prozessor, Arbeitsspeicher, Grafik, Datenträger, WinSAT) mit
+                     Dauer, CPU-Takt, höchstem Kerntakt, CPU-Temperatur, Paketleistung, GPU-Temperatur, GPU-Takt und
+                     -Leistung, Prozessorgrafik, Lüfter und Datenträgertemperatur (Spalten ohne Werte entfallen), danach
+                     die Gesamtwerte in denselben Zeilen wie im Lasttest.
+  HTML-Bericht       eigener Kasten mit derselben Tabelle und den Kurven für Temperatur, Takt und Leistung wie nach
+                     dem Lasttest, Marken am Beginn jedes Abschnitts, TjMax als Bezugslinie.
+  Laufansicht        die Kurven im Reiter Sensoren laufen schon während des Benchmarks mit; folgt ein Lasttest, setzt
+                     dessen Kurve dahinter fort statt bei 0 zu überlagern.
+  Befunde            Hinweis, wenn die CPU während des Benchmarks TjMax nahe kam (ab 95 °C bzw. 3 K unter TjMax), die
+                     Grafikkarte 90 °C oder ein Datenträger 70 °C erreichte: Die Werte können durch Drosselung
+                     niedriger sein; den Drosselnachweis liefert der Lasttest.
+  Daten              Datenbank: Sensoren.Benchmark mit Höchstwerten je Abschnitt. Anhang: Benchmark-Sensoren.csv.
+                     KI-Datei: Block "SENSOREN WÄHREND DES BENCHMARKS" und Regel 3b.
+Lasttest und Benchmark werten jetzt mit denselben Funktionen aus (Get-SensorSeriesStats, Get-SensorSeriesLines); die
+Zeilen im Lasttestbericht sind unverändert.
+
+3. VERSIONSHISTORIE
+Oben rechts im Kopf der Oberfläche führt "Versionshistorie" zu einer Seite mit allen Versionen von 1.0 bis 2.7, neueste
+zuerst. Dieselbe Liste steht in Doku\Versionshistorie.txt. Quelle ist src\Oberflaeche\Versionen.cs; ein Test verlangt
+für jede Version mit Änderungsdatei einen Eintrag und die aktuelle Version als ersten.
+Für 1.0 bis 2.1 gibt es keine Änderungsdateien mehr (das Archiv beginnt bei 2.2). Diese Einträge nennen nur, was im
+Quelltext und in den Änderungen zu 2.2 belegt ist: PC-Diagnose bis 1.8, die ersten Datenbankeinträge vom 30.09.2026,
+der neue Name, Minibench-Daten, Datenbankformat 1 und smartctl ohne Manifest in 2.1.
+
+4. CPU-STABILITÄTSTEST DER DIAGNOSE ENTFERNT
+Der Test "CPU-Stabilität und Drosselung" der Diagnose maß dasselbe wie der Lasttest CPU, nur kürzer und ohne
+Drosselnachweis. Er entfällt samt Parameter -CpuStressSeconds. Die Profile Vollständig, Schnell und Funktionstest
+werden entsprechend kürzer (Schätzung in der Oberfläche angepasst). Auf der Seite Diagnose steht ein Hinweis auf den
+Lasttest. Ältere Voreinstellungen mit "Diag.CpuTest" laden weiter, der Schlüssel wird übergangen.
+
+5. DATENPFLEGE
+Neu in Kern\Datenpflege.ps1. Verschoben wird nach Minibench-Daten\Archiv, gelöscht wird nur Wertloses.
+  Lasttest_vor_v2.67   Läufe vor 2.67 mit Lasttest: Datenbankeintrag, Berichtsordner und Systemvergleiche, die einen
+                       davon als Quelle nennen. Die Lasttestanpassung in 2.67 (eigener Prozess, neue Rechenschleife)
+                       macht Rechendurchläufe und Unterbrechungen unvergleichbar. Reine Benchmark- und Diagnoseläufe
+                       bleiben, ebenso Referenz.json: Das Rechenwerk des CPU-Benchmarks ist seit 2.6 unverändert
+                       (Entscheidung vom 03.10.2026, siehe Grenzen).
+  Unvollstaendig       Berichtsordner ohne Diagnosebericht (abgebrochene Läufe mit Teilbericht, leere Ordner).
+  Kurz                 Funktionstest, Lasttest von Hand nach weniger als der Hälfte der geplanten Dauer beendet, Lauf
+                       ohne jedes Messergebnis; jeweils nur ohne Diagnose oder Reparatur im selben Lauf. Ein Lasttest,
+                       den die Abbruchschwelle beendet hat, ist ein Befund und bleibt.
+  Werkzeuge_unbenutzt  Aus smartmontools braucht Leos Minibench nur smartctl.exe und drivedb.h; smartd, Mailer, Updater
+                       und Hilfsprogramme wandern ins Archiv.
+  gelöscht             ältere Übersetzungen im Cache (je Name bleibt die neueste, fehlende entstehen beim Start neu),
+                       sensor.stop der Live-Ansicht (älter als eine Stunde), leere Laufzeitordner.
+Geschützt bleiben Läufe, deren Absturzanalyse noch aussteht (laufend.json). Nichts wird überschrieben (Namen mit _2).
+Jeder Lauf schreibt Archiv\Datenpflege.log mit Grund je Eintrag.
+Wann:
+  Start der Oberfläche   von selbst, für Kurz und Unvollständig nur Läufe älter als 60 Minuten; Ergebnis als Zeile auf
+                         der Seite Vergleichsdatenbank.
+  Schaltfläche           "Aufräumen ..." auf der Seite Vergleichsdatenbank, mit Rückfrage, ohne Mindestalter.
+  Befehlszeile           LeosMinibench.ps1 -Datenpflege [-ArchivDir <Ordner>], ohne Administratorrechte.
+  Bauen.cmd              räumt Aktueller Build\Minibench-Daten auf, Ziel ist Archiv\Minibench-Daten des Projektordners.
+
+6. AKTUELLER BUILD UND ARCHIV
+Bauen.cmd verschiebt den vorigen Build (anderer Versionsstand) vor dem Kopieren nach Archiv\v<alte Version>: exe, ps1,
+Stand.txt als Stand_v<alte Version>.txt und die Änderungsdatei. Damit liegt 2.67 nach dem ersten Bau unter
+Archiv\v2.67, ohne Handarbeit. Der Aktuelle Build enthält nur noch, was zum Start gebraucht wird: LeosMinibench.exe,
+LeosMinibench.ps1 und LeosMinibench.cmd (Start ohne exe) sowie Stand.txt; die Änderungsdatei steht in Doku, die
+Versionshistorie im Programm. Die Dateiversion der exe hat zwei Nachkommastellen (2.70.0.0), damit sie nach 2.67.0.0
+einsortiert wird.
+
+7. AUFBAU
+Neu: Kern\Datenpflege.ps1 (im Bauplan vor der Oberfläche, weil diese beim Start aufräumt), Oberflaeche\Versionen.cs,
+Doku\Versionshistorie.txt, tests\Version27.Tests.ps1.
+Geändert: Oberflaeche\DiagGui.cs (Hinweise, Versionshistorie, Aufräumen, Kurvenzeit, Prüfungen ohne CPU-Test, Rückfrage
+zu PawnIO auch vor dem Benchmark), Oberflaeche\Oberflaeche.ps1, Kern\Sensoren.ps1 (gemeinsame Auswertung,
+Benchmark-Sensoren), Kern\Grundgeruest.ps1, Kern\Berichtshilfen.ps1, Kern\Grafiktest.ps1 (Messpunkte in den
+Wartepausen), Module\Benchmark, Module\Lasttest, Module\Diagnose (Ablauf und Vertrag), Bericht\HtmlBericht.ps1,
+Bericht\KI-Datei.ps1, Kern\Parallel.ps1, Kern\Checkpoints_Absturzanalyse.ps1, Ablauf\Abschluss.ps1, 00_Kopf.ps1,
+Kern\Adminrechte.ps1, Bauen.cmd.
+Parameter: neu -Datenpflege und -ArchivDir, entfallen -CpuStressSeconds. Keine neuen @@-Ereignisse; SENSLEAD kommt
+jetzt auch aus dem Benchmark.
+
+8. TESTS
+Neu tests\Version27.Tests.ps1: Oberfläche übersetzbar, Prüfungen von Vertrag und Oberfläche deckungsgleich (ohne
+CPU-Test), Hinweise für alle Prüfungen, Messungen und wichtigen Bedienelemente, Umbruch der Hinweise (übersetzt aus
+DiagGui.cs), Versionshistorie vollständig und in Doku, Benchmark-Sensoren (Abschnitte, Abstand, Bericht, Befund an
+TjMax, Datenbank, CSV, Tabelle ohne leere Spalten), gemeinsame Zeilen für Lasttest und Benchmark, HTML-Kurven mit
+Abschnittsmarken und unveränderten Lasttestmarken, Datenpflege (Plan, Verschieben, Protokoll, zweiter Lauf,
+Mindestalter, eigenes Archiv, Namensgleichheit, smartmontools, Cache), Bauen.cmd (Archiv des vorigen Builds,
+Dateiversion).
+Gesamtlauf "nur Benchmark CPU und RAM" prüft den neuen Abschnitt im Text- und HTML-Bericht.
+Angepasst: Modulvertrag (allgemeine Parameter), Version26/266/267 (kein CPU-Test in der Diagnose).
+Ergebnis in der Sandbox (PowerShell 7.4 unter Linux, Nachbau der Pester-5-Befehle): siehe ERGEBNIS.
+Die Oberfläche wurde unter mono mit Xvfb gestartet (Seiten Diagnose, Benchmark, Lasttest, Vergleichsdatenbank,
+Versionen, Hinweise an den Bedienelementen geprüft).
+
+GEFUNDEN UND BEHOBEN VOR DER ÜBERGABE (Tests und Codeprüfung)
+  1. New-LoadChartsHtml mit neuem Parameter $Marks: PowerShell unterscheidet keine Groß- und Kleinschreibung, die
+     lokale Variable $marks überschrieb den Parameter. Der Lasttest hätte seine Marken (Abbruch, Ende der CPU-Last,
+     Takt sinkt) verloren. Der Parameter heißt jetzt $Marken; ein Test prüft beide Fälle.
+  2. Die Zeitschätzung der Oberfläche zählte Prüfungen über feste Indizes; ohne CPU-Test zeigte diagChk[8] ins Leere
+     (Fehler, sobald der schnelle Modus eingeschaltet wird). Jetzt acht Einträge, Energieanalyse über Index 7; ein Test
+     vergleicht die Längen aller Listen mit dem Vertrag.
+  3. Die Kurve der Laufansicht wäre nach Benchmark und Lasttest bei 0 s neu begonnen und hätte sich überlagert.
+  4. Datenpflege las den Berichtsordner aus "Berichte\<Lauf>" mit Split-Path; unter PowerShell 7 ohne Windows ist \ kein
+     Trenner. Jetzt Trennung an \ und /.
+  5. Neu angelegte Dateien hatten kein UTF-8-BOM; Windows PowerShell 5.1 hätte Umlaute in den Tests falsch gelesen.
+  6. Die erste Fassung der Datenpflege hätte alle Läufe vor 2.67 mit Benchmarkwerten und die Referenz archiviert. Beim
+     Gegenlesen von Kern\Testroutinen.cs zeigte sich, dass das Rechenwerk des Benchmarks seit 2.6 gleich ist; nach
+     Rückfrage gehen nur Lasttests ins Archiv.
+  7. Ein Anführungszeichen zu viel in einem Hinweistext hätte die Oberfläche beim Start nicht übersetzen lassen; die
+     Tests prüften DiagGui.cs bisher nur als Text. Neuer Test übersetzt DiagGui.cs, Start.cs und Versionen.cs
+     (Windows: Add-Type in einem Kindprozess, sonst mcs mit C# 5).
+
+GRENZEN
+  Auf echter Hardware ist 2.7 noch nicht gelaufen (Testmatrix_v2.7).
+  Die Sensorabfrage im Benchmark kostet rund alle 2 Sekunden einige Millisekunden Rechenzeit im Arbeitsprozess. Bei
+  Mehrkernmessungen liegt das unter 1 %; G1 der Testmatrix vergleicht mit 2.67.
+  Der Sprung der Benchmarkwerte auf ULB-PC10039 von 2.6 (Einzelkern 2.053) auf 2.67 (3.654) liegt nicht am Programm:
+  Rechenwerk unverändert, RAM-Kopieren fast gleich (29,2 zu 29,0 GB/s). Wahrscheinlich Energieprofil, Netzteil oder
+  Kühlung des Notebooks an jenem Tag; die Sensoren im Benchmark zeigen so etwas künftig direkt. Ältere Benchmarkwerte
+  bleiben deshalb vergleichbar.
+  Kurze Lasttests unter 60 Minuten Alter räumt erst der nächste Start oder "Aufräumen" auf.
+  Rückgängig machen der Datenpflege: Dateien aus dem Archiv an ihren alten Platz zurückschieben (Pfad im Protokoll).
+
+UMSTIEG
+  1. Bauen.cmd ausführen. Version 2.67 wandert dabei nach Archiv\v2.67, die Datenpflege räumt Aktueller
+     Build\Minibench-Daten nach Archiv\Minibench-Daten auf (Ausgabe im Fenster von Bauen.cmd).
+  2. Inhalt von Aktueller Build auf den Stick kopieren. Beim ersten Start räumt die Datenpflege auch den Datenordner
+     des Sticks auf (Zeile auf der Seite Vergleichsdatenbank).
+  3. Testmatrix_v2.7 abarbeiten, zuerst H1 und B1 auf ULB-PC10039.
+
+ERGEBNIS
+  Tests in der Sandbox: 548 bestanden, 0 fehlgeschlagen, 3 übersprungen (15 Dateien, Gesamtläufe eingeschlossen).
+  Ein Test aus 2.67 (Lastprozess ohne Unterbrechung) schlug einmal fehl, als die Gesamtläufe parallel liefen und die
+  Sandbox voll auslasteten; allein lief er fehlerfrei. Unter Windows laufen die Tests nacheinander.
+
+Quellen
+  https://learn.microsoft.com/dotnet/api/system.windows.forms.tooltip
+  https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_variables (Variablennamen ohne
+  Unterscheidung von Groß- und Kleinschreibung)

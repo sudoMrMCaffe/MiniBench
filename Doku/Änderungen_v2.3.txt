@@ -1,0 +1,137 @@
+﻿LEOS MINIBENCH 2.3: ÄNDERUNGEN
+==============================
+
+Version 2.3 bringt Sensoren: Temperatur, Takt, Lüfter, Spannung und Leistung live, als Momentaufnahme in der Diagnose
+und als Kurven im Lasttest, dazu Drosselnachweis und Abbruchschwelle. Damit entfallen für den Alltag HWiNFO, Core Temp
+und für CPU und RAM auch OCCT. Für echte GPU-Volllast bleiben FurMark oder OCCT nötig (siehe Grenzen).
+
+1. SENSORQUELLEN
+  LibreHardwareMonitorLib 0.9.6   portabel unter Minibench-Daten\Tools\LibreHardwareMonitor (9 DLLs, MPL 2.0),
+                                  geladen über Reflexion, also ohne feste Bindung an die Bibliothek
+  PawnIO 2.2.0                    Treiber, den die Bibliothek ab 0.9.5 für CPU-Werte (Temperatur, Takt, Leistung)
+                                  und die Mainboard-Chips (Lüfter, Spannungen) braucht, Setup unter Tools\PawnIO
+  Ersatzquellen ohne Bibliothek   Windows-Leistungszähler (effektiver Takt, Last, Frequenzgrenze), ACPI-Thermalzonen,
+                                  nvidia-smi (falls ein NVIDIA-Treiber installiert ist), Zuverlässigkeitszähler der
+                                  Datenträger, Akkustatus aus WMI
+Ohne PawnIO liefert die Bibliothek weiterhin GPU (NVIDIA, AMD, Intel), Datenträger, RAM und Akku.
+LibreHardwareMonitorLib ist für .NET Framework gebaut und läuft nur unter Windows PowerShell 5.1, also über
+LeosMinibench.exe oder .cmd. Unter PowerShell 7 gibt es nur die Ersatzquellen (Hinweis im Bericht).
+
+2. WERKZEUGE MIT FESTEN PRÜFSUMMEN
+Neu auf der Seite Sensoren live: "Sensorwerkzeuge holen". Lädt LibreHardwareMonitor.zip (Release v0.9.6) und
+PawnIO_setup.exe (Release 2.2.0) von GitHub, prüft beide gegen SHA-256-Werte, die im Skript festgehalten sind
+(src\Kern\Sensoren.ps1, $script:LhmPins und $script:PawnIoPin), entpackt nur die 9 benötigten DLLs und trägt alles ins
+Werkzeug-Manifest Tools.json ein. Auf dem PC wird dabei nichts installiert, der Download liegt nur kurz im Datenordner.
+Von Hand kopierte Dateien werden aufgenommen, wenn ihre Prüfsumme zum Release passt (die Internet-Markierung aus einem
+im Browser geladenen Archiv wird danach entfernt bzw. beim Laden übergangen); andere werden abgewiesen
+(WARNUNG Werkzeuge) und nicht geladen. Anders als bei smartctl gibt es hier kein Vertrauen beim ersten Start:
+Eine neue Version von LibreHardwareMonitor braucht neue Prüfsummen im Skript.
+
+3. PAWNIO NUR VORÜBERGEHEND
+Der Treiber wird nie ungefragt installiert. Vor Live-Ansicht, Diagnose und Lasttest fragt die Oberfläche, wenn
+LibreHardwareMonitor und das Setup bereitliegen und PawnIO fehlt. Einstellung auf der Seite Sensoren live:
+bei Bedarf nachfragen, vorübergehend verwenden oder nicht verwenden. Ablauf:
+  1. Markierung Minibench-Daten\Laufzeit\PawnIO_<PC>.txt schreiben, dann PawnIO_setup.exe -install -silent
+  2. Eintrag "PawnIO-Treiber vorübergehend installiert" als Hinweis im Änderungsprotokoll (Seite Änderungen)
+  3. am Ende des Laufs Bibliothek schließen, dann uninstall.exe -uninstall -silent, Erfolg über die Registrierung prüfen
+  4. Markierung löschen, Hinweis "wieder entfernt"; die Rückstandskontrolle nennt das Ergebnis
+Wird ein Lauf über "Abbrechen" beendet oder das Fenster während eines Laufs geschlossen, entfernt die Oberfläche den
+Treiber sofort danach (Arbeitsprozess -SensorAufraeumen). Nach einem Absturz entfernt der nächste Start den Treiber
+anhand der Markierung. Ohne schreibbare Markierung wird der Treiber gar nicht erst installiert. War PawnIO schon installiert
+(z. B. durch FanControl oder LibreHardwareMonitor selbst), wird er benutzt und bleibt unverändert.
+Risikostufe: Der Treiber ist ein Eingriff. Der Bericht nennt "Eingriff" nur, wenn der Treiber in diesem Lauf wirklich
+installiert wurde; ohne Treiber bleibt es bei Lesen.
+
+4. SEITE SENSOREN LIVE
+Neue Seite in der Navigation (ohne Häkchen, wie Vergleichsdatenbank). Zeigt:
+  Kurven der letzten 10 Minuten in drei Feldern: Temperatur, Takt und Leistung, je CPU (blau) und GPU (orange)
+  Tabelle aller Sensoren nach Gerät gruppiert mit Aktuell, Min, Max und Quelle, Aktualisierung jede Sekunde
+  Zeile mit den genutzten Quellen und dem Treiberstatus
+"Aufzeichnung speichern" legt alle Werte seit dem Start als CSV unter Minibench-Daten\Berichte\Sensoren ab.
+Die Live-Ansicht ist ein eigener Arbeitsprozess (-SensorLive). Sie endet über die Datei sensor.stop, damit der Treiber
+sauber entfernt wird: beim Klick auf Beenden, beim Start eines Laufs, beim Schließen des Fensters und, falls die
+Oberfläche verschwindet, von selbst. Nach 12 Stunden endet sie ebenfalls.
+
+5. LASTTEST MIT KURVEN, DROSSELNACHWEIS UND ABBRUCHSCHWELLE
+Vor der Last 3 Leerlaufmessungen, während der Last alle 3 Sekunden ein Messpunkt mit Windows-Takt, Sensortakt,
+CPU-Temperatur, Paketleistung, GPU-Temperatur, -Takt und -Leistung, Lüfter und Datenträgertemperatur, nach der Last
+30 Sekunden Abkühlung. Im Lauf zeigt der neue Reiter "Sensoren" die Kurven live.
+Abbruchschwelle (Seite Lasttest): CPU automatisch (TjMax laut CPU, sonst 100 °C), 85, 90, 95, 100 °C oder aus;
+GPU 85, 90 (Vorgabe), 95 °C oder aus. Liegt die Temperatur 3 Messpunkte in Folge (rund 10 Sekunden) auf oder über
+einer festen Schwelle, endet der Test mit WARNUNG. Bei "automatisch" (TjMax) erst nach 20 Messpunkten (rund 1 Minute):
+Viele Notebooks laufen unter Volllast planmäßig an TjMax, und der Drosselnachweis braucht genug Messpunkte.
+Ein ACPI-Festwert löst nie aus, eine sich bewegende Thermalzone schon.
+Drosselnachweis (Bericht, Abschnitt Lasttest): vergleicht den Takt am Anfang (erste 15 %, höchstens die erste Minute) mit dem letzten Viertel und
+belegt die Ursache mit Zahlen:
+  thermisch        Takt fällt, CPU-Temperatur mindestens 20 % der Zeit höchstens 5 K unter der Grenze
+                   (TjMax, bei unbekanntem TjMax 95 °C): WARNUNG
+  Leistungsgrenze  Takt fällt mit der Paketleistung (mindestens 12 % weniger), Temperatur deutlich unter der Grenze:
+                   INFO, typisch für PL2 auf PL1 bzw. PPT, kein Kühlungsproblem
+  Firmware         Windows meldet Frequenzgrenze unter 95 % oder Ereignis 37 (Kernel-Processor-Power)
+  unklar           Takt fällt ohne Beleg (Energieplan, Stromgrenze, Spannungswandler)
+  keine            Abfall unter 5 %
+Dazu der Zeitpunkt, ab dem der Takt dauerhaft gesunken ist. Als Taktquelle dient der Windows-Leistungszähler, bei
+festem Zählerwert der Sensortakt.
+HTML-Bericht: Kasten Drosselnachweis mit Belegen, Kurven für Temperatur (mit Abbruchschwelle und TjMax), Takt,
+Leistung und Lüfter, senkrechte Marken für Abbruch, Lastende und Beginn der Drosselung, Hell- und Dunkelmodus.
+Lasttest-Verlauf.csv im Anhang und die KI-Datei enthalten alle neuen Spalten.
+Neu als Befund: Datenträger ab 70 °C unter Last (WARNUNG).
+Der Checkpoint enthält die Sensorwerte; nach einem Absturz unter Last steht die letzte Temperatur in der Absturzanalyse.
+
+6. DIAGNOSE: SENSOREN ALS MOMENTAUFNAHME
+Neuer Abschnitt "Sensoren (Momentaufnahme)" nach Akku: alle Temperaturen, Takte, Lüfter, Spannungen und Leistungen
+im Leerlauf als Tabelle, Leitwerte und Prüfungen:
+  CPU im Leerlauf ab 80 °C WARNUNG, ab 70 °C INFO (nur echte Sensorwerte, nicht ACPI)
+  GPU im Leerlauf ab 80 °C WARNUNG
+  CPU-Lüfteranschluss mit 0 U/min bei mindestens 60 °C WARNUNG
+Die CPU-Temperatur im Leerlauf steht im Kasten System. Der CPU-Stabilitätstest der Diagnose nutzt die echte
+CPU-Temperatur, wenn sie verfügbar ist.
+
+7. DATENBANK
+Neues Feld Sensoren mit Leerlauf (Diagnose) und Last (Lasttest): CPU-Temperatur im Leerlauf und maximal, TjMax,
+Paketleistung, GPU, Lüfter, Datenträger, Drosselung, Taktabfall, Abbruch. Grundlage für den Geräteverlauf in 3.0.
+Format bleibt PC-Diagnose-DB/2, ältere Einträge ohne das Feld bleiben gültig.
+
+8. AUFBAU
+Neu in src:
+  Kern\Sensoren.ps1            Werkzeuge, PawnIO, Sitzung, Ersatzquellen, Leitwerte, Abbruch, Drosselnachweis
+  Kern\Sensoren.cs             DiagSensors: LibreHardwareMonitorLib über Reflexion (C# 5)
+  Module\Sensoren\Vertrag.psd1 Modul Sensoren (Live, Werkzeuge holen, Treiber als Eingriff mit Hinweis)
+  Module\Sensoren\Ablauf.ps1   Sondermodi -SensorLive und -SensorWerkzeugeHolen
+Neue Parameter: -SensorLive, -SensorTreiber, -SensorWerkzeugeHolen, -SensorAufraeumen, -SensorIntervall,
+-LastAbbruchCpu, -LastAbbruchGpu.
+Neue @@-Ereignisse: SENSDEF, SENSVAL, SENSLEAD, SENSLIM, SENSINFO, SENSEND.
+Navigation: Sensoren live steht vor Vergleichsdatenbank und Änderungen.
+
+9. TESTS
+213 Pester-Tests in 8 Dateien (neu: tests\Sensoren.Tests.ps1). Geprüft werden unter anderem die Reflexion gegen eine
+nachgebaute Bibliothek, Leitwerte für Intel, AMD, ohne Treiber und mit zwei Grafikkarten, Abbruchschwelle,
+Drosselnachweis an zehn Verläufen (auch 8 Stunden Laufzeit), Prüfsummen beim Aufnehmen und Holen sowie der Lebenszyklus von PawnIO mit
+Attrappen (vorhanden lassen, installieren und entfernen, Absturz, gescheiterte Entfernung).
+Zusätzlich vor der Übergabe unter Linux mit Attrappen: Live-Ansicht im Arbeitsprozess, Lasttest mit Abbruch und
+Drosselnachweis, Diagnose mit Momentaufnahme, Absturz mit Treiber und Aufräumen beim nächsten Start, die Oberfläche
+unter mono mit Live-Ansicht und Lasttest sowie die echten Dateien von LibreHardwareMonitor 0.9.6 gegen die Prüfsummen.
+
+GEFUNDEN UND BEHOBEN VOR DER ÜBERGABE (Tests und Codeprüfung)
+  1. Abbrechen eines Laufs hätte einen vorübergehend installierten PawnIO bis zum nächsten Start stehen lassen.
+  2. Die Oberfläche hätte die Live-Ansicht nach 60 Sekunden hart beendet, auch mitten in der Treiberentfernung (jetzt 4 Minuten).
+  3. Der Drosselnachweis rechnete quadratisch und brauchte bei 8 Stunden Laufzeit Minuten; jetzt ein Durchlauf.
+  4. Bei langen Tests verschwand eine frühe Drosselung im Anfangswert (Anfangsfenster jetzt höchstens 1 Minute).
+  5. Das letzte Ereignis der Live-Ansicht (Ergebnis der Treiberentfernung) konnte verloren gehen.
+  6. "Sensorwerkzeuge holen" fror die Oberfläche während des Downloads ein.
+  7. Von Hand aus einem Browser-Download kopierte DLLs hätte .NET trotz passender Prüfsumme nicht geladen.
+  8. nvidia-smi und die Plausibilitätsprüfung lieferten bei leerem Ergebnis ein Element zu viel.
+
+GRENZEN
+  Grafiklast bleibt die leichte WinSAT-Schleife; für GPU-Volllast weiterhin FurMark oder OCCT.
+  Werte auf echter Hardware sind noch gegen HWiNFO abzugleichen (Testmatrix S1 bis S4).
+  LibreHardwareMonitor zeigt nicht für jedes Board Lüfter und Spannungen, Bezeichnungen wie +12V hängen am Chip.
+
+UMSTIEG
+  1. Bauen.cmd ausführen und den Inhalt von Aktueller Build auf den Stick kopieren.
+  2. Einmalig auf der Seite Sensoren live "Sensorwerkzeuge holen" (braucht Internet), danach arbeitet der Stick offline.
+  3. Testmatrix_v2.3.csv auf einem Intel-PC, einem AMD-PC und einem Notebook abarbeiten.
+
+Quellen
+  https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/tag/v0.9.6
+  https://github.com/namazso/PawnIO.Setup/releases/tag/2.2.0

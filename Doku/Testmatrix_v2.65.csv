@@ -1,0 +1,27 @@
+﻿Nr;Bereich;Testfall;Umgebung;Erwartung;Art;Ergebnis;Datum;Bemerkung
+A1;Bau;Testen.cmd ausführen;ULB-PC10039 mit Pester 6.2;alle Pester-Tests bestanden, 0 fehlgeschlagen (Gesamtläufe übersprungen);automatisch;;;
+A2;Bau;Bauen.cmd ausführen;ULB-PC10039;LeosMinibench.ps1 und .exe neu, Version 2.65.0.0 in den Dateieigenschaften, Stand.txt mit Testergebnis;automatisch;;;
+A3;Bau;erster Start nach dem Bau, Oberfläche öffnen;Windows PowerShell 5.1;keine Meldung zu C#-Routinen, Seite Benchmark und Lasttest mit Auswahl "Grafikeinheit";manuell;;;
+L1;Lasttest (Sensoren);Lasttest CPU und Grafik 5 Minuten mit PawnIO;ULB-PC10039;Statuszeile und Reiter Sensoren mit CPU-Temperatur, GPU-Temperatur, GPU-Takt und GPU-Leistung, Bericht mit Zeile "GPU NVIDIA ...: Takt Ø / max, Temperatur max, Leistung max", keine Sammelzeile "Verworfene Sensorwerte" mit allen Sensornamen;manuell;;;
+L2;Lasttest (Sensoren);wie L1;TORRENT (RX 6800);Leerlaufwerte mit CPU-Temperatur (Tctl/Tdie) und GPU-Temperatur, Drosselnachweis mit Temperaturbeleg;manuell;;;
+L3;Lasttest (Praxistest);Lasttest Datenträger C: und Grafik je 5 Minuten über die Oberfläche;ULB-PC10039;Lauf startet und endet mit Bericht, beide Komponenten mit Ergebnis, falls nicht: Protokoll_ohne_Bericht.txt, Konsole.log und Checkpoint.log im Berichtsordner;manuell;;;
+L4;Lasttest;Lasttest CPU, RAM, Grafik und Datenträger je 5 Minuten;TORRENT;Bilder/s-Kurve gleichmäßig ohne Ausreißer auf unter 20 Bilder/s, Ø Bilder/s der Kurve passt zum Ø im Ergebnis (höchstens 10 % Abweichung), CPU-Last durchgehend über 90 %;manuell;;;
+L5;Lasttest;jede Komponente mit 2 Minuten;beliebig;Lauf rund 2 Minuten plus Abkühlung, Ergebnis je Komponente, Drosselnachweis bewertet oder "zu wenige Messpunkte";manuell;;;
+L6;Lasttest;Grafikeinheit "nur Grafikkarte" und "nur Prozessorgrafik";ULB-PC10039;jeweils nur ein Vorschaufenster, im Task-Manager nur die gewählte Einheit unter 3D-Last, Bericht nennt die Auswahl;manuell;;;
+L7;Lasttest;"Abbrechen" während "Sensoren werden geöffnet";beliebig;Lauf endet, Protokoll_ohne_Bericht.txt mit letztem Schritt im Berichtsordner, Ordner öffnen zeigt ihn;manuell;;;
+B1;Bildratengrenze;Radeon Chill oder FRTC auf 120 einschalten, Benchmark Grafik;TORRENT;WARNUNG "Bildratengrenze aktiv ... knapp unter 120 Hz" (oder 144 Hz), Rendertest gelb, ohne Grenze keine Warnung;manuell;;;
+B2;Bildratengrenze;wie B1 mit Lasttest Grafik 2 Minuten;TORRENT;Befund erscheint in den ersten Sekunden in der Laufansicht, Zeile "Bildratengrenze aktiv" im Ergebnis;manuell;;;
+B3;Bildratengrenze;NVIDIA Max. Bildrate 60 im Treiber, Benchmark Grafik;ULB-PC10039;WARNUNG für die RTX, Iris Xe ohne Warnung;manuell;;;
+V1;Vorschau;Benchmark Grafik, Anzeige Fenster;TORRENT;Vorschau flüssig (sichtbar mehr als 20 Bilder je Sekunde), Ø Bilder/s höchstens 3 % unter "ohne Anzeige";manuell;;;
+V2;Vorschau;Lasttest Grafik 1920x1080 Vollbild;ULB-PC10039;Vollbild flüssig, Esc beendet, Arbeitsspeicher des Prozesses steigt nicht dauernd an;manuell;;;
+R1;Referenz;Benchmark ohne Referenz.json im Datenordner;Test-Stick;Bericht "Keine Referenz festgelegt", keine Prozentwerte, keine Werte von TORRENT;manuell;;;
+R2;Referenz;Benchmark mit Haken "Dieses System als Referenz festlegen";TORRENT;Referenz.json mit Computer, Herkunft je Messgröße, nächster Lauf auf ULB-PC10039 zeigt "Gespeicherte Referenz: TORRENT ... vom ..." und Prozentwerte;manuell;;;
+R3;Referenz;Benchmark nur CPU mit Haken, danach Benchmark alles;TORRENT;nach dem ersten Lauf bleiben RAM-, GPU- und Laufwerkswerte der Referenz erhalten;manuell;;;
+Z1;Zuverlässigkeit;Diagnose Vollständig;ULB-PC10039 (Index um 5);oben im Textbericht ZUVERLÄSSIGKEIT mit Erklärung und Ursachen (Programmabstürze PowerToys), vierte Karte im HTML-Bericht, Befund INFO oder WARNUNG;manuell;;;
+Z2;Zuverlässigkeit;Diagnose Vollständig;TORRENT (Index 10);Karte "10,0 Zuverlässigkeit von 10 (gut)", keine Erklärung;manuell;;;
+P1;Voreinstellung;Auswahl treffen, Speichern mit "Beim Start automatisch laden", Programm neu starten;beliebig;Auswahl aller Seiten wie gespeichert, Liste zeigt "(beim Start)";manuell;;;
+P2;Voreinstellung;Stick mit Voreinstellung (PawnIO: vorübergehend verwenden) an einen anderen PC, nur Start klicken;DESKTOP-2KDA9KP;Lauf startet ohne Rückfrage zum Treiber, Grafikauswahl "nur Grafikkarte" fällt mit Hinweis auf alle Einheiten zurück;manuell;;;
+P3;Voreinstellung;Voreinstellung löschen;beliebig;Eintrag weg, beim nächsten Start Standardauswahl;manuell;;;
+T1;Texte;Oberfläche und Bericht durchsehen;beliebig;keine Formulierungen "wie Task-Manager" oder "GPU-Wahl für winsat.exe", Erklärungen ohne Abschneiden;manuell;;;
+G1;Gleichstand;Diagnose Vollständig, Bericht mit 2.6 vergleichen;TORRENT;gleiche Abschnitte, keine neuen Skriptfehler;manuell;;;
+G2;Gleichstand;Benchmark normal mit WinSAT und Hybridgrafik-Option;ULB-PC10039;WinSAT-Bewertung wie bisher, kurzer Satz zur Grafikwahl statt langer Meldung;manuell;;;

@@ -1,0 +1,208 @@
+﻿LEOS MINIBENCH 2.8: ÄNDERUNGEN
+==============================
+
+Version 2.8 setzt die Rückmeldungen vom 03.10.2026 um: Die Läufe auf TORRENT und ULB-PC10039 wurden durchgesehen, die
+lückenhaften Sensorwerte erklärt und ersetzt, das Windows Optimisation Pack als fünftes Modul Optimierung eingebaut und
+die Überschneidungen in den Kurven des Berichts behoben. Wartung und Druckerhilfe (bisher für 2.8 geplant) rücken auf
+2.9, weil die Optimierung vorgezogen wurde.
+
+1. SENSOREN AUF TORRENT: URSACHE
+PawnIO war nicht das Problem. Auf TORRENT ist PawnIO 2.2.0.0 installiert und war bereit. Im Datenordner dieses Laufs
+(C:\Users\fried\Desktop\Neuer Ordner\Minibench-Daten) fehlte aber LibreHardwareMonitor im Tools-Ordner; ohne die
+Bibliothek nutzt Leos Minibench den Treiber gar nicht. In 2.7 und älteren Läufen lag LibreHardwareMonitor im Tools-Ordner
+des alten Datenordners (heute Archiv\Alte Daten\Minibench-Daten\Tools). Übrig blieben Windows-Leistungszähler und ACPI:
+CPU-Takt ja, Leistung und GPU-Werte nein. Der Bericht schrieb trotzdem "ohne PawnIO-Treiber liefert
+LibreHardwareMonitor keine CPU-Werte", das war falsch.
+
+2. SENSOREN OHNE LIBREHARDWAREMONITOR
+  Grund benennen      Die Sensorsitzung merkt sich, warum LibreHardwareMonitor nicht lief (fehlt im Tools-Ordner,
+                      unvollständig oder Prüfsumme falsch, PowerShell 7, Constrained Language Mode, Startfehler). Diesen
+                      Grund nennen Drosselnachweis, Benchmark- und Lasttestbericht, HTML-Hinweis unter den Kurven und
+                      einmal je Lauf ein Hinweis unter Sensoren. "ohne PawnIO" erscheint nur noch, wenn
+                      LibreHardwareMonitor läuft und der Treiber fehlt.
+  Vor dem Start       Fehlt LibreHardwareMonitor, fragt die Oberfläche vor Benchmark oder Lasttest einmal je Sitzung:
+                      Ja holt die Sensorwerkzeuge (wie auf der Seite Sensoren), Nein misst mit Ersatzwerten, Abbrechen
+                      startet nicht.
+  Grafiktreiber       Neu DiagGpuKmt (Kern\Sensoren.cs): Über den Grafikkernel von Windows (D3DKMT, WDDM 2.4 und neuer)
+                      liest Leos Minibench Temperatur, Lüfterdrehzahl, Speichertakt und Takt der ersten Engine je
+                      Grafikeinheit, wie der Task-Manager. Die Auslastung kommt aus dem Leistungszähler GPU Engine
+                      (höchste Engine, Summe über alle Prozesse). Werte außerhalb plausibler Bereiche (Temperatur 1 bis
+                      150 °C, Kerntakt 100 bis 4.000 MHz, Speichertakt 100 bis 30.000 MHz, Lüfter bis 20.000 U/min)
+                      verwirft es, virtuelle Adapter und Software-Renderer bleiben außen vor.
+  CPU-Leistung        Aus dem Leistungszähler Energy Meter (RAPL, Paket 0), wo die Firmware ihn anbietet; Einheit
+                      Milliwatt.
+  Vorrang             Die Ersatzquellen laufen nur ohne LibreHardwareMonitor und füllen je Grafikeinheit nur, was keine
+                      andere Quelle (nvidia-smi) schon liefert. Quelle im Bericht: Windows-Grafiktreiber.
+Eine GPU-Leistung in Watt meldet Windows nicht (D3DKMT kennt nur Prozent der Leistungsgrenze); auf AMD und Intel
+bleibt die Kurve Leistung ohne LibreHardwareMonitor leer.
+
+3. MODUL OPTIMIERUNG
+Fünftes Modul neben Diagnose, Benchmark, Lasttest und Reparatur. Es übernimmt den ganzen Funktionsumfang des Windows
+Optimisation Pack (Projektordner Windows_Optimisation_Pack-main) nativ: Jede Einstellung aus dem Pack selbst, aus
+seiner Sophia-Konfiguration (Windows 10 und 11) und aus seiner O&O-Auswahl (ooshutup.cfg, Einträge mit +) ist ein
+eigener Katalogeintrag. Sophia Script und O&O ShutUp10++ werden nicht mehr heruntergeladen und nicht gestartet.
+  Katalog            Module\Optimierung\Katalog.psd1, 163 Einträge in 14 Kategorien. Je Eintrag Titel, Erklärung,
+                     Risikostufe, Neustartbedarf, Herkunft im Pack, Hinweis auf Nebenwirkungen, Bedingung (Windows 10,
+                     Windows 11, Desktop-PC, NVIDIA, Windows Terminal) und die einzelnen Änderungen.
+  Kategorien         Datenschutz und Telemetrie (17), Werbung, Tipps und Vorschläge (10), Suche, Cortana, Copilot und
+                     KI (7), App-Berechtigungen, Verlauf und Synchronisierung (9), Dienste und geplante Aufgaben (12),
+                     Windows-Funktionen und Zusatzfeatures (16), Vorinstallierte Apps entfernen (19), Explorer,
+                     Taskleiste und Start (25), Darstellung und persönliche Vorlieben (7), Leistung, Spiele und
+                     Energie (10), Windows Update, Edge und OneDrive (8), Sicherheit und Fernzugriff (6), Bereinigung
+                     und Wartung (15), Grafiktreiber (2).
+  Vorlagen           Minimal (68 Einträge, entspricht der Datenschutz- und Dienstauswahl des Pack), Standard (114,
+                     voreingestellt), Erweitert (151), Keine. Jede Vorlage enthält die kleinere. Auf Domänen-PCs lassen
+                     die Vorlagen Einträge weg, die Gruppenrichtlinien oder zentrale Verwaltung berühren.
+  Nur von Hand       Einträge mit spürbaren Nebenwirkungen stehen in keiner Vorlage: Grafiktreiber mit DDU entfernen,
+                     alte Wiederherstellungspunkte löschen, Prefetch und Paket-Cache leeren, DNS über HTTPS, sofortiger
+                     Neustart nach Updates, Anmeldung per Gesicht entfernen.
+  Risikostufen       Ändern (121 Einträge: Registry, Dienste, geplante Aufgaben, Windows-Funktionen, Energieplan,
+                     Ruhezustand, Indizierung, Laufwerksname, Netzwerkadapter, Defender, DNS, Speicherreserve,
+                     Wartungsaufgaben): jede Einzeländerung mit Vorher-Wert im Änderungsprotokoll, die Seite Änderungen
+                     nimmt sie einzeln zurück. Eingriff (42 Einträge: Apps, Zusatzfeatures, OneDrive, Bereinigung, DDU,
+                     NVIDIA-Profil): im Protokoll mit dem Weg zurück, abgesichert durch einen Wiederherstellungspunkt.
+  Benutzer           Einstellungen unter HKCU gelten dem angemeldeten Benutzer (Besitzer von explorer.exe in derselben
+                     Sitzung). Läuft Leos Minibench unter einem anderen Administratorkonto, schreibt es über
+                     HKEY_USERS\<SID>; Pfade wie %TEMP% zeigen ebenfalls in dessen Profil.
+  Ablauf             Vorbereitung (Benutzer, Windows-Build, Domäne, ausstehender Neustart, Kennzahlen vorher), auf
+                     Wunsch alte Wiederherstellungspunkte löschen, Wiederherstellungspunkt anlegen, dann je Kategorie
+                     ein Abschnitt, zum Schluss Kennzahlen nachher (laufende Dienste, Dienste mit automatischem Start,
+                     Prozesse, belegter Arbeitsspeicher, aktive Aufgaben, Autostart, bei Bedarf Funktionen und Apps,
+                     freier Speicher) und eine Zusammenfassung mit Neustartbedarf.
+  Werkzeuge          DDU (Display Driver Uninstaller) aus dem Pack mit fester SHA-256-Prüfsumme, NVIDIA Profile
+                     Inspector (MIT-Lizenz) aus der neuesten Veröffentlichung, beides nur in den Tools-Ordner. DDU
+                     startet nach dem nächsten Neustart im abgesicherten Modus und stellt den Normalstart danach selbst
+                     wieder her; sein Ordner unter %windir%\Temp bleibt bis dahin stehen und wird in der
+                     Rückstandskontrolle genannt.
+  Wartungsaufgaben   Die drei Aufgaben des Pack (Datenträgerbereinigung alle 30 Tage, Update-Downloads alle 90 Tage,
+                     temporäre Dateien alle 60 Tage) laufen als SYSTEM ohne Skriptdateien unter \Leos Minibench\.
+                     Rückgängig auf der Seite Änderungen entfernt sie.
+Abweichungen vom Pack stehen im Hinweis des jeweiligen Eintrags, unter anderem: Wiederherstellungspunkte nur für das
+Systemlaufwerk, Energieplan Höchstleistung nur in Erweitert, Mauswerte als Zeichenfolge wie bei Windows selbst,
+DNS über HTTPS nur unter Windows 11.
+
+4. OBERFLÄCHE
+Neue Seite Optimierung zwischen Reparatur und Sensoren. Oben die Vorlagen, "Zustand prüfen" (liest für jeden Eintrag,
+ob er schon aktiv, teilweise, offen oder nicht zutreffend ist, ohne etwas zu ändern), "Werkzeuge holen ..." und
+"Alle aufklappen". Darunter die Kategorien, aufklappbar, mit Zähler und "alle"/"keine". Jeder Eintrag zeigt Eingriff,
+Neustart und verwaltet direkt im Text; der Hinweis beim Überfahren nennt Erklärung, Nebenwirkung, die einzelnen
+Änderungen und die Herkunft im Pack. Vor dem Start fasst eine Rückfrage zusammen: Einträge je Kategorie, Eingriffe,
+Neustart, Wiederherstellungspunkt und auf Domänen-PCs die verwalteten Einträge. Während des Laufs zeigt jeder Eintrag
+sein Ergebnis. Auswahl und Wiederherstellungspunkt gehören zu den Voreinstellungen. Die Navigation ist etwas
+kompakter, damit acht Einträge ohne Scrollleiste passen.
+
+5. BERICHT
+  Kurven              Beschriftungen der Abschnitte (Benchmark) und Marken (Lasttest) stehen in einem eigenen Band über
+                      der Zeichenfläche; liegen zwei zu dicht, bekommt die zweite eine eigene Zeile, am rechten Rand
+                      steht sie links der Linie. Die y-Achse beschriftet halbe und viertel Schritte mit Nachkommastelle
+                      (bis 2.7: 62, 62, 61, 61, 60), ganzzahlige Messreihen bekommen mindestens Schritt 1.
+  Optimierung         Abschnitte im Textbericht, Kasten im HTML-Bericht mit Kennzahlen vorher und nachher und einer
+                      aufklappbaren Tabelle je Kategorie, Block in der KI-Datei, Feld Optimierung in der Datenbank.
+  Referenz            Mit "Dieses System als Referenz festlegen" hieß es bis 2.7 vorn "Keine Referenz festgelegt" und
+                      hinten "Referenz gespeichert". Jetzt steht vorn, dass dieser Lauf die Referenz wird (oder die
+                      bisherige ersetzt), HTML und KI-Datei sagen dasselbe.
+  Benchmark           Arbeitsspeicher und Datenträger waren im Textbericht leere Abschnitte; jetzt mit Kurzergebnis.
+                      Unterbrechungen werden je Abschnitt gemessen, WinSAT zählt nicht mehr mit (TORRENT: 28 s, fast
+                      alles während WinSAT, das als eigener Prozess läuft).
+  Datenträger         Ohne lesbare PCIe-Anbindung schätzt der Benchmark die Generation einer NVMe-SSD aus dem Lesewert
+                      (ULB-PC10039: SN820 mit 6.689 MB/s hatte Index 268 gegen den Typwert einer PCIe-3.0-SSD).
+  Kleinigkeiten       TPM-Hersteller ohne Nullzeichen (TORRENT: "AMD" mit 23 Nullbytes), WLAN-Ausgabe von netsh in UTF-8
+                      richtig gelesen und ohne Standortfreigabe als eine Zeile statt sieben, Zuverlässigkeit als Befund
+                      nur noch mit Ursachen (die Erklärung steht im Kopf), Laufzeit seit dem Start mit Minuten und ohne
+                      "0 Tage", winget mit kaputter Paketquelle als kurzer Hinweis auf "winget source reset --force".
+
+6. AUFBAU
+Neu: Module\Optimierung mit Funktionen.ps1 (im Bauplan nach Kern\Werkzeuge.ps1, weil Grundgerüst und Oberfläche den
+Katalog brauchen), Hilfsmodi.ps1 (Zustand prüfen, Werkzeuge holen; nach Kern\Grafiktest.ps1), Ablauf.ps1 (nach der
+Reparatur), Vertrag.psd1, Katalog.psd1 und NvidiaProfil.nip (beide beim Bau eingebunden), tests\Version28.Tests.ps1.
+Geändert: 00_Kopf.ps1, Bauplan.txt, Kern\Modulvertrag.ps1, Kern\Grundgeruest.ps1, Kern\Aenderungen.ps1
+(New-RestorePointLogged, Rückgängig für neue Arten, Standardwert der Registry), Kern\Sensoren.cs und Sensoren.ps1,
+Kern\Testroutinen.cs und Testroutinen.ps1 (Unterbrechungen je Abschnitt), Kern\Referenz_Vergleich.ps1,
+Kern\Berichtshilfen.ps1, Kern\Datenbank.ps1, Kern\Checkpoints_Absturzanalyse.ps1, Bericht\HtmlBericht.ps1,
+Bericht\KI-Datei.ps1, Bericht\Stil.ps1, Ablauf\Start.ps1, Ablauf\Abschluss.ps1, Module\Benchmark, Module\Diagnose,
+Module\Lasttest, Oberflaeche\DiagGui.cs, Oberflaeche\Oberflaeche.ps1, Oberflaeche\Versionen.cs.
+Parameter neu: -Optimierungen <Ids>, -OptOhneWiederherstellungspunkt, -OptimierungZustand, -OptWerkzeugeHolen.
+Ereignisse neu: @@OPTZ|Id|Zustand|Text (Zustand prüfen), @@OPTE|Id|Ergebnis|Änderungen|Details (Ergebnis im Lauf).
+Die Lasttestwerte bleiben mit 2.7 vergleichbar ($script:MessreiheAb unverändert).
+
+7. TESTS
+Neu tests\Version28.Tests.ps1 (40 Tests): Katalog (eingeschränkte Sprache, eindeutige Ids, Kategorien, Stufen,
+Vorlagen aufeinander aufbauend, Stufe Ändern nur mit rücknehmbaren Aktionen, Registry vollständig, Schritte des
+Vertrags, Zeilen für die Oberfläche), Auswahl, Benutzer und Pfade, Ausführen und Rückgängig mit Attrappen (Registry,
+Dienst, Aufgabe, App, Windows-Funktion, Bedingung), Ablauf, Bericht und Oberfläche, Ersatzwerte des Grafiktreibers,
+Grund fehlender Sensorwerte, Übersetzung von DiagGpuKmt, Achsen und Marken, Laufzeit, UTF-8 aus netsh,
+NVMe-Generation, Unterbrechungen ohne WinSAT, Wartungsaufgaben als gültiges PowerShell, Absturzsprung je Kategorie.
+Gesamtlauf "Optimierung" mit unbekannter Id prüft den Ablauf bis zur Zusammenfassung.
+Angepasst: Modulvertrag (sechs Module), Sensoren und Version27 (Hilfsfunktionen der Kurven, Grund statt PawnIO).
+Testumgebung: Der Nachbau von Mock verlor seine Attrappen, wenn eine spätere Testdatei das Testmodul neu lud; behoben.
+Die Oberfläche wurde unter mono mit Xvfb gestartet (Seite Optimierung mit allen Kategorien aufgeklappt, Vorlagen,
+Navigation mit acht Einträgen).
+
+GEFUNDEN UND BEHOBEN VOR DER ÜBERGABE (Tests und Codeprüfung)
+  1. "Alte Wiederherstellungspunkte löschen" zusammen mit der Reparatur hätte deren Wiederherstellungspunkt gelöscht und
+     danach keinen neuen angelegt; alle Eingriffe wären ungesichert gelaufen. Jetzt wird danach ein neuer angelegt.
+  2. Die Aufgabe "Temporäre Dateien aufräumen" hätte nichts getan: verdoppelte Anführungszeichen machten den Befehl
+     ungültig. Ein Test parst jetzt alle drei Befehle.
+  3. Der Energiezähler meldet Milliwatt; die erste Fassung las Werte unter 1.000 als Watt (750 mW im Leerlauf wären
+     750 W gewesen).
+  4. Achsenschritte von 2,5 hatten keine Nachkommastelle (40, 42, 45, 48, 50), dieselbe Art Fehler wie im Screenshot.
+  5. Mit vorhandener Referenz und neuem Haken hätte der Bericht "Prozentwerte entfallen" geschrieben und trotzdem
+     Prozente gegen die alte Referenz gezeigt.
+  6. Ein Absturz in einer Kategorie der Optimierung hätte sie beim nächsten Lauf nicht übersprungen; ein Kategorietitel
+     mit "Defender" wäre sogar als Defender-Prüfung der Diagnose erkannt worden.
+  7. Scheiterte DNS über HTTPS am zweiten Netzwerkadapter, hätte der Eintrag "Fehler, 0 Änderungen" gemeldet, obwohl der
+     erste geändert und protokolliert war.
+  8. Ein Benchmark nur mit WinSAT hätte Unterbrechungen während WinSAT doch gezählt.
+  9. Grundgerüst und Oberfläche riefen Funktionen der Optimierung auf, bevor ihr Teil eingebunden war (Bauplan).
+ 10. Import-PowerShellDataFile weist den Katalog wegen seiner Größe ab; er wird jetzt beim Bau eingebunden, ein Test
+     prüft, dass er nur Daten enthält.
+ 11. "O&O" erschien in der Oberfläche als "O" mit unterstrichenem Zugriffsbuchstaben.
+ 12. Die Oberfläche kannte das Ereignis @@OPTE nicht (Test für das Protokoll zwischen Arbeitsprozess und Oberfläche).
+ 13. Unbekannte Ids aus -Optimierungen standen nur als Warnung in der Konsole; jetzt auch im Bericht.
+ 14. Nach der Übergabe beim ersten Bau unter Windows: Der Test auf eindeutige Ids im Katalog schlug fehl. Group-Object
+     und Where-Object mit Eigenschaftsnamen lesen unter Windows PowerShell 5.1 keine Schlüssel von Hashtables, alle
+     Einträge landeten in einer Gruppe (PowerShell 7 in der Sandbox kann das). Der Katalog war in Ordnung; die Tests
+     filtern jetzt mit Skriptblöcken und prüfen, dass ihre Schleifen nicht leer bleiben.
+
+GRENZEN
+  Auf echter Hardware ist 2.8 noch nicht gelaufen (Testmatrix_v2.8). Die Optimierung wurde gegen Attrappen getestet;
+  Registry, Dienste, Aufgaben, DISM und Appx laufen erst unter Windows wirklich.
+  D3DKMT-Werte hängen vom Grafiktreiber ab; ältere Treiber melden Temperatur oder Lüfter nicht. Auf echter Hardware
+  ist DiagGpuKmt ungetestet (S1 bis S3 der Testmatrix).
+  Energy Meter gibt es vor allem auf Intel-Systemen; auf AMD-Desktops wie TORRENT bleibt die CPU-Leistung ohne
+  LibreHardwareMonitor wahrscheinlich leer.
+  NVIDIA Profile Inspector kommt aus der neuesten Veröffentlichung; die Prüfsumme wird beim ersten Holen festgehalten
+  (Vertrauen beim ersten Mal). Von DDU ist das ZIP des Pack mit fester Prüfsumme geprüft.
+  Nicht übernommen: Taskleisten-Verknüpfungen lösen, Gruppierung im Ordner Downloads, Tastaturlayout je App und
+  "Windows Terminal als Administrator" im Kontextmenü (zu persönlich bzw. ohne sauberes Rückgängig). Die
+  O&O-Einträge für den alten Edge (vor Chromium) entfallen, der neue Edge ist über "Edge nicht im Hintergrund laden" abgedeckt.
+  Kennzahlen vorher und nachher gelten direkt nach der Optimierung ohne Neustart. Eine Vorher-Nachher-Messung mit dem
+  Benchmark bleibt auf der Roadmap.
+  Auf Domänen-PCs können Gruppenrichtlinien Einstellungen beim nächsten Abgleich zurücksetzen.
+  Eingriffe (Apps, Zusatzfeatures, Bereinigung, DDU) lassen sich nicht automatisch zurücknehmen; Wege zurück stehen im
+  Änderungsprotokoll, der Wiederherstellungspunkt sichert den Rest. Vor DDU mit BitLocker den Wiederherstellungsschlüssel
+  bereithalten.
+
+UMSTIEG
+  1. Bauen.cmd ausführen. Version 2.7 wandert nach Archiv\v2.7.
+  2. Inhalt von Aktueller Build auf den Stick kopieren. Für Sensorwerte im Datenordner des Sticks einmal
+     "Sensorwerkzeuge holen" (Seite Sensoren) oder den Ordner LibreHardwareMonitor aus
+     Archiv\Alte Daten\Minibench-Daten\Tools nach Minibench-Daten\Tools kopieren. PawnIO bleibt auf TORRENT, wie es ist.
+  3. Testmatrix_v2.8 abarbeiten, zuerst O1 und S1.
+
+ERGEBNIS
+  Tests in der Sandbox: 596 bestanden, 0 fehlgeschlagen, 3 übersprungen (16 Dateien, Gesamtläufe eingeschlossen;
+  PowerShell 7.4 unter Linux, Nachbau der Pester-5-Befehle). Oberfläche, Kern\Sensoren.cs und Kern\Testroutinen.cs
+  mit mcs und C# 5 übersetzt.
+
+Quellen
+  https://github.com/Marvin700/Windows_Optimisation_Pack (Pack, config\Sophia, config\ooshutup.cfg, config\DDU.zip)
+  https://github.com/farag2/Sophia-Script-for-Windows
+  https://www.oo-software.com/de/shutup10
+  https://www.wagnardsoft.com/display-driver-uninstaller-DDU-
+  https://github.com/Orbmu2k/nvidiaProfileInspector
+  https://learn.microsoft.com/windows-hardware/drivers/ddi/d3dkmthk/nf-d3dkmthk-d3dkmtqueryadapterinfo
+  https://learn.microsoft.com/windows-hardware/drivers/ddi/d3dkmthk/ns-d3dkmthk-_d3dkmt_adapter_perfdata
+  https://learn.microsoft.com/windows-hardware/drivers/ddi/d3dkmthk/ns-d3dkmthk-_d3dkmt_node_perfdata
+  https://learn.microsoft.com/windows/privacy/manage-connections-from-windows-operating-system-components-to-microsoft-services
+  https://learn.microsoft.com/windows-server/administration/windows-commands/vssadmin-delete-shadows

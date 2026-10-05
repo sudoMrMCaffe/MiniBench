@@ -1,0 +1,109 @@
+{
+  "Format": "PC-Diagnose-DB/1",
+  "Name": "TORRENT (Ryzen 5 7600X, 32 GB DDR5-6000, Radeon RX 6800)",
+  "Computer": "TORRENT",
+  "Datum": "2026-09-30 21:59",
+  "Version": "1.8",
+  "Quelle": "Import aus PC-Diagnose_LeoPC",
+  "Module": "Import",
+  "Messdauer": "unbekannt",
+  "System": "Gigabyte Technology Co., Ltd. B650 GAMING X AX",
+  "Hardware": {
+    "CPU": "AMD Ryzen 5 7600X",
+    "RAM": "32 GB DDR5-6000",
+    "GPU": "AMD Radeon RX 6800",
+    "Datentraeger": "SanDisk SDSSDH3 1T02 (953,9 GB, SATA, Healthy); Samsung SSD 860 EVO 1TB (931,5 GB, SATA, Healthy); SAMSUNG MZVL21T0HCLR-00B00 (953,9 GB, NVMe, Healthy); Lexar SSD NM620 1TB (953,9 GB, NVMe, Healthy); WDS100T3X0C-00SJG0 (931,5 GB, NVMe, Healthy); Innostor Innostor (58,6 GB, USB, Healthy)",
+    "Betriebssystem": "Microsoft Windows 11 Pro 25H2 (Build 26200.9457)",
+    "Mainboard": "",
+    "WindowsInstalliert": ""
+  },
+  "Werte": {
+    "DISK|NVMe4|R8": 159397.0,
+    "DISK|NVMe3|R1": 14312.0,
+    "DISK|NVMe4|SR": 6684.0,
+    "RAM|Latenz": 82.4,
+    "DISK|SATA-SSD|R1": 10880.0,
+    "DISK|NVMe3|SR": 3120.0,
+    "GPU|VMB": 290.2,
+    "RAM|Lesen": 61.9,
+    "DISK|NVMe4|SW": 3739.0,
+    "DISK|NVMe3|R8": 114676.0,
+    "CPU|AES": 1432.0,
+    "DISK|SATA-SSD|SW": 520.0,
+    "RAM|Kopieren": 37.6,
+    "CPU|SHA": 2568.0,
+    "GPU|DWM": 17094.0,
+    "CPU|MT": 38101.0,
+    "DISK|SATA-SSD|R8": 73720.0,
+    "RAM|Schreiben": 31.2,
+    "DISK|NVMe3|SW": 3028.0,
+    "DISK|NVMe3|W1": 62292.0,
+    "DISK|SATA-SSD|SR": 554.0,
+    "DISK|NVMe4|W1": 54971.0,
+    "CPU|DEFL": 295.0,
+    "DISK|NVMe4|R1": 18330.0,
+    "DISK|SATA-SSD|W1": 29938.0,
+    "CPU|ST": 3086.0
+  },
+  "Laufwerke": [
+    {
+      "Laufwerk": "SanDisk SDSSDH3 1T02 (D:)",
+      "Klasse": "SATA-SSD",
+      "SR": 544.0,
+      "SW": 508.0,
+      "R1": 10179.0,
+      "R8": 71140.0,
+      "W1": 29567.0
+    },
+    {
+      "Laufwerk": "Samsung SSD 860 EVO 1TB (E:)",
+      "Klasse": "SATA-SSD",
+      "SR": 564.0,
+      "SW": 533.0,
+      "R1": 11582.0,
+      "R8": 76300.0,
+      "W1": 30309.0
+    },
+    {
+      "Laufwerk": "SAMSUNG MZVL21T0HCLR-00B00 (C:)",
+      "Klasse": "NVMe PCIe 4.0 x4",
+      "SR": 6684.0,
+      "SW": 3739.0,
+      "R1": 18330.0,
+      "R8": 159397.0,
+      "W1": 54971.0
+    },
+    {
+      "Laufwerk": "Lexar SSD NM620 1TB (F:)",
+      "Klasse": "NVMe PCIe 3.0 x4",
+      "SR": 2809.0,
+      "SW": 2951.0,
+      "R1": 15579.0,
+      "R8": 126561.0,
+      "W1": 51827.0
+    },
+    {
+      "Laufwerk": "WDS100T3X0C-00SJG0 (G:)",
+      "Klasse": "NVMe PCIe 3.0 x4",
+      "SR": 3430.0,
+      "SW": 3105.0,
+      "R1": 13045.0,
+      "R8": 102791.0,
+      "W1": 72756.0
+    }
+  ],
+  "Befunde": {
+    "Kritisch": 0,
+    "Warnungen": 1,
+    "Hinweise": 5,
+    "Liste": [
+      "[WARNUNG] Lizenz: Windows ist per KMS-Volumenlizenz (GVLK) aktiviert, obwohl der PC in keiner Domäne ist. Das deutet auf eine inoffizielle Aktivierung hin, Lizenz prüfen.",
+      "[INFO] Dienste: Dienstabstürze (SCM 7031/7034): 2x, zuletzt 30.09.2026 13:17.",
+      "[INFO] Geräte: Virtual Desktop Monitor: Code 22 (deaktiviert).",
+      "[INFO] Leistung: Die Messwerte dieses PCs sind als Referenz gespeichert (C:\\Users\\fried\\Desktop\\PC-Diagnose_TORRENT_20260930_2156\\PC-Diagnose-Referenz.json). Auf anderen PCs mit -ReferenzDatei laden oder die Datei neben das Skript legen.",
+      "[INFO] SMART: Samsung SSD 860 EVO 1TB [/dev/sdb]: ungewöhnlich viele Einschaltzyklen (137.765 bei 22.033 Betriebsstunden), meist durch Energiesparfunktionen der SATA-Verbindung.",
+      "[INFO] SMART: WDS100T3X0C-00SJG0 [/dev/sde]: 204 unsaubere Abschaltungen."
+    ]
+  },
+  "Lasttest": ""
+}
