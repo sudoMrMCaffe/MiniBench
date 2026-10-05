@@ -59,7 +59,6 @@
 
 Das Werkzeug erzeugt nach jedem Lauf detaillierte, interaktive HTML-Berichte mit SVG-Diagrammen:
 
-* 📊 **[Beispiel-Diagnosebericht (HTML)](Doku/Beispiele/Beispiel_Diagnosebericht.html)** – Vollständiger Hardware-, Sensor-, Lasttest- und Benchmark-Bericht.
 * 📈 **[Beispiel-Systemvergleich (HTML)](Doku/Beispiele/Beispiel_Systemvergleich.html)** – Interaktiver Gegenüberstellungsbericht mehrerer Rechner aus der Datenbank.
 
 ---
