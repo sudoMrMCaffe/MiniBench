@@ -1,0 +1,125 @@
+﻿{
+    "Format":  "PC-Diagnose-DB/2",
+    "Name":  "Referenz: Workstation Mobil (Core i9-13900H, RTX 3000 Ada)",
+    "Computer":  "Referenz-Workstation-Mobil",
+    "Geraet":  {
+                   "Id":  "REF-REFERENZ-WORKSTATION-MOBIL",
+                   "Guete":  "hoch",
+                   "Quellen":  [
+                                   "Referenzsystem"
+                               ]
+               },
+    "Datum":  "2026-10-01 12:00",
+    "Version":  "2.95",
+    "Quelle":  "Referenz",
+    "Module":  "Benchmark",
+    "Messdauer":  "normal",
+    "System":  "Workstation Mobil (Intel Core i9)",
+    "Hardware":  {
+                     "CPU":  "13th Gen Intel Core i9-13900H",
+                     "RAM":  "64 GB LPDDR5-6000",
+                     "GPU":  "RTX 3000 Ada Generation Laptop GPU",
+                     "IGPU":  "Iris(R) Xe Graphics",
+                     "GPUGemessen":  "NVIDIA RTX 3000 Ada Generation Laptop GPU",
+                     "Datentraeger":  "NVMe PCIe 4.0 SSD 1TB",
+                     "Betriebssystem":  "Microsoft Windows 11",
+                     "Mainboard":  "Mobile Workstation Board",
+                     "WindowsInstalliert":  null
+                 },
+    "Werte":  {
+                  "GPU|DWM":  2850,
+                  "RAM|Latenz":  113.9,
+                  "GPU|VMB":  48.4,
+                  "CPU|MT":  42759,
+                  "GPU|REND":  90.6,
+                  "GPU|REND1":  37.8,
+                  "RAM|Kopieren":  28.5,
+                  "RAM|Schreiben":  47.2,
+                  "CPU|ST":  3464,
+                  "CPU|AES":  1786,
+                  "CPU|SHA":  2409,
+                  "GPU|RPKT":  8354,
+                  "RAM|Lesen":  67.9,
+                  "CPU|DEFL":  295
+              },
+    "Messwerte":  {
+                      "CPU|13th Gen Intel(R) Core(TM) i9-13900H|ST":  3464,
+                      "CPU|13th Gen Intel(R) Core(TM) i9-13900H|MT":  42759,
+                      "CPU|13th Gen Intel(R) Core(TM) i9-13900H|AES":  1786,
+                      "CPU|13th Gen Intel(R) Core(TM) i9-13900H|SHA":  2409,
+                      "CPU|13th Gen Intel(R) Core(TM) i9-13900H|DEFL":  295,
+                      "RAM|64GB|6000|Lesen":  67.9,
+                      "RAM|64GB|6000|Schreiben":  47.2,
+                      "RAM|64GB|6000|Kopieren":  28.5,
+                      "RAM|64GB|6000|Latenz":  113.9,
+                      "GPU|Intel(R) Iris(R) Xe Graphics|VMB":  48.4,
+                      "GPU|Intel(R) Iris(R) Xe Graphics|DWM":  2850,
+                      "GPU|NVIDIA RTX 3000 Ada Generation Laptop GPU|REND|1280x720":  90.6,
+                      "GPU|NVIDIA RTX 3000 Ada Generation Laptop GPU|REND1|1280x720":  37.8,
+                      "GPU|NVIDIA RTX 3000 Ada Generation Laptop GPU|RPKT":  8354,
+                      "GPU|Intel(R) Iris(R) Xe Graphics|REND|1280x720":  23,
+                      "GPU|Intel(R) Iris(R) Xe Graphics|REND1|1280x720":  21.8,
+                      "GPU|Intel(R) Iris(R) Xe Graphics|RPKT":  2124,
+                      "DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|SR":  6689,
+                      "DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|SW":  3974,
+                      "DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|R1":  18211,
+                      "DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|R8":  106690,
+                      "DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|W1":  46373,
+                      "WINSAT|CPU":  9.4,
+                      "WINSAT|RAM":  9.4,
+                      "WINSAT|DISK":  9.45,
+                      "WINSAT|GFX":  8.4
+                  },
+    "Ordner":  "",
+    "Laufwerke":  [
+                      {
+                          "Laufwerk":  "NVMe PC SN820 NVMe WD 4096GB",
+                          "Klasse":  "NVMe",
+                          "SR":  6689,
+                          "SW":  3974,
+                          "R1":  18211,
+                          "R8":  106690,
+                          "W1":  46373
+                      }
+                  ],
+    "Befunde":  {
+                    "Kritisch":  0,
+                    "Warnungen":  0,
+                    "Hinweise":  0,
+                    "Liste":  [
+
+                              ]
+                },
+    "Lasttest":  null,
+    "Rendertest":  [
+                       {
+                           "Grafik":  "NVIDIA RTX 3000 Ada Generation Laptop GPU",
+                           "Art":  "dGPU",
+                           "Aufloesung":  "1280x720",
+                           "Fps":  90.6,
+                           "Low1":  37.8,
+                           "Punkte":  8354,
+                           "Bildfehler":  0,
+                           "Treiberreset":  false,
+                           "Fehler":  ""
+                       },
+                       {
+                           "Grafik":  "Intel(R) Iris(R) Xe Graphics",
+                           "Art":  "iGPU",
+                           "Aufloesung":  "1280x720",
+                           "Fps":  23,
+                           "Low1":  21.8,
+                           "Punkte":  2124,
+                           "Bildfehler":  0,
+                           "Treiberreset":  false,
+                           "Fehler":  ""
+                       }
+                   ],
+    "Schreibzugriffe":  null,
+    "Ablauf":  "normal",
+    "Sensoren":  {
+
+                 },
+    "Optimierung":  null,
+    "Akku":  null
+}

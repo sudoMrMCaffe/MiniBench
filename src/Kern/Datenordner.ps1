@@ -29,6 +29,34 @@ $script:DbDir    = $(if ($script:DataDir) { Join-Path $script:DataDir 'Datenbank
 $script:CacheDir = $(if ($script:DataDir) { Join-Path $script:DataDir 'Cache' } else { '' })
 $script:CpDir    = $(if ($script:DataDir) { Join-Path (Join-Path $script:DataDir 'Laufzeit') $env:COMPUTERNAME } else { Join-Path $env:TEMP ('LeosMinibench_' + $env:COMPUTERNAME) })
 
+function Initialize-DbDir {
+    if (-not $script:DbDir) { return }
+    $isNew = -not (Test-Path -LiteralPath $script:DbDir)
+    if ($isNew) {
+        try { New-Item -ItemType Directory -Path $script:DbDir -Force -ErrorAction Stop | Out-Null } catch { return }
+    }
+    $existing = @(Get-ChildItem -LiteralPath $script:DbDir -Filter '*.json' -File -ErrorAction SilentlyContinue)
+    if ($existing.Count -eq 0) {
+        $refDirs = @(
+            (Join-Path $PSScriptRoot 'Daten\Referenzen'),
+            (Join-Path $PSScriptRoot 'src\Daten\Referenzen'),
+            (Join-Path (Split-Path $PSScriptRoot -Parent) 'src\Daten\Referenzen')
+        )
+        foreach ($rd in $refDirs) {
+            if (Test-Path -LiteralPath $rd) {
+                $refFiles = @(Get-ChildItem -LiteralPath $rd -Filter '*.json' -File -ErrorAction SilentlyContinue)
+                if ($refFiles.Count -gt 0) {
+                    foreach ($rf in $refFiles) {
+                        try { Copy-Item -LiteralPath $rf.FullName -Destination (Join-Path $script:DbDir $rf.Name) -Force -ErrorAction SilentlyContinue } catch { }
+                    }
+                    break
+                }
+            }
+        }
+    }
+}
+if ($script:DbDir) { Initialize-DbDir }
+
 # C#-Code einmal kompilieren und als DLL im Datenordner zwischenspeichern (spart bei jedem Start einige Sekunden).
 # Ab v2.6: Liegt die DLL zum Hash schon vor, wird sie ohne Schreibprobe direkt geladen (kein Schreibzugriff auf den Stick).
 $script:CacheInfo = New-Object System.Collections.Generic.List[string]

@@ -11,6 +11,15 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("2.95", "05.10.2026", "Anonyme Vergleichsdaten, Gesamtleistungs-Banner, UserBenchmark-Profile, Minidump Crash Inspector, Schritt überspringen",
+            "Feste Einbindung von fünf anonymisierten, bereinigten Referenzsystemen von Desktop High-End bis Notebook Standard für sofortige Vergleichbarkeit ab dem ersten Start. " +
+            "Gesamtleistungs-Banner im Bericht-Header mit prozentualer Gesamtbewertung zur Referenz. " +
+            "Benchmark-Darstellung im UserBenchmark-Stil: Drei gewichtete Nutzungsprofile (Gaming, Büro/Desktop, Workstation), prominente Komponenten-Köpfe und modernes Spalten-Layout für Messgrößen. " +
+            "Modul Wartung mit angepasster Standardauswahl für risikoarme Bereinigungen und Schnellwahlschaltern über der Aufgabenliste. " +
+            "Neue Schaltfläche Diesen Schritt überspringen in der Laufansicht mit Ereignis @@SCHRITT_UEBERSPRINGEN. " +
+            "Minidump Crash Inspector mit nativer Binäranalyse von Windows-Absturzabbildern (.dmp), Bugcheck-Erkennung und Handlungsempfehlungen. " +
+            "Grafiktreiber-Gesundheitscheck auf Microsoft Basic Display Adapter, veraltete Treiber (ab 18 Monate) und Treiberabstürze (Event 4101). " +
+            "Durchlaufzeit-Optimierung durch Zwischenspeicherung statischer WMI- und CIM-Systemabfragen."),
         new Eintrag("2.9", "05.10.2026", "Phasen 0 und 1: ARM64, High-DPI, Modularisierung, Wartung, Gesamtbild und Vergleichsseite",
             "Hardware-Erkennung mit ARM64-Erkennung und Warnhinweis für ARM64-Systeme im Bericht. " +
             "High-DPI-Optimierung mit Per-Monitor V2 DPI-Awareness im Anwendungsmanifest für gestochen scharfe Anzeige bei 150 % bis 225 % Skalierung. " +

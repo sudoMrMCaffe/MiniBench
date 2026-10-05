@@ -5,6 +5,21 @@ Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Verweis Versionshistorie oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
 
+VERSION 2.95  (05.10.2026)  ANONYME VERGLEICHSDATEN, BENCHMARK-PROFILE, MINIDUMP-INSPECTOR, SCHRITT ÜBERSPRINGEN
+====================================================================================================
+Feste Einbindung von fünf anonymisierten, bereinigten Referenzsystemen von Desktop High-End bis Notebook Standard
+für sofortige Vergleichbarkeit ab dem ersten Start. Gesamtleistungs-Banner im Bericht-Header mit prozentualer
+Gesamtbewertung zur Referenz. Benchmark-Darstellung im UserBenchmark-Stil: Drei gewichtete Nutzungsprofile
+(Gaming, Büro/Desktop, Workstation), prominente Komponenten-Köpfe in den Detailabschnitten und modernes Spalten-Layout
+für Messgrößen von Prozessor, Arbeitsspeicher und Grafik.
+Modul Wartung mit angepasster Standardauswahl für risikoarme Bereinigungen und Schnellwahlschaltern über der
+Aufgabenliste. Neue Schaltfläche „Diesen Schritt überspringen“ in der Laufansicht mit Ereignis @@SCHRITT_UEBERSPRINGEN.
+Minidump Crash Inspector mit nativer Binäranalyse von Windows-Absturzabbildern (.dmp), Bugcheck-Erkennung und
+konkreten Handlungsempfehlungen in Diagnose, HTML-Bericht und KI-Datei.
+Grafiktreiber-Gesundheitscheck mit Warnung vor dem Microsoft Basic Display Adapter, Alterswarnung ab 18 Monaten
+und Erkennung von Treiberabstürzen (Event 4101) mit DDU-Empfehlung.
+Durchlaufzeit-Optimierung durch Zwischenspeicherung statischer WMI- und CIM-Systemabfragen (Get-CimCached).
+
 VERSION 2.9  (05.10.2026)  PHASEN 0 UND 1: ARM64, HIGH-DPI, MODULARISIERUNG, WARTUNG, GESAMTBILD, VERGLEICHSSEITE
 ====================================================================================================
 Hardware-Erkennung mit ARM64-Erkennung und Warnhinweis für ARM64-Systeme im Bericht. High-DPI-Optimierung mit

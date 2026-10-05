@@ -102,7 +102,7 @@ function Get-WindowsInstallInfo {
     $en = [Globalization.CultureInfo]::GetCultureInfo('en-US')
     $cv = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -ErrorAction SilentlyContinue
     $cur = & $fromUnix $cv.InstallDate
-    if (-not $cur) { try { $cur = (Get-CimInstance Win32_OperatingSystem -ErrorAction Stop).InstallDate } catch { } }
+    if (-not $cur) { try { $cur = (Get-CimCached Win32_OperatingSystem | Select-Object -First 1).InstallDate } catch { } }
     $hist = @(Get-ChildItem 'HKLM:\SYSTEM\Setup' -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -like 'Source OS*' } | ForEach-Object {
         $p = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue
         $inst = & $fromUnix $p.InstallDate

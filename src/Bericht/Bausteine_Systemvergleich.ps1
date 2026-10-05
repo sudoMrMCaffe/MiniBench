@@ -17,6 +17,56 @@ function Get-DeltaHtml([string]$Text) {
     return ('<span class="dl {0}">{1}</span>' -f $c, (ConvertTo-HtmlText $Text))
 }
 
+# Nutzungsprofile (Gaming / Büro / Workstation) im UserBenchmark-Stil
+function New-ProfileCards {
+    $gCpu = Get-BenchGroup 'CPU'
+    $gGpu = Get-BenchGroup 'GPU'
+    $gRam = Get-BenchGroup 'RAM'
+    $gDsk = Get-BenchGroup 'Laufwerke'
+
+    # Nur anzeigen, wenn mindestens 3 der 4 Hauptgruppen (CPU, GPU, RAM, Laufwerke) Referenzdaten haben
+    $hasRef = 0
+    foreach ($g in $gCpu, $gGpu, $gRam, $gDsk) {
+        if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { $hasRef++ }
+    }
+    if ($hasRef -lt 3) { return '' }
+
+    # Einzelwerte für CPU-ST und CPU-MT ermitteln (falls vorhanden, sonst Fallback auf CPU-Gruppenwert)
+    $cpuSt = @($script:BenchResults | Where-Object { ($_.Key -eq 'CPU|ST' -or $_.RefKey -eq 'CPU|ST') -and $null -ne $_.RefPct -and [double]$_.RefPct -gt 0 } | Select-Object -First 1).RefPct
+    $cpuMt = @($script:BenchResults | Where-Object { ($_.Key -eq 'CPU|MT' -or $_.RefKey -eq 'CPU|MT') -and $null -ne $_.RefPct -and [double]$_.RefPct -gt 0 } | Select-Object -First 1).RefPct
+    if ($null -eq $cpuSt -and $null -ne $gCpu.RefPct) { $cpuSt = $gCpu.RefPct }
+    if ($null -eq $cpuMt -and $null -ne $gCpu.RefPct) { $cpuMt = $gCpu.RefPct }
+
+    $profiles = @(
+        @{ Name = 'Gaming';       Icon = '🎮'; W = @{ 'CPU_ST' = 1.0; 'CPU_MT' = 0.5; 'GPU' = 3.0; 'RAM' = 0.5; 'DISK' = 0.5 } }
+        @{ Name = 'Büro/Desktop'; Icon = '💼'; W = @{ 'CPU_ST' = 2.0; 'CPU_MT' = 1.0; 'GPU' = 0.5; 'RAM' = 1.0; 'DISK' = 2.0 } }
+        @{ Name = 'Workstation';  Icon = '⚙️'; W = @{ 'CPU_ST' = 0.5; 'CPU_MT' = 3.0; 'GPU' = 1.0; 'RAM' = 2.0; 'DISK' = 1.0 } }
+    )
+
+    $sb = New-Object System.Text.StringBuilder
+    [void]$sb.Append('<div class="ov profile-grid">')
+    foreach ($p in $profiles) {
+        $vals = [System.Collections.Generic.List[double]]::new()
+        $weights = [System.Collections.Generic.List[double]]::new()
+
+        if ($null -ne $cpuSt -and [double]$cpuSt -gt 0) { $vals.Add([double]$cpuSt); $weights.Add($p.W['CPU_ST']) }
+        if ($null -ne $cpuMt -and [double]$cpuMt -gt 0) { $vals.Add([double]$cpuMt); $weights.Add($p.W['CPU_MT']) }
+        if ($null -ne $gGpu.RefPct -and [double]$gGpu.RefPct -gt 0) { $vals.Add([double]$gGpu.RefPct); $weights.Add($p.W['GPU']) }
+        if ($null -ne $gRam.RefPct -and [double]$gRam.RefPct -gt 0) { $vals.Add([double]$gRam.RefPct); $weights.Add($p.W['RAM']) }
+        if ($null -ne $gDsk.RefPct -and [double]$gDsk.RefPct -gt 0) { $vals.Add([double]$gDsk.RefPct); $weights.Add($p.W['DISK']) }
+
+        if (-not $vals.Count) { continue }
+        $score = Get-GeoMean $vals $weights
+        $word = Get-BenchRatingWord $score
+        $bar = Get-RefBar $score 'ok'
+
+        [void]$sb.Append(('<div class="tile profile"><h4>{0} {1}</h4><div class="big">{2}<small> %</small></div><div class="pword">{3}</div>{4}</div>' -f
+            $p.Icon, (ConvertTo-HtmlText $p.Name), $score, (ConvertTo-HtmlText $word), $bar))
+    }
+    [void]$sb.Append('</div>')
+    return $sb.ToString()
+}
+
 # Kacheln über dem Benchmark: eine je Gruppe mit Referenzbalken
 function New-BenchOverview {
     $bcls = @{ OK = 'ok'; Info = 'info'; Warnung = 'warn'; Fehler = 'crit' }

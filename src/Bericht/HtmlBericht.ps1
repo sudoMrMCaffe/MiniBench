@@ -96,7 +96,12 @@ function New-HtmlReport {
         (ConvertTo-HtmlText $env:COMPUTERNAME), $Start, $End, ($End - $Start), (ConvertTo-HtmlText $modus), $ScriptVersion, $vc, $vt, (Get-RiskLabel (Get-RunRisk))))
     $stCard = ''
     if ($script:Stability) { $stCard = ('<div class="card st {0}"><b>{1}</b><span>Zuverlässigkeit von 10 ({2})</span></div>' -f $script:Stability.Klasse, ('{0:N1}' -f $script:Stability.Index), (ConvertTo-HtmlText $script:Stability.Stufe)) }
-    [void]$sb.Append(('<section class="cards"><div class="card crit"><b>{0}</b><span>kritisch</span></div><div class="card warn"><b>{1}</b><span>Warnungen</span></div><div class="card info"><b>{2}</b><span>Hinweise</span></div>{3}</section>' -f $NK, $NW, $NI, $stCard))
+    $benchCard = ''
+    $overall = Get-BenchOverall
+    if ($null -ne $overall -and [double]$overall -gt 0) {
+        $benchCard = ('<div class="card bench"><b>{0} %</b><span>Gesamtleistung (Referenz)</span></div>' -f [math]::Round([double]$overall))
+    }
+    [void]$sb.Append(('<section class="cards"><div class="card crit"><b>{0}</b><span>kritisch</span></div><div class="card warn"><b>{1}</b><span>Warnungen</span></div><div class="card info"><b>{2}</b><span>Hinweise</span></div>{3}{4}</section>' -f $NK, $NW, $NI, $stCard, $benchCard))
     if ($script:Stability -and $script:Stability.Erklaerung) { [void]$sb.Append(('<section class="box stab {0}"><h2>Zuverlässigkeit {1:N1} von 10</h2><p>{2}</p></section>' -f $script:Stability.Klasse, $script:Stability.Index, (ConvertTo-HtmlText $script:Stability.Erklaerung))) }
 
     if ($script:Facts.Count) {
@@ -124,6 +129,16 @@ function New-HtmlReport {
         [void]$sb.Append('</tbody></table></section>')
     }
 
+    if (@($script:Minidumps).Count) {
+        [void]$sb.Append('<section class="box"><h2>Absturzabbilder (Crash Dumps)</h2><div class="tw"><table><thead><tr><th>Zeitpunkt</th><th>Datei</th><th>Stoppcode / Fehler</th><th>Parameter</th><th>Empfehlung</th></tr></thead><tbody>')
+        foreach ($d in @($script:Minidumps)) {
+            $params = @($d.Parameter1, $d.Parameter2, $d.Parameter3, $d.Parameter4 | Where-Object { $_ -and $_ -ne '0x0' }) -join ', '
+            [void]$sb.Append(('<tr><td class="num">{0:dd.MM.yyyy HH:mm}</td><td><code>{1}</code></td><td><b>{2}</b><br><small class="muted">{3}</small></td><td class="num"><small>{4}</small></td><td>{5}</td></tr>' -f
+                $d.Zeit, (ConvertTo-HtmlText $d.Datei), (ConvertTo-HtmlText $d.Bugcheck), (ConvertTo-HtmlText $d.Name), (ConvertTo-HtmlText $params), (ConvertTo-HtmlText $d.Empfehlung)))
+        }
+        [void]$sb.Append('</tbody></table></div></section>')
+    }
+
     if ($script:BenchResults.Count -or $script:BenchDisks.Count) {
         $bcls = @{ OK = 'ok'; Info = 'info'; Warnung = 'warn'; Fehler = 'crit' }
         $idxHtml = {
@@ -137,6 +152,7 @@ function New-HtmlReport {
         $refNote = $(if ($script:RefSavedNow -and -not (Test-HasReference)) { ' Dieser Lauf wurde als Referenz gespeichert; ab dem nächsten Lauf ist dieser PC 100 %.' }
             elseif ($script:RefSavedNow) { ' Referenz 100 % = {0}{1}; dieser Lauf wurde als neue Referenz gespeichert und gilt ab dem nächsten Lauf.' -f $script:Ref.Name, $refDat } elseif (Test-HasReference) { ' Referenz 100 % = {0}{1}, Laufwerke im Vergleich zur gleichen Klasse.' -f $script:Ref.Name, $refDat } else { ' Keine Referenz festgelegt (Haken "Dieses System als Referenz festlegen" im Benchmark).' })
         [void]$sb.Append('<section class="box"><div class="bar"><h2>Leistung (Benchmark)</h2><button onclick="var d=this.closest(''section'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
+        [void]$sb.Append((New-ProfileCards))
         [void]$sb.Append((New-BenchOverview))
         [void]$sb.Append(('<p class="note">Kacheln: Ergebnis je Bereich in Prozent der Referenz (Strich = 100 %).{0} Im Gesamtbild werden Prozessor und Grafik höher gewichtet; bei der Grafik zählt die gemessene FPS-Renderleistung dreifach gegenüber Durchsatzwerten. Index 100 in den Tabellen entspricht dem typischen Wert der Hardwareklasse. Vergleich bezieht sich auf frühere Läufe auf diesem PC, grün besser, orange mindestens 10 % schlechter.</p>' -f (ConvertTo-HtmlText $refNote)))
         if (@($script:BenchRefRows).Count) {
@@ -149,8 +165,16 @@ function New-HtmlReport {
             if (-not $g.Anzahl) { continue }
             $gc = $bcls[$g.Status]; if (-not $gc) { $gc = 'info' }
             $open = $(if ((Get-StatusRank $g.Status) -ge 2 -or $gk -eq 'WinSAT') { ' open' } else { '' })
-            [void]$sb.Append(('<details class="grp" id="bg-{6}"{0}><summary><span class="gname">{1}</span><span class="gsub">{2}</span>{3}<span class="badge {4}">{5}</span></summary>' -f $open,
-                (ConvertTo-HtmlText $g.Name), (ConvertTo-HtmlText $g.Kopf), $(if ($g.Referenz) { '<span class="gref" title="im Vergleich zur Referenz">Referenz <b>' + $g.Referenz + '</b></span>' } else { '' }), $gc, (ConvertTo-HtmlText $g.Status), $gk))
+            [void]$sb.Append(('<details class="grp" id="bg-{6}"{0}><summary><span class="gname">{1}</span>{3}<span class="badge {4}">{5}</span></summary>' -f $open,
+                (ConvertTo-HtmlText $g.Name), '', $(if ($g.Referenz) { '<span class="gref" title="im Vergleich zur Referenz">Referenz <b>' + $g.Referenz + '</b></span>' } else { '' }), $gc, (ConvertTo-HtmlText $g.Status), $gk))
+            if ($gk -ne 'WinSAT') {
+                $compName = $(if ($script:BenchHead.ContainsKey($gk) -and $script:BenchHead[$gk]) { [string]$script:BenchHead[$gk] } elseif ($g.Kopf) { $g.Kopf } else { $g.Name })
+                $word = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { Get-BenchRatingWord $g.RefPct } else { '' }
+                $scorePart = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { ('<b>{0} %</b> &middot; <span class="pword">{1}</span>' -f $g.RefPct, (ConvertTo-HtmlText $word)) } else { '' }
+                $bar = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { ('<div class="gh-bar">{0}</div>' -f (Get-RefBar $g.RefPct $gc)) } else { '' }
+                [void]$sb.Append(('<div class="grp-head"><div><div class="comp-title">{0}</div>{1}</div><div class="comp-score">{2}</div></div>' -f
+                    (ConvertTo-HtmlText $compName), $bar, $scorePart))
+            }
             if ($gk -eq 'WinSAT') {
                 [void]$sb.Append((New-WinsatSvg $g.Items $script:WinsatTotal))
                 [void]$sb.Append('<p class="note tight">Windows-Leistungsbewertung auf einer Skala von 1,0 bis 9,9. Die gestrichelte Linie zeigt den Gesamtwert, er entspricht dem niedrigsten Teilwert. Die Spielegrafik-Bewertung ist seit Windows 10 fest auf 9,9 gesetzt und fehlt deshalb.</p>')
@@ -165,14 +189,21 @@ function New-HtmlReport {
                 }
                 [void]$sb.Append('</tbody></table></div><p class="note tight">Lesen und Schreiben sequentiell mit 1 MiB-Blöcken, 4K-Werte in Zugriffen pro Sekunde, jeweils ohne Windows-Cache. Details beim Überfahren einer Zeile.</p>')
             } else {
-                [void]$sb.Append('<div class="tw"><table><thead><tr><th>Messung</th><th class="r">Wert</th><th>Index</th><th>Referenz</th><th>Vergleich</th><th>Ergebnis</th></tr></thead><tbody>')
+                [void]$sb.Append('<div class="bench-cols">')
+                $word = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { Get-BenchRatingWord $g.RefPct } else { (ConvertTo-HtmlText $g.Status) }
+                $pctTxt = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { ('{0} %' -f $g.RefPct) } else { '' }
+                $bar = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { Get-RefBar $g.RefPct $gc -Small } else { '' }
+                [void]$sb.Append(('<div class="bcol bcol-main"><div class="bname">Gesamtwert</div><div class="bscore">{0}</div><div class="bword">{1}</div><div class="bbar">{2}</div></div>' -f
+                    $pctTxt, (ConvertTo-HtmlText $word), $bar))
+
                 foreach ($b in $g.Items) {
                     $c = $bcls[[string]$b.Status]; if (-not $c) { $c = 'info' }
-                    [void]$sb.Append(('<tr><td>{0}{1}</td><td class="num r">{2}</td><td class="idx">{3}</td><td class="num nw">{4}</td><td class="nw">{5}</td><td><span class="badge {6}">{7}</span></td></tr>' -f
-                        (ConvertTo-HtmlText $b.Messung), $(if ($b.Hinweis) { '<small class="hint">' + (ConvertTo-HtmlText $b.Hinweis) + '</small>' } else { '' }), (ConvertTo-HtmlText $b.Anzeige),
-                        (& $idxHtml $b.Index $b.Status), ((Get-RefBar $b.RefPct 'info' -Small) + (ConvertTo-HtmlText $b.Referenz)), (Get-DeltaHtml $b.Vergleich), $c, (ConvertTo-HtmlText $b.Status)))
+                    $subBar = if ($null -ne $b.RefPct -and [double]$b.RefPct -gt 0) { Get-RefBar $b.RefPct 'info' -Small } else { '' }
+                    $delta = Get-DeltaHtml $b.Vergleich
+                    [void]$sb.Append(('<div class="bcol"><div class="bname" title="{0}">{1}</div><div class="bval">{2}</div><div class="bbar">{3}</div><div class="bdelta">{4}</div></div>' -f
+                        (ConvertTo-HtmlText $b.Hinweis), (ConvertTo-HtmlText $b.Messung), (ConvertTo-HtmlText $b.Anzeige), $subBar, $delta))
                 }
-                [void]$sb.Append('</tbody></table></div>')
+                [void]$sb.Append('</div>')
                 if ($gk -eq 'GPU') { [void]$sb.Append((New-RenderChartsHtml)) }
             }
             [void]$sb.Append('</details>')

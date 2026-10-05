@@ -1,6 +1,6 @@
 ﻿# ---------- Checkpoints: Protokoll, das auch einen harten Absturz übersteht ----------
-$script:CpLog     = Join-Path $script:CpDir 'checkpoint.log'
-$script:CpFlag    = Join-Path $script:CpDir 'laufend.json'
+$script:CpLog     = $(if ($script:CpDir) { Join-Path $script:CpDir 'checkpoint.log' } else { '' })
+$script:CpFlag    = $(if ($script:CpDir) { Join-Path $script:CpDir 'laufend.json' } else { '' })
 $script:CpStream  = $null
 $script:CpLastHb  = [datetime]::MinValue
 $script:CpCurrent = ''
@@ -51,7 +51,7 @@ function Open-Checkpoint {
         $flagObj = [ordered]@{ Start = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss', [Globalization.CultureInfo]::InvariantCulture); Version = $ScriptVersion; Modus = $modus; OutputDir = $OutputDir; Computer = $env:COMPUTERNAME }
         Write-Durable $script:CpFlag ($flagObj | ConvertTo-Json)
         Write-Checkpoint 'BEGINN' ('Leos Minibench v{0}, Modus {1}, Ausgabe {2}' -f $ScriptVersion, $modus, $OutputDir)
-        $os = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
+        $os = Get-CimCached Win32_OperatingSystem | Select-Object -First 1
         Write-Checkpoint 'SYSTEM' ('Letzter Systemstart {0}, RAM frei {1:N1} GB' -f $os.LastBootUpTime.ToString('yyyy-MM-dd HH:mm:ss', [Globalization.CultureInfo]::InvariantCulture), ($os.FreePhysicalMemory / 1MB))
     } catch { $script:CpStream = $null }
 }
@@ -191,7 +191,7 @@ function Invoke-CrashAnalysis {
 
     $bootEv = Get-Ev @{ LogName = 'System'; ProviderName = 'EventLog'; Id = 6005; StartTime = $lastTime } 50 | Sort-Object TimeCreated | Select-Object -First 1
     $rebooted = [bool]$bootEv
-    $boot = $(if ($bootEv) { $bootEv.TimeCreated } else { (Get-CimInstance Win32_OperatingSystem).LastBootUpTime })
+    $boot = $(if ($bootEv) { $bootEv.TimeCreated } else { (Get-CimCached Win32_OperatingSystem | Select-Object -First 1).LastBootUpTime })
     $from = $lastTime.AddMinutes(-2)
     $to   = $(if ($rebooted) { $boot.AddMinutes(20) } else { Get-Date })
 
@@ -290,6 +290,172 @@ function Invoke-CrashAnalysis {
             }
         }
     }
+}
+
+function Get-BugcheckRecommendation([int64]$Code) {
+    $c = [int64]$Code -band 0xFFFFFFFFL
+    switch ($c) {
+        0x133 { return 'DPC Watchdog: SSD-Firmware aktualisieren, SATA/NVMe-Treiber prüfen, Antivirenprogramm testen.' }
+        0x3B  { return 'System Service Exception: Grafik- und Netzwerktreiber aktualisieren, Systemdateien per SFC reparieren.' }
+        0x116 { return 'Video TDR: Grafiktreiber sauber per DDU neu installieren, Grafikkarten-Takt und Temperatur prüfen.' }
+        0x117 { return 'Video TDR Timeout: Grafiktreiber aktualisieren, PCIe-Steckplatz und Stromversorgung der GPU prüfen.' }
+        0xD1  { return 'Driver IRQL: Zuletzt installierte Treiber prüfen, Netzwerktreiber aktualisieren, RAM per Test prüfen.' }
+        0x0A  { return 'IRQL not less or equal: RAM mit Diagnosetest prüfen, Übertaktung/XMP/EXPO testweise deaktivieren.' }
+        0x1A  { return 'Memory Management: RAM-Module einzeln mit MemTest86 prüfen, BIOS aktualisieren, XMP/EXPO anpassen.' }
+        0x50  { return 'Page Fault: RAM und Dateisystem (chkdsk) prüfen, Virenscanner und Filtertreiber aktualisieren.' }
+        0x7A  { return 'Kernel Data Inpage: Datenträgerzustand (SMART), SATA-/NVMe-Kabel und Dateisystem prüfen.' }
+        0x7E  { return 'System Thread Exception: Abstürzenden Treiber anhand des Minidump-Treiberfelds ermitteln und aktualisieren.' }
+        0x9F  { return 'Driver Power State: Energieverwaltungs- und Chipsatztreiber aktualisieren, Schnellstart testweise abschalten.' }
+        0x101 { return 'Clock Watchdog Timeout: CPU-Übertaktung, PBO und Spannungen im BIOS zurücksetzen, BIOS-Update durchführen.' }
+        0x124 { return 'WHEA Uncorrectable: Schwerer Hardwarefehler, CPU-Kühlung, RAM und Netzteilspannungen prüfen.' }
+        0x139 { return 'Security Check Failure: Antiviren-Treiber oder beschädigten Treiber aktualisieren, RAM-Test ausführen.' }
+        0x154 { return 'Unexpected Store Exception: SSD-Zustand (SMART) und Dateisystem prüfen, SSD-Firmware aktualisieren.' }
+        default { return 'Stoppcode analysieren, Treiber und Windows auf aktuellen Stand bringen.' }
+    }
+}
+
+function Read-MinidumpFile([string]$Path) {
+    if (-not (Test-Path -LiteralPath $Path)) { return $null }
+    try {
+        $fi = New-Object System.IO.FileInfo($Path)
+        $stream = New-Object System.IO.FileStream($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+        $reader = New-Object System.IO.BinaryReader($stream)
+        try {
+            if ($stream.Length -lt 32) { return $null }
+            $sig = $reader.ReadUInt32()
+            $code = 0L
+            $p1 = 0L; $p2 = 0L; $p3 = 0L; $p4 = 0L
+            $timestamp = $fi.LastWriteTime
+
+            # Format 1: Standard Minidump (MDMP = 0x504D444D)
+            if ($sig -eq 0x504D444D) {
+                $ver = $reader.ReadUInt32()
+                $streamCount = $reader.ReadUInt32()
+                $streamDirRva = $reader.ReadUInt32()
+                $checksum = $reader.ReadUInt32()
+                $unixTime = $reader.ReadUInt32()
+                if ($unixTime -gt 0) {
+                    try {
+                        $timestamp = (New-Object DateTime(1970, 1, 1, 0, 0, 0, [DateTimeKind]::Utc)).AddSeconds($unixTime).ToLocalTime()
+                    } catch { }
+                }
+
+                if ($streamDirRva -gt 0 -and $streamCount -gt 0 -and $streamDirRva -lt $stream.Length) {
+                    $stream.Position = $streamDirRva
+                    for ($i = 0; $i -lt $streamCount -and ($stream.Position + 12) -le $stream.Length; $i++) {
+                        $sType = $reader.ReadUInt32()
+                        $dSize = $reader.ReadUInt32()
+                        $rva = $reader.ReadUInt32()
+                        if ($sType -eq 6) { # MINIDUMP_EXCEPTION_STREAM
+                            if ($rva -gt 0 -and ($rva + 32) -le $stream.Length) {
+                                $savePos = $stream.Position
+                                $stream.Position = $rva
+                                $threadId = $reader.ReadUInt32()
+                                $align = $reader.ReadUInt32()
+                                $code = [int64]$reader.ReadUInt32()
+                                $flags = $reader.ReadUInt32()
+                                $exRec = $reader.ReadUInt64()
+                                $exAddr = $reader.ReadUInt64()
+                                $paramCount = $reader.ReadUInt32()
+                                $unused = $reader.ReadUInt32()
+                                if ($paramCount -ge 1 -and ($stream.Position + 8) -le $stream.Length) { $p1 = [int64]$reader.ReadUInt64() }
+                                if ($paramCount -ge 2 -and ($stream.Position + 8) -le $stream.Length) { $p2 = [int64]$reader.ReadUInt64() }
+                                if ($paramCount -ge 3 -and ($stream.Position + 8) -le $stream.Length) { $p3 = [int64]$reader.ReadUInt64() }
+                                if ($paramCount -ge 4 -and ($stream.Position + 8) -le $stream.Length) { $p4 = [int64]$reader.ReadUInt64() }
+                                $stream.Position = $savePos
+                            }
+                            break
+                        }
+                    }
+                }
+            }
+            # Format 2: Kernel Dump (PAGE / DU64 = 0x45474150)
+            elseif ($sig -eq 0x45474150) {
+                $valid = $reader.ReadUInt32()
+                if ($valid -eq 0x34365544) { # DU64
+                    if ($stream.Length -ge 0x60) {
+                        $stream.Position = 0x38
+                        $code = [int64]$reader.ReadUInt32()
+                        $stream.Position = 0x40
+                        $p1 = [int64]$reader.ReadUInt64()
+                        $p2 = [int64]$reader.ReadUInt64()
+                        $p3 = [int64]$reader.ReadUInt64()
+                        $p4 = [int64]$reader.ReadUInt64()
+                    }
+                } elseif ($valid -eq 0x504D5544) { # DUMP
+                    if ($stream.Length -ge 0x38) {
+                        $stream.Position = 0x24
+                        $code = [int64]$reader.ReadUInt32()
+                        $stream.Position = 0x28
+                        $p1 = [int64]$reader.ReadUInt32()
+                        $p2 = [int64]$reader.ReadUInt32()
+                        $p3 = [int64]$reader.ReadUInt32()
+                        $p4 = [int64]$reader.ReadUInt32()
+                    }
+                }
+            }
+
+            if ($code -ne 0) {
+                $bugHex = ('0x{0:X}' -f $code)
+                return [pscustomobject]@{
+                    Datei        = $fi.Name
+                    Pfad         = $fi.FullName
+                    Datum        = $timestamp
+                    Zeit         = $timestamp
+                    Groesse      = $fi.Length
+                    Bugcheck     = $bugHex
+                    BugcheckCode = $bugHex
+                    BugcheckInt  = $code
+                    Name         = (Get-BugcheckName $code)
+                    Parameter1   = ('0x{0:X}' -f $p1)
+                    Parameter2   = ('0x{0:X}' -f $p2)
+                    Parameter3   = ('0x{0:X}' -f $p3)
+                    Parameter4   = ('0x{0:X}' -f $p4)
+                    Empfehlung   = (Get-BugcheckRecommendation $code)
+                    AlterTage    = [math]::Round(((Get-Date) - $timestamp).TotalDays, 1)
+                }
+            }
+            return $null
+        }
+        finally {
+            $reader.Close()
+            $stream.Close()
+        }
+    }
+    catch {
+        return $null
+    }
+}
+
+function Read-Minidumps {
+    param([string]$Path = '')
+    $dumps = New-Object System.Collections.ArrayList
+    $files = @()
+    if ($Path) {
+        if (Test-Path -LiteralPath $Path) {
+            if ((Get-Item -LiteralPath $Path) -is [System.IO.DirectoryInfo]) {
+                $files = @(Get-ChildItem -LiteralPath $Path -Filter '*.dmp' -ErrorAction SilentlyContinue)
+            } else {
+                $files = @(Get-Item -LiteralPath $Path -ErrorAction SilentlyContinue)
+            }
+        }
+    } else {
+        $dirs = @('C:\Windows\Minidump', (Join-Path $env:SystemRoot 'Minidump')) | Select-Object -Unique
+        foreach ($d in $dirs) {
+            if (Test-Path -LiteralPath $d) {
+                $files += @(Get-ChildItem -LiteralPath $d -Filter '*.dmp' -ErrorAction SilentlyContinue)
+            }
+        }
+        $memDmp = Join-Path $env:SystemRoot 'MEMORY.DMP'
+        if (Test-Path -LiteralPath $memDmp) {
+            $files += @(Get-Item -LiteralPath $memDmp -ErrorAction SilentlyContinue)
+        }
+    }
+    foreach ($f in $files) {
+        $res = Read-MinidumpFile $f.FullName
+        if ($res) { [void]$dumps.Add($res) }
+    }
+    return @($dumps | Sort-Object Datum -Descending)
 }
 
 #endregion

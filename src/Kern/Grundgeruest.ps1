@@ -246,6 +246,10 @@ function Hide-Sub { Send-GuiEvent 'SUB' '-9' '' '' }
 function Wait-JobWithProgress($Job, [string]$Activity, [int]$ExpectedSec = 0, [int]$TimeoutSec = 3600) {
     $sw = [Diagnostics.Stopwatch]::StartNew()
     while ($Job.State -in 'NotStarted', 'Running') {
+        if (Test-SkipRequested) {
+            Stop-Job $Job -ErrorAction SilentlyContinue
+            throw (New-Object System.OperationCanceledException 'Vom Benutzer übersprungen')
+        }
         $st = 'läuft seit {0:hh\:mm\:ss}' -f $sw.Elapsed
         if ($ExpectedSec -gt 0) { Show-Sub $Activity ($st + ('   (üblich: ca. {0} Min.)' -f [math]::Ceiling($ExpectedSec / 60))) ([int]([math]::Min(99.0, $sw.Elapsed.TotalSeconds / $ExpectedSec * 100.0))) }
         else { Show-Sub $Activity $st }
@@ -303,6 +307,9 @@ function Wait-TaskProgress($Task, [string]$Activity, [string]$Status, [int]$Expe
     $sw = [Diagnostics.Stopwatch]::StartNew()
     $samples = New-Object System.Collections.ArrayList
     while (-not $Task.IsCompleted) {
+        if (Test-SkipRequested) {
+            throw (New-Object System.OperationCanceledException 'Vom Benutzer übersprungen')
+        }
         Show-Sub $Activity $Status ([int][math]::Min(99.0, [double]$sw.ElapsedMilliseconds * 100.0 / [math]::Max(1.0, [double]$ExpectedMs)))
         $cs = $null
         if ($Sample -and $sw.ElapsedMilliseconds -gt 800) { $cs = Get-CpuSample; [void]$samples.Add($cs) }

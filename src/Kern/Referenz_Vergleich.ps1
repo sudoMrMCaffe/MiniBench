@@ -207,6 +207,19 @@ function Get-BenchOverall {
     return Get-GeoMean $vals $w
 }
 
+# Bewertungswort für Benchmark-Werte in Prozent der Referenz (UserBenchmark-Stil)
+function Get-BenchRatingWord($Pct) {
+    if ($null -eq $Pct -or "$Pct" -eq '') { return '' }
+    $p = [double]$Pct
+    if ($p -ge 115) { return 'Hervorragend' }
+    if ($p -ge 100) { return 'Sehr gut' }
+    if ($p -ge 85)  { return 'Gut' }
+    if ($p -ge 70)  { return 'Durchschnittlich' }
+    if ($p -ge 50)  { return 'Mäßig' }
+    return 'Unterdurchschnittlich'
+}
+function Get-Bewertungswort($Pct) { Get-BenchRatingWord $Pct }
+
 function Send-BenchGroup([string]$Gruppe) {
     $g = Get-BenchGroup $Gruppe
     if ($g.Anzahl) { Send-GuiEvent 'BGRP' $Gruppe $g.Name $g.Status $g.Kopf $g.Referenz }

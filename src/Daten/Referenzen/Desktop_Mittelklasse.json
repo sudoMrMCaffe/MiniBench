@@ -1,0 +1,149 @@
+﻿{
+    "Format":  "PC-Diagnose-DB/2",
+    "Name":  "Referenz: Desktop Mittelklasse (Ryzen 5600, RX 570)",
+    "Computer":  "Referenz-Desktop-Mittelklasse",
+    "Geraet":  {
+                   "Id":  "REF-REFERENZ-DESKTOP-MITTELKLASSE",
+                   "Guete":  "hoch",
+                   "Quellen":  [
+                                   "Referenzsystem"
+                               ]
+               },
+    "Datum":  "2026-10-01 12:00",
+    "Version":  "2.95",
+    "Quelle":  "Referenz",
+    "Module":  "Benchmark",
+    "Messdauer":  "normal",
+    "System":  "Desktop Mittelklasse (AMD B450)",
+    "Hardware":  {
+                     "CPU":  "AMD Ryzen 5 5600",
+                     "RAM":  "32 GB DDR4-2133",
+                     "GPU":  "Radeon RX 570 Series",
+                     "IGPU":  null,
+                     "GPUGemessen":  "Radeon RX 570 Series",
+                     "Datentraeger":  "NVMe PCIe 3.0 SSD 500GB; SATA SSD 1TB",
+                     "Betriebssystem":  "Microsoft Windows 11",
+                     "Mainboard":  "AMD B450 Mainboard",
+                     "WindowsInstalliert":  null
+                 },
+    "Werte":  {
+                  "DISK|NVMe3|R8":  108045,
+                  "GPU|DWM":  4339,
+                  "RAM|Latenz":  113.2,
+                  "GPU|VMB":  73.7,
+                  "CPU|MT":  30319,
+                  "DISK|HDD|SW":  123,
+                  "GPU|REND":  45.4,
+                  "GPU|REND1":  42.8,
+                  "DISK|HDD|W1":  1412,
+                  "DISK|HDD|R8":  178,
+                  "RAM|Kopieren":  11.5,
+                  "RAM|Schreiben":  13.4,
+                  "CPU|ST":  2731,
+                  "CPU|AES":  1160,
+                  "DISK|HDD|SR":  112,
+                  "DISK|NVMe3|W1":  35518,
+                  "CPU|SHA":  2192,
+                  "GPU|RPKT":  4189,
+                  "RAM|Lesen":  27.5,
+                  "DISK|NVMe3|SW":  2591,
+                  "DISK|NVMe3|R1":  14329,
+                  "DISK|NVMe3|SR":  3095,
+                  "CPU|DEFL":  244,
+                  "DISK|HDD|R1":  104
+              },
+    "Messwerte":  {
+                      "CPU|AMD Ryzen 5 5600 6-Core Processor|ST":  2731,
+                      "CPU|AMD Ryzen 5 5600 6-Core Processor|MT":  30319,
+                      "CPU|AMD Ryzen 5 5600 6-Core Processor|AES":  1160,
+                      "CPU|AMD Ryzen 5 5600 6-Core Processor|SHA":  2192,
+                      "CPU|AMD Ryzen 5 5600 6-Core Processor|DEFL":  244,
+                      "RAM|32GB|2133|Lesen":  27.5,
+                      "RAM|32GB|2133|Schreiben":  13.4,
+                      "RAM|32GB|2133|Kopieren":  11.5,
+                      "RAM|32GB|2133|Latenz":  113.2,
+                      "GPU|Radeon RX 570 Series|VMB":  73.7,
+                      "GPU|Radeon RX 570 Series|DWM":  4339,
+                      "GPU|Radeon RX 570 Series|REND|1280x720":  45.4,
+                      "GPU|Radeon RX 570 Series|REND1|1280x720":  42.8,
+                      "GPU|Radeon RX 570 Series|RPKT":  4189,
+                      "DISK|Z1E7D75M|ST2000DX001-1CM164|SR":  110,
+                      "DISK|Z1E7D75M|ST2000DX001-1CM164|SW":  128,
+                      "DISK|Z1E7D75M|ST2000DX001-1CM164|R1":  106,
+                      "DISK|Z1E7D75M|ST2000DX001-1CM164|R8":  172,
+                      "DISK|Z1E7D75M|ST2000DX001-1CM164|W1":  1339,
+                      "DISK|ZFN03R4F|ST4000DM004-2CV104|SR":  114,
+                      "DISK|ZFN03R4F|ST4000DM004-2CV104|SW":  118,
+                      "DISK|ZFN03R4F|ST4000DM004-2CV104|R1":  103,
+                      "DISK|ZFN03R4F|ST4000DM004-2CV104|R8":  185,
+                      "DISK|ZFN03R4F|ST4000DM004-2CV104|W1":  1485,
+                      "DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|SR":  3095,
+                      "DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|SW":  2591,
+                      "DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|R1":  14329,
+                      "DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|R8":  108045,
+                      "DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|W1":  35518,
+                      "WINSAT|CPU":  9.3,
+                      "WINSAT|RAM":  9.3,
+                      "WINSAT|DISK":  8.8,
+                      "WINSAT|GFX":  8.7
+                  },
+    "Ordner":  "",
+    "Laufwerke":  [
+                      {
+                          "Laufwerk":  "ST2000DX001-1CM164",
+                          "Klasse":  "Festplatte",
+                          "SR":  110,
+                          "SW":  128,
+                          "R1":  106,
+                          "R8":  172,
+                          "W1":  1339
+                      },
+                      {
+                          "Laufwerk":  "ST4000DM004-2CV104",
+                          "Klasse":  "Festplatte",
+                          "SR":  114,
+                          "SW":  118,
+                          "R1":  103,
+                          "R8":  185,
+                          "W1":  1485
+                      },
+                      {
+                          "Laufwerk":  "Samsung SSD 980 1TB",
+                          "Klasse":  "NVMe PCIe 3.0 x4",
+                          "SR":  3095,
+                          "SW":  2591,
+                          "R1":  14329,
+                          "R8":  108045,
+                          "W1":  35518
+                      }
+                  ],
+    "Befunde":  {
+                    "Kritisch":  0,
+                    "Warnungen":  0,
+                    "Hinweise":  0,
+                    "Liste":  [
+
+                              ]
+                },
+    "Lasttest":  null,
+    "Rendertest":  [
+                       {
+                           "Grafik":  "Radeon RX 570 Series",
+                           "Art":  "dGPU",
+                           "Aufloesung":  "1280x720",
+                           "Fps":  45.4,
+                           "Low1":  42.8,
+                           "Punkte":  4189,
+                           "Bildfehler":  0,
+                           "Treiberreset":  false,
+                           "Fehler":  ""
+                       }
+                   ],
+    "Schreibzugriffe":  null,
+    "Ablauf":  "normal",
+    "Sensoren":  {
+
+                 },
+    "Optimierung":  null,
+    "Akku":  null
+}

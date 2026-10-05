@@ -250,12 +250,12 @@ function Find-NvidiaSmi {
 function Test-IsArm64 {
     try {
         if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64' -or $env:PROCESSOR_ARCHITEW6432 -eq 'ARM64') { return $true }
-        $p = Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
+        $p = Get-CimCached Win32_Processor | Select-Object -First 1
         if ($p) {
             if ($p.Architecture -in 12, 5) { return $true }
             if ($p.Name -match 'Snapdragon|ARM|Qualcomm') { return $true }
         }
-        $os = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
+        $os = Get-CimCached Win32_OperatingSystem | Select-Object -First 1
         if ($os -and $os.OSArchitecture -match 'ARM') { return $true }
     } catch { }
     return $false

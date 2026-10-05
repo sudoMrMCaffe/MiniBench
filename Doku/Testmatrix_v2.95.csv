@@ -1,0 +1,14 @@
+﻿Nr;Bereich;Testfall;Umgebung;Erwartung;Art;Ergebnis;Datum;Bemerkung
+A1;Bau;Testen.cmd ausführen;Windows 10/11 mit Pester 5/6;alle Pester-Tests bestanden, 0 fehlgeschlagen, Version295.Tests.ps1 dabei;automatisch;;;
+A2;Bau;Bauen.cmd ausführen;Windows-Buildumgebung;Version 2.95.0.0 erzeugt, Archiv\v2.9 mit voriger exe/ps1 gesichert;automatisch;;;
+R1;Referenzen;Anonyme Referenzdaten beim Erststart;Leerer Datenordner;5 Referenzsysteme (Desktop HighEnd bis Notebook Standard) werden in Datenbank kopiert;automatisch;;;
+B1;Bericht;Gesamtleistungs-Banner im Header;HTML-Bericht nach Benchmark;Zusätzliche Karte mit Get-BenchOverall Gesamt-% sichtbar;automatisch;;;
+B2;Bericht;Nutzungsprofile (Gaming, Büro, Workstation);HTML-Bericht nach Benchmark;Drei Profilkarten mit gewichtetem GeoMean und Bewertungswort dargestellt;automatisch;;;
+B3;Bericht;Komponenten-Kopf und Spalten-Layout;HTML-Bericht nach Benchmark;grp-head und bench-cols Kacheln für CPU, RAM, GPU ohne Tabellenumbruch;automatisch;;;
+W1;Wartung;Übliche Auswahl über Maßnahmenliste;Wartungsseite GUI;Button oben platziert, wählt nur risikoarme Bereinigungen aus, Tooltip vorhanden;manuell;;;
+S1;Ablauf;Schritt überspringen per Button;Aktiver Diagnoselauf / Benchmark;Button Diesen Schritt überspringen setzt skip.flag, Schritt wird als ÜBERSPRUNGEN markiert;manuell;;;
+C1;Diagnose;Minidump Crash Inspector;System mit .dmp unter C:\Windows\Minidump;Bugcheck, Parameter und Empfehlung werden ermittelt und im Bericht aufgeführt;manuell;;;
+T1;Grafik;Treiber-Gesundheitscheck (Basic Display / 18 Monate / TDR);System mit NVIDIA / AMD / Intel Grafik;Erkennung von Basic Adapter, altem Treiber (>18 Monate) und Event 4101 mit DDU-Hinweis;manuell;;;
+P1;Performance;CIM-Caching Durchlaufzeiten;Vollständige Diagnose;Wiederholte Win32_OperatingSystem/Memory-Abfragen werden aus dem Cache bedient;automatisch;;;
+H1;Hardware;Testlauf Desktop High-End;AMD Ryzen + Radeon dGPU;Voller Durchlauf mit allen Modulen ohne Fehler;manuell;;;
+H2;Hardware;Testlauf Notebook Hybridgrafik;Intel Core i7 + RTX dGPU + Iris Xe iGPU;Korrekte Trennung dGPU/iGPU, Rendertest auf beiden Adaptern;manuell;;;

@@ -204,7 +204,7 @@ public partial class DiagGui : Form
     void Tip(Control c, string text) { if (c != null && !String.IsNullOrEmpty(text)) tip.SetToolTip(c, WrapTip(text)); }
 
     // Ablauf
-    Button btnStopWait, btnCancel, btnHtml, btnFolder, btnNew, btnKi, btnCopy;
+    Button btnStopWait, btnSkipStep, btnCancel, btnHtml, btnFolder, btnNew, btnKi, btnCopy;
     Label lblStep, lblCounter, lblSub, lblResult;
     FlatBar barAll, barSub;
     StatCard cardK, cardW, cardI, cardT;
@@ -530,6 +530,7 @@ public partial class DiagGui : Form
     void ApplyRunTips()
     {
         Tip(btnStopWait, "Beendet den laufenden Test vorzeitig (Lasttest, SMART-Wartezeit). Der Bericht entsteht trotzdem.");
+        Tip(btnSkipStep, "Überspringt den aktuellen Diagnoseschritt oder Benchmark und setzt den Lauf sofort mit dem nächsten Schritt fort.");
         Tip(btnCancel, "Bricht den ganzen Lauf ab. Es entsteht nur ein Teilbericht.");
         Tip(btnHtml, "Öffnet den Bericht im Browser.");
         Tip(btnFolder, "Öffnet den Berichtsordner dieses Laufs (Bericht, KI-Dateien, Anhang.zip).");
@@ -799,6 +800,14 @@ public partial class DiagGui : Form
         f.Controls.Add(Section("Absicherung"));
         chkRestorePoint = Chk("Vorher einen Systemwiederherstellungspunkt anlegen", true); f.Controls.Add(chkRestorePoint);
         f.Controls.Add(Section("Reparaturen"));
+        FlowLayoutPanel b = Row(); b.Margin = new Padding(0, 4, 0, 8);
+        Button all = UI.Secondary("Übliche Auswahl"); all.Margin = new Padding(0);
+        Tip(all, "Wählt alle risikoarmen Routine-Wartungsaufgaben wie Bereinigungen und Cache-Leerungen aus.");
+        all.Click += delegate { for (int i = 0; i < repChk.Length; i++) repChk[i].Checked = repUsual[i]; };
+        Button none = UI.Secondary("Keine");
+        Tip(none, "Hebt die Auswahl aller Wartungs- und Reparaturaufgaben auf.");
+        none.Click += delegate { foreach (CheckBox c in repChk) c.Checked = false; };
+        b.Controls.Add(all); b.Controls.Add(none); f.Controls.Add(b);
         repChk = new CheckBox[repKeys.Length];
         for (int i = 0; i < repKeys.Length; i++)
         {
@@ -807,12 +816,6 @@ public partial class DiagGui : Form
         }
         Label lg = Lbl("Ändern: wird mit Vorher-Wert protokolliert und lässt sich auf der Seite Änderungen zurücknehmen.  Eingriff: nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt.", 8.75f, false, UI.Muted);
         lg.MaximumSize = new Size(820, 0); lg.Margin = new Padding(3, 8, 3, 0); f.Controls.Add(lg);
-        FlowLayoutPanel b = Row(); b.Margin = new Padding(0, 10, 0, 0);
-        Button all = UI.Secondary("Übliche Auswahl"); all.Margin = new Padding(0);
-        all.Click += delegate { for (int i = 0; i < repChk.Length; i++) repChk[i].Checked = repUsual[i]; };
-        Button none = UI.Secondary("Keine");
-        none.Click += delegate { foreach (CheckBox c in repChk) c.Checked = false; };
-        b.Controls.Add(all); b.Controls.Add(none); f.Controls.Add(b);
         return f;
     }
 
@@ -2146,15 +2149,19 @@ public partial class DiagGui : Form
         foot.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); foot.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         lblResult = Lbl("", 11f, true, UI.Text); lblResult.Anchor = AnchorStyles.Left; lblResult.AutoEllipsis = true;
         FlowLayoutPanel btns = new FlowLayoutPanel(); btns.AutoSize = true; btns.WrapContents = false; btns.BackColor = UI.Bg;
-        btnStopWait = UI.Secondary("Test beenden"); btnCancel = UI.Secondary("Abbrechen");
+        btnStopWait = UI.Secondary("Test beenden"); btnSkipStep = UI.SkipStepButton(); btnCancel = UI.Secondary("Abbrechen");
         btnFolder = UI.Secondary("Ordner öffnen"); btnNew = UI.Secondary("Neuer Lauf"); btnKi = UI.Secondary("KI-Datei zeigen"); btnCopy = UI.Secondary("KI-Kurzfassung kopieren"); btnHtml = UI.Primary("Bericht öffnen");
         btnHtml.Margin = new Padding(8, 0, 0, 0); btnHtml.Padding = new Padding(14, 3, 14, 3); btnHtml.Font = new Font("Segoe UI Semibold", 9.75f);
-        btns.Controls.Add(btnStopWait); btns.Controls.Add(btnCancel); btns.Controls.Add(btnNew); btns.Controls.Add(btnFolder); btns.Controls.Add(btnKi); btns.Controls.Add(btnCopy); btns.Controls.Add(btnHtml);
+        btns.Controls.Add(btnStopWait); btns.Controls.Add(btnSkipStep); btns.Controls.Add(btnCancel); btns.Controls.Add(btnNew); btns.Controls.Add(btnFolder); btns.Controls.Add(btnKi); btns.Controls.Add(btnCopy); btns.Controls.Add(btnHtml);
         foot.Controls.Add(lblResult, 0, 0); foot.Controls.Add(btns, 1, 0);
         t.Controls.Add(foot, 0, 8);
 
         btnStopWait.Click += delegate {
             try { Directory.CreateDirectory(cpDir); File.WriteAllText(Path.Combine(cpDir, "stop.flag"), "1"); btnStopWait.Enabled = false; }
+            catch (Exception ex) { MessageBox.Show(this, ex.Message, "Leos Minibench"); }
+        };
+        btnSkipStep.Click += delegate {
+            try { Directory.CreateDirectory(cpDir); File.WriteAllText(Path.Combine(cpDir, "skip.flag"), "1"); btnSkipStep.Enabled = false; }
             catch (Exception ex) { MessageBox.Show(this, ex.Message, "Leos Minibench"); }
         };
         btnCancel.Click += delegate { AskCancel(); };
@@ -2342,6 +2349,7 @@ public partial class DiagGui : Form
         running = true;
         setupView.Visible = false; runView.Visible = true;
         btnCancel.Visible = true; btnCancel.Enabled = true;
+        btnSkipStep.Visible = true; btnSkipStep.Enabled = true;
         btnStopWait.Visible = false; btnStopWait.Enabled = true;
         btnHtml.Visible = false; btnFolder.Visible = false; btnNew.Visible = false; btnKi.Visible = false; btnCopy.Visible = false; btnCopy.Text = "KI-Kurzfassung kopieren";
         timer.Start();
@@ -2384,7 +2392,11 @@ public partial class DiagGui : Form
                 SetText(lblStep, Get(p, 3));
                 SetText(lblCounter, String.Format("Schritt {0} von {1}", s, t));
                 if (t > 0) barAll.Value = (s - 1) * 100 / t;
+                btnSkipStep.Enabled = true;
                 log.AppendLine(); log.AppendLine(">> " + Get(p, 3));
+                break;
+            case "SCHRITT_UEBERSPRINGEN":
+                btnSkipStep.Enabled = true;
                 break;
             case "SUB":
                 int pc = ToInt(p, 1);
@@ -2518,7 +2530,7 @@ public partial class DiagGui : Form
     {
         done = true; running = false; timer.Stop();
         barSub.Marquee = false; barSub.Value = 0; lblSub.Text = " ";
-        btnCancel.Visible = false; btnStopWait.Visible = false; btnNew.Visible = true;
+        btnCancel.Visible = false; btnStopWait.Visible = false; btnSkipStep.Visible = false; btnNew.Visible = true;
         if (chartRun.Count > 0) tabs.SetText(3, "Sensoren");
         int code = -1; try { code = proc.ExitCode; } catch { }
         if (gotDone)

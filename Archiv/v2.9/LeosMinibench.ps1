@@ -145,20 +145,6 @@ if ($EventMode) {
     }
     function Write-Warning { param([Parameter(Position = 0)][string]$Message) Write-Host ('WARNUNG: ' + $Message) -ForegroundColor Yellow }
 }
-
-function Send-StepSkipped([string]$StepName = '') {
-    Send-GuiEvent 'SCHRITT_UEBERSPRINGEN' $StepName
-}
-
-function Test-SkipRequested {
-    if (-not $script:CpDir) { return $false }
-    $p = Join-Path $script:CpDir 'skip.flag'
-    if (Test-Path -LiteralPath $p) {
-        Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue
-        return $true
-    }
-    return $false
-}
 #endregion
 
 #region ---------- Startphasen (ab v2.6, Roadmap v2.5) ----------
@@ -221,7 +207,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenp
 }
 #endregion
 
-$ScriptVersion = '2.95'
+$ScriptVersion = '2.9'
 $AppName       = 'Leos Minibench'
 #region ---------- Datenordner neben exe bzw. Skript (Berichte, Vergleichsdatenbank, Tools, Laufzeitdaten) ----------
 function Test-WritableDir([string]$Dir) {
@@ -253,34 +239,6 @@ $script:DataDir  = Resolve-DataDir
 $script:DbDir    = $(if ($script:DataDir) { Join-Path $script:DataDir 'Datenbank' } else { '' })
 $script:CacheDir = $(if ($script:DataDir) { Join-Path $script:DataDir 'Cache' } else { '' })
 $script:CpDir    = $(if ($script:DataDir) { Join-Path (Join-Path $script:DataDir 'Laufzeit') $env:COMPUTERNAME } else { Join-Path $env:TEMP ('LeosMinibench_' + $env:COMPUTERNAME) })
-
-function Initialize-DbDir {
-    if (-not $script:DbDir) { return }
-    $isNew = -not (Test-Path -LiteralPath $script:DbDir)
-    if ($isNew) {
-        try { New-Item -ItemType Directory -Path $script:DbDir -Force -ErrorAction Stop | Out-Null } catch { return }
-    }
-    $existing = @(Get-ChildItem -LiteralPath $script:DbDir -Filter '*.json' -File -ErrorAction SilentlyContinue)
-    if ($existing.Count -eq 0) {
-        $refDirs = @(
-            (Join-Path $PSScriptRoot 'Daten\Referenzen'),
-            (Join-Path $PSScriptRoot 'src\Daten\Referenzen'),
-            (Join-Path (Split-Path $PSScriptRoot -Parent) 'src\Daten\Referenzen')
-        )
-        foreach ($rd in $refDirs) {
-            if (Test-Path -LiteralPath $rd) {
-                $refFiles = @(Get-ChildItem -LiteralPath $rd -Filter '*.json' -File -ErrorAction SilentlyContinue)
-                if ($refFiles.Count -gt 0) {
-                    foreach ($rf in $refFiles) {
-                        try { Copy-Item -LiteralPath $rf.FullName -Destination (Join-Path $script:DbDir $rf.Name) -Force -ErrorAction SilentlyContinue } catch { }
-                    }
-                    break
-                }
-            }
-        }
-    }
-}
-if ($script:DbDir) { Initialize-DbDir }
 
 # C#-Code einmal kompilieren und als DLL im Datenordner zwischenspeichern (spart bei jedem Start einige Sekunden).
 # Ab v2.6: Liegt die DLL zum Hash schon vor, wird sie ohne Schreibprobe direkt geladen (kein Schreibzugriff auf den Stick).
@@ -834,16 +792,16 @@ $script:ModuleContracts = @(
     Parameter       = @('Wartung', 'Reparaturen', 'OhneWiederherstellungspunkt')
     Datenbankfelder = @()
     Schritte        = @(
-        @{ Key = 'DismRestore'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 20; Vorauswahl = $true; Ueblich = $false
+        @{ Key = 'DismRestore'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 20; Vorauswahl = $true; Ueblich = $true
            Titel = 'Komponentenspeicher prüfen und reparieren (DISM)'
            Text  = 'Komponentenspeicher prüfen und reparieren (DISM ScanHealth, bei Bedarf RestoreHealth)' }
-        @{ Key = 'Sfc'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 12; Vorauswahl = $true; Ueblich = $false
+        @{ Key = 'Sfc'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 12; Vorauswahl = $true; Ueblich = $true
            Titel = 'Systemdateien reparieren (sfc /scannow)'
            Text  = 'Systemdateien reparieren (sfc /scannow, nach DISM)' }
         @{ Key = 'Komponentenbereinigung'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 15; Vorauswahl = $false; Ueblich = $false
            Titel = 'Komponentenspeicher bereinigen (DISM)'
            Text  = 'Komponentenspeicher bereinigen (DISM StartComponentCleanup, gibt Platz frei)' }
-        @{ Key = 'Dateisystem'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'keins'; Minuten = 5; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'Dateisystem'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'keins'; Minuten = 5; Vorauswahl = $false; Ueblich = $true
            Titel = 'Dateisystemfehler beheben'
            Text  = 'Dateisystemfehler beheben (Onlinescan, SpotFix, Systemlaufwerk beim Neustart)' }
         @{ Key = 'WindowsUpdate'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'immer'; Rueckgaengig = 'Hinweis'; Minuten = 2; Vorauswahl = $false; Ueblich = $false
@@ -873,7 +831,7 @@ $script:ModuleContracts = @(
         @{ Key = 'Energieplaene'; Typ = 'Massnahme'; Risiko = 'Aendern'; Neustart = 'nie'; Rueckgaengig = 'Protokoll'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
            Titel = 'Energiesparpläne zurücksetzen'
            Text  = 'Energiesparpläne auf Standard zurücksetzen (eigene Pläne werden vorher gesichert)' }
-        @{ Key = 'Datentraegerbereinigung'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 10; Vorauswahl = $false; Ueblich = $true
+        @{ Key = 'Datentraegerbereinigung'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 10; Vorauswahl = $false; Ueblich = $false
            Titel = 'Datenträgerbereinigung mit allen Kategorien'
            Text  = 'Datenträgerbereinigung (cleanmgr mit allen Kategorien außer Downloads)' }
         @{ Key = 'Leistungszaehler'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
@@ -882,16 +840,16 @@ $script:ModuleContracts = @(
         @{ Key = 'Leerlaufaufgaben'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
            Titel = 'Leerlaufaufgaben jetzt ausführen'
            Text  = 'Aufgeschobene Windows-Wartungsaufgaben starten (ProcessIdleTasks)' }
-        @{ Key = 'ShaderCache'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $true
+        @{ Key = 'ShaderCache'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
            Titel = 'Shader-Caches der Grafiktreiber leeren'
            Text  = 'DirectX-, OpenGL-, Intel- und AMD-Shader-Caches leeren' }
-        @{ Key = 'UpdateDownloads'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $true
+        @{ Key = 'UpdateDownloads'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
            Titel = 'Heruntergeladene Updates löschen'
            Text  = 'SoftwareDistribution-Download-Ordner leeren (installierte Updates bleiben erhalten)' }
-        @{ Key = 'Absturzabbilder'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $true
+        @{ Key = 'Absturzabbilder'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
            Titel = 'Absturzabbilder und Installationsreste löschen'
            Text  = 'CrashDumps, MSOCache, RetailDemo und Treiberreste leeren' }
-        @{ Key = 'Prefetch'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $true
+        @{ Key = 'Prefetch'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
            Titel = 'Prefetch-Daten löschen'
            Text  = 'Prefetch-Ordner leeren (Windows baut die Daten danach neu auf)' }
         @{ Key = 'PaketCache'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
@@ -3836,7 +3794,7 @@ public partial class DiagGui : Form
     void Tip(Control c, string text) { if (c != null && !String.IsNullOrEmpty(text)) tip.SetToolTip(c, WrapTip(text)); }
 
     // Ablauf
-    Button btnStopWait, btnSkipStep, btnCancel, btnHtml, btnFolder, btnNew, btnKi, btnCopy;
+    Button btnStopWait, btnCancel, btnHtml, btnFolder, btnNew, btnKi, btnCopy;
     Label lblStep, lblCounter, lblSub, lblResult;
     FlatBar barAll, barSub;
     StatCard cardK, cardW, cardI, cardT;
@@ -4162,7 +4120,6 @@ public partial class DiagGui : Form
     void ApplyRunTips()
     {
         Tip(btnStopWait, "Beendet den laufenden Test vorzeitig (Lasttest, SMART-Wartezeit). Der Bericht entsteht trotzdem.");
-        Tip(btnSkipStep, "Überspringt den aktuellen Diagnoseschritt oder Benchmark und setzt den Lauf sofort mit dem nächsten Schritt fort.");
         Tip(btnCancel, "Bricht den ganzen Lauf ab. Es entsteht nur ein Teilbericht.");
         Tip(btnHtml, "Öffnet den Bericht im Browser.");
         Tip(btnFolder, "Öffnet den Berichtsordner dieses Laufs (Bericht, KI-Dateien, Anhang.zip).");
@@ -4432,14 +4389,6 @@ public partial class DiagGui : Form
         f.Controls.Add(Section("Absicherung"));
         chkRestorePoint = Chk("Vorher einen Systemwiederherstellungspunkt anlegen", true); f.Controls.Add(chkRestorePoint);
         f.Controls.Add(Section("Reparaturen"));
-        FlowLayoutPanel b = Row(); b.Margin = new Padding(0, 4, 0, 8);
-        Button all = UI.Secondary("Übliche Auswahl"); all.Margin = new Padding(0);
-        Tip(all, "Wählt alle risikoarmen Routine-Wartungsaufgaben wie Bereinigungen und Cache-Leerungen aus.");
-        all.Click += delegate { for (int i = 0; i < repChk.Length; i++) repChk[i].Checked = repUsual[i]; };
-        Button none = UI.Secondary("Keine");
-        Tip(none, "Hebt die Auswahl aller Wartungs- und Reparaturaufgaben auf.");
-        none.Click += delegate { foreach (CheckBox c in repChk) c.Checked = false; };
-        b.Controls.Add(all); b.Controls.Add(none); f.Controls.Add(b);
         repChk = new CheckBox[repKeys.Length];
         for (int i = 0; i < repKeys.Length; i++)
         {
@@ -4448,6 +4397,12 @@ public partial class DiagGui : Form
         }
         Label lg = Lbl("Ändern: wird mit Vorher-Wert protokolliert und lässt sich auf der Seite Änderungen zurücknehmen.  Eingriff: nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt.", 8.75f, false, UI.Muted);
         lg.MaximumSize = new Size(820, 0); lg.Margin = new Padding(3, 8, 3, 0); f.Controls.Add(lg);
+        FlowLayoutPanel b = Row(); b.Margin = new Padding(0, 10, 0, 0);
+        Button all = UI.Secondary("Übliche Auswahl"); all.Margin = new Padding(0);
+        all.Click += delegate { for (int i = 0; i < repChk.Length; i++) repChk[i].Checked = repUsual[i]; };
+        Button none = UI.Secondary("Keine");
+        none.Click += delegate { foreach (CheckBox c in repChk) c.Checked = false; };
+        b.Controls.Add(all); b.Controls.Add(none); f.Controls.Add(b);
         return f;
     }
 
@@ -5781,19 +5736,15 @@ public partial class DiagGui : Form
         foot.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); foot.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         lblResult = Lbl("", 11f, true, UI.Text); lblResult.Anchor = AnchorStyles.Left; lblResult.AutoEllipsis = true;
         FlowLayoutPanel btns = new FlowLayoutPanel(); btns.AutoSize = true; btns.WrapContents = false; btns.BackColor = UI.Bg;
-        btnStopWait = UI.Secondary("Test beenden"); btnSkipStep = UI.SkipStepButton(); btnCancel = UI.Secondary("Abbrechen");
+        btnStopWait = UI.Secondary("Test beenden"); btnCancel = UI.Secondary("Abbrechen");
         btnFolder = UI.Secondary("Ordner öffnen"); btnNew = UI.Secondary("Neuer Lauf"); btnKi = UI.Secondary("KI-Datei zeigen"); btnCopy = UI.Secondary("KI-Kurzfassung kopieren"); btnHtml = UI.Primary("Bericht öffnen");
         btnHtml.Margin = new Padding(8, 0, 0, 0); btnHtml.Padding = new Padding(14, 3, 14, 3); btnHtml.Font = new Font("Segoe UI Semibold", 9.75f);
-        btns.Controls.Add(btnStopWait); btns.Controls.Add(btnSkipStep); btns.Controls.Add(btnCancel); btns.Controls.Add(btnNew); btns.Controls.Add(btnFolder); btns.Controls.Add(btnKi); btns.Controls.Add(btnCopy); btns.Controls.Add(btnHtml);
+        btns.Controls.Add(btnStopWait); btns.Controls.Add(btnCancel); btns.Controls.Add(btnNew); btns.Controls.Add(btnFolder); btns.Controls.Add(btnKi); btns.Controls.Add(btnCopy); btns.Controls.Add(btnHtml);
         foot.Controls.Add(lblResult, 0, 0); foot.Controls.Add(btns, 1, 0);
         t.Controls.Add(foot, 0, 8);
 
         btnStopWait.Click += delegate {
             try { Directory.CreateDirectory(cpDir); File.WriteAllText(Path.Combine(cpDir, "stop.flag"), "1"); btnStopWait.Enabled = false; }
-            catch (Exception ex) { MessageBox.Show(this, ex.Message, "Leos Minibench"); }
-        };
-        btnSkipStep.Click += delegate {
-            try { Directory.CreateDirectory(cpDir); File.WriteAllText(Path.Combine(cpDir, "skip.flag"), "1"); btnSkipStep.Enabled = false; }
             catch (Exception ex) { MessageBox.Show(this, ex.Message, "Leos Minibench"); }
         };
         btnCancel.Click += delegate { AskCancel(); };
@@ -5981,7 +5932,6 @@ public partial class DiagGui : Form
         running = true;
         setupView.Visible = false; runView.Visible = true;
         btnCancel.Visible = true; btnCancel.Enabled = true;
-        btnSkipStep.Visible = true; btnSkipStep.Enabled = true;
         btnStopWait.Visible = false; btnStopWait.Enabled = true;
         btnHtml.Visible = false; btnFolder.Visible = false; btnNew.Visible = false; btnKi.Visible = false; btnCopy.Visible = false; btnCopy.Text = "KI-Kurzfassung kopieren";
         timer.Start();
@@ -6024,11 +5974,7 @@ public partial class DiagGui : Form
                 SetText(lblStep, Get(p, 3));
                 SetText(lblCounter, String.Format("Schritt {0} von {1}", s, t));
                 if (t > 0) barAll.Value = (s - 1) * 100 / t;
-                btnSkipStep.Enabled = true;
                 log.AppendLine(); log.AppendLine(">> " + Get(p, 3));
-                break;
-            case "SCHRITT_UEBERSPRINGEN":
-                btnSkipStep.Enabled = true;
                 break;
             case "SUB":
                 int pc = ToInt(p, 1);
@@ -6162,7 +6108,7 @@ public partial class DiagGui : Form
     {
         done = true; running = false; timer.Stop();
         barSub.Marquee = false; barSub.Value = 0; lblSub.Text = " ";
-        btnCancel.Visible = false; btnStopWait.Visible = false; btnSkipStep.Visible = false; btnNew.Visible = true;
+        btnCancel.Visible = false; btnStopWait.Visible = false; btnNew.Visible = true;
         if (chartRun.Count > 0) tabs.SetText(3, "Sensoren");
         int code = -1; try { code = proc.ExitCode; } catch { }
         if (gotDone)
@@ -6287,11 +6233,6 @@ static class UI
         b.BackColor = Panel; b.ForeColor = Text; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 243, 248);
         b.Font = new Font("Segoe UI", 9.75f); b.AutoSize = true; b.Padding = new Padding(10, 3, 10, 3); b.Margin = new Padding(8, 0, 0, 0); b.Cursor = Cursors.Hand; b.UseVisualStyleBackColor = false;
         return b;
-    }
-
-    public static Button SkipStepButton()
-    {
-        return Secondary("Diesen Schritt überspringen");
     }
 }
 
@@ -7854,15 +7795,6 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
-        new Eintrag("2.95", "05.10.2026", "Anonyme Vergleichsdaten, Gesamtleistungs-Banner, UserBenchmark-Profile, Minidump Crash Inspector, Schritt überspringen",
-            "Feste Einbindung von fünf anonymisierten, bereinigten Referenzsystemen von Desktop High-End bis Notebook Standard für sofortige Vergleichbarkeit ab dem ersten Start. " +
-            "Gesamtleistungs-Banner im Bericht-Header mit prozentualer Gesamtbewertung zur Referenz. " +
-            "Benchmark-Darstellung im UserBenchmark-Stil: Drei gewichtete Nutzungsprofile (Gaming, Büro/Desktop, Workstation), prominente Komponenten-Köpfe und modernes Spalten-Layout für Messgrößen. " +
-            "Modul Wartung mit angepasster Standardauswahl für risikoarme Bereinigungen und Schnellwahlschaltern über der Aufgabenliste. " +
-            "Neue Schaltfläche Diesen Schritt überspringen in der Laufansicht mit Ereignis @@SCHRITT_UEBERSPRINGEN. " +
-            "Minidump Crash Inspector mit nativer Binäranalyse von Windows-Absturzabbildern (.dmp), Bugcheck-Erkennung und Handlungsempfehlungen. " +
-            "Grafiktreiber-Gesundheitscheck auf Microsoft Basic Display Adapter, veraltete Treiber (ab 18 Monate) und Treiberabstürze (Event 4101). " +
-            "Durchlaufzeit-Optimierung durch Zwischenspeicherung statischer WMI- und CIM-Systemabfragen."),
         new Eintrag("2.9", "05.10.2026", "Phasen 0 und 1: ARM64, High-DPI, Modularisierung, Wartung, Gesamtbild und Vergleichsseite",
             "Hardware-Erkennung mit ARM64-Erkennung und Warnhinweis für ARM64-Systeme im Bericht. " +
             "High-DPI-Optimierung mit Per-Monitor V2 DPI-Awareness im Anwendungsmanifest für gestochen scharfe Anzeige bei 150 % bis 225 % Skalierung. " +
@@ -8191,10 +8123,6 @@ function Hide-Sub { Send-GuiEvent 'SUB' '-9' '' '' }
 function Wait-JobWithProgress($Job, [string]$Activity, [int]$ExpectedSec = 0, [int]$TimeoutSec = 3600) {
     $sw = [Diagnostics.Stopwatch]::StartNew()
     while ($Job.State -in 'NotStarted', 'Running') {
-        if (Test-SkipRequested) {
-            Stop-Job $Job -ErrorAction SilentlyContinue
-            throw (New-Object System.OperationCanceledException 'Vom Benutzer übersprungen')
-        }
         $st = 'läuft seit {0:hh\:mm\:ss}' -f $sw.Elapsed
         if ($ExpectedSec -gt 0) { Show-Sub $Activity ($st + ('   (üblich: ca. {0} Min.)' -f [math]::Ceiling($ExpectedSec / 60))) ([int]([math]::Min(99.0, $sw.Elapsed.TotalSeconds / $ExpectedSec * 100.0))) }
         else { Show-Sub $Activity $st }
@@ -8252,9 +8180,6 @@ function Wait-TaskProgress($Task, [string]$Activity, [string]$Status, [int]$Expe
     $sw = [Diagnostics.Stopwatch]::StartNew()
     $samples = New-Object System.Collections.ArrayList
     while (-not $Task.IsCompleted) {
-        if (Test-SkipRequested) {
-            throw (New-Object System.OperationCanceledException 'Vom Benutzer übersprungen')
-        }
         Show-Sub $Activity $Status ([int][math]::Min(99.0, [double]$sw.ElapsedMilliseconds * 100.0 / [math]::Max(1.0, [double]$ExpectedMs)))
         $cs = $null
         if ($Sample -and $sw.ElapsedMilliseconds -gt 800) { $cs = Get-CpuSample; [void]$samples.Add($cs) }
@@ -8551,19 +8476,6 @@ function Get-BenchOverall {
     return Get-GeoMean $vals $w
 }
 
-# Bewertungswort für Benchmark-Werte in Prozent der Referenz (UserBenchmark-Stil)
-function Get-BenchRatingWord($Pct) {
-    if ($null -eq $Pct -or "$Pct" -eq '') { return '' }
-    $p = [double]$Pct
-    if ($p -ge 115) { return 'Hervorragend' }
-    if ($p -ge 100) { return 'Sehr gut' }
-    if ($p -ge 85)  { return 'Gut' }
-    if ($p -ge 70)  { return 'Durchschnittlich' }
-    if ($p -ge 50)  { return 'Mäßig' }
-    return 'Unterdurchschnittlich'
-}
-function Get-Bewertungswort($Pct) { Get-BenchRatingWord $Pct }
-
 function Send-BenchGroup([string]$Gruppe) {
     $g = Get-BenchGroup $Gruppe
     if ($g.Anzahl) { Send-GuiEvent 'BGRP' $Gruppe $g.Name $g.Status $g.Kopf $g.Referenz }
@@ -8856,59 +8768,33 @@ function Invoke-Section {
     Hide-Sub
     $script:CpCurrent = $Title
     Write-Checkpoint 'START' ('[{0}/{1}] {2}' -f $script:StepNo, $total, $Title)
-    if ((Get-Command Test-SkipRequested -ErrorAction SilentlyContinue) -and (Test-SkipRequested)) {
-        if (Get-Command Send-StepSkipped -ErrorAction SilentlyContinue) { Send-StepSkipped $Title }
-        Add-Line ('  ÜBERSPRUNGEN: Schritt durch Benutzer übersprungen.')
-        if (Get-Command Add-Test -ErrorAction SilentlyContinue) { Add-Test $Title 'ÜBERSPRUNGEN' 'Schritt durch Benutzer übersprungen' }
-        Add-Finding INFO 'Ablauf' ('Schritt "{0}" wurde auf Benutzeranforderung übersprungen.' -f $Title)
-        Write-Checkpoint 'SKIP' ('{0} (übersprungen)' -f $Title)
-        Save-Partial
-        return
-    }
     # Vor Abschnitten, bei denen ein Absturz am ehesten droht, den Zwischenstand sofort sichern (sonst gedrosselt)
     if ($Title -match '^(Lasttest|Benchmark|Test: (CPU|Arbeitsspeicher)|Reparatur|Optimierung)') { Save-Partial -Force }
     # Schneller Modus: exklusive Messungen warten auf die Hintergrundprüfungen
     try { Enter-SectionSchedule $Title } catch { }
     $sw = [Diagnostics.Stopwatch]::StartNew()
-    $wasSkipped = $false
     try { & $Body }
     catch {
-        if ($_.Exception -is [System.OperationCanceledException] -or $_.Exception.Message -match 'übersprungen') {
-            $wasSkipped = $true
-            Send-StepSkipped $Title
-            Add-Line ('  ÜBERSPRUNGEN: Schritt durch Benutzer übersprungen.')
-            Add-Test $Title 'ÜBERSPRUNGEN' 'Schritt durch Benutzer übersprungen'
-            Add-Finding INFO 'Ablauf' ('Schritt "{0}" wurde auf Benutzeranforderung übersprungen.' -f $Title)
-            Write-Checkpoint 'SKIP' ('{0} (übersprungen)' -f $Title)
-        } else {
-            $ln = $(if ($_.InvocationInfo) { $_.InvocationInfo.ScriptLineNumber } else { 0 })
-            Add-Line ('  FEHLER in diesem Abschnitt: {0} (Zeile {1})' -f $_.Exception.Message, $ln)
-            Write-Warning ('{0}: {1}' -f $Title, $_.Exception.Message)
-            Write-Checkpoint 'FEHLER' ('{0}: {1} (Zeile {2})' -f $Title, $_.Exception.Message, $ln)
-            # sichtbar in Befunden und Tests, nicht nur in den Details: ein abgebrochener Abschnitt darf nicht wie ein leerer Bericht aussehen
-            if ($null -ne $script:SectionErrors) { $script:SectionErrors.Add([pscustomobject]@{ Abschnitt = $Title; Meldung = $_.Exception.Message; Zeile = $ln }) }
-            Add-Finding WARNUNG 'Ablauf' ('Abschnitt "{0}" wurde wegen eines Skriptfehlers abgebrochen: {1} (Zeile {2}). Details in Checkpoint.log und in der KI-Datei.' -f $Title, $_.Exception.Message, $ln)
-        }
+        $ln = $(if ($_.InvocationInfo) { $_.InvocationInfo.ScriptLineNumber } else { 0 })
+        Add-Line ('  FEHLER in diesem Abschnitt: {0} (Zeile {1})' -f $_.Exception.Message, $ln)
+        Write-Warning ('{0}: {1}' -f $Title, $_.Exception.Message)
+        Write-Checkpoint 'FEHLER' ('{0}: {1} (Zeile {2})' -f $Title, $_.Exception.Message, $ln)
+        # sichtbar in Befunden und Tests, nicht nur in den Details: ein abgebrochener Abschnitt darf nicht wie ein leerer Bericht aussehen
+        if ($null -ne $script:SectionErrors) { $script:SectionErrors.Add([pscustomobject]@{ Abschnitt = $Title; Meldung = $_.Exception.Message; Zeile = $ln }) }
+        Add-Finding WARNUNG 'Ablauf' ('Abschnitt "{0}" wurde wegen eines Skriptfehlers abgebrochen: {1} (Zeile {2}). Details in Checkpoint.log und in der KI-Datei.' -f $Title, $_.Exception.Message, $ln)
     }
     $sw.Stop()
     $script:Timings.Add([pscustomobject]@{ Abschnitt = $Title; Dauer = ('{0:hh\:mm\:ss}' -f $sw.Elapsed) })
-    if (-not $wasSkipped) { Write-Checkpoint 'OK' ('{0} ({1:hh\:mm\:ss})' -f $Title, $sw.Elapsed) }
+    Write-Checkpoint 'OK' ('{0} ({1:hh\:mm\:ss})' -f $Title, $sw.Elapsed)
     try { Exit-SectionSchedule $Title } catch { }
     Save-Partial
 }
 
 # Statische WMI-Klassen (Hardware) nur einmal je Lauf abfragen
 $script:CimCache = @{}
-function Get-CimCached([string]$Class, [string]$Namespace = '') {
-    $k = if ($Namespace) { "$Namespace`:$Class" } else { $Class }
-    if (-not $script:CimCache.ContainsKey($k)) {
-        if ($Namespace) {
-            $script:CimCache[$k] = @(Get-CimInstance -Namespace $Namespace -ClassName $Class -ErrorAction SilentlyContinue)
-        } else {
-            $script:CimCache[$k] = @(Get-CimInstance -ClassName $Class -ErrorAction SilentlyContinue)
-        }
-    }
-    return $script:CimCache[$k]
+function Get-CimCached([string]$Class) {
+    if (-not $script:CimCache.ContainsKey($Class)) { $script:CimCache[$Class] = @(Get-CimInstance $Class -ErrorAction SilentlyContinue) }
+    return $script:CimCache[$Class]
 }
 
 # Laufzeit seit dem Start lesbar (ab v2.8): "5 Std 21 Min", "3 Tage 2 Std", ohne "0 Tage"
@@ -8949,10 +8835,6 @@ function Invoke-External {
     $o = $p.StandardOutput.ReadToEndAsync(); $e = $p.StandardError.ReadToEndAsync()
     $sw = [Diagnostics.Stopwatch]::StartNew(); $timedOut = $false
     while (-not $p.WaitForExit(500)) {
-        if ((Get-Command Test-SkipRequested -ErrorAction SilentlyContinue) -and (Test-SkipRequested)) {
-            try { $p.Kill() } catch { }
-            throw (New-Object System.OperationCanceledException 'Vom Benutzer übersprungen')
-        }
         if ($Progress) {
             $st = 'läuft seit {0:hh\:mm\:ss}' -f $sw.Elapsed
             if ($ExpectedSec -gt 0) { Show-Sub $Progress ($st + ('   (üblich: ca. {0} Min.)' -f [math]::Ceiling($ExpectedSec / 60))) ([int]([math]::Min(99.0, $sw.Elapsed.TotalSeconds / $ExpectedSec * 100.0))) }
@@ -9316,7 +9198,6 @@ th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;le
 .cards{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
 .card.st,.card.st.ok,.card.st.info,.card.st.warn{background:var(--panel);color:var(--text)}
 .card.st.ok{border-left-color:var(--ok)} .card.st.ok b{color:var(--ok)} .card.st.info{border-left-color:var(--info)} .card.st.info b{color:var(--info)} .card.st.warn{border-left-color:var(--warn)} .card.st.warn b{color:var(--warn)}
-.card.bench{background:var(--panel);color:var(--text);border-left-color:var(--accent,#2563eb)} .card.bench b{color:var(--accent,#2563eb)}
 .box.stab,.box.stab.warn,.box.stab.info,.box.stab.ok{background:var(--panel);color:var(--text);border-left:6px solid var(--line)}
 .box.stab.warn{border-left-color:var(--warn)} .box.stab.info{border-left-color:var(--info)} .box.stab p{margin:0}
 .empty{color:var(--muted);margin:0}
@@ -9379,10 +9260,9 @@ i.sw.tj{background:transparent;border-top:2px dotted var(--warn);border-radius:0
 @media (prefers-color-scheme:dark){.chart .line.s2{stroke:#fb923c} .chart .line.s3{stroke:#2dd4bf} .chart .line.s4{stroke:#c4b5fd} i.sw.s2{background:#fb923c} i.sw.s3{background:#2dd4bf} i.sw.s4{background:#c4b5fd} .chart .line.s5{stroke:#facc15} i.sw.s5{background:#facc15}}
 small.okt{color:var(--ok)} small.warnt{color:var(--warn)}
 .ov{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:2px 0 14px}
-a.tile,.tile{display:block;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--line);border-radius:10px;padding:11px 14px 12px}
-a.tile:hover,.tile:hover{border-color:var(--muted)}
-.tile.profile{border-top-width:5px}
-.tile.tok,a.tile.tok{border-top-color:var(--ok)} .tile.twarn,a.tile.twarn{border-top-color:var(--warn)} .tile.tcrit,a.tile.tcrit{border-top-color:var(--crit)} .tile.tinfo,a.tile.tinfo{border-top-color:var(--info)}
+a.tile{display:block;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--line);border-radius:10px;padding:11px 14px 12px}
+a.tile:hover{border-color:var(--muted)}
+a.tile.tok{border-top-color:var(--ok)} a.tile.twarn{border-top-color:var(--warn)} a.tile.tcrit{border-top-color:var(--crit)} a.tile.tinfo{border-top-color:var(--info)}
 .tile h4{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0;font-size:12.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
 .tile h4 .dot{width:9px;height:9px;border-radius:50%;flex:none}
 .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.crit{background:var(--crit)} .dot.info{background:var(--info)}
@@ -9396,20 +9276,6 @@ a.tile:hover,.tile:hover{border-color:var(--muted)}
 .rbm{position:absolute;left:66.7%;top:-3px;bottom:-3px;width:2px;background:var(--text);opacity:.45}
 .dl{color:var(--muted);font-size:12px;margin-left:6px;white-space:nowrap} .dl.okt{color:var(--ok)} .dl.warnt{color:var(--warn)}
 td .dl{margin-left:0}
-.grp-head{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);margin-bottom:8px;flex-wrap:wrap;gap:8px}
-.comp-title{font-size:16px;font-weight:700}
-.comp-score{font-size:15px;font-variant-numeric:tabular-nums;text-align:right}
-.gh-bar{margin-top:4px}
-.pword{font-weight:600;color:var(--muted)}
-.bench-cols{display:grid;grid-template-columns:180px repeat(auto-fit,minmax(120px,1fr));gap:12px;padding:12px 0}
-.bcol{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;justify-content:space-between;gap:6px}
-.bcol-main{background:var(--skip-bg);border-color:var(--muted)}
-.bname{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bscore{font-size:24px;font-weight:750;font-variant-numeric:tabular-nums}
-.bword{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:2px}
-.bval{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
-.bbar{margin:3px 0}
-.bdelta{font-size:12px;color:var(--muted);white-space:nowrap}
 .chart.ws{max-width:860px}
 .chart.ws rect.bg{fill:var(--skip-bg)}
 .chart.ws rect.b-ok{fill:var(--ok)} .chart.ws rect.b-info{fill:var(--info)} .chart.ws rect.b-warn{fill:var(--warn)} .chart.ws rect.b-crit{fill:var(--crit)}
@@ -9447,7 +9313,7 @@ i.sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:
 .mini{display:inline-block;position:relative;width:60px;height:6px;border-radius:3px;background:var(--skip-bg);overflow:hidden;vertical-align:middle;margin-right:8px}
 .mini .mf{border-radius:3px}
 @media (max-width:700px){.mrow{grid-template-columns:1fr}.mb{grid-template-columns:90px 1fr 120px}}
-@media (max-width:700px){.cards{grid-template-columns:1fr}dl{grid-template-columns:1fr}dt{margin-top:6px}.bench-cols{grid-template-columns:1fr}}
+@media (max-width:700px){.cards{grid-template-columns:1fr}dl{grid-template-columns:1fr}dt{margin-top:6px}}
 @media print{body{background:#fff}button{display:none}.box{break-inside:avoid}}
 '@
 }
@@ -9469,56 +9335,6 @@ function Get-DeltaHtml([string]$Text) {
     $c = ''
     if ($m.Success) { $d = [int]$m.Groups[1].Value; $c = $(if ($d -le -10) { 'warnt' } elseif ($d -ge 3) { 'okt' } else { '' }) }
     return ('<span class="dl {0}">{1}</span>' -f $c, (ConvertTo-HtmlText $Text))
-}
-
-# Nutzungsprofile (Gaming / Büro / Workstation) im UserBenchmark-Stil
-function New-ProfileCards {
-    $gCpu = Get-BenchGroup 'CPU'
-    $gGpu = Get-BenchGroup 'GPU'
-    $gRam = Get-BenchGroup 'RAM'
-    $gDsk = Get-BenchGroup 'Laufwerke'
-
-    # Nur anzeigen, wenn mindestens 3 der 4 Hauptgruppen (CPU, GPU, RAM, Laufwerke) Referenzdaten haben
-    $hasRef = 0
-    foreach ($g in $gCpu, $gGpu, $gRam, $gDsk) {
-        if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { $hasRef++ }
-    }
-    if ($hasRef -lt 3) { return '' }
-
-    # Einzelwerte für CPU-ST und CPU-MT ermitteln (falls vorhanden, sonst Fallback auf CPU-Gruppenwert)
-    $cpuSt = @($script:BenchResults | Where-Object { ($_.Key -eq 'CPU|ST' -or $_.RefKey -eq 'CPU|ST') -and $null -ne $_.RefPct -and [double]$_.RefPct -gt 0 } | Select-Object -First 1).RefPct
-    $cpuMt = @($script:BenchResults | Where-Object { ($_.Key -eq 'CPU|MT' -or $_.RefKey -eq 'CPU|MT') -and $null -ne $_.RefPct -and [double]$_.RefPct -gt 0 } | Select-Object -First 1).RefPct
-    if ($null -eq $cpuSt -and $null -ne $gCpu.RefPct) { $cpuSt = $gCpu.RefPct }
-    if ($null -eq $cpuMt -and $null -ne $gCpu.RefPct) { $cpuMt = $gCpu.RefPct }
-
-    $profiles = @(
-        @{ Name = 'Gaming';       Icon = '🎮'; W = @{ 'CPU_ST' = 1.0; 'CPU_MT' = 0.5; 'GPU' = 3.0; 'RAM' = 0.5; 'DISK' = 0.5 } }
-        @{ Name = 'Büro/Desktop'; Icon = '💼'; W = @{ 'CPU_ST' = 2.0; 'CPU_MT' = 1.0; 'GPU' = 0.5; 'RAM' = 1.0; 'DISK' = 2.0 } }
-        @{ Name = 'Workstation';  Icon = '⚙️'; W = @{ 'CPU_ST' = 0.5; 'CPU_MT' = 3.0; 'GPU' = 1.0; 'RAM' = 2.0; 'DISK' = 1.0 } }
-    )
-
-    $sb = New-Object System.Text.StringBuilder
-    [void]$sb.Append('<div class="ov profile-grid">')
-    foreach ($p in $profiles) {
-        $vals = [System.Collections.Generic.List[double]]::new()
-        $weights = [System.Collections.Generic.List[double]]::new()
-
-        if ($null -ne $cpuSt -and [double]$cpuSt -gt 0) { $vals.Add([double]$cpuSt); $weights.Add($p.W['CPU_ST']) }
-        if ($null -ne $cpuMt -and [double]$cpuMt -gt 0) { $vals.Add([double]$cpuMt); $weights.Add($p.W['CPU_MT']) }
-        if ($null -ne $gGpu.RefPct -and [double]$gGpu.RefPct -gt 0) { $vals.Add([double]$gGpu.RefPct); $weights.Add($p.W['GPU']) }
-        if ($null -ne $gRam.RefPct -and [double]$gRam.RefPct -gt 0) { $vals.Add([double]$gRam.RefPct); $weights.Add($p.W['RAM']) }
-        if ($null -ne $gDsk.RefPct -and [double]$gDsk.RefPct -gt 0) { $vals.Add([double]$gDsk.RefPct); $weights.Add($p.W['DISK']) }
-
-        if (-not $vals.Count) { continue }
-        $score = Get-GeoMean $vals $weights
-        $word = Get-BenchRatingWord $score
-        $bar = Get-RefBar $score 'ok'
-
-        [void]$sb.Append(('<div class="tile profile"><h4>{0} {1}</h4><div class="big">{2}<small> %</small></div><div class="pword">{3}</div>{4}</div>' -f
-            $p.Icon, (ConvertTo-HtmlText $p.Name), $score, (ConvertTo-HtmlText $word), $bar))
-    }
-    [void]$sb.Append('</div>')
-    return $sb.ToString()
 }
 
 # Kacheln über dem Benchmark: eine je Gruppe mit Referenzbalken
@@ -9910,12 +9726,7 @@ function New-HtmlReport {
         (ConvertTo-HtmlText $env:COMPUTERNAME), $Start, $End, ($End - $Start), (ConvertTo-HtmlText $modus), $ScriptVersion, $vc, $vt, (Get-RiskLabel (Get-RunRisk))))
     $stCard = ''
     if ($script:Stability) { $stCard = ('<div class="card st {0}"><b>{1}</b><span>Zuverlässigkeit von 10 ({2})</span></div>' -f $script:Stability.Klasse, ('{0:N1}' -f $script:Stability.Index), (ConvertTo-HtmlText $script:Stability.Stufe)) }
-    $benchCard = ''
-    $overall = Get-BenchOverall
-    if ($null -ne $overall -and [double]$overall -gt 0) {
-        $benchCard = ('<div class="card bench"><b>{0} %</b><span>Gesamtleistung (Referenz)</span></div>' -f [math]::Round([double]$overall))
-    }
-    [void]$sb.Append(('<section class="cards"><div class="card crit"><b>{0}</b><span>kritisch</span></div><div class="card warn"><b>{1}</b><span>Warnungen</span></div><div class="card info"><b>{2}</b><span>Hinweise</span></div>{3}{4}</section>' -f $NK, $NW, $NI, $stCard, $benchCard))
+    [void]$sb.Append(('<section class="cards"><div class="card crit"><b>{0}</b><span>kritisch</span></div><div class="card warn"><b>{1}</b><span>Warnungen</span></div><div class="card info"><b>{2}</b><span>Hinweise</span></div>{3}</section>' -f $NK, $NW, $NI, $stCard))
     if ($script:Stability -and $script:Stability.Erklaerung) { [void]$sb.Append(('<section class="box stab {0}"><h2>Zuverlässigkeit {1:N1} von 10</h2><p>{2}</p></section>' -f $script:Stability.Klasse, $script:Stability.Index, (ConvertTo-HtmlText $script:Stability.Erklaerung))) }
 
     if ($script:Facts.Count) {
@@ -9943,16 +9754,6 @@ function New-HtmlReport {
         [void]$sb.Append('</tbody></table></section>')
     }
 
-    if (@($script:Minidumps).Count) {
-        [void]$sb.Append('<section class="box"><h2>Absturzabbilder (Crash Dumps)</h2><div class="tw"><table><thead><tr><th>Zeitpunkt</th><th>Datei</th><th>Stoppcode / Fehler</th><th>Parameter</th><th>Empfehlung</th></tr></thead><tbody>')
-        foreach ($d in @($script:Minidumps)) {
-            $params = @($d.Parameter1, $d.Parameter2, $d.Parameter3, $d.Parameter4 | Where-Object { $_ -and $_ -ne '0x0' }) -join ', '
-            [void]$sb.Append(('<tr><td class="num">{0:dd.MM.yyyy HH:mm}</td><td><code>{1}</code></td><td><b>{2}</b><br><small class="muted">{3}</small></td><td class="num"><small>{4}</small></td><td>{5}</td></tr>' -f
-                $d.Zeit, (ConvertTo-HtmlText $d.Datei), (ConvertTo-HtmlText $d.Bugcheck), (ConvertTo-HtmlText $d.Name), (ConvertTo-HtmlText $params), (ConvertTo-HtmlText $d.Empfehlung)))
-        }
-        [void]$sb.Append('</tbody></table></div></section>')
-    }
-
     if ($script:BenchResults.Count -or $script:BenchDisks.Count) {
         $bcls = @{ OK = 'ok'; Info = 'info'; Warnung = 'warn'; Fehler = 'crit' }
         $idxHtml = {
@@ -9966,7 +9767,6 @@ function New-HtmlReport {
         $refNote = $(if ($script:RefSavedNow -and -not (Test-HasReference)) { ' Dieser Lauf wurde als Referenz gespeichert; ab dem nächsten Lauf ist dieser PC 100 %.' }
             elseif ($script:RefSavedNow) { ' Referenz 100 % = {0}{1}; dieser Lauf wurde als neue Referenz gespeichert und gilt ab dem nächsten Lauf.' -f $script:Ref.Name, $refDat } elseif (Test-HasReference) { ' Referenz 100 % = {0}{1}, Laufwerke im Vergleich zur gleichen Klasse.' -f $script:Ref.Name, $refDat } else { ' Keine Referenz festgelegt (Haken "Dieses System als Referenz festlegen" im Benchmark).' })
         [void]$sb.Append('<section class="box"><div class="bar"><h2>Leistung (Benchmark)</h2><button onclick="var d=this.closest(''section'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
-        [void]$sb.Append((New-ProfileCards))
         [void]$sb.Append((New-BenchOverview))
         [void]$sb.Append(('<p class="note">Kacheln: Ergebnis je Bereich in Prozent der Referenz (Strich = 100 %).{0} Im Gesamtbild werden Prozessor und Grafik höher gewichtet; bei der Grafik zählt die gemessene FPS-Renderleistung dreifach gegenüber Durchsatzwerten. Index 100 in den Tabellen entspricht dem typischen Wert der Hardwareklasse. Vergleich bezieht sich auf frühere Läufe auf diesem PC, grün besser, orange mindestens 10 % schlechter.</p>' -f (ConvertTo-HtmlText $refNote)))
         if (@($script:BenchRefRows).Count) {
@@ -9979,16 +9779,8 @@ function New-HtmlReport {
             if (-not $g.Anzahl) { continue }
             $gc = $bcls[$g.Status]; if (-not $gc) { $gc = 'info' }
             $open = $(if ((Get-StatusRank $g.Status) -ge 2 -or $gk -eq 'WinSAT') { ' open' } else { '' })
-            [void]$sb.Append(('<details class="grp" id="bg-{6}"{0}><summary><span class="gname">{1}</span>{3}<span class="badge {4}">{5}</span></summary>' -f $open,
-                (ConvertTo-HtmlText $g.Name), '', $(if ($g.Referenz) { '<span class="gref" title="im Vergleich zur Referenz">Referenz <b>' + $g.Referenz + '</b></span>' } else { '' }), $gc, (ConvertTo-HtmlText $g.Status), $gk))
-            if ($gk -ne 'WinSAT') {
-                $compName = $(if ($script:BenchHead.ContainsKey($gk) -and $script:BenchHead[$gk]) { [string]$script:BenchHead[$gk] } elseif ($g.Kopf) { $g.Kopf } else { $g.Name })
-                $word = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { Get-BenchRatingWord $g.RefPct } else { '' }
-                $scorePart = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { ('<b>{0} %</b> &middot; <span class="pword">{1}</span>' -f $g.RefPct, (ConvertTo-HtmlText $word)) } else { '' }
-                $bar = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { ('<div class="gh-bar">{0}</div>' -f (Get-RefBar $g.RefPct $gc)) } else { '' }
-                [void]$sb.Append(('<div class="grp-head"><div><div class="comp-title">{0}</div>{1}</div><div class="comp-score">{2}</div></div>' -f
-                    (ConvertTo-HtmlText $compName), $bar, $scorePart))
-            }
+            [void]$sb.Append(('<details class="grp" id="bg-{6}"{0}><summary><span class="gname">{1}</span><span class="gsub">{2}</span>{3}<span class="badge {4}">{5}</span></summary>' -f $open,
+                (ConvertTo-HtmlText $g.Name), (ConvertTo-HtmlText $g.Kopf), $(if ($g.Referenz) { '<span class="gref" title="im Vergleich zur Referenz">Referenz <b>' + $g.Referenz + '</b></span>' } else { '' }), $gc, (ConvertTo-HtmlText $g.Status), $gk))
             if ($gk -eq 'WinSAT') {
                 [void]$sb.Append((New-WinsatSvg $g.Items $script:WinsatTotal))
                 [void]$sb.Append('<p class="note tight">Windows-Leistungsbewertung auf einer Skala von 1,0 bis 9,9. Die gestrichelte Linie zeigt den Gesamtwert, er entspricht dem niedrigsten Teilwert. Die Spielegrafik-Bewertung ist seit Windows 10 fest auf 9,9 gesetzt und fehlt deshalb.</p>')
@@ -10003,21 +9795,14 @@ function New-HtmlReport {
                 }
                 [void]$sb.Append('</tbody></table></div><p class="note tight">Lesen und Schreiben sequentiell mit 1 MiB-Blöcken, 4K-Werte in Zugriffen pro Sekunde, jeweils ohne Windows-Cache. Details beim Überfahren einer Zeile.</p>')
             } else {
-                [void]$sb.Append('<div class="bench-cols">')
-                $word = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { Get-BenchRatingWord $g.RefPct } else { (ConvertTo-HtmlText $g.Status) }
-                $pctTxt = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { ('{0} %' -f $g.RefPct) } else { '' }
-                $bar = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { Get-RefBar $g.RefPct $gc -Small } else { '' }
-                [void]$sb.Append(('<div class="bcol bcol-main"><div class="bname">Gesamtwert</div><div class="bscore">{0}</div><div class="bword">{1}</div><div class="bbar">{2}</div></div>' -f
-                    $pctTxt, (ConvertTo-HtmlText $word), $bar))
-
+                [void]$sb.Append('<div class="tw"><table><thead><tr><th>Messung</th><th class="r">Wert</th><th>Index</th><th>Referenz</th><th>Vergleich</th><th>Ergebnis</th></tr></thead><tbody>')
                 foreach ($b in $g.Items) {
                     $c = $bcls[[string]$b.Status]; if (-not $c) { $c = 'info' }
-                    $subBar = if ($null -ne $b.RefPct -and [double]$b.RefPct -gt 0) { Get-RefBar $b.RefPct 'info' -Small } else { '' }
-                    $delta = Get-DeltaHtml $b.Vergleich
-                    [void]$sb.Append(('<div class="bcol"><div class="bname" title="{0}">{1}</div><div class="bval">{2}</div><div class="bbar">{3}</div><div class="bdelta">{4}</div></div>' -f
-                        (ConvertTo-HtmlText $b.Hinweis), (ConvertTo-HtmlText $b.Messung), (ConvertTo-HtmlText $b.Anzeige), $subBar, $delta))
+                    [void]$sb.Append(('<tr><td>{0}{1}</td><td class="num r">{2}</td><td class="idx">{3}</td><td class="num nw">{4}</td><td class="nw">{5}</td><td><span class="badge {6}">{7}</span></td></tr>' -f
+                        (ConvertTo-HtmlText $b.Messung), $(if ($b.Hinweis) { '<small class="hint">' + (ConvertTo-HtmlText $b.Hinweis) + '</small>' } else { '' }), (ConvertTo-HtmlText $b.Anzeige),
+                        (& $idxHtml $b.Index $b.Status), ((Get-RefBar $b.RefPct 'info' -Small) + (ConvertTo-HtmlText $b.Referenz)), (Get-DeltaHtml $b.Vergleich), $c, (ConvertTo-HtmlText $b.Status)))
                 }
-                [void]$sb.Append('</div>')
+                [void]$sb.Append('</tbody></table></div>')
                 if ($gk -eq 'GPU') { [void]$sb.Append((New-RenderChartsHtml)) }
             }
             [void]$sb.Append('</details>')
@@ -10102,8 +9887,8 @@ function New-HtmlReport {
 }
 
 # ---------- Checkpoints: Protokoll, das auch einen harten Absturz übersteht ----------
-$script:CpLog     = $(if ($script:CpDir) { Join-Path $script:CpDir 'checkpoint.log' } else { '' })
-$script:CpFlag    = $(if ($script:CpDir) { Join-Path $script:CpDir 'laufend.json' } else { '' })
+$script:CpLog     = Join-Path $script:CpDir 'checkpoint.log'
+$script:CpFlag    = Join-Path $script:CpDir 'laufend.json'
 $script:CpStream  = $null
 $script:CpLastHb  = [datetime]::MinValue
 $script:CpCurrent = ''
@@ -10154,7 +9939,7 @@ function Open-Checkpoint {
         $flagObj = [ordered]@{ Start = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss', [Globalization.CultureInfo]::InvariantCulture); Version = $ScriptVersion; Modus = $modus; OutputDir = $OutputDir; Computer = $env:COMPUTERNAME }
         Write-Durable $script:CpFlag ($flagObj | ConvertTo-Json)
         Write-Checkpoint 'BEGINN' ('Leos Minibench v{0}, Modus {1}, Ausgabe {2}' -f $ScriptVersion, $modus, $OutputDir)
-        $os = Get-CimCached Win32_OperatingSystem | Select-Object -First 1
+        $os = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
         Write-Checkpoint 'SYSTEM' ('Letzter Systemstart {0}, RAM frei {1:N1} GB' -f $os.LastBootUpTime.ToString('yyyy-MM-dd HH:mm:ss', [Globalization.CultureInfo]::InvariantCulture), ($os.FreePhysicalMemory / 1MB))
     } catch { $script:CpStream = $null }
 }
@@ -10294,7 +10079,7 @@ function Invoke-CrashAnalysis {
 
     $bootEv = Get-Ev @{ LogName = 'System'; ProviderName = 'EventLog'; Id = 6005; StartTime = $lastTime } 50 | Sort-Object TimeCreated | Select-Object -First 1
     $rebooted = [bool]$bootEv
-    $boot = $(if ($bootEv) { $bootEv.TimeCreated } else { (Get-CimCached Win32_OperatingSystem | Select-Object -First 1).LastBootUpTime })
+    $boot = $(if ($bootEv) { $bootEv.TimeCreated } else { (Get-CimInstance Win32_OperatingSystem).LastBootUpTime })
     $from = $lastTime.AddMinutes(-2)
     $to   = $(if ($rebooted) { $boot.AddMinutes(20) } else { Get-Date })
 
@@ -10393,172 +10178,6 @@ function Invoke-CrashAnalysis {
             }
         }
     }
-}
-
-function Get-BugcheckRecommendation([int64]$Code) {
-    $c = [int64]$Code -band 0xFFFFFFFFL
-    switch ($c) {
-        0x133 { return 'DPC Watchdog: SSD-Firmware aktualisieren, SATA/NVMe-Treiber prüfen, Antivirenprogramm testen.' }
-        0x3B  { return 'System Service Exception: Grafik- und Netzwerktreiber aktualisieren, Systemdateien per SFC reparieren.' }
-        0x116 { return 'Video TDR: Grafiktreiber sauber per DDU neu installieren, Grafikkarten-Takt und Temperatur prüfen.' }
-        0x117 { return 'Video TDR Timeout: Grafiktreiber aktualisieren, PCIe-Steckplatz und Stromversorgung der GPU prüfen.' }
-        0xD1  { return 'Driver IRQL: Zuletzt installierte Treiber prüfen, Netzwerktreiber aktualisieren, RAM per Test prüfen.' }
-        0x0A  { return 'IRQL not less or equal: RAM mit Diagnosetest prüfen, Übertaktung/XMP/EXPO testweise deaktivieren.' }
-        0x1A  { return 'Memory Management: RAM-Module einzeln mit MemTest86 prüfen, BIOS aktualisieren, XMP/EXPO anpassen.' }
-        0x50  { return 'Page Fault: RAM und Dateisystem (chkdsk) prüfen, Virenscanner und Filtertreiber aktualisieren.' }
-        0x7A  { return 'Kernel Data Inpage: Datenträgerzustand (SMART), SATA-/NVMe-Kabel und Dateisystem prüfen.' }
-        0x7E  { return 'System Thread Exception: Abstürzenden Treiber anhand des Minidump-Treiberfelds ermitteln und aktualisieren.' }
-        0x9F  { return 'Driver Power State: Energieverwaltungs- und Chipsatztreiber aktualisieren, Schnellstart testweise abschalten.' }
-        0x101 { return 'Clock Watchdog Timeout: CPU-Übertaktung, PBO und Spannungen im BIOS zurücksetzen, BIOS-Update durchführen.' }
-        0x124 { return 'WHEA Uncorrectable: Schwerer Hardwarefehler, CPU-Kühlung, RAM und Netzteilspannungen prüfen.' }
-        0x139 { return 'Security Check Failure: Antiviren-Treiber oder beschädigten Treiber aktualisieren, RAM-Test ausführen.' }
-        0x154 { return 'Unexpected Store Exception: SSD-Zustand (SMART) und Dateisystem prüfen, SSD-Firmware aktualisieren.' }
-        default { return 'Stoppcode analysieren, Treiber und Windows auf aktuellen Stand bringen.' }
-    }
-}
-
-function Read-MinidumpFile([string]$Path) {
-    if (-not (Test-Path -LiteralPath $Path)) { return $null }
-    try {
-        $fi = New-Object System.IO.FileInfo($Path)
-        $stream = New-Object System.IO.FileStream($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
-        $reader = New-Object System.IO.BinaryReader($stream)
-        try {
-            if ($stream.Length -lt 32) { return $null }
-            $sig = $reader.ReadUInt32()
-            $code = 0L
-            $p1 = 0L; $p2 = 0L; $p3 = 0L; $p4 = 0L
-            $timestamp = $fi.LastWriteTime
-
-            # Format 1: Standard Minidump (MDMP = 0x504D444D)
-            if ($sig -eq 0x504D444D) {
-                $ver = $reader.ReadUInt32()
-                $streamCount = $reader.ReadUInt32()
-                $streamDirRva = $reader.ReadUInt32()
-                $checksum = $reader.ReadUInt32()
-                $unixTime = $reader.ReadUInt32()
-                if ($unixTime -gt 0) {
-                    try {
-                        $timestamp = (New-Object DateTime(1970, 1, 1, 0, 0, 0, [DateTimeKind]::Utc)).AddSeconds($unixTime).ToLocalTime()
-                    } catch { }
-                }
-
-                if ($streamDirRva -gt 0 -and $streamCount -gt 0 -and $streamDirRva -lt $stream.Length) {
-                    $stream.Position = $streamDirRva
-                    for ($i = 0; $i -lt $streamCount -and ($stream.Position + 12) -le $stream.Length; $i++) {
-                        $sType = $reader.ReadUInt32()
-                        $dSize = $reader.ReadUInt32()
-                        $rva = $reader.ReadUInt32()
-                        if ($sType -eq 6) { # MINIDUMP_EXCEPTION_STREAM
-                            if ($rva -gt 0 -and ($rva + 32) -le $stream.Length) {
-                                $savePos = $stream.Position
-                                $stream.Position = $rva
-                                $threadId = $reader.ReadUInt32()
-                                $align = $reader.ReadUInt32()
-                                $code = [int64]$reader.ReadUInt32()
-                                $flags = $reader.ReadUInt32()
-                                $exRec = $reader.ReadUInt64()
-                                $exAddr = $reader.ReadUInt64()
-                                $paramCount = $reader.ReadUInt32()
-                                $unused = $reader.ReadUInt32()
-                                if ($paramCount -ge 1 -and ($stream.Position + 8) -le $stream.Length) { $p1 = [int64]$reader.ReadUInt64() }
-                                if ($paramCount -ge 2 -and ($stream.Position + 8) -le $stream.Length) { $p2 = [int64]$reader.ReadUInt64() }
-                                if ($paramCount -ge 3 -and ($stream.Position + 8) -le $stream.Length) { $p3 = [int64]$reader.ReadUInt64() }
-                                if ($paramCount -ge 4 -and ($stream.Position + 8) -le $stream.Length) { $p4 = [int64]$reader.ReadUInt64() }
-                                $stream.Position = $savePos
-                            }
-                            break
-                        }
-                    }
-                }
-            }
-            # Format 2: Kernel Dump (PAGE / DU64 = 0x45474150)
-            elseif ($sig -eq 0x45474150) {
-                $valid = $reader.ReadUInt32()
-                if ($valid -eq 0x34365544) { # DU64
-                    if ($stream.Length -ge 0x60) {
-                        $stream.Position = 0x38
-                        $code = [int64]$reader.ReadUInt32()
-                        $stream.Position = 0x40
-                        $p1 = [int64]$reader.ReadUInt64()
-                        $p2 = [int64]$reader.ReadUInt64()
-                        $p3 = [int64]$reader.ReadUInt64()
-                        $p4 = [int64]$reader.ReadUInt64()
-                    }
-                } elseif ($valid -eq 0x504D5544) { # DUMP
-                    if ($stream.Length -ge 0x38) {
-                        $stream.Position = 0x24
-                        $code = [int64]$reader.ReadUInt32()
-                        $stream.Position = 0x28
-                        $p1 = [int64]$reader.ReadUInt32()
-                        $p2 = [int64]$reader.ReadUInt32()
-                        $p3 = [int64]$reader.ReadUInt32()
-                        $p4 = [int64]$reader.ReadUInt32()
-                    }
-                }
-            }
-
-            if ($code -ne 0) {
-                $bugHex = ('0x{0:X}' -f $code)
-                return [pscustomobject]@{
-                    Datei        = $fi.Name
-                    Pfad         = $fi.FullName
-                    Datum        = $timestamp
-                    Zeit         = $timestamp
-                    Groesse      = $fi.Length
-                    Bugcheck     = $bugHex
-                    BugcheckCode = $bugHex
-                    BugcheckInt  = $code
-                    Name         = (Get-BugcheckName $code)
-                    Parameter1   = ('0x{0:X}' -f $p1)
-                    Parameter2   = ('0x{0:X}' -f $p2)
-                    Parameter3   = ('0x{0:X}' -f $p3)
-                    Parameter4   = ('0x{0:X}' -f $p4)
-                    Empfehlung   = (Get-BugcheckRecommendation $code)
-                    AlterTage    = [math]::Round(((Get-Date) - $timestamp).TotalDays, 1)
-                }
-            }
-            return $null
-        }
-        finally {
-            $reader.Close()
-            $stream.Close()
-        }
-    }
-    catch {
-        return $null
-    }
-}
-
-function Read-Minidumps {
-    param([string]$Path = '')
-    $dumps = New-Object System.Collections.ArrayList
-    $files = @()
-    if ($Path) {
-        if (Test-Path -LiteralPath $Path) {
-            if ((Get-Item -LiteralPath $Path) -is [System.IO.DirectoryInfo]) {
-                $files = @(Get-ChildItem -LiteralPath $Path -Filter '*.dmp' -ErrorAction SilentlyContinue)
-            } else {
-                $files = @(Get-Item -LiteralPath $Path -ErrorAction SilentlyContinue)
-            }
-        }
-    } else {
-        $dirs = @('C:\Windows\Minidump', (Join-Path $env:SystemRoot 'Minidump')) | Select-Object -Unique
-        foreach ($d in $dirs) {
-            if (Test-Path -LiteralPath $d) {
-                $files += @(Get-ChildItem -LiteralPath $d -Filter '*.dmp' -ErrorAction SilentlyContinue)
-            }
-        }
-        $memDmp = Join-Path $env:SystemRoot 'MEMORY.DMP'
-        if (Test-Path -LiteralPath $memDmp) {
-            $files += @(Get-Item -LiteralPath $memDmp -ErrorAction SilentlyContinue)
-        }
-    }
-    foreach ($f in $files) {
-        $res = Read-MinidumpFile $f.FullName
-        if ($res) { [void]$dumps.Add($res) }
-    }
-    return @($dumps | Sort-Object Datum -Descending)
 }
 
 #endregion
@@ -12956,7 +12575,7 @@ function Get-WindowsInstallInfo {
     $en = [Globalization.CultureInfo]::GetCultureInfo('en-US')
     $cv = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -ErrorAction SilentlyContinue
     $cur = & $fromUnix $cv.InstallDate
-    if (-not $cur) { try { $cur = (Get-CimCached Win32_OperatingSystem | Select-Object -First 1).InstallDate } catch { } }
+    if (-not $cur) { try { $cur = (Get-CimInstance Win32_OperatingSystem -ErrorAction Stop).InstallDate } catch { } }
     $hist = @(Get-ChildItem 'HKLM:\SYSTEM\Setup' -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -like 'Source OS*' } | ForEach-Object {
         $p = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue
         $inst = & $fromUnix $p.InstallDate
@@ -13181,15 +12800,6 @@ function New-KiExport {
     if ($script:TestResults.Count) {
         & $head 'TESTERGEBNISSE'
         foreach ($t in $script:TestResults) { & $add ('{0} | {1} | {2}' -f $t.Test, $t.Ergebnis, $t.Details) }
-    }
-
-    if (@($script:Minidumps).Count) {
-        & $head 'ABSTURZABBILDER (Minidump / Crash Dump Inspector)'
-        foreach ($d in @($script:Minidumps)) {
-            $params = @($d.Parameter1, $d.Parameter2, $d.Parameter3, $d.Parameter4 | Where-Object { $_ -and $_ -ne '0x0' }) -join ', '
-            & $add ('{0:dd.MM.yyyy HH:mm} | Datei: {1} | Stoppcode: {2} ({3}) | Parameter: {4}' -f $d.Datum, $d.Datei, $d.BugcheckCode, $d.Name, $params)
-            & $add ('  Empfehlung: {0}' -f $d.Empfehlung)
-        }
     }
 
     if ($script:IntegrityInfo) {
@@ -14767,12 +14377,12 @@ function Find-NvidiaSmi {
 function Test-IsArm64 {
     try {
         if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64' -or $env:PROCESSOR_ARCHITEW6432 -eq 'ARM64') { return $true }
-        $p = Get-CimCached Win32_Processor | Select-Object -First 1
+        $p = Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($p) {
             if ($p.Architecture -in 12, 5) { return $true }
             if ($p.Name -match 'Snapdragon|ARM|Qualcomm') { return $true }
         }
-        $os = Get-CimCached Win32_OperatingSystem | Select-Object -First 1
+        $os = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
         if ($os -and $os.OSArchitecture -match 'ARM') { return $true }
     } catch { }
     return $false
@@ -16156,7 +15766,6 @@ try {
 } catch { Write-Warning ('Vorübergehende Änderungen früherer Läufe nicht prüfbar: {0}' -f $_.Exception.Message) }
 Open-Checkpoint
 Remove-Item (Join-Path $script:CpDir 'stop.flag') -Force -ErrorAction SilentlyContinue
-Remove-Item (Join-Path $script:CpDir 'skip.flag') -Force -ErrorAction SilentlyContinue
 # Arbeitsordner abgebrochener Läufe im lokalen TEMP: Rohdaten sichern, Ordner entfernen (steht in der Rückstandskontrolle)
 $script:StaleWorkNotes = @(); try { $script:StaleWorkNotes = @(Restore-StaleWorkDirs $OutputDir) } catch { }
 if ($script:FastMode) { Write-Host '  Schneller Modus: unabhängige Prüfungen laufen parallel, Messungen bleiben exklusiv.' }
@@ -16221,7 +15830,7 @@ Start-DiagnoseParallel 'Start'
 
 Invoke-Section 'System und Betriebssystem' {
     $cs   = Get-CimCached Win32_ComputerSystem
-    $os   = Get-CimCached Win32_OperatingSystem | Select-Object -First 1
+    $os   = Get-CimInstance Win32_OperatingSystem
     $bios = Get-CimCached Win32_BIOS
     $bb   = Get-CimCached Win32_BaseBoard
     $enc  = Get-CimCached Win32_SystemEnclosure
@@ -16415,8 +16024,8 @@ Invoke-Section 'Arbeitsspeicher' {
     $typeMap = @{ 20 = 'DDR'; 21 = 'DDR2'; 24 = 'DDR3'; 26 = 'DDR4'; 27 = 'LPDDR'; 28 = 'LPDDR2'; 29 = 'LPDDR3'; 30 = 'LPDDR4'; 34 = 'DDR5'; 35 = 'LPDDR5' }
     $ffMap   = @{ 8 = 'DIMM'; 12 = 'SO-DIMM'; 0 = 'unbekannt' }
     $mods = @(Get-CimCached Win32_PhysicalMemory)
-    $arr  = Get-CimCached Win32_PhysicalMemoryArray | Where-Object Use -eq 3 | Select-Object -First 1
-    $os   = Get-CimCached Win32_OperatingSystem | Select-Object -First 1
+    $arr  = Get-CimInstance Win32_PhysicalMemoryArray | Where-Object Use -eq 3 | Select-Object -First 1
+    $os   = Get-CimInstance Win32_OperatingSystem
     $mods | ForEach-Object {
         [pscustomobject][ordered]@{
             'Steckplatz'    = ('{0} {1}' -f $_.BankLabel, $_.DeviceLocator).Trim()
@@ -16441,7 +16050,7 @@ Invoke-Section 'Arbeitsspeicher' {
     $usedPct = 100 - ($os.FreePhysicalMemory / $os.TotalVisibleMemorySize * 100)
     Add-Line ('  Nutzbar: {0}, frei: {1}, belegt: {2:N0} %' -f (Format-Size ($os.TotalVisibleMemorySize * 1KB)), (Format-Size ($os.FreePhysicalMemory * 1KB)), $usedPct)
     Add-Line ('  Zugesichert (Commit): {0} von {1}' -f (Format-Size (($os.TotalVirtualMemorySize - $os.FreeVirtualMemory) * 1KB)), (Format-Size ($os.TotalVirtualMemorySize * 1KB)))
-    Get-CimCached Win32_PageFileUsage | ForEach-Object { Add-Line ('  Auslagerungsdatei {0}: {1} MB, aktuell {2} MB, Spitze {3} MB' -f $_.Name, $_.AllocatedBaseSize, $_.CurrentUsage, $_.PeakUsage) }
+    Get-CimInstance Win32_PageFileUsage | ForEach-Object { Add-Line ('  Auslagerungsdatei {0}: {1} MB, aktuell {2} MB, Spitze {3} MB' -f $_.Name, $_.AllocatedBaseSize, $_.CurrentUsage, $_.PeakUsage) }
 
     if ($usedPct -gt 90) { Add-Finding WARNUNG 'RAM' ('Arbeitsspeicher zu {0:N0} % belegt.' -f $usedPct) }
     if (@($mods.Speed | Select-Object -Unique).Count -gt 1) { Add-Finding WARNUNG 'RAM' 'Module mit unterschiedlichen Nenntakten verbaut.' }
@@ -16473,17 +16082,11 @@ Invoke-Section 'Grafik und Monitore' {
             'Status'        = $_.Status
         }
     } | Out-Report -List
-    $gpus = @(Get-CimCached Win32_VideoController)
-    $allBasic = ($gpus.Count -gt 0 -and -not @($gpus | Where-Object { $_.Name -notmatch 'Basic Display|Standard-VGA|Microsoft Basic' }).Count)
-    if ($allBasic) {
-        Add-Finding WARNUNG 'Grafik' 'Nur der Microsoft Basic Display Adapter ist aktiv. Eine Installation des Herstellertreibers (AMD, Intel, NVIDIA) wird dringend empfohlen.'
+    Get-CimCached Win32_VideoController | Where-Object { $_.DriverDate -and $_.DriverDate -lt (Get-Date).AddYears(-2) -and $_.Name -notmatch 'Virtual|Remote|Indirect|Parsec|spacedesk' } | ForEach-Object {
+        Add-Finding INFO 'Grafik' ('Grafiktreiber für {0} ist älter als 2 Jahre ({1:dd.MM.yyyy}).' -f $_.Name, $_.DriverDate)
     }
-    $gpus | Where-Object { $_.DriverDate -and $_.DriverDate -lt (Get-Date).AddMonths(-18) -and $_.Name -notmatch 'Virtual|Remote|Indirect|Parsec|spacedesk|Basic Display|Microsoft Basic' } | ForEach-Object {
-        Add-Finding INFO 'Grafik' ('Grafiktreiber für {0} ist älter als 18 Monate ({1:dd.MM.yyyy}), ein Update wird empfohlen.' -f $_.Name, $_.DriverDate)
-    }
-    $tdr30 = @(Get-TdrEvents (Get-Date).AddDays(-30))
-    if ($tdr30.Count) {
-        Add-Finding WARNUNG 'Grafik' ('Treiberabsturz festgestellt: Ereignis 4101 (Display driver stopped responding) trat in den letzten 30 Tagen {0}x auf. Eine saubere Neuinstallation des Grafiktreibers per DDU wird empfohlen.' -f $tdr30.Count)
+    Get-CimCached Win32_VideoController | Where-Object { $_.Name -match 'Basic Display|Standard-VGA|Microsoft Basic' } | ForEach-Object {
+        Add-Finding WARNUNG 'Grafik' 'Nur der Microsoft-Standardtreiber ist aktiv, der Herstellertreiber fehlt.'
     }
     $script:Facts['Grafik'] = Get-GpuFactText
     $gMain = Get-MainGpu; if ($gMain) { $script:BenchShort.GPU = Get-ShortGpuName $gMain.Name }
@@ -17050,7 +16653,7 @@ if ($script:Opt['Netzwerk']) {
 if ($script:Opt['RamTest']) {
     Invoke-Section 'Test: Arbeitsspeicher (Mustertest)' {
         if (-not $TypesLoaded) { Add-Line '  Übersprungen: C#-Testroutinen nicht verfügbar (Constrained Language Mode / AppLocker).'; return }
-        $os = Get-CimCached Win32_OperatingSystem | Select-Object -First 1
+        $os = Get-CimInstance Win32_OperatingSystem
         $free = [long]$os.FreePhysicalMemory * 1KB
         $target = [long]($free * $RamTestPercent / 100)
         if (-not [Environment]::Is64BitProcess) { $target = [math]::Min($target, 1.2GB) }
@@ -17304,36 +16907,19 @@ Invoke-Section ('Ereignisprotokolle (letzte {0} Tage)' -f $EventDays) {
 
 Invoke-Section 'Absturzabbilder und Zuverlässigkeit' {
     Add-Sub 'Minidumps / Kernel-Dumps'
-    $script:MinidumpResults = @(Read-Minidumps)
-    $script:Minidumps = $script:MinidumpResults
-    if ($script:MinidumpResults.Count) {
-        Add-Line ('  Gefundene Absturzabbilder (Crash Dumps): {0}' -f $script:MinidumpResults.Count)
-        foreach ($md in $script:MinidumpResults) {
-            Add-Line ('    {0:dd.MM.yyyy HH:mm} | Datei: {1} | Stoppcode: {2} ({3})' -f $md.Datum, $md.Datei, $md.BugcheckCode, $md.Name)
-            if ($md.Parameter1 -and $md.Parameter1 -ne '0x0') {
-                Add-Line ('      Parameter: {0}, {1}, {2}, {3}' -f $md.Parameter1, $md.Parameter2, $md.Parameter3, $md.Parameter4)
-            }
-            Add-Line ('      Empfehlung: {0}' -f $md.Empfehlung)
-        }
-        $recentDumps = @($script:MinidumpResults | Where-Object { $_.AlterTage -le 30 })
-        $groups = $script:MinidumpResults | Group-Object BugcheckCode
-        $recurring = @($groups | Where-Object { $_.Count -ge 2 })
-        if ($recentDumps.Count -gt 0 -or $recurring.Count -gt 0) {
-            $top = $script:MinidumpResults[0]
-            Add-Finding WARNUNG 'Stabilität' ('Windows-Absturzabbilder gefunden ({0}x, neuester {1:dd.MM.yyyy}: {2} {3}). Empfehlung: {4}' -f `
-                $script:MinidumpResults.Count, $top.Datum, $top.BugcheckCode, $top.Name, $top.Empfehlung)
-        } else {
-            $top = $script:MinidumpResults[0]
-            Add-Finding INFO 'Stabilität' ('Ältere Windows-Absturzabbilder vorhanden ({0}x, zuletzt vor {1:N0} Tagen: {2} {3}).' -f `
-                $script:MinidumpResults.Count, $top.AlterTage, $top.BugcheckCode, $top.Name)
-        }
-        $big = @($script:MinidumpResults | Where-Object { $_.Groesse -gt 1GB })
-        if ($big.Count) { Add-Finding INFO 'Speicherplatz' ('{0} belegt {1} (z. B. {2}), löschbar, wenn es nicht mehr zur Analyse gebraucht wird.' -f $(if ($big.Count -eq 1) { 'Ein großes Absturzabbild' } else { '{0} große Absturzabbilder' -f $big.Count }), (Format-Size (($big | Measure-Object Groesse -Sum).Sum)), $big[0].Pfad) }
-    } else {
-        Add-Line '  Keine Absturzabbilder in C:\Windows\Minidump oder MEMORY.DMP vorhanden.'
-    }
-    $lkr = @(Get-ChildItem "$env:windir\LiveKernelReports" -Recurse -Filter *.dmp -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -gt $Since })
-    if ($lkr.Count) { Add-Finding INFO 'Stabilität' ('{0} Live-Kernel-Reports (oft Grafiktreiber- oder USB-Hänger).' -f $lkr.Count) }
+    $dumps = @()
+    $dumps += Get-ChildItem "$env:windir\Minidump\*.dmp" -ErrorAction SilentlyContinue
+    $dumps += Get-ChildItem "$env:windir\MEMORY.DMP" -ErrorAction SilentlyContinue
+    $dumps += Get-ChildItem "$env:windir\LiveKernelReports" -Recurse -Filter *.dmp -ErrorAction SilentlyContinue
+    if ($dumps.Count) {
+        $dumps | Sort-Object LastWriteTime -Descending | Select-Object -First 20 FullName, LastWriteTime, @{n = 'Größe'; e = { Format-Size $_.Length } } | Out-Report
+        $recent = @($dumps | Where-Object { $_.LastWriteTime -gt $Since -and $_.FullName -match 'Minidump|MEMORY.DMP' })
+        if ($recent.Count) { Add-Finding WARNUNG 'Stabilität' ('{0} Absturzabbilder in den letzten {1} Tagen (Analyse z. B. mit WinDbg oder BlueScreenView).' -f $recent.Count, $EventDays) }
+        $lkr = @($dumps | Where-Object { $_.LastWriteTime -gt $Since -and $_.FullName -match 'LiveKernelReports' })
+        if ($lkr.Count) { Add-Finding INFO 'Stabilität' ('{0} Live-Kernel-Reports (oft Grafiktreiber- oder USB-Hänger).' -f $lkr.Count) }
+        $big = @($dumps | Where-Object { $_.Length -gt 1GB })
+        if ($big.Count) { Add-Finding INFO 'Speicherplatz' ('{0} belegt {1} (z. B. {2}), löschbar, wenn es nicht mehr zur Analyse gebraucht wird.' -f $(if ($big.Count -eq 1) { 'Ein großes Absturzabbild' } else { '{0} große Absturzabbilder' -f $big.Count }), (Format-Size (($big | Measure-Object Length -Sum).Sum)), $big[0].FullName) }
+    } else { Add-Line '  Keine Absturzabbilder vorhanden.' }
 
     Add-Sub 'Einstellungen für Absturzabbilder'
     $cc = Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl' -ErrorAction SilentlyContinue
@@ -18130,7 +17716,7 @@ if ($ModLast -and (Test-StepEnabled 'Last:alle')) {
             # RAM-Test eine Stufe unter normal und mit CPU-Last nur auf einem Teil der Kerne: sonst nimmt er dem
             # Grafiktreiber und der CPU-Last die Rechenzeit, Bilder/s und Auslastung schwanken stark (Praxistest 02.10.)
             $ramMax = $(if ($end.ContainsKey('CPU')) { [math]::Max(2, [int][math]::Floor($threads / 4)) } else { 0 })
-            $os = Get-CimCached Win32_OperatingSystem | Select-Object -First 1
+            $os = Get-CimInstance Win32_OperatingSystem
             $ramTarget = [long]([double]$os.FreePhysicalMemory * 1KB * $LastRamProzent / 100)
             if (-not [Environment]::Is64BitProcess) { $ramTarget = [math]::Min($ramTarget, 1.2GB) }
             $ramTask = Start-LoadJob 'ram' ([int]($plan.RAM * 60) + 60) $threads $ramTarget $ramMax -Low
@@ -18265,7 +17851,7 @@ if ($ModLast -and (Test-StepEnabled 'Last:alle')) {
             Show-Sub ('Lasttest   {0} %   noch {1:hh\:mm\:ss}   aktiv: {2}' -f $pc, $left, (($pending | ForEach-Object { $ltNames[$_] }) -join ', ')) ($st -join '   ') $pc
             for ($w = 0; $w -lt 5 -and -not $stopped; $w++) {
                 Start-Sleep -Milliseconds 500
-                if ((Test-Path $stopFile) -or (Test-SkipRequested)) { Remove-Item $stopFile -Force -ErrorAction SilentlyContinue; $stopped = $true; Write-Step 'Lasttest wird vorzeitig beendet ...' }
+                if (Test-Path $stopFile) { Remove-Item $stopFile -Force -ErrorAction SilentlyContinue; $stopped = $true; Write-Step 'Lasttest wird vorzeitig beendet ...' }
             }
             # nach dem Stopp warten die Komponenten auf ihr Ende: nicht im Leerlauf kreisen
             if ($stopped) { Start-Sleep -Milliseconds 500 }

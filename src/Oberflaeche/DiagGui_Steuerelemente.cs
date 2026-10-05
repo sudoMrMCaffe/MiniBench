@@ -53,6 +53,11 @@ static class UI
         b.Font = new Font("Segoe UI", 9.75f); b.AutoSize = true; b.Padding = new Padding(10, 3, 10, 3); b.Margin = new Padding(8, 0, 0, 0); b.Cursor = Cursors.Hand; b.UseVisualStyleBackColor = false;
         return b;
     }
+
+    public static Button SkipStepButton()
+    {
+        return Secondary("Diesen Schritt überspringen");
+    }
 }
 
 class FlatBar : Control

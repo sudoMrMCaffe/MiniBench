@@ -46,33 +46,59 @@ function Invoke-Section {
     Hide-Sub
     $script:CpCurrent = $Title
     Write-Checkpoint 'START' ('[{0}/{1}] {2}' -f $script:StepNo, $total, $Title)
+    if ((Get-Command Test-SkipRequested -ErrorAction SilentlyContinue) -and (Test-SkipRequested)) {
+        if (Get-Command Send-StepSkipped -ErrorAction SilentlyContinue) { Send-StepSkipped $Title }
+        Add-Line ('  ÜBERSPRUNGEN: Schritt durch Benutzer übersprungen.')
+        if (Get-Command Add-Test -ErrorAction SilentlyContinue) { Add-Test $Title 'ÜBERSPRUNGEN' 'Schritt durch Benutzer übersprungen' }
+        Add-Finding INFO 'Ablauf' ('Schritt "{0}" wurde auf Benutzeranforderung übersprungen.' -f $Title)
+        Write-Checkpoint 'SKIP' ('{0} (übersprungen)' -f $Title)
+        Save-Partial
+        return
+    }
     # Vor Abschnitten, bei denen ein Absturz am ehesten droht, den Zwischenstand sofort sichern (sonst gedrosselt)
     if ($Title -match '^(Lasttest|Benchmark|Test: (CPU|Arbeitsspeicher)|Reparatur|Optimierung)') { Save-Partial -Force }
     # Schneller Modus: exklusive Messungen warten auf die Hintergrundprüfungen
     try { Enter-SectionSchedule $Title } catch { }
     $sw = [Diagnostics.Stopwatch]::StartNew()
+    $wasSkipped = $false
     try { & $Body }
     catch {
-        $ln = $(if ($_.InvocationInfo) { $_.InvocationInfo.ScriptLineNumber } else { 0 })
-        Add-Line ('  FEHLER in diesem Abschnitt: {0} (Zeile {1})' -f $_.Exception.Message, $ln)
-        Write-Warning ('{0}: {1}' -f $Title, $_.Exception.Message)
-        Write-Checkpoint 'FEHLER' ('{0}: {1} (Zeile {2})' -f $Title, $_.Exception.Message, $ln)
-        # sichtbar in Befunden und Tests, nicht nur in den Details: ein abgebrochener Abschnitt darf nicht wie ein leerer Bericht aussehen
-        if ($null -ne $script:SectionErrors) { $script:SectionErrors.Add([pscustomobject]@{ Abschnitt = $Title; Meldung = $_.Exception.Message; Zeile = $ln }) }
-        Add-Finding WARNUNG 'Ablauf' ('Abschnitt "{0}" wurde wegen eines Skriptfehlers abgebrochen: {1} (Zeile {2}). Details in Checkpoint.log und in der KI-Datei.' -f $Title, $_.Exception.Message, $ln)
+        if ($_.Exception -is [System.OperationCanceledException] -or $_.Exception.Message -match 'übersprungen') {
+            $wasSkipped = $true
+            Send-StepSkipped $Title
+            Add-Line ('  ÜBERSPRUNGEN: Schritt durch Benutzer übersprungen.')
+            Add-Test $Title 'ÜBERSPRUNGEN' 'Schritt durch Benutzer übersprungen'
+            Add-Finding INFO 'Ablauf' ('Schritt "{0}" wurde auf Benutzeranforderung übersprungen.' -f $Title)
+            Write-Checkpoint 'SKIP' ('{0} (übersprungen)' -f $Title)
+        } else {
+            $ln = $(if ($_.InvocationInfo) { $_.InvocationInfo.ScriptLineNumber } else { 0 })
+            Add-Line ('  FEHLER in diesem Abschnitt: {0} (Zeile {1})' -f $_.Exception.Message, $ln)
+            Write-Warning ('{0}: {1}' -f $Title, $_.Exception.Message)
+            Write-Checkpoint 'FEHLER' ('{0}: {1} (Zeile {2})' -f $Title, $_.Exception.Message, $ln)
+            # sichtbar in Befunden und Tests, nicht nur in den Details: ein abgebrochener Abschnitt darf nicht wie ein leerer Bericht aussehen
+            if ($null -ne $script:SectionErrors) { $script:SectionErrors.Add([pscustomobject]@{ Abschnitt = $Title; Meldung = $_.Exception.Message; Zeile = $ln }) }
+            Add-Finding WARNUNG 'Ablauf' ('Abschnitt "{0}" wurde wegen eines Skriptfehlers abgebrochen: {1} (Zeile {2}). Details in Checkpoint.log und in der KI-Datei.' -f $Title, $_.Exception.Message, $ln)
+        }
     }
     $sw.Stop()
     $script:Timings.Add([pscustomobject]@{ Abschnitt = $Title; Dauer = ('{0:hh\:mm\:ss}' -f $sw.Elapsed) })
-    Write-Checkpoint 'OK' ('{0} ({1:hh\:mm\:ss})' -f $Title, $sw.Elapsed)
+    if (-not $wasSkipped) { Write-Checkpoint 'OK' ('{0} ({1:hh\:mm\:ss})' -f $Title, $sw.Elapsed) }
     try { Exit-SectionSchedule $Title } catch { }
     Save-Partial
 }
 
 # Statische WMI-Klassen (Hardware) nur einmal je Lauf abfragen
 $script:CimCache = @{}
-function Get-CimCached([string]$Class) {
-    if (-not $script:CimCache.ContainsKey($Class)) { $script:CimCache[$Class] = @(Get-CimInstance $Class -ErrorAction SilentlyContinue) }
-    return $script:CimCache[$Class]
+function Get-CimCached([string]$Class, [string]$Namespace = '') {
+    $k = if ($Namespace) { "$Namespace`:$Class" } else { $Class }
+    if (-not $script:CimCache.ContainsKey($k)) {
+        if ($Namespace) {
+            $script:CimCache[$k] = @(Get-CimInstance -Namespace $Namespace -ClassName $Class -ErrorAction SilentlyContinue)
+        } else {
+            $script:CimCache[$k] = @(Get-CimInstance -ClassName $Class -ErrorAction SilentlyContinue)
+        }
+    }
+    return $script:CimCache[$k]
 }
 
 # Laufzeit seit dem Start lesbar (ab v2.8): "5 Std 21 Min", "3 Tage 2 Std", ohne "0 Tage"
@@ -113,6 +139,10 @@ function Invoke-External {
     $o = $p.StandardOutput.ReadToEndAsync(); $e = $p.StandardError.ReadToEndAsync()
     $sw = [Diagnostics.Stopwatch]::StartNew(); $timedOut = $false
     while (-not $p.WaitForExit(500)) {
+        if ((Get-Command Test-SkipRequested -ErrorAction SilentlyContinue) -and (Test-SkipRequested)) {
+            try { $p.Kill() } catch { }
+            throw (New-Object System.OperationCanceledException 'Vom Benutzer übersprungen')
+        }
         if ($Progress) {
             $st = 'läuft seit {0:hh\:mm\:ss}' -f $sw.Elapsed
             if ($ExpectedSec -gt 0) { Show-Sub $Progress ($st + ('   (üblich: ca. {0} Min.)' -f [math]::Ceiling($ExpectedSec / 60))) ([int]([math]::Min(99.0, $sw.Elapsed.TotalSeconds / $ExpectedSec * 100.0))) }

@@ -8,7 +8,7 @@ Start-DiagnoseParallel 'Start'
 
 Invoke-Section 'System und Betriebssystem' {
     $cs   = Get-CimCached Win32_ComputerSystem
-    $os   = Get-CimInstance Win32_OperatingSystem
+    $os   = Get-CimCached Win32_OperatingSystem | Select-Object -First 1
     $bios = Get-CimCached Win32_BIOS
     $bb   = Get-CimCached Win32_BaseBoard
     $enc  = Get-CimCached Win32_SystemEnclosure
@@ -202,8 +202,8 @@ Invoke-Section 'Arbeitsspeicher' {
     $typeMap = @{ 20 = 'DDR'; 21 = 'DDR2'; 24 = 'DDR3'; 26 = 'DDR4'; 27 = 'LPDDR'; 28 = 'LPDDR2'; 29 = 'LPDDR3'; 30 = 'LPDDR4'; 34 = 'DDR5'; 35 = 'LPDDR5' }
     $ffMap   = @{ 8 = 'DIMM'; 12 = 'SO-DIMM'; 0 = 'unbekannt' }
     $mods = @(Get-CimCached Win32_PhysicalMemory)
-    $arr  = Get-CimInstance Win32_PhysicalMemoryArray | Where-Object Use -eq 3 | Select-Object -First 1
-    $os   = Get-CimInstance Win32_OperatingSystem
+    $arr  = Get-CimCached Win32_PhysicalMemoryArray | Where-Object Use -eq 3 | Select-Object -First 1
+    $os   = Get-CimCached Win32_OperatingSystem | Select-Object -First 1
     $mods | ForEach-Object {
         [pscustomobject][ordered]@{
             'Steckplatz'    = ('{0} {1}' -f $_.BankLabel, $_.DeviceLocator).Trim()
@@ -228,7 +228,7 @@ Invoke-Section 'Arbeitsspeicher' {
     $usedPct = 100 - ($os.FreePhysicalMemory / $os.TotalVisibleMemorySize * 100)
     Add-Line ('  Nutzbar: {0}, frei: {1}, belegt: {2:N0} %' -f (Format-Size ($os.TotalVisibleMemorySize * 1KB)), (Format-Size ($os.FreePhysicalMemory * 1KB)), $usedPct)
     Add-Line ('  Zugesichert (Commit): {0} von {1}' -f (Format-Size (($os.TotalVirtualMemorySize - $os.FreeVirtualMemory) * 1KB)), (Format-Size ($os.TotalVirtualMemorySize * 1KB)))
-    Get-CimInstance Win32_PageFileUsage | ForEach-Object { Add-Line ('  Auslagerungsdatei {0}: {1} MB, aktuell {2} MB, Spitze {3} MB' -f $_.Name, $_.AllocatedBaseSize, $_.CurrentUsage, $_.PeakUsage) }
+    Get-CimCached Win32_PageFileUsage | ForEach-Object { Add-Line ('  Auslagerungsdatei {0}: {1} MB, aktuell {2} MB, Spitze {3} MB' -f $_.Name, $_.AllocatedBaseSize, $_.CurrentUsage, $_.PeakUsage) }
 
     if ($usedPct -gt 90) { Add-Finding WARNUNG 'RAM' ('Arbeitsspeicher zu {0:N0} % belegt.' -f $usedPct) }
     if (@($mods.Speed | Select-Object -Unique).Count -gt 1) { Add-Finding WARNUNG 'RAM' 'Module mit unterschiedlichen Nenntakten verbaut.' }
@@ -260,11 +260,17 @@ Invoke-Section 'Grafik und Monitore' {
             'Status'        = $_.Status
         }
     } | Out-Report -List
-    Get-CimCached Win32_VideoController | Where-Object { $_.DriverDate -and $_.DriverDate -lt (Get-Date).AddYears(-2) -and $_.Name -notmatch 'Virtual|Remote|Indirect|Parsec|spacedesk' } | ForEach-Object {
-        Add-Finding INFO 'Grafik' ('Grafiktreiber für {0} ist älter als 2 Jahre ({1:dd.MM.yyyy}).' -f $_.Name, $_.DriverDate)
+    $gpus = @(Get-CimCached Win32_VideoController)
+    $allBasic = ($gpus.Count -gt 0 -and -not @($gpus | Where-Object { $_.Name -notmatch 'Basic Display|Standard-VGA|Microsoft Basic' }).Count)
+    if ($allBasic) {
+        Add-Finding WARNUNG 'Grafik' 'Nur der Microsoft Basic Display Adapter ist aktiv. Eine Installation des Herstellertreibers (AMD, Intel, NVIDIA) wird dringend empfohlen.'
     }
-    Get-CimCached Win32_VideoController | Where-Object { $_.Name -match 'Basic Display|Standard-VGA|Microsoft Basic' } | ForEach-Object {
-        Add-Finding WARNUNG 'Grafik' 'Nur der Microsoft-Standardtreiber ist aktiv, der Herstellertreiber fehlt.'
+    $gpus | Where-Object { $_.DriverDate -and $_.DriverDate -lt (Get-Date).AddMonths(-18) -and $_.Name -notmatch 'Virtual|Remote|Indirect|Parsec|spacedesk|Basic Display|Microsoft Basic' } | ForEach-Object {
+        Add-Finding INFO 'Grafik' ('Grafiktreiber für {0} ist älter als 18 Monate ({1:dd.MM.yyyy}), ein Update wird empfohlen.' -f $_.Name, $_.DriverDate)
+    }
+    $tdr30 = @(Get-TdrEvents (Get-Date).AddDays(-30))
+    if ($tdr30.Count) {
+        Add-Finding WARNUNG 'Grafik' ('Treiberabsturz festgestellt: Ereignis 4101 (Display driver stopped responding) trat in den letzten 30 Tagen {0}x auf. Eine saubere Neuinstallation des Grafiktreibers per DDU wird empfohlen.' -f $tdr30.Count)
     }
     $script:Facts['Grafik'] = Get-GpuFactText
     $gMain = Get-MainGpu; if ($gMain) { $script:BenchShort.GPU = Get-ShortGpuName $gMain.Name }
@@ -831,7 +837,7 @@ if ($script:Opt['Netzwerk']) {
 if ($script:Opt['RamTest']) {
     Invoke-Section 'Test: Arbeitsspeicher (Mustertest)' {
         if (-not $TypesLoaded) { Add-Line '  Übersprungen: C#-Testroutinen nicht verfügbar (Constrained Language Mode / AppLocker).'; return }
-        $os = Get-CimInstance Win32_OperatingSystem
+        $os = Get-CimCached Win32_OperatingSystem | Select-Object -First 1
         $free = [long]$os.FreePhysicalMemory * 1KB
         $target = [long]($free * $RamTestPercent / 100)
         if (-not [Environment]::Is64BitProcess) { $target = [math]::Min($target, 1.2GB) }
@@ -1085,19 +1091,36 @@ Invoke-Section ('Ereignisprotokolle (letzte {0} Tage)' -f $EventDays) {
 
 Invoke-Section 'Absturzabbilder und Zuverlässigkeit' {
     Add-Sub 'Minidumps / Kernel-Dumps'
-    $dumps = @()
-    $dumps += Get-ChildItem "$env:windir\Minidump\*.dmp" -ErrorAction SilentlyContinue
-    $dumps += Get-ChildItem "$env:windir\MEMORY.DMP" -ErrorAction SilentlyContinue
-    $dumps += Get-ChildItem "$env:windir\LiveKernelReports" -Recurse -Filter *.dmp -ErrorAction SilentlyContinue
-    if ($dumps.Count) {
-        $dumps | Sort-Object LastWriteTime -Descending | Select-Object -First 20 FullName, LastWriteTime, @{n = 'Größe'; e = { Format-Size $_.Length } } | Out-Report
-        $recent = @($dumps | Where-Object { $_.LastWriteTime -gt $Since -and $_.FullName -match 'Minidump|MEMORY.DMP' })
-        if ($recent.Count) { Add-Finding WARNUNG 'Stabilität' ('{0} Absturzabbilder in den letzten {1} Tagen (Analyse z. B. mit WinDbg oder BlueScreenView).' -f $recent.Count, $EventDays) }
-        $lkr = @($dumps | Where-Object { $_.LastWriteTime -gt $Since -and $_.FullName -match 'LiveKernelReports' })
-        if ($lkr.Count) { Add-Finding INFO 'Stabilität' ('{0} Live-Kernel-Reports (oft Grafiktreiber- oder USB-Hänger).' -f $lkr.Count) }
-        $big = @($dumps | Where-Object { $_.Length -gt 1GB })
-        if ($big.Count) { Add-Finding INFO 'Speicherplatz' ('{0} belegt {1} (z. B. {2}), löschbar, wenn es nicht mehr zur Analyse gebraucht wird.' -f $(if ($big.Count -eq 1) { 'Ein großes Absturzabbild' } else { '{0} große Absturzabbilder' -f $big.Count }), (Format-Size (($big | Measure-Object Length -Sum).Sum)), $big[0].FullName) }
-    } else { Add-Line '  Keine Absturzabbilder vorhanden.' }
+    $script:MinidumpResults = @(Read-Minidumps)
+    $script:Minidumps = $script:MinidumpResults
+    if ($script:MinidumpResults.Count) {
+        Add-Line ('  Gefundene Absturzabbilder (Crash Dumps): {0}' -f $script:MinidumpResults.Count)
+        foreach ($md in $script:MinidumpResults) {
+            Add-Line ('    {0:dd.MM.yyyy HH:mm} | Datei: {1} | Stoppcode: {2} ({3})' -f $md.Datum, $md.Datei, $md.BugcheckCode, $md.Name)
+            if ($md.Parameter1 -and $md.Parameter1 -ne '0x0') {
+                Add-Line ('      Parameter: {0}, {1}, {2}, {3}' -f $md.Parameter1, $md.Parameter2, $md.Parameter3, $md.Parameter4)
+            }
+            Add-Line ('      Empfehlung: {0}' -f $md.Empfehlung)
+        }
+        $recentDumps = @($script:MinidumpResults | Where-Object { $_.AlterTage -le 30 })
+        $groups = $script:MinidumpResults | Group-Object BugcheckCode
+        $recurring = @($groups | Where-Object { $_.Count -ge 2 })
+        if ($recentDumps.Count -gt 0 -or $recurring.Count -gt 0) {
+            $top = $script:MinidumpResults[0]
+            Add-Finding WARNUNG 'Stabilität' ('Windows-Absturzabbilder gefunden ({0}x, neuester {1:dd.MM.yyyy}: {2} {3}). Empfehlung: {4}' -f `
+                $script:MinidumpResults.Count, $top.Datum, $top.BugcheckCode, $top.Name, $top.Empfehlung)
+        } else {
+            $top = $script:MinidumpResults[0]
+            Add-Finding INFO 'Stabilität' ('Ältere Windows-Absturzabbilder vorhanden ({0}x, zuletzt vor {1:N0} Tagen: {2} {3}).' -f `
+                $script:MinidumpResults.Count, $top.AlterTage, $top.BugcheckCode, $top.Name)
+        }
+        $big = @($script:MinidumpResults | Where-Object { $_.Groesse -gt 1GB })
+        if ($big.Count) { Add-Finding INFO 'Speicherplatz' ('{0} belegt {1} (z. B. {2}), löschbar, wenn es nicht mehr zur Analyse gebraucht wird.' -f $(if ($big.Count -eq 1) { 'Ein großes Absturzabbild' } else { '{0} große Absturzabbilder' -f $big.Count }), (Format-Size (($big | Measure-Object Groesse -Sum).Sum)), $big[0].Pfad) }
+    } else {
+        Add-Line '  Keine Absturzabbilder in C:\Windows\Minidump oder MEMORY.DMP vorhanden.'
+    }
+    $lkr = @(Get-ChildItem "$env:windir\LiveKernelReports" -Recurse -Filter *.dmp -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -gt $Since })
+    if ($lkr.Count) { Add-Finding INFO 'Stabilität' ('{0} Live-Kernel-Reports (oft Grafiktreiber- oder USB-Hänger).' -f $lkr.Count) }
 
     Add-Sub 'Einstellungen für Absturzabbilder'
     $cc = Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl' -ErrorAction SilentlyContinue

@@ -6,7 +6,8 @@
 
 **Portable Diagnose-, Benchmark-, Stresstest-, Reparatur- und Optimierungs-Suite für Windows 10 & 11.**
 
-[![Version](https://img.shields.io/badge/Version-2.9-0284c7.svg)](Doku/Versionshistorie.txt)
+[![Version](https://img.shields.io/badge/Version-2.95-0284c7.svg)](CHANGELOG.md)
+[![Changelog](https://img.shields.io/badge/Changelog-MD-6366f1.svg)](CHANGELOG.md)
 [![Plattform](https://img.shields.io/badge/Windows-10%20%7C%2011%20(x64)-0078d4.svg)]()
 [![Laufzeit](https://img.shields.io/badge/PowerShell-5.1%2B%20%7C%20C%23%205-1e293b.svg)]()
 [![Tests](https://img.shields.io/badge/Tests-500%2B%20bestanden-22c55e.svg)](tests/)

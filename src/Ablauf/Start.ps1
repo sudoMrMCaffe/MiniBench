@@ -54,6 +54,7 @@ try {
 } catch { Write-Warning ('Vorübergehende Änderungen früherer Läufe nicht prüfbar: {0}' -f $_.Exception.Message) }
 Open-Checkpoint
 Remove-Item (Join-Path $script:CpDir 'stop.flag') -Force -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $script:CpDir 'skip.flag') -Force -ErrorAction SilentlyContinue
 # Arbeitsordner abgebrochener Läufe im lokalen TEMP: Rohdaten sichern, Ordner entfernen (steht in der Rückstandskontrolle)
 $script:StaleWorkNotes = @(); try { $script:StaleWorkNotes = @(Restore-StaleWorkDirs $OutputDir) } catch { }
 if ($script:FastMode) { Write-Host '  Schneller Modus: unabhängige Prüfungen laufen parallel, Messungen bleiben exklusiv.' }

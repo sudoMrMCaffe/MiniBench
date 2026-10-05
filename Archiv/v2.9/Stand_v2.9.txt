@@ -1,18 +1,18 @@
 ﻿LEOS MINIBENCH: AKTUELLER BUILD
 ===============================
-Version   : 2.95 (Dateiversion 2.95.0.0)
-Gebaut    : 05.10.2026 14:25 auf WIN11VM
-Tests     : 537 bestanden, 0 fehlgeschlagen, 99 übersprungen (Pester 6.2.0, PowerShell 5.1.26100.9444)
-Quelltext : 40 Teile aus src, 19,247 Zeilen
+Version   : 2.9 (Dateiversion 2.90.0.0)
+Gebaut    : 05.10.2026 10:53 auf WIN11VM
+Tests     : 521 bestanden, 0 fehlgeschlagen, 99 übersprungen (Pester 6.2.0, PowerShell 5.1.26100.1591)
+Quelltext : 40 Teile aus src, 18,833 Zeilen
 
 Dateien (SHA-256 zur Kontrolle auf dem Stick: Get-FileHash <Datei>)
-  LeosMinibench.exe         1,488 KB  45405bc17696ffaeafa6717af6d8bc962c8fe05069c4258455a49b08dbf3f538
-  LeosMinibench.ps1         1,414 KB  3065b066bdf0a6e45ca7547e157e8eb588bb741a873a35267553a7df6580553a
+  LeosMinibench.exe         1,463 KB  96591cc54989e383c13fadea1809f99381301bcba0d1ac1fe74473b7512c4d62
+  LeosMinibench.ps1         1,390 KB  561639d9d0b429439e4b92ecc8f7117c577953fd25918b8c8155c1a0e6f1ef94
   LeosMinibench.cmd             1 KB  2238c6583cfb33fb714e6e74a5d251d0c451f9ec950230a04e2046b48d29529a
 
 Für den USB-Stick: den Inhalt dieses Ordners auf den Stick kopieren und vorhandene Dateien ersetzen.
 LeosMinibench.exe genügt allein; LeosMinibench.ps1 und .cmd sind für den Start ohne exe.
-Änderungen dieser Version: Doku\Änderungen_v2.95.txt; alle Versionen: Seite Versionen im Programm und Doku\Versionshistorie.txt.
+Änderungen dieser Version: Doku\Änderungen_v2.9.txt; alle Versionen: Seite Versionen im Programm und Doku\Versionshistorie.txt.
 Der Ordner Minibench-Daten auf dem Stick (Berichte, Datenbank, Tools, Änderungsprotokoll) bleibt dabei erhalten.
 Ein Ordner Minibench-Daten hier im Aktuellen Build entsteht nur, wenn das Programm von hier gestartet wurde; er gehört nicht auf den Stick.
 Diesen Ordner nicht von Hand ändern: Bauen.cmd erzeugt ihn bei jedem Bau neu aus src.

@@ -1,0 +1,116 @@
+﻿{
+    "Format":  "PC-Diagnose-DB/2",
+    "Name":  "Referenz: Mini-PC / APU (Ryzen 7 255H, Radeon 780M)",
+    "Computer":  "Referenz-MiniPC-APU",
+    "Geraet":  {
+                   "Id":  "REF-REFERENZ-MINIPC-APU",
+                   "Guete":  "hoch",
+                   "Quellen":  [
+                                   "Referenzsystem"
+                               ]
+               },
+    "Datum":  "2026-10-01 12:00",
+    "Version":  "2.95",
+    "Quelle":  "Referenz",
+    "Module":  "Benchmark",
+    "Messdauer":  "normal",
+    "System":  "Mini-PC / APU (AMD Ryzen 7)",
+    "Hardware":  {
+                     "CPU":  "AMD Ryzen 7 H 255 w/ Radeon 780M Graphics",
+                     "RAM":  "32 GB DDR5-5600",
+                     "GPU":  "Radeon 780M Graphics",
+                     "IGPU":  "Radeon 780M Graphics",
+                     "GPUGemessen":  "AMD Radeon 780M Graphics",
+                     "Datentraeger":  "NVMe PCIe 4.0 SSD 1TB",
+                     "Betriebssystem":  "Microsoft Windows 11",
+                     "Mainboard":  "Mini-PC Mainboard",
+                     "WindowsInstalliert":  null
+                 },
+    "Werte":  {
+                  "GPU|DWM":  1670,
+                  "RAM|Latenz":  112,
+                  "GPU|VMB":  28.4,
+                  "CPU|MT":  46553,
+                  "DISK|NVMe4|W1":  54294,
+                  "GPU|REND":  46.8,
+                  "GPU|REND1":  42.3,
+                  "DISK|NVMe4|R8":  34279,
+                  "RAM|Kopieren":  17.4,
+                  "DISK|NVMe4|SR":  4295,
+                  "RAM|Schreiben":  25.4,
+                  "CPU|ST":  2928,
+                  "CPU|AES":  1362,
+                  "CPU|SHA":  2409,
+                  "GPU|RPKT":  4313,
+                  "RAM|Lesen":  58.2,
+                  "DISK|NVMe4|R1":  4519,
+                  "CPU|DEFL":  345,
+                  "DISK|NVMe4|SW":  1140
+              },
+    "Messwerte":  {
+                      "CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|ST":  2928,
+                      "CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|MT":  46553,
+                      "CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|AES":  1362,
+                      "CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|SHA":  2409,
+                      "CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|DEFL":  345,
+                      "RAM|32GB|5600|Lesen":  58.2,
+                      "RAM|32GB|5600|Schreiben":  25.4,
+                      "RAM|32GB|5600|Kopieren":  17.4,
+                      "RAM|32GB|5600|Latenz":  112,
+                      "GPU|AMD Radeon 780M Graphics|VMB":  28.4,
+                      "GPU|AMD Radeon 780M Graphics|DWM":  1670,
+                      "GPU|AMD Radeon 780M Graphics|REND|1280x720":  46.8,
+                      "GPU|AMD Radeon 780M Graphics|REND1|1280x720":  42.3,
+                      "GPU|AMD Radeon 780M Graphics|RPKT":  4313,
+                      "DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|SR":  4295,
+                      "DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|SW":  1140,
+                      "DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|R1":  4519,
+                      "DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|R8":  34279,
+                      "DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|W1":  54294,
+                      "WINSAT|CPU":  9.4,
+                      "WINSAT|RAM":  9.4,
+                      "WINSAT|DISK":  8.45,
+                      "WINSAT|GFX":  8.2
+                  },
+    "Ordner":  "",
+    "Laufwerke":  [
+                      {
+                          "Laufwerk":  "PC801 NVMe SK hynix 1TB",
+                          "Klasse":  "NVMe PCIe 4.0 x4",
+                          "SR":  4295,
+                          "SW":  1140,
+                          "R1":  4519,
+                          "R8":  34279,
+                          "W1":  54294
+                      }
+                  ],
+    "Befunde":  {
+                    "Kritisch":  0,
+                    "Warnungen":  0,
+                    "Hinweise":  0,
+                    "Liste":  [
+
+                              ]
+                },
+    "Lasttest":  null,
+    "Rendertest":  [
+                       {
+                           "Grafik":  "AMD Radeon 780M Graphics",
+                           "Art":  "iGPU",
+                           "Aufloesung":  "1280x720",
+                           "Fps":  46.8,
+                           "Low1":  42.3,
+                           "Punkte":  4313,
+                           "Bildfehler":  0,
+                           "Treiberreset":  false,
+                           "Fehler":  ""
+                       }
+                   ],
+    "Schreibzugriffe":  null,
+    "Ablauf":  "normal",
+    "Sensoren":  {
+
+                 },
+    "Optimierung":  null,
+    "Akku":  null
+}

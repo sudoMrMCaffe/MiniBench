@@ -1,0 +1,182 @@
+﻿{
+    "Format":  "PC-Diagnose-DB/2",
+    "Name":  "Referenz: Desktop High-End (Ryzen 7600X, RX 6800)",
+    "Computer":  "Referenz-Desktop-HighEnd",
+    "Geraet":  {
+                   "Id":  "REF-REFERENZ-DESKTOP-HIGHEND",
+                   "Guete":  "hoch",
+                   "Quellen":  [
+                                   "Referenzsystem"
+                               ]
+               },
+    "Datum":  "2026-10-01 12:00",
+    "Version":  "2.95",
+    "Quelle":  "Referenz",
+    "Module":  "Benchmark",
+    "Messdauer":  "normal",
+    "System":  "Desktop High-End (AMD B650)",
+    "Hardware":  {
+                     "CPU":  "AMD Ryzen 5 7600X",
+                     "RAM":  "32 GB DDR5-6000",
+                     "GPU":  "Radeon RX 6800",
+                     "IGPU":  null,
+                     "GPUGemessen":  "AMD Radeon RX 6800",
+                     "Datentraeger":  "NVMe PCIe 4.0 SSD 1TB; NVMe PCIe 3.0 SSD 1TB; SATA SSD 1TB",
+                     "Betriebssystem":  "Microsoft Windows 11",
+                     "Mainboard":  "AMD B650 Mainboard",
+                     "WindowsInstalliert":  null
+                 },
+    "Werte":  {
+                  "DISK|NVMe4|SW":  2779,
+                  "RAM|Lesen":  61.9,
+                  "CPU|MT":  38883,
+                  "DISK|NVMe4|R8":  119846,
+                  "DISK|SATA-SSD|SW":  524,
+                  "DISK|NVMe4|SR":  6551,
+                  "RAM|Kopieren":  24.1,
+                  "GPU|REND":  133.3,
+                  "GPU|REND1":  121,
+                  "DISK|SATA-SSD|R8":  73138,
+                  "DISK|SATA-SSD|R1":  11337,
+                  "DISK|NVMe3|R8":  109080,
+                  "DISK|SATA-SSD|SR":  558,
+                  "CPU|AES":  1429,
+                  "DISK|NVMe3|W1":  58294,
+                  "GPU|RPKT":  12285,
+                  "GPU|VMB":  296.1,
+                  "GPU|DWM":  17440,
+                  "DISK|NVMe3|R1":  14090,
+                  "DISK|NVMe3|SW":  2910,
+                  "CPU|ST":  3092,
+                  "DISK|NVMe4|R1":  14178,
+                  "DISK|SATA-SSD|W1":  29740,
+                  "DISK|NVMe3|SR":  3114,
+                  "RAM|Latenz":  80.6,
+                  "RAM|Schreiben":  31.3,
+                  "DISK|NVMe4|W1":  52665,
+                  "CPU|SHA":  2535,
+                  "CPU|DEFL":  296
+              },
+    "Messwerte":  {
+                      "CPU|AMD Ryzen 5 7600X 6-Core Processor|ST":  3092,
+                      "CPU|AMD Ryzen 5 7600X 6-Core Processor|MT":  38883,
+                      "CPU|AMD Ryzen 5 7600X 6-Core Processor|AES":  1429,
+                      "CPU|AMD Ryzen 5 7600X 6-Core Processor|SHA":  2535,
+                      "CPU|AMD Ryzen 5 7600X 6-Core Processor|DEFL":  296,
+                      "RAM|32GB|6000|Lesen":  61.9,
+                      "RAM|32GB|6000|Schreiben":  31.3,
+                      "RAM|32GB|6000|Kopieren":  24.1,
+                      "RAM|32GB|6000|Latenz":  80.6,
+                      "GPU|AMD Radeon RX 6800|VMB":  296.1,
+                      "GPU|AMD Radeon RX 6800|DWM":  17440,
+                      "GPU|AMD Radeon RX 6800|REND|1280x720":  133.3,
+                      "GPU|AMD Radeon RX 6800|REND1|1280x720":  121,
+                      "GPU|AMD Radeon RX 6800|RPKT":  12285,
+                      "DISK|203791800341|SanDisk SDSSDH3 1T02|SR":  554,
+                      "DISK|203791800341|SanDisk SDSSDH3 1T02|SW":  514,
+                      "DISK|203791800341|SanDisk SDSSDH3 1T02|R1":  10433,
+                      "DISK|203791800341|SanDisk SDSSDH3 1T02|R8":  70639,
+                      "DISK|203791800341|SanDisk SDSSDH3 1T02|W1":  29362,
+                      "DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|SR":  563,
+                      "DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|SW":  533,
+                      "DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|R1":  12241,
+                      "DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|R8":  75637,
+                      "DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|W1":  30117,
+                      "DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|SR":  6551,
+                      "DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|SW":  2779,
+                      "DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|R1":  14178,
+                      "DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|R8":  119846,
+                      "DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|W1":  52665,
+                      "DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|SR":  2805,
+                      "DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|SW":  2908,
+                      "DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|R1":  16504,
+                      "DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|R8":  124476,
+                      "DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|W1":  48673,
+                      "DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|SR":  3422,
+                      "DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|SW":  2912,
+                      "DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|R1":  11676,
+                      "DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|R8":  93685,
+                      "DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|W1":  67914,
+                      "WINSAT|CPU":  9.3,
+                      "WINSAT|RAM":  9.3,
+                      "WINSAT|DISK":  9.35,
+                      "WINSAT|GFX":  9.9
+                  },
+    "Ordner":  "",
+    "Laufwerke":  [
+                      {
+                          "Laufwerk":  "SanDisk SDSSDH3 1T02",
+                          "Klasse":  "SATA-SSD",
+                          "SR":  554,
+                          "SW":  514,
+                          "R1":  10433,
+                          "R8":  70639,
+                          "W1":  29362
+                      },
+                      {
+                          "Laufwerk":  "Samsung SSD 860 EVO 1TB",
+                          "Klasse":  "SATA-SSD",
+                          "SR":  563,
+                          "SW":  533,
+                          "R1":  12241,
+                          "R8":  75637,
+                          "W1":  30117
+                      },
+                      {
+                          "Laufwerk":  "SAMSUNG MZVL21T0HCLR-00B00",
+                          "Klasse":  "NVMe PCIe 4.0 x4",
+                          "SR":  6551,
+                          "SW":  2779,
+                          "R1":  14178,
+                          "R8":  119846,
+                          "W1":  52665
+                      },
+                      {
+                          "Laufwerk":  "Lexar SSD NM620 1TB",
+                          "Klasse":  "NVMe PCIe 3.0 x4",
+                          "SR":  2805,
+                          "SW":  2908,
+                          "R1":  16504,
+                          "R8":  124476,
+                          "W1":  48673
+                      },
+                      {
+                          "Laufwerk":  "WDS100T3X0C-00SJG0",
+                          "Klasse":  "NVMe PCIe 3.0 x4",
+                          "SR":  3422,
+                          "SW":  2912,
+                          "R1":  11676,
+                          "R8":  93685,
+                          "W1":  67914
+                      }
+                  ],
+    "Befunde":  {
+                    "Kritisch":  0,
+                    "Warnungen":  0,
+                    "Hinweise":  0,
+                    "Liste":  [
+
+                              ]
+                },
+    "Lasttest":  null,
+    "Rendertest":  [
+                       {
+                           "Grafik":  "AMD Radeon RX 6800",
+                           "Art":  "dGPU",
+                           "Aufloesung":  "1280x720",
+                           "Fps":  133.3,
+                           "Low1":  121,
+                           "Punkte":  12285,
+                           "Bildfehler":  0,
+                           "Treiberreset":  false,
+                           "Fehler":  ""
+                       }
+                   ],
+    "Schreibzugriffe":  null,
+    "Ablauf":  "normal",
+    "Sensoren":  {
+
+                 },
+    "Optimierung":  null,
+    "Akku":  null
+}

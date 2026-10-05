@@ -79,7 +79,7 @@ if ($ModLast -and (Test-StepEnabled 'Last:alle')) {
             # RAM-Test eine Stufe unter normal und mit CPU-Last nur auf einem Teil der Kerne: sonst nimmt er dem
             # Grafiktreiber und der CPU-Last die Rechenzeit, Bilder/s und Auslastung schwanken stark (Praxistest 02.10.)
             $ramMax = $(if ($end.ContainsKey('CPU')) { [math]::Max(2, [int][math]::Floor($threads / 4)) } else { 0 })
-            $os = Get-CimInstance Win32_OperatingSystem
+            $os = Get-CimCached Win32_OperatingSystem | Select-Object -First 1
             $ramTarget = [long]([double]$os.FreePhysicalMemory * 1KB * $LastRamProzent / 100)
             if (-not [Environment]::Is64BitProcess) { $ramTarget = [math]::Min($ramTarget, 1.2GB) }
             $ramTask = Start-LoadJob 'ram' ([int]($plan.RAM * 60) + 60) $threads $ramTarget $ramMax -Low
@@ -214,7 +214,7 @@ if ($ModLast -and (Test-StepEnabled 'Last:alle')) {
             Show-Sub ('Lasttest   {0} %   noch {1:hh\:mm\:ss}   aktiv: {2}' -f $pc, $left, (($pending | ForEach-Object { $ltNames[$_] }) -join ', ')) ($st -join '   ') $pc
             for ($w = 0; $w -lt 5 -and -not $stopped; $w++) {
                 Start-Sleep -Milliseconds 500
-                if (Test-Path $stopFile) { Remove-Item $stopFile -Force -ErrorAction SilentlyContinue; $stopped = $true; Write-Step 'Lasttest wird vorzeitig beendet ...' }
+                if ((Test-Path $stopFile) -or (Test-SkipRequested)) { Remove-Item $stopFile -Force -ErrorAction SilentlyContinue; $stopped = $true; Write-Step 'Lasttest wird vorzeitig beendet ...' }
             }
             # nach dem Stopp warten die Komponenten auf ihr Ende: nicht im Leerlauf kreisen
             if ($stopped) { Start-Sleep -Milliseconds 500 }

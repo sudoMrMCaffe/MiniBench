@@ -1,0 +1,116 @@
+﻿{
+    "Format":  "PC-Diagnose-DB/2",
+    "Name":  "Referenz: Notebook Standard (Core i5, Intel UHD)",
+    "Computer":  "Referenz-Notebook-Standard",
+    "Geraet":  {
+                   "Id":  "REF-REFERENZ-NOTEBOOK-STANDARD",
+                   "Guete":  "hoch",
+                   "Quellen":  [
+                                   "Referenzsystem"
+                               ]
+               },
+    "Datum":  "2026-10-01 12:00",
+    "Version":  "2.95",
+    "Quelle":  "Referenz",
+    "Module":  "Benchmark",
+    "Messdauer":  "normal",
+    "System":  "Notebook Standard (Intel Core i5)",
+    "Hardware":  {
+                     "CPU":  "Intel Core i5-8365U",
+                     "RAM":  "24 GB DDR4-2400",
+                     "GPU":  "UHD Graphics 620",
+                     "IGPU":  "UHD Graphics 620",
+                     "GPUGemessen":  "Intel(R) UHD Graphics 620",
+                     "Datentraeger":  "NVMe PCIe 3.0 SSD 512GB",
+                     "Betriebssystem":  "Microsoft Windows 11",
+                     "Mainboard":  "Notebook Mainboard",
+                     "WindowsInstalliert":  null
+                 },
+    "Werte":  {
+                  "DISK|NVMe3|R8":  112473,
+                  "GPU|DWM":  383,
+                  "RAM|Latenz":  134.4,
+                  "GPU|VMB":  6.5,
+                  "CPU|MT":  14744,
+                  "GPU|REND":  4.8,
+                  "GPU|REND1":  4.7,
+                  "DISK|NVMe3|W1":  22297,
+                  "RAM|Kopieren":  9.9,
+                  "RAM|Schreiben":  13.4,
+                  "CPU|ST":  2133,
+                  "CPU|AES":  1031,
+                  "CPU|SHA":  437,
+                  "GPU|RPKT":  442,
+                  "RAM|Lesen":  28.3,
+                  "DISK|NVMe3|SW":  2424,
+                  "DISK|NVMe3|R1":  15440,
+                  "DISK|NVMe3|SR":  3487,
+                  "CPU|DEFL":  118
+              },
+    "Messwerte":  {
+                      "CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|ST":  2133,
+                      "CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|MT":  14744,
+                      "CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|AES":  1031,
+                      "CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|SHA":  437,
+                      "CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|DEFL":  118,
+                      "RAM|24GB|2400|Lesen":  28.3,
+                      "RAM|24GB|2400|Schreiben":  13.4,
+                      "RAM|24GB|2400|Kopieren":  9.9,
+                      "RAM|24GB|2400|Latenz":  134.4,
+                      "GPU|Intel(R) UHD Graphics 620|VMB":  6.5,
+                      "GPU|Intel(R) UHD Graphics 620|DWM":  383,
+                      "GPU|Intel(R) UHD Graphics 620|REND|1280x720":  4.8,
+                      "GPU|Intel(R) UHD Graphics 620|REND1|1280x720":  4.7,
+                      "GPU|Intel(R) UHD Graphics 620|RPKT":  442,
+                      "DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|SR":  3487,
+                      "DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|SW":  2424,
+                      "DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|R1":  15440,
+                      "DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|R8":  112473,
+                      "DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|W1":  22297,
+                      "WINSAT|CPU":  8.9,
+                      "WINSAT|RAM":  8.9,
+                      "WINSAT|DISK":  9.05,
+                      "WINSAT|GFX":  6.2
+                  },
+    "Ordner":  "",
+    "Laufwerke":  [
+                      {
+                          "Laufwerk":  "SAMSUNG MZVLB512HBJQ-000L7",
+                          "Klasse":  "NVMe PCIe 3.0 x4",
+                          "SR":  3487,
+                          "SW":  2424,
+                          "R1":  15440,
+                          "R8":  112473,
+                          "W1":  22297
+                      }
+                  ],
+    "Befunde":  {
+                    "Kritisch":  0,
+                    "Warnungen":  0,
+                    "Hinweise":  0,
+                    "Liste":  [
+
+                              ]
+                },
+    "Lasttest":  null,
+    "Rendertest":  [
+                       {
+                           "Grafik":  "Intel(R) UHD Graphics 620",
+                           "Art":  "iGPU",
+                           "Aufloesung":  "1280x720",
+                           "Fps":  4.8,
+                           "Low1":  4.7,
+                           "Punkte":  442,
+                           "Bildfehler":  0,
+                           "Treiberreset":  false,
+                           "Fehler":  ""
+                       }
+                   ],
+    "Schreibzugriffe":  null,
+    "Ablauf":  "normal",
+    "Sensoren":  {
+
+                 },
+    "Optimierung":  null,
+    "Akku":  null
+}

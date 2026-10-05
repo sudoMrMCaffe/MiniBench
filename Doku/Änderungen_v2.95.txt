@@ -1,0 +1,121 @@
+﻿LEOS MINIBENCH 2.95: ÄNDERUNGEN
+===============================
+
+Version 2.95 erweitert Leos Minibench um anonymisierte Referenzsysteme ab Werk, ein Gesamtleistungs-Banner,
+die Überarbeitung der Leistungssektion im UserBenchmark-Stil (Nutzungsprofile Gaming/Büro/Workstation, Komponenten-
+Köpfe und Spalten-Layout), Schnellwahl und Einzelschritt-Überspringen im Ablauf, den Minidump Crash Inspector
+sowie einen gezielten Grafiktreiber-Gesundheitscheck.
+
+1. ANONYME VERGLEICHSDATEN FEST EINGEBAUT (TEIL A)
+Fünf bereinigte und anonymisierte Referenzdatensätze wurden unter src\Daten\Referenzen\ fest hinterlegt:
+- Desktop High-End (AMD Ryzen 5 7600X, AMD Radeon RX 6800)
+- Workstation Mobil (Intel Core i9-13900H, NVIDIA RTX 3000 Ada Generation Laptop GPU)
+- Desktop Mittelklasse (AMD Ryzen 5 5600, AMD Radeon RX 570)
+- Mini-PC APU (AMD Ryzen 7 255H, AMD Radeon 780M)
+- Notebook Standard (Intel Core i5-1135G7, Intel Iris Xe Graphics)
+Beim Erstanlegen des Datenordners (src\Kern\Datenordner.ps1) werden diese Referenzsysteme automatisch in die
+lokale Vergleichsdatenbank (Minibench-Daten\Datenbank) des Nutzers kopiert. Vergleichskurven und relative
+Leistungsbalken sind dadurch ab dem allerersten Start ohne vorherige manuelle Benchmark-Läufe verfügbar.
+
+2. GESAMTLEISTUNGS-BANNER IM BERICHT-HEADER (TEIL A)
+Im Kopfbereich des HTML-Berichts (src\Bericht\HtmlBericht.ps1) wird neben den Zählern für kritische Befunde,
+Warnungen und Hinweise eine hervorgehobene Leistungskarte (Klasse .card.bench) dargestellt. Sie ruft Get-BenchOverall
+auf und zeigt den gerundeten Gesamtergebnis-Prozentwert im Verhältnis zum Referenzsystem als große Zahl.
+
+3. BENCHMARK-DARSTELLUNG IM USERBENCHMARK-STIL (TEIL A)
+Die Leistungssektion des HTML-Berichts wurde grundlegend modernisiert:
+- Nutzungsprofile: Die neue Funktion New-ProfileCards in src\Bericht\Bausteine_Systemvergleich.ps1 berechnet
+  aus den gemessenen Gruppen-Referenzprozenten (Get-BenchGroup) drei praxisnahe Nutzungsprofile:
+  * 🎮 Gaming: Gewichtung CPU-ST 1x, CPU-MT 0,5x, GPU 3x, RAM 0,5x, Laufwerke 0,5x.
+  * 💼 Büro / Desktop: Gewichtung CPU-ST 2x, CPU-MT 1x, GPU 0,5x, RAM 1x, Laufwerke 2x.
+  * ⚙️ Workstation: Gewichtung CPU-ST 0,5x, CPU-MT 3x, GPU 1x, RAM 2x, Laufwerke 1x.
+  Die Berechnung erfolgt über das gewichtete geometrische Mittel (Get-GeoMean). Jede Profilkarte zeigt den
+  Profilnamen, das Gesamtergebnis in Prozent, ein zugehöriges Bewertungswort (Get-BenchRatingWord) und einen
+  Referenzbalken. Die Karten werden angezeigt, sobald mindestens drei der vier Hauptgruppen vorliegen.
+- Komponenten-Kopf: In den aufgeklappten Detailgruppen (<details class="grp">) ersetzt der neue Kopfblock
+  (.grp-head) die knappe Beschreibung. Er stellt den genauen Hardware-Namen (z. B. AMD Ryzen 5 7600X),
+  das Gruppen-Prozentergebnis, das Bewertungswort und den Referenzbalken prominent dar.
+- Spalten-Layout für Untertests: Für Prozessor, Arbeitsspeicher und Grafikkarte wird die bisherige Tabelle
+  durch ein responsives Spalten-Grid (.bench-cols) abgelöst. Eine Hauptspalte zeigt das Gruppenergebnis,
+  während jede Messgröße als Kachel mit Bezeichnung, Messwert, Referenzbalken und historischem Vergleichs-Delta
+  präsentiert wird. Laufwerke und WinSAT behalten ihre bewährte Tabellen- bzw. SVG-Darstellung.
+- Bewertungswort: Die Skala Get-BenchRatingWord ordnet Prozentwerte sachlichen Begriffen zu:
+  Hervorragend (>= 115 %), Sehr gut (>= 100 %), Gut (>= 85 %), Durchschnittlich (>= 70 %),
+  Mäßig (>= 50 %) und Unterdurchschnittlich (< 50 %).
+
+4. WARTUNG & ERGONOMIE (TEIL B)
+- Im Modulvertrag der Wartung (src\Module\Wartung\Vertrag.psd1) wurde die Voreinstellung Ueblich = $true
+  auf risikoarme Routineaufgaben angepasst: Datenträgerbereinigung, temporäre Dateien, Shader-Caches,
+  Download-Reste, Absturzabbilder, Prefetch und WMI-Prüfung. Eingriffsintensive Maßnahmen (SFC, DISM-Restore,
+  Dateisystemprüfung) bleiben für die manuelle Auswahl reserviert.
+- In der Oberfläche (src\Oberflaeche\DiagGui.cs) wurden die Schnellwahlschalter „Übliche Auswahl“ und
+  „Keine“ an den Anfang über die Maßnahmenliste verlegt und mit Tooltips (Tip(...)) ausgestattet.
+
+5. SCHRITT ÜBERSPRINGEN IM LAUF (TEIL B)
+- Die Laufansicht wurde um die Schaltfläche „Diesen Schritt überspringen“ (UI.SkipStepButton) ergänzt.
+- Beim Klick erzeugt die Oberfläche im Laufzeitverzeichnis die Steuerdatei skip.flag.
+- Der Arbeitsprozess prüft dieses Signal in Invoke-Section (src\Kern\Berichtshilfen.ps1), Invoke-External,
+  Wait-TaskProgress und Wait-JobWithProgress (src\Kern\Grundgeruest.ps1) sowie in der Lasttestschleife.
+- Ein übersprungener Schritt wird sauber über das neue Ereignis @@SCHRITT_UEBERSPRINGEN quittiert, im
+  Checkpoint-Protokoll als SKIP vermerkt und in Befunden und Tests als „ÜBERSPRUNGEN“ geführt.
+
+6. DURCHLAUFZEIT-OPTIMIERUNG (CIM-CACHING, TEIL B)
+- Get-CimCached in src\Kern\Berichtshilfen.ps1 wurde um optionale Namensraum-Unterstützung erweitert.
+- Unveränderliche Systemabfragen (Win32_OperatingSystem, Win32_PhysicalMemoryArray, Win32_PageFileUsage,
+  Win32_Processor) in Diagnose, Lasttest, Sensoren und SMART-Auswertungen nutzen nun konsequent den Cache,
+  wodurch wiederholte WMI-Kanalaufrufe entfallen.
+
+7. MINIDUMP CRASH INSPECTOR (TEIL C)
+- Die neue Funktion Read-Minidumps in src\Kern\Checkpoints_Absturzanalyse.ps1 führt eine native Binäranalyse
+  von Windows-Absturzabbildern durch (C:\Windows\Minidump\*.dmp und C:\Windows\MEMORY.DMP).
+- Sie liest MINIDUMP_HEADER bzw. DUMP_HEADER64, extrahiert Stoppcode, Fehlerparameter und Zeitstempel und
+  ordnet bekannte Bugchecks (z. B. 0x133 DPC_WATCHDOG, 0x3B SYSTEM_SERVICE, 0x116 VIDEO_TDR, 0xD1 DRIVER_IRQL)
+  lesbaren Bezeichnungen und konkreten technischen Empfehlungen (Get-BugcheckRecommendation) zu.
+- Das Modul Diagnose bewertet Funde automatisch: Neuere Abbilder (<= 30 Tage) oder wiederkehrende Stoppcodes
+  erzeugen eine Warnung; ältere Abbilder werden als Information gemeldet.
+- Ergebnisse werden in einer eigenen Tabelle im HTML-Bericht und im Abschnitt ABSTURZABBILDER der KI-Datei ausgegeben.
+
+8. GRAFIKTREIBER-GESUNDHEITSCHECK (TEIL C)
+In der Diagnoseprüfung „Grafik und Monitore“ (src\Module\Diagnose\Ablauf.ps1) wurden drei Prüfungen integriert:
+- Standardtreiber-Prüfung: Ist ausschließlich der Microsoft Basic Display Adapter aktiv, warnt ein Befund
+  und empfiehlt die Installation des passenden Hersteller-Grafiktreibers.
+- Treiber-Alter: Liegt das Treiberdatum mehr als 18 Monate zurück, weist ein Befund auf ein empfohlenes Update hin.
+- TDR-Erkennung: Wurden in den letzten 30 Tagen Treiber-Resets (Event ID 4101 Display driver stopped responding)
+  im Systemprotokoll verzeichnet, warnt Minibench und empfiehlt eine saubere Neuinstallation via DDU.
+
+GEFUNDEN UND BEHOBEN
+  1. String-Interpolation in PowerShell-Kommandozeile: Bei Skriptausführungen über CLI wurden Variablen
+     durch die äußere Shell vorzeitig expandiert. Alle Datei-Normalisierungen und Skriptaufrufe wurden auf
+     saubere Powershell-Blöcke umgestellt.
+  2. Typ- und Eigenschafts-Mapping für Minidump-Berichte: In HtmlBericht.ps1 wurden die Feldnamen Zeit und Datum
+     sowie Bugcheck und BugcheckCode synchronisiert, sodass Minidump-Objekte sowohl alte als auch neue Feldnamen
+     bereitstellen.
+  3. Responsives Umbrechen der Benchmark-Spalten: Auf Bildschirmen unter 700px Breite brach das Grid
+     .bench-cols um, benötigte jedoch eine einspaltige Medienregel (@media (max-width:700px){.bench-cols{grid-template-columns:1fr}}),
+     um horizontales Scrollen auf Smartphones zu verhindern.
+  4. Ereignisabgleich im Protokoll-Test: Aufbau.Tests.ps1 gleicht gesendete Ereignisse über den Regex [A-Z]+ ab.
+     Durch die Aufnahme von case "SCHRITT_UEBERSPRINGEN": in DiagGui.cs ist die Verarbeitung gewährleistet.
+  5. C#-Tooltips für Wartungs-Aktionsknöpfe: Gemäß Regel 8 aus AGENTS.md erhielten die neu über die Liste versetzten
+     Schaltflächen „Übliche Auswahl“ und „Keine“ aussagekräftige Tooltips (Tip(...)).
+  6. Robustheit bei isolierten Komponententests: In src\Kern\Berichtshilfen.ps1 und Checkpoints_Absturzanalyse.ps1
+     wurden Aufrufe von Test-SkipRequested und Send-StepSkipped sowie Pfadzuweisungen für leere Variablen defensiv
+     abgesichert, sodass Unit-Tests Funktionen isoliert ohne Laufzeitfehler laden können.
+  7. Skalenharmonisierung der Benchmark-Bewertungswörter: Get-BenchRatingWord in src\Kern\Referenz_Vergleich.ps1
+     wurde auf die einheitliche 6-Stufen-Skala (Hervorragend, Sehr gut, Gut, Durchschnittlich, Mäßig, Unterdurchschnittlich)
+     präzisiert.
+
+GRENZEN
+  - Minidumps können nur gelesen werden, wenn der ausführende Prozess administrative Leserechte auf C:\Windows\Minidump hat.
+  - Befindet sich der Rechner im abgesicherten Modus ohne WMI-Dienst, liefert der CIM-Cache leere Listen.
+
+UMSTIEG
+  1. Bauen.cmd ausführen (erzeugt LeosMinibench.exe und LeosMinibench.ps1 für v2.95).
+  2. Inhalt des Ordners "Aktueller Build" auf den USB-Stick kopieren.
+  3. Die Datenbank des Nutzers übernimmt beim nächsten Start automatisch die fünf Referenzdatensätze.
+
+ERGEBNIS
+  Alle Pester-Tests bestanden (0 Fehler). Vollständige C# 5-Kompilierung ohne Warnungen.
+
+QUELLEN
+  https://learn.microsoft.com/windows-hardware/drivers/debugger/bug-check-code-reference
+  https://learn.microsoft.com/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_header

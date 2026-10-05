@@ -23,6 +23,20 @@ if ($EventMode) {
     }
     function Write-Warning { param([Parameter(Position = 0)][string]$Message) Write-Host ('WARNUNG: ' + $Message) -ForegroundColor Yellow }
 }
+
+function Send-StepSkipped([string]$StepName = '') {
+    Send-GuiEvent 'SCHRITT_UEBERSPRINGEN' $StepName
+}
+
+function Test-SkipRequested {
+    if (-not $script:CpDir) { return $false }
+    $p = Join-Path $script:CpDir 'skip.flag'
+    if (Test-Path -LiteralPath $p) {
+        Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue
+        return $true
+    }
+    return $false
+}
 #endregion
 
 #region ---------- Startphasen (ab v2.6, Roadmap v2.5) ----------

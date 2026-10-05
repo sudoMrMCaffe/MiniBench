@@ -10,16 +10,16 @@
     Parameter       = @('Wartung', 'Reparaturen', 'OhneWiederherstellungspunkt')
     Datenbankfelder = @()
     Schritte        = @(
-        @{ Key = 'DismRestore'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 20; Vorauswahl = $true; Ueblich = $true
+        @{ Key = 'DismRestore'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 20; Vorauswahl = $true; Ueblich = $false
            Titel = 'Komponentenspeicher prüfen und reparieren (DISM)'
            Text  = 'Komponentenspeicher prüfen und reparieren (DISM ScanHealth, bei Bedarf RestoreHealth)' }
-        @{ Key = 'Sfc'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 12; Vorauswahl = $true; Ueblich = $true
+        @{ Key = 'Sfc'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 12; Vorauswahl = $true; Ueblich = $false
            Titel = 'Systemdateien reparieren (sfc /scannow)'
            Text  = 'Systemdateien reparieren (sfc /scannow, nach DISM)' }
         @{ Key = 'Komponentenbereinigung'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 15; Vorauswahl = $false; Ueblich = $false
            Titel = 'Komponentenspeicher bereinigen (DISM)'
            Text  = 'Komponentenspeicher bereinigen (DISM StartComponentCleanup, gibt Platz frei)' }
-        @{ Key = 'Dateisystem'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'keins'; Minuten = 5; Vorauswahl = $false; Ueblich = $true
+        @{ Key = 'Dateisystem'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'keins'; Minuten = 5; Vorauswahl = $false; Ueblich = $false
            Titel = 'Dateisystemfehler beheben'
            Text  = 'Dateisystemfehler beheben (Onlinescan, SpotFix, Systemlaufwerk beim Neustart)' }
         @{ Key = 'WindowsUpdate'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'immer'; Rueckgaengig = 'Hinweis'; Minuten = 2; Vorauswahl = $false; Ueblich = $false
@@ -49,7 +49,7 @@
         @{ Key = 'Energieplaene'; Typ = 'Massnahme'; Risiko = 'Aendern'; Neustart = 'nie'; Rueckgaengig = 'Protokoll'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
            Titel = 'Energiesparpläne zurücksetzen'
            Text  = 'Energiesparpläne auf Standard zurücksetzen (eigene Pläne werden vorher gesichert)' }
-        @{ Key = 'Datentraegerbereinigung'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 10; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'Datentraegerbereinigung'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 10; Vorauswahl = $false; Ueblich = $true
            Titel = 'Datenträgerbereinigung mit allen Kategorien'
            Text  = 'Datenträgerbereinigung (cleanmgr mit allen Kategorien außer Downloads)' }
         @{ Key = 'Leistungszaehler'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
@@ -58,16 +58,16 @@
         @{ Key = 'Leerlaufaufgaben'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
            Titel = 'Leerlaufaufgaben jetzt ausführen'
            Text  = 'Aufgeschobene Windows-Wartungsaufgaben starten (ProcessIdleTasks)' }
-        @{ Key = 'ShaderCache'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'ShaderCache'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $true
            Titel = 'Shader-Caches der Grafiktreiber leeren'
            Text  = 'DirectX-, OpenGL-, Intel- und AMD-Shader-Caches leeren' }
-        @{ Key = 'UpdateDownloads'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'UpdateDownloads'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $true
            Titel = 'Heruntergeladene Updates löschen'
            Text  = 'SoftwareDistribution-Download-Ordner leeren (installierte Updates bleiben erhalten)' }
-        @{ Key = 'Absturzabbilder'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'Absturzabbilder'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $true
            Titel = 'Absturzabbilder und Installationsreste löschen'
            Text  = 'CrashDumps, MSOCache, RetailDemo und Treiberreste leeren' }
-        @{ Key = 'Prefetch'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'Prefetch'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $true
            Titel = 'Prefetch-Daten löschen'
            Text  = 'Prefetch-Ordner leeren (Windows baut die Daten danach neu auf)' }
         @{ Key = 'PaketCache'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false

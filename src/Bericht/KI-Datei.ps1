@@ -130,6 +130,15 @@ function New-KiExport {
         foreach ($t in $script:TestResults) { & $add ('{0} | {1} | {2}' -f $t.Test, $t.Ergebnis, $t.Details) }
     }
 
+    if (@($script:Minidumps).Count) {
+        & $head 'ABSTURZABBILDER (Minidump / Crash Dump Inspector)'
+        foreach ($d in @($script:Minidumps)) {
+            $params = @($d.Parameter1, $d.Parameter2, $d.Parameter3, $d.Parameter4 | Where-Object { $_ -and $_ -ne '0x0' }) -join ', '
+            & $add ('{0:dd.MM.yyyy HH:mm} | Datei: {1} | Stoppcode: {2} ({3}) | Parameter: {4}' -f $d.Datum, $d.Datei, $d.BugcheckCode, $d.Name, $params)
+            & $add ('  Empfehlung: {0}' -f $d.Empfehlung)
+        }
+    }
+
     if ($script:IntegrityInfo) {
         & $head 'SYSTEMDATEIEN (Einordnung vorab, siehe Regel 2)'
         & $add ('Einordnung: {0}' -f $script:IntegrityInfo.Kategorie)
