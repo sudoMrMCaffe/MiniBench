@@ -28,8 +28,6 @@
 
 ## 🚀 Schnellstart
 
-> [!TIP]
-> **Ultraschlank & autark:** Es genügt völlig, **ausschließlich die `LeosMinibench.exe` herunterzuladen** (~1,4 MB, z. B. direkt auf einen USB-Stick). Beim ersten Start legt das Programm den Ordner `Minibench-Daten` automatisch frisch an – ganz ohne Altlasten oder fremde Vergleichssysteme.
 
 1. **[LeosMinibench.exe herunterladen](https://github.com/sudoMrMCaffe/MiniBench/raw/main/Aktueller%20Build/LeosMinibench.exe)** (oder auf den USB-Stick kopieren).
 2. Per Doppelklick als **Administrator** starten (UAC bestätigen).
