@@ -14,9 +14,26 @@
 
 <br/>
 
+<a href="https://github.com/sudoMrMCaffe/MiniBench/raw/main/Aktueller%20Build/LeosMinibench.exe">
+  <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20Download-LeosMinibench.exe%20(v2.9)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Download LeosMinibench.exe" />
+</a>
+
+<br/><br/>
+
 <img src="Doku/Screenshots/Oberflaeche.png" alt="Leos Minibench 2.9 Oberfläche" width="850" />
 
 </div>
+
+---
+
+## 🚀 Schnellstart
+
+> [!TIP]
+> **Ultraschlank & autark:** Es genügt völlig, **ausschließlich die `LeosMinibench.exe` herunterzuladen** (~1,4 MB, z. B. direkt auf einen USB-Stick). Beim ersten Start legt das Programm den Ordner `Minibench-Daten` automatisch frisch an – ganz ohne Altlasten oder fremde Vergleichssysteme.
+
+1. **[LeosMinibench.exe herunterladen](https://github.com/sudoMrMCaffe/MiniBench/raw/main/Aktueller%20Build/LeosMinibench.exe)** (oder auf den USB-Stick kopieren).
+2. Per Doppelklick als **Administrator** starten (UAC bestätigen).
+3. Gewünschte Module wählen und **Start** klicken. Alle Berichte landen sauber unter `Minibench-Daten\Berichte\`.
 
 ---
 
@@ -49,14 +66,8 @@ Das Werkzeug erzeugt nach jedem Lauf detaillierte, interaktive HTML-Berichte mit
 
 ---
 
-## Schnellstart
+## Für Entwickler
 
-### Für Anwender (USB-Stick)
-1. Inhalt aus `Aktueller Build/` auf einen USB-Stick kopieren.
-2. `LeosMinibench.exe` per Doppelklick als Administrator starten.
-3. Module auswählen und **Start** klicken. Berichte landen unter `Minibench-Daten\Berichte\`.
-
-### Für Entwickler
 * **Tests ausführen:** `Testen.cmd` (über 500 Pester-Tests für Modulverträge, Risikostufen und AST-Syntax).
 * **Programm bauen:** `Bauen.cmd` (Syntaxprüfung, Testlauf, EXE-Kompilierung und automatische Archivierung nach `Aktueller Build/`).
 * **Vorgaben:** Quellcode-Änderungen nur in `src/`, UTF-8 mit BOM + CRLF, Modulverträge in `Vertrag.psd1` einhalten (Details in [AGENTS.md](AGENTS.md)).
