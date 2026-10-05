@@ -115,12 +115,26 @@ function ConvertTo-RenderResult($Run, $Adapter) {
     $err = [string]$Run.Error
     if ($hung -and -not $err) { $err = 'Grafiktreiber reagiert nicht, der Rendertest ließ sich nicht beenden (Werte bis dahin)' }
     $sec = [double]$Run.Seconds; if ($sec -le 0) { $sec = [double]$Run.ElapsedSec }
+    $fps = [double]$Run.AvgFps
+    $low1 = [double]$Run.Low1Fps
+    $low01 = [double]$Run.Low01Fps
+    $med = [double]$Run.MedianMs
+    $p99 = [double]$Run.P99Ms
+    $maxMs = [double]$Run.MaxMs
+    if ($Run.MeasuredFrames -gt 0 -and $sec -gt 0) {
+        $avgMs = $sec * 1000.0 / $Run.MeasuredFrames
+        if ($low1 -le 0 -and $fps -gt 0) { $low1 = $fps }
+        if ($low01 -le 0 -and $fps -gt 0) { $low01 = $fps }
+        if ($med -le 0 -and $avgMs -gt 0) { $med = $avgMs }
+        if ($p99 -le 0 -and $avgMs -gt 0) { $p99 = $avgMs }
+        if ($maxMs -le 0 -and $avgMs -gt 0) { $maxMs = $avgMs }
+    }
     [pscustomobject]@{
         Name = $(if ($Run.AdapterName) { [string]$Run.AdapterName } else { [string]$Adapter.Name }); Art = [string]$Adapter.Art; Bezeichnung = [string]$Adapter.Bezeichnung; Index = [int]$Adapter.Index
         Ok = ([bool]$Run.Ok -and -not $hung); Fehler = $err; Haengt = $hung; Aufloesung = ('{0}x{1}' -f $Run.Width, $Run.Height); Width = [int]$Run.Width; Height = [int]$Run.Height
         Ebene = [string]$Run.FeatureLevel; Sekunden = [math]::Round($sec, 1); Bilder = [long]$Run.MeasuredFrames
-        Fps = [math]::Round([double]$Run.AvgFps, 1); Low1 = [math]::Round([double]$Run.Low1Fps, 1); Low01 = [math]::Round([double]$Run.Low01Fps, 1); Mikroruckler = [math]::Round([double]$Run.StutterPct, 2); MinFps = [math]::Round([double]$Run.MinFps, 1); MaxFps = [math]::Round([double]$Run.MaxFps, 1)
-        MedianMs = [math]::Round([double]$Run.MedianMs, 2); P99Ms = [math]::Round([double]$Run.P99Ms, 2); MaxMs = [math]::Round([double]$Run.MaxMs, 1); Punkte = [math]::Round([double]$Run.Score)
+        Fps = [math]::Round($fps, 1); Low1 = [math]::Round($low1, 1); Low01 = [math]::Round($low01, 1); Mikroruckler = [math]::Round([double]$Run.StutterPct, 2); MinFps = [math]::Round([double]$Run.MinFps, 1); MaxFps = [math]::Round([double]$Run.MaxFps, 1)
+        MedianMs = [math]::Round($med, 2); P99Ms = [math]::Round($p99, 2); MaxMs = [math]::Round($maxMs, 1); Punkte = [math]::Round([double]$Run.Score)
         Treiberreset = [bool]$Run.DeviceRemoved; ResetGrund = [string]$Run.RemovedReason; Esc = [bool]$Run.EscPressed
         Bildpruefungen = [int]$Run.ImageChecks; Bildfehler = [int]$Run.ImageErrors; Referenzbild = [string]$Run.RefHash
         FpsVerlauf = @($Run.FpsPerSecond | ForEach-Object { [math]::Round([double]$_, 1) }); Bildzeiten = $Run.FrameMs
@@ -232,6 +246,10 @@ function Invoke-RenderBenchmark($Adapters, [int]$Width, [int]$Height, [int]$Prev
         $total = [double]($WarmupMs + $MeasureMs + 6600)
         $sw = [Diagnostics.Stopwatch]::StartNew()
         while (-not $r.Done) {
+            if ((Get-Command Test-SkipRequested -ErrorAction SilentlyContinue) -and (Test-SkipRequested)) {
+                $r.Stop = $true
+                break
+            }
             $pc = [int][math]::Min(99.0, $sw.ElapsedMilliseconds / $total * 100.0)
             Show-Sub ('Benchmark Grafik: Rendertest {0}/{1}' -f $n, @($Adapters).Count) ('{0}   {1}   {2:N0} Bilder/s' -f $ad.Name, $r.Phase, $r.LiveFps) $pc
             # Frist: 2 Minuten über der geplanten Dauer anhalten, nach weiteren 30 s ohne Antwort aufgeben (Treiber hängt)

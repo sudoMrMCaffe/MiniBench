@@ -164,36 +164,8 @@ static class Program
 
         StringBuilder extra = new StringBuilder();
         foreach (string a in args) extra.Append(' ').Append(Quote(a));
-        string ps = null;
-        string pfPwsh = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"PowerShell\7\pwsh.exe");
-        string laPwsh = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\PowerShell\pwsh.exe");
-        if (File.Exists(pfPwsh)) ps = pfPwsh;
-        else if (File.Exists(laPwsh)) ps = laPwsh;
-        else
-        {
-            string pathEnv = Environment.GetEnvironmentVariable("PATH");
-            if (!string.IsNullOrEmpty(pathEnv))
-            {
-                foreach (string p in pathEnv.Split(';'))
-                {
-                    try
-                    {
-                        string trimmed = p.Trim();
-                        if (trimmed.Length > 0)
-                        {
-                            string cand = Path.Combine(trimmed, "pwsh.exe");
-                            if (File.Exists(cand)) { ps = cand; break; }
-                        }
-                    }
-                    catch { }
-                }
-            }
-        }
-        if (ps == null)
-        {
-            string ps5 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe");
-            ps = File.Exists(ps5) ? ps5 : "powershell.exe";
-        }
+        string ps = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe");
+        if (!File.Exists(ps)) ps = "powershell.exe";
 
         string evName = "Local\\LeosMinibench-Bereit-" + me;
         EventWaitHandle ready = null;
@@ -296,6 +268,11 @@ $work = ''
 try {
     if (-not $Here) { $Here = (Get-Location).Path }
     $Here = $Here.TrimEnd('\')
+    $sysMod = Join-Path $env:windir 'system32\WindowsPowerShell\v1.0\Modules'
+    $userMod = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'WindowsPowerShell\Modules'
+    $progMod = Join-Path $env:ProgramFiles 'WindowsPowerShell\Modules'
+    $modPaths = @($userMod, $progMod, $sysMod) | Where-Object { Test-Path -LiteralPath $_ }
+    if ($modPaths.Count) { $env:PSModulePath = ($modPaths + ($env:PSModulePath -split ';' | Where-Object { $_ })) -join ';' }
     $srcDir = Join-Path $Here 'src'
     $build = Join-Path $Here 'Aktueller Build'
     if (-not (Test-Path (Join-Path $srcDir 'Bauplan.txt'))) { throw ('Der Quelltextordner src mit Bauplan.txt fehlt in {0}.' -f $Here) }
@@ -392,10 +369,21 @@ try {
     [void]$st.AppendLine(('Tests     : {0}' -f $testInfo))
     [void]$st.AppendLine(('Quelltext : {0} Teile aus src, {1:N0} Zeilen' -f $r.Teile.Count, $r.Zeilen))
     [void]$st.AppendLine('')
+    function Get-Sha256Hex([string]$Path) {
+        if (Get-Command Get-FileHash -ErrorAction SilentlyContinue) {
+            try { return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant() } catch { }
+        }
+        $sha = [System.Security.Cryptography.SHA256]::Create()
+        $fs = [System.IO.File]::OpenRead($Path)
+        try {
+            $bytes = $sha.ComputeHash($fs)
+            return (($bytes | ForEach-Object { $_.ToString('x2') }) -join '')
+        } finally { $fs.Dispose(); $sha.Dispose() }
+    }
     [void]$st.AppendLine('Dateien (SHA-256 zur Kontrolle auf dem Stick: Get-FileHash <Datei>)')
     foreach ($f in $files) {
         $fi = Get-Item -LiteralPath (Join-Path $build $f)
-        [void]$st.AppendLine(('  {0,-22} {1,8:N0} KB  {2}' -f $f, [math]::Ceiling($fi.Length / 1KB), (Get-FileHash -LiteralPath $fi.FullName -Algorithm SHA256).Hash.ToLowerInvariant()))
+        [void]$st.AppendLine(('  {0,-22} {1,8:N0} KB  {2}' -f $f, [math]::Ceiling($fi.Length / 1KB), (Get-Sha256Hex $fi.FullName)))
     }
     [void]$st.AppendLine('')
     [void]$st.AppendLine('Für den USB-Stick: den Inhalt dieses Ordners auf den Stick kopieren und vorhandene Dateien ersetzen.')

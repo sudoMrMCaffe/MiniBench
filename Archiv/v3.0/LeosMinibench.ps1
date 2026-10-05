@@ -221,7 +221,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenp
 }
 #endregion
 
-$ScriptVersion = '3.1'
+$ScriptVersion = '3.0'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -7455,10 +7455,7 @@ public class DbEntry
                 if (e.Computer.Length == 0) e.Computer = System.IO.Path.GetFileNameWithoutExtension(f);
                 list.Add(e);
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine("DbEntry.Load Fehler in " + f + ": " + ex.Message);
-            }
+            catch { }
         }
         list.Sort(delegate(DbEntry a, DbEntry c) { int r = String.Compare(a.DisplayName, c.DisplayName, StringComparison.OrdinalIgnoreCase); return r != 0 ? r : String.Compare(c.Datum, a.Datum, StringComparison.Ordinal); });
         return list;
@@ -8601,11 +8598,6 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
-        new Eintrag("3.1", "05.10.2026", "Bugfix-Release: Vergleichsseite, eingebettete Referenzdaten, CPU-Benchmark und Grafiktest auf Einsteiger-GPUs",
-            "Vergleichsseite: Fehlerbehebung beim Einlesen der Systemdatenbank und Logging im JSON-Parser (DbEntry.Load), sodass Systeme zuverlässig angezeigt werden. " +
-            "Eingebettete Referenzdaten: Fünf anonyme Referenzprofile (Desktop High-End bis Notebook Standard) direkt im Skript eingebettet und bei leerer Datenbank automatisch entpackt. " +
-            "Prozessor-Benchmark: Behebung der CPU-Leistungsregression durch verbindliche Ausführung unter Windows PowerShell 5.1 ohne JIT- und Sensor-Overhead. " +
-            "Grafik-Benchmark: Robuste Bildzeit- und Perzentil-Erfassung bei niedrigen Bildraten (Intel UHD Graphics auf Notebooks), Ausfallschutz für Hybrid-Grafik und zusätzliche Feature-Level."),
         new Eintrag("3.0", "05.10.2026", "Dual-Runtime (PowerShell 7 / 5.1), sicheres Schritt-Überspringen, Frametime-Latenzen (0,1 % Low & Mikroruckler), eingebettete Referenzen und Tabellenoptik",
             "Dual-Runtime-Unterstützung: Automatische Bevorzugung von PowerShell 7 (pwsh.exe) für maximale Geschwindigkeit mit nahtlosem Fallback auf Windows PowerShell 5.1. " +
             "Sicheres Überspringen langwieriger Einzelschritte mit dynamischer Freigabe (SKIP_ALLOWED) und sauberem Abbruch von Hintergrundjobs ohne Skriptfehler. " +
@@ -12816,8 +12808,7 @@ float4 PS(VO i) : SV_Target
             {
                 IntPtr ad;
                 int hr = en(fac, i, out ad);
-                if (hr == DXGI_ERROR_NOT_FOUND) break;
-                if (hr < 0) continue;
+                if (hr == DXGI_ERROR_NOT_FOUND || hr < 0) break;
                 try { res.Add(Describe(ad, (int)i)); }
                 finally { Release(ref ad); }
             }
@@ -12966,12 +12957,6 @@ float4 PS(VO i) : SV_Target
         double[] st = hc > fm.Length ? StatsHist(h, hmax, sec, r.Width, r.Height) : fm.Length > 0 ? Stats(fm, sec, r.Width, r.Height) : new double[8];
         // Ø Bilder/s aus allen gemessenen Bildern (auch denen, deren Bildzeit wegen einer Messpause nicht gewertet wurde)
         r.AvgFps = r.MeasuredFrames / sec;
-        double avgMs = sec * 1000.0 / r.MeasuredFrames;
-        if (st[1] <= 0 && r.AvgFps > 0) st[1] = r.AvgFps;
-        if (st[2] <= 0 && avgMs > 0) st[2] = avgMs;
-        if (st[3] <= 0 && avgMs > 0) st[3] = avgMs;
-        if (st[4] <= 0 && avgMs > 0) st[4] = avgMs;
-        if (st[6] <= 0 && r.AvgFps > 0) st[6] = r.AvgFps;
         r.Low1Fps = st[1]; r.MedianMs = st[2]; r.P99Ms = st[3]; r.MaxMs = st[4];
         r.Score = r.AvgFps * r.Width * r.Height / 10000.0;
         r.Low01Fps = st[6];
@@ -13044,14 +13029,8 @@ float4 PS(VO i) : SV_Target
             GpuAdapter info = Describe(adapter, r.AdapterIndex);
             r.AdapterName = info.Name;
             int level;
-            int[] levels = new int[] { 0xB100, 0xB000, 0xA100, 0xA000, 0x9300 };
-            int hrDev = D3D11CreateDevice(adapter, 0, IntPtr.Zero, 0, levels, (uint)levels.Length, 7, out dev, out level, out ctx);
-            if (hrDev < 0 && adapter != IntPtr.Zero)
-            {
-                // Fallback: versuche Standardadapter, falls dezidierte GPU offline/nicht erreichbar (z. B. Hybrid-Grafik)
-                hrDev = D3D11CreateDevice(IntPtr.Zero, 1, IntPtr.Zero, 0, levels, (uint)levels.Length, 7, out dev, out level, out ctx);
-            }
-            Check(hrDev, "D3D11CreateDevice");
+            int[] levels = new int[] { 0xB000, 0xA100, 0xA000 };
+            Check(D3D11CreateDevice(adapter, 0, IntPtr.Zero, 0, levels, (uint)levels.Length, 7, out dev, out level, out ctx), "D3D11CreateDevice");
             r.FeatureLevel = ((level >> 12) & 0xF) + "_" + ((level >> 8) & 0xF);
 
             r.Phase = "Shader werden übersetzt";
@@ -13222,7 +13201,7 @@ float4 PS(VO i) : SV_Target
 
                 r.Phase = r.WarmupMs > 0 ? "Aufwärmen" : "Messung";
                 sw.Start();
-                double lastDone = 0, lastMs = 0, measureStart = -1, nextPreview = 0.1, nextInfo = 0, nextCheck = r.CheckEveryMs > 0 ? r.CheckEveryMs / 1000.0 : double.MaxValue;
+                double lastDone = 0, measureStart = -1, nextPreview = 0.1, nextInfo = 0, nextCheck = r.CheckEveryMs > 0 ? r.CheckEveryMs / 1000.0 : double.MaxValue;
                 double previewStep = 1.0 / Math.Max(1, Math.Min(60, r.PreviewHz));
                 double secStart = 0; long secFrames = 0, liveFrames = 0; double liveStart = 0;
                 // Ring der Vorschau-Kopien: pendHead = älteste ausstehende Kopie, pendCount = Zahl ausstehender Kopien
@@ -13248,7 +13227,7 @@ float4 PS(VO i) : SV_Target
                         // zwei Bilder in Arbeit: so kommen die Bildzeiten gleichmäßig an (bei drei bündeln manche Treiber die Abfragen)
                         waitQuery((frameNo - 3) % 4);
                         double t = sw.Elapsed.TotalSeconds;
-                        double ms = (t - lastDone) * 1000.0; lastMs = ms;
+                        double ms = (t - lastDone) * 1000.0;
                         lastDone = t;
                         r.Frames++; liveFrames++;
                         if (measureStart >= 0 && t >= measureStart)
@@ -13289,10 +13268,9 @@ float4 PS(VO i) : SV_Target
                                     break;
                                 }
                                 pendHead = (k + 1) % 3; pendCount--;
-                                // das Kopieren für die Vorschau kostet den Renderthread etwa eine Millisekunde: bei hohen
-                                // Bildraten (lastMs < 20) das nächste Bild nicht werten, um Gleichheit mit "ohne Anzeige" zu wahren.
-                                // Bei niedrigen Bildraten (z. B. Intel iGPU) nicht überspringen, da sonst alle Bilder verworfen würden.
-                                if (lastMs > 0 && lastMs < 20.0 && r.skipStats == 0) r.skipStats = 1;
+                                // das Kopieren für die Vorschau kostet den Renderthread etwa eine Millisekunde: das nächste
+                                // Bild nicht werten (zählt aber für Ø Bilder/s), sonst wären Fenster und "ohne Anzeige" ungleich
+                                r.skipStats = Math.Max(r.skipStats, 1);
                             }
                             if (pendCount < 3 && now >= nextPreview)
                             {
@@ -16661,26 +16639,12 @@ function ConvertTo-RenderResult($Run, $Adapter) {
     $err = [string]$Run.Error
     if ($hung -and -not $err) { $err = 'Grafiktreiber reagiert nicht, der Rendertest ließ sich nicht beenden (Werte bis dahin)' }
     $sec = [double]$Run.Seconds; if ($sec -le 0) { $sec = [double]$Run.ElapsedSec }
-    $fps = [double]$Run.AvgFps
-    $low1 = [double]$Run.Low1Fps
-    $low01 = [double]$Run.Low01Fps
-    $med = [double]$Run.MedianMs
-    $p99 = [double]$Run.P99Ms
-    $maxMs = [double]$Run.MaxMs
-    if ($Run.MeasuredFrames -gt 0 -and $sec -gt 0) {
-        $avgMs = $sec * 1000.0 / $Run.MeasuredFrames
-        if ($low1 -le 0 -and $fps -gt 0) { $low1 = $fps }
-        if ($low01 -le 0 -and $fps -gt 0) { $low01 = $fps }
-        if ($med -le 0 -and $avgMs -gt 0) { $med = $avgMs }
-        if ($p99 -le 0 -and $avgMs -gt 0) { $p99 = $avgMs }
-        if ($maxMs -le 0 -and $avgMs -gt 0) { $maxMs = $avgMs }
-    }
     [pscustomobject]@{
         Name = $(if ($Run.AdapterName) { [string]$Run.AdapterName } else { [string]$Adapter.Name }); Art = [string]$Adapter.Art; Bezeichnung = [string]$Adapter.Bezeichnung; Index = [int]$Adapter.Index
         Ok = ([bool]$Run.Ok -and -not $hung); Fehler = $err; Haengt = $hung; Aufloesung = ('{0}x{1}' -f $Run.Width, $Run.Height); Width = [int]$Run.Width; Height = [int]$Run.Height
         Ebene = [string]$Run.FeatureLevel; Sekunden = [math]::Round($sec, 1); Bilder = [long]$Run.MeasuredFrames
-        Fps = [math]::Round($fps, 1); Low1 = [math]::Round($low1, 1); Low01 = [math]::Round($low01, 1); Mikroruckler = [math]::Round([double]$Run.StutterPct, 2); MinFps = [math]::Round([double]$Run.MinFps, 1); MaxFps = [math]::Round([double]$Run.MaxFps, 1)
-        MedianMs = [math]::Round($med, 2); P99Ms = [math]::Round($p99, 2); MaxMs = [math]::Round($maxMs, 1); Punkte = [math]::Round([double]$Run.Score)
+        Fps = [math]::Round([double]$Run.AvgFps, 1); Low1 = [math]::Round([double]$Run.Low1Fps, 1); Low01 = [math]::Round([double]$Run.Low01Fps, 1); Mikroruckler = [math]::Round([double]$Run.StutterPct, 2); MinFps = [math]::Round([double]$Run.MinFps, 1); MaxFps = [math]::Round([double]$Run.MaxFps, 1)
+        MedianMs = [math]::Round([double]$Run.MedianMs, 2); P99Ms = [math]::Round([double]$Run.P99Ms, 2); MaxMs = [math]::Round([double]$Run.MaxMs, 1); Punkte = [math]::Round([double]$Run.Score)
         Treiberreset = [bool]$Run.DeviceRemoved; ResetGrund = [string]$Run.RemovedReason; Esc = [bool]$Run.EscPressed
         Bildpruefungen = [int]$Run.ImageChecks; Bildfehler = [int]$Run.ImageErrors; Referenzbild = [string]$Run.RefHash
         FpsVerlauf = @($Run.FpsPerSecond | ForEach-Object { [math]::Round([double]$_, 1) }); Bildzeiten = $Run.FrameMs
@@ -16792,10 +16756,6 @@ function Invoke-RenderBenchmark($Adapters, [int]$Width, [int]$Height, [int]$Prev
         $total = [double]($WarmupMs + $MeasureMs + 6600)
         $sw = [Diagnostics.Stopwatch]::StartNew()
         while (-not $r.Done) {
-            if ((Get-Command Test-SkipRequested -ErrorAction SilentlyContinue) -and (Test-SkipRequested)) {
-                $r.Stop = $true
-                break
-            }
             $pc = [int][math]::Min(99.0, $sw.ElapsedMilliseconds / $total * 100.0)
             Show-Sub ('Benchmark Grafik: Rendertest {0}/{1}' -f $n, @($Adapters).Count) ('{0}   {1}   {2:N0} Bilder/s' -f $ad.Name, $r.Phase, $r.LiveFps) $pc
             # Frist: 2 Minuten über der geplanten Dauer anhalten, nach weiteren 30 s ohne Antwort aufgeben (Treiber hängt)

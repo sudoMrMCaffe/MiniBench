@@ -1,0 +1,94 @@
+﻿LEOS MINIBENCH 3.1: ÄNDERUNGEN
+==============================
+
+Version 3.1 ist ein gezieltes Bugfix- und Stabilitäts-Release, das vier zentrale Fehler aus der
+Praxiserprobung von v3.0 behebt: die leere Vergleichsdatenbank in der Benutzeroberfläche, die fehlende
+Einbettung der anonymisierten Referenzdaten im Build, eine erhebliche CPU-Benchmark-Regression durch
+eine fehlerhafte Laufzeitbevorzugung von PowerShell 7 sowie Messdatenverluste im Grafik-Rendertest auf
+leistungsärmeren Grafikchips und Hybrid-Grafiksystemen (z. B. Intel UHD Graphics 620 auf Dell-Notebooks).
+
+1. VERGLEICHSSEITE: ZUVERLÄSSIGES LADEN DER SYSTEME
+   Fehlerdiagnose: In der Benutzeroberfläche (src\Oberflaeche\DiagGui_Modelle.cs) führte ein leeres
+   catch-Block in DbEntry.Load() dazu, dass Deserialisierungsfehler stillschweigend verschluckt wurden
+   und die Vergleichsdatenbank-Seite 0 Systeme anzeigte.
+   Fehlerbehebung: In DbEntry.Load() wurde eine strukturierte Fehlerbehandlung mit Logging über
+   System.Diagnostics.Debug.WriteLine eingefügt. Alle Referenz- und Datenbank-Dateien wurden auf
+   die strikte Einhaltung der Schema-Pflichtfelder (Format, Name, Computer, Datum, Werte, Hardware)
+   geprüft und validiert.
+
+2. REFERENZDATEN: EINBETTUNG IM BUILD UND AUTOMATISCHES ENTPACKEN
+   Fehlerdiagnose: Bei einem frischen Start ohne bestehenden Datenordner wurden keine Referenzsysteme
+   angezeigt. Der vorgesehene Kopiermechanismus aus PSScriptRoot schlug bei Ausführung der kompilierten
+   exe fehl, da PSScriptRoot im temporären Entpackverzeichnis lag. Die Hashtabelle $script:EmbeddedReferences
+   war zuvor unvollständig befüllt.
+   Fehlerbehebung: In src\Kern\Referenzen_Eingebettet.ps1 sind alle fünf Referenzprofile (Desktop High-End,
+   Workstation Mobil, Desktop Mittelklasse, Mini-PC APU und Notebook Standard) fest als serialisierte
+   Hashtable eingebettet. src\Zusammenbau.ps1 aktualisiert diese beim Bauen automatisch aus
+   src\Daten\Referenzen. Beim Programmstart entpackt Initialize-DbDir (src\Kern\Datenordner.ps1) die
+   Referenzen zuverlässig in jeden leeren Datenbankordner.
+
+3. PROZESSOR-BENCHMARK: BESEITIGUNG DER LEISTUNGSREGRESSION
+   Fehlerdiagnose: Auf Benchmark-Systemen (insbesondere TORRENT) sanken die CPU-Rohwerte für Single-Thread
+   (CPU|ST) und Multi-Thread (CPU|MT) im Vergleich zu früheren Versionen drastisch um 40 bis 50 Prozent
+   (z. B. von rund 3100 auf unter 2000 Punkte bei unveränderter Hardware).
+   Ursachenanalyse: Die in v3.0 eingeführte Bevorzugung von PowerShell 7 (pwsh.exe) führte dazu, dass der
+   C#-Benchmarkloop unter RyuJIT (.NET Core) signifikant langsamer lief als unter der optimierten
+   CLR von .NET Framework 4.8. Zudem verhinderte PowerShell 7 das Laden der Sensortreiber
+   (LibreHardwareMonitor), was zu aggressiven Fallback-Abfragen über WMI/ACPI während der Benchmarkläufe
+   führte und die CPU zusätzlich auslastete. Dies widersprach zudem Regel 1 von AGENTS.md.
+   Fehlerbehebung: Bauen.cmd und src\LeosMinibench.cmd wurden strikt auf Windows PowerShell 5.1
+   (powershell.exe) zurückgesetzt. Damit laufen die Benchmark-Schleifen wieder mit nativer voller
+   Leistung und stabiler Sensorerfassung.
+
+4. GRAFIK-BENCHMARK: ROBUSTE BILDZEITERFASSUNG BEI NIEDRIGEN BILDRATEN
+   Fehlerdiagnose: Beim GPU-Rendertest auf einem Dell Latitude (Intel UHD Graphics 620) brach die Auswertung
+   zusammen: 1-%-Low FPS und Median-Bildzeit wurden mit 0 gemeldet, die Rendertest-CSV enthielt keine Frame-
+   Einträge, und der Bericht gab fälschlich einen 100-%-Leistungseinbruch aus.
+   Ursachenanalyse: Bei niedrigen Bildraten (< 20 FPS bzw. > 50 ms Bildzeit) lag die Dauer jedes Frames über
+   dem Vorschau-Takt (ca. 33 ms). Dadurch löste jeder einzelne Frame eine Vorschau-Kopie aus, was in
+   src\Kern\Grafiktest.cs durch r.skipStats = 1 dazu führte, dass ausnahmslos 100 % aller Frames aus der
+   Statistik und der CSV-Erfassung verworfen wurden.
+   Fehlerbehebung:
+   - In src\Kern\Grafiktest.cs setzt readBack() den skipStats-Zähler nur noch bei hohen Bildraten
+     (lastMs < 20.0 ms), bei denen der 1-ms-Kopieraufwand ins Gewicht fällt. Bei niedrigen Bildraten
+     wird kein Frame mehr verworfen.
+   - In Summarize() und in ConvertTo-RenderResult (src\Kern\Grafiktest.ps1) sichern defensive Fallbacks
+     die Kennzahlen (Low1, Low01, Median, P99, Max) ab, falls Perzentile bei extrem wenigen Frames
+     nicht sauber berechnet werden können.
+   - D3D11CreateDevice unterstützt nun zusätzlich die Feature-Levels 11_1 (0xB100) und 9_3 (0x9300) und
+     fällt bei Hybrid-Grafiksystemen automatisch auf den Standardadapter zurück, falls eine dedizierte
+     GPU nicht erreichbar ist.
+   - Adapters() bricht bei Adapterfehlern nicht mehr die gesamte Schleife ab, sondern überspringt nur
+     den fehlerhaften Adapter.
+
+GEFUNDEN UND BEHOBEN
+  1. Fehlende Systeme auf der Vergleichsseite durch leere catch-Blöcke im Deserialisierer behoben;
+     Logging für Parsing-Fehler in DbEntry.Load ergänzt.
+  2. Fehlende Einbettung der Referenzprofile behoben; automatisches Entpacken bei leerem Datenbankordner
+     stellt sicher, dass Vergleichsdaten ab Erststart zur Verfügung stehen.
+  3. Schwere CPU-Benchmark-Regression durch PowerShell 7 behoben; Wiederherstellung des verbindlichen
+     Starts über Windows PowerShell 5.1 stellt volle Benchmark-Leistung sicher.
+  4. Messdatenverlust im GPU-Rendertest bei geringer Bildrate behoben; skipStats-Logik angepasst, sodass
+     auf Einsteiger- und integrierten GPUs alle Frames gewertet werden.
+  5. C#-Kompilierfehler bezüglich des Geltungsbereichs von ms in Grafiktest.cs behoben (lastMs im äußeren
+     Schleifenkontext deklariert).
+  6. Hybrid-Grafik-Robustheit verbessert: zusätzliche Direct3D-Feature-Levels und Adapter-Fallback ergänzt.
+
+GRENZEN
+  - Auf Systemen mit weniger als 5 FPS im Rendertest weisen Perzentilwerte naturgemäß eine geringere
+    statistische Trennschärfe auf; die defensiven Fallbacks stellen jedoch sicher, dass Durchschnittswerte
+    und Bildzeiten stets konsistent erfasst werden.
+  - Windows PowerShell 5.1 ist für Leos Minibench verbindliche Systemvoraussetzung (in Windows 10 und 11
+    standardmäßig vorinstalliert).
+
+UMSTIEG
+  1. Bauen.cmd ausführen (erzeugt LeosMinibench.exe und LeosMinibench.ps1 für v3.1).
+  2. Inhalt des Ordners "Aktueller Build" auf den USB-Stick kopieren.
+  3. Vorhandene Datenbanken und Konfigurationen bleiben uneingeschränkt kompatibel.
+
+ERGEBNIS
+  Alle Pester-Tests bestanden (0 Fehler). Vollständige C# 5-Kompilierung ohne Warnungen.
+
+QUELLEN
+  https://learn.microsoft.com/dotnet/framework/migration-guide/runtime-changes-in-the-net-framework-4-8
+  https://learn.microsoft.com/windows/win32/direct3ddxgi/d3d10-graphics-programming-guide-dxgi

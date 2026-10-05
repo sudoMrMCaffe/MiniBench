@@ -200,17 +200,13 @@ Describe 'Version 3.0: Frametime-Latenzen (0,1 %-Low und Mikroruckler)' {
     }
 }
 
-Describe 'Version 3.0: Dual-Runtime' {
-    It 'Bauen.cmd sucht pwsh.exe vor powershell.exe' {
-        $global:V30Cmd | Should -Match 'PowerShell\\7\\pwsh\.exe'
-        $global:V30Cmd | Should -Match 'Microsoft\\PowerShell\\pwsh\.exe'
-        $global:V30Cmd | Should -Match 'pwsh\.exe'
-        $global:V30Cmd | Should -Match 'powershell\.exe'
+Describe 'Version 3.0/3.1: Windows PowerShell 5.1 Runtime (keine CPU-Regression)' {
+    It 'Bauen.cmd startet powershell.exe (Windows PowerShell 5.1)' {
+        $global:V30Cmd | Should -Match 'WindowsPowerShell\\v1\.0\\powershell\.exe'
     }
 
-    It 'src/LeosMinibench.cmd sucht pwsh.exe vor powershell.exe' {
-        $global:V30RunCmd | Should -Match 'where\.exe\s+pwsh\.exe'
-        $global:V30RunCmd | Should -Match 'PS_EXE=powershell\.exe'
+    It 'src/LeosMinibench.cmd startet powershell.exe direkt' {
+        $global:V30RunCmd | Should -Match 'start "" powershell\.exe'
     }
 }
 
@@ -259,17 +255,17 @@ Describe 'Version 3.0: Fehlertoleranz und Edge-Cases' {
 }
 
 Describe 'Version 3.0: Gesamtzusammenbau und C#-Kompilierung' {
-    It 'Versionsnummer ist 3.0 in Version.ps1, Versionen.cs und Versionshistorie.txt' {
+    It 'Versionsnummer ist 3.0 oder 3.1 in Version.ps1, Versionen.cs und Versionshistorie.txt' {
         $vPs1 = [IO.File]::ReadAllText((Join-Path $global:V30Src 'Kern/Version.ps1'))
-        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''3\.0'''
-        $global:V30Ver | Should -Match 'new Eintrag\("3\.0"'
-        $global:V30Hist | Should -Match 'VERSION 3\.0'
+        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''(3\.0|3\.1)'''
+        $global:V30Ver | Should -Match 'new Eintrag\("(3\.0|3\.1)"'
+        $global:V30Hist | Should -Match 'VERSION (3\.0|3\.1)'
     }
 
-    It 'Änderungsdatei und Testmatrix für Version 3.0 existieren' {
+    It 'Änderungsdatei und Testmatrix für Version existieren' {
         $b = Get-MinibenchBuild
-        $b.Version | Should -Be '3.0'
-        $aePath = Join-Path $global:MinibenchRepoRoot ('Doku/' + [char]0x00C4 + 'nderungen_v3.0.txt')
+        $b.Version | Should -Match '^(3\.0|3\.1)$'
+        $aePath = Join-Path $global:MinibenchRepoRoot ('Doku/' + [char]0x00C4 + ('nderungen_v{0}.txt' -f $b.Version))
         Test-Path -LiteralPath $aePath | Should -BeTrue
         Join-Path $global:MinibenchRepoRoot ('Doku/Testmatrix_v{0}.csv' -f $b.Version) | Should -Exist
     }

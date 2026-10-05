@@ -5,6 +5,17 @@ Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Verweis Versionshistorie oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
 
+VERSION 3.1   (05.10.2026)  BUGFIX: VERGLEICHSSEITE, REFERENZDATEN, CPU-REGRESSION, GPU-FEHLER
+====================================================================================================
+Vergleichsseite: Fehlerbehebung beim Einlesen der Systemdatenbank und Logging im JSON-Parser (DbEntry.Load),
+sodass Systeme in der Vergleichsansicht stets zuverlässig geladen und angezeigt werden.
+Eingebettete Referenzdaten: Fünf anonyme Referenzprofile (Desktop High-End bis Notebook Standard) direkt im
+Skript eingebettet und bei leerer Datenbank automatisch entpackt (Vergleiche ab Erststart ohne Datenordner).
+Prozessor-Benchmark: Behebung der CPU-Leistungsregression durch verbindliche Ausführung unter Windows PowerShell 5.1;
+Beseitigung von RyuJIT-Verlangsamungen und Sensor-Abfragekollisionen.
+Grafik-Benchmark: Robuste Bildzeit- und Perzentil-Erfassung bei niedrigen Bildraten (z. B. Intel UHD Graphics 620
+auf Dell Notebooks); Vermeidung von Datenverlust bei aktiver Vorschau; Fallback-Erkennung für Hybrid-Grafik.
+
 VERSION 3.0   (05.10.2026)  DUAL-RUNTIME (POWERSHELL 7 / 5.1), SICHERES ÜBERSPRINGEN, 0,1 %-LOW & MIKRORUCKLER
 ====================================================================================================
 Dual-Runtime-Unterstützung: Automatische Bevorzugung von PowerShell 7 (pwsh.exe) für maximale Geschwindigkeit

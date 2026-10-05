@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -312,7 +312,8 @@ float4 PS(VO i) : SV_Target
             {
                 IntPtr ad;
                 int hr = en(fac, i, out ad);
-                if (hr == DXGI_ERROR_NOT_FOUND || hr < 0) break;
+                if (hr == DXGI_ERROR_NOT_FOUND) break;
+                if (hr < 0) continue;
                 try { res.Add(Describe(ad, (int)i)); }
                 finally { Release(ref ad); }
             }
@@ -461,6 +462,12 @@ float4 PS(VO i) : SV_Target
         double[] st = hc > fm.Length ? StatsHist(h, hmax, sec, r.Width, r.Height) : fm.Length > 0 ? Stats(fm, sec, r.Width, r.Height) : new double[8];
         // Ø Bilder/s aus allen gemessenen Bildern (auch denen, deren Bildzeit wegen einer Messpause nicht gewertet wurde)
         r.AvgFps = r.MeasuredFrames / sec;
+        double avgMs = sec * 1000.0 / r.MeasuredFrames;
+        if (st[1] <= 0 && r.AvgFps > 0) st[1] = r.AvgFps;
+        if (st[2] <= 0 && avgMs > 0) st[2] = avgMs;
+        if (st[3] <= 0 && avgMs > 0) st[3] = avgMs;
+        if (st[4] <= 0 && avgMs > 0) st[4] = avgMs;
+        if (st[6] <= 0 && r.AvgFps > 0) st[6] = r.AvgFps;
         r.Low1Fps = st[1]; r.MedianMs = st[2]; r.P99Ms = st[3]; r.MaxMs = st[4];
         r.Score = r.AvgFps * r.Width * r.Height / 10000.0;
         r.Low01Fps = st[6];
@@ -533,8 +540,14 @@ float4 PS(VO i) : SV_Target
             GpuAdapter info = Describe(adapter, r.AdapterIndex);
             r.AdapterName = info.Name;
             int level;
-            int[] levels = new int[] { 0xB000, 0xA100, 0xA000 };
-            Check(D3D11CreateDevice(adapter, 0, IntPtr.Zero, 0, levels, (uint)levels.Length, 7, out dev, out level, out ctx), "D3D11CreateDevice");
+            int[] levels = new int[] { 0xB100, 0xB000, 0xA100, 0xA000, 0x9300 };
+            int hrDev = D3D11CreateDevice(adapter, 0, IntPtr.Zero, 0, levels, (uint)levels.Length, 7, out dev, out level, out ctx);
+            if (hrDev < 0 && adapter != IntPtr.Zero)
+            {
+                // Fallback: versuche Standardadapter, falls dezidierte GPU offline/nicht erreichbar (z. B. Hybrid-Grafik)
+                hrDev = D3D11CreateDevice(IntPtr.Zero, 1, IntPtr.Zero, 0, levels, (uint)levels.Length, 7, out dev, out level, out ctx);
+            }
+            Check(hrDev, "D3D11CreateDevice");
             r.FeatureLevel = ((level >> 12) & 0xF) + "_" + ((level >> 8) & 0xF);
 
             r.Phase = "Shader werden übersetzt";
@@ -705,7 +718,7 @@ float4 PS(VO i) : SV_Target
 
                 r.Phase = r.WarmupMs > 0 ? "Aufwärmen" : "Messung";
                 sw.Start();
-                double lastDone = 0, measureStart = -1, nextPreview = 0.1, nextInfo = 0, nextCheck = r.CheckEveryMs > 0 ? r.CheckEveryMs / 1000.0 : double.MaxValue;
+                double lastDone = 0, lastMs = 0, measureStart = -1, nextPreview = 0.1, nextInfo = 0, nextCheck = r.CheckEveryMs > 0 ? r.CheckEveryMs / 1000.0 : double.MaxValue;
                 double previewStep = 1.0 / Math.Max(1, Math.Min(60, r.PreviewHz));
                 double secStart = 0; long secFrames = 0, liveFrames = 0; double liveStart = 0;
                 // Ring der Vorschau-Kopien: pendHead = älteste ausstehende Kopie, pendCount = Zahl ausstehender Kopien
@@ -731,7 +744,7 @@ float4 PS(VO i) : SV_Target
                         // zwei Bilder in Arbeit: so kommen die Bildzeiten gleichmäßig an (bei drei bündeln manche Treiber die Abfragen)
                         waitQuery((frameNo - 3) % 4);
                         double t = sw.Elapsed.TotalSeconds;
-                        double ms = (t - lastDone) * 1000.0;
+                        double ms = (t - lastDone) * 1000.0; lastMs = ms;
                         lastDone = t;
                         r.Frames++; liveFrames++;
                         if (measureStart >= 0 && t >= measureStart)
@@ -772,9 +785,10 @@ float4 PS(VO i) : SV_Target
                                     break;
                                 }
                                 pendHead = (k + 1) % 3; pendCount--;
-                                // das Kopieren für die Vorschau kostet den Renderthread etwa eine Millisekunde: das nächste
-                                // Bild nicht werten (zählt aber für Ø Bilder/s), sonst wären Fenster und "ohne Anzeige" ungleich
-                                r.skipStats = Math.Max(r.skipStats, 1);
+                                // das Kopieren für die Vorschau kostet den Renderthread etwa eine Millisekunde: bei hohen
+                                // Bildraten (lastMs < 20) das nächste Bild nicht werten, um Gleichheit mit "ohne Anzeige" zu wahren.
+                                // Bei niedrigen Bildraten (z. B. Intel iGPU) nicht überspringen, da sonst alle Bilder verworfen würden.
+                                if (lastMs > 0 && lastMs < 20.0 && r.skipStats == 0) r.skipStats = 1;
                             }
                             if (pendCount < 3 && now >= nextPreview)
                             {

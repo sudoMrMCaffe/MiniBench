@@ -65,7 +65,10 @@ public class DbEntry
                 if (e.Computer.Length == 0) e.Computer = System.IO.Path.GetFileNameWithoutExtension(f);
                 list.Add(e);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("DbEntry.Load Fehler in " + f + ": " + ex.Message);
+            }
         }
         list.Sort(delegate(DbEntry a, DbEntry c) { int r = String.Compare(a.DisplayName, c.DisplayName, StringComparison.OrdinalIgnoreCase); return r != 0 ? r : String.Compare(c.Datum, a.Datum, StringComparison.Ordinal); });
         return list;
