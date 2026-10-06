@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="src/Oberflaeche/Symbol.png" alt="Leos Minibench Symbol" width="96" />
+<img src="src/Oberflaeche/Symbol.png" alt="Minibench Symbol" width="96" />
 
 # Leos Minibench
 
