@@ -1,4 +1,4 @@
-﻿# =====================================================================================
+# =====================================================================================
 #                                    ABSCHLUSS
 # =====================================================================================
 
@@ -216,6 +216,13 @@ $kiFile = Join-Path $OutputDir $kiName
 $htmlFile = Join-Path $OutputDir 'Diagnosebericht.html'
 try { New-HtmlReport -Path $htmlFile -Sorted $sorted -NK $nK -NW $nW -NI $nI -Start $StartTime -End $EndTime }
 catch { Write-Warning ('HTML-Bericht konnte nicht erstellt werden: {0}' -f $_.Exception.Message); $htmlFile = '' }
+
+try {
+    $dashPath = Export-BenchDashboardHtml -ErrorAction SilentlyContinue
+    if ($dashPath -and (Test-Path -LiteralPath $dashPath)) {
+        Copy-Item -LiteralPath $dashPath -Destination (Join-Path $OutputDir 'Dashboard.html') -Force -ErrorAction SilentlyContinue
+    }
+} catch { }
 
 if ($script:GuiLog) { try { $script:GuiLog.Close(); $script:GuiLog = $null } catch { } }
 

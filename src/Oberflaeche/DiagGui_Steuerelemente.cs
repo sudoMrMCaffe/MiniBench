@@ -1,4 +1,4 @@
-﻿// Grafische Oberflaeche: Steuerelemente
+// Grafische Oberflaeche: Steuerelemente
 public static class UI
 {
     public static bool IsDark { get; set; }
@@ -142,7 +142,7 @@ public static class UI
     public const string IcoDb = "\uE81E";
     public const string IcoChg = "\uE81C";
     public const string IcoFlame = "\uECAD";
-    public const string IcoTools = "\uE74C";
+    public const string IcoTools = "\uE71D";
 
     public static GraphicsPath Round(RectangleF r, float rad)
     {

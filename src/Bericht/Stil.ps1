@@ -1,4 +1,4 @@
-﻿function Get-ReportCss {
+function Get-ReportCss {
     return @'
 :root{--bg:#f5f6f8;--panel:#fff;--text:#1c2330;--muted:#5f6878;--line:#e2e5ea;--code:#f1f3f6;
 --accent:#0067c0;--accent-hover:#005a9e;--accent-soft:#ebf3fb;--accent-border:#bdd7ee;
@@ -10,6 +10,9 @@
 .tab-btn{font:inherit;font-size:13.5px;font-weight:600;padding:7px 16px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer;transition:all .15s ease}
 .tab-btn:hover{border-color:var(--muted);background:var(--code)}
 .tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 6px rgba(0,103,192,0.25)}
+a.tab-btn{text-decoration:none;display:inline-flex;align-items:center}
+.tab-btn.btn-dash{margin-left:auto;text-decoration:none;color:var(--accent);border-color:var(--accent);background:var(--panel);font-weight:650}
+.tab-btn.btn-dash:hover{background:var(--accent);color:var(--bg);border-color:var(--accent);box-shadow:0 2px 8px rgba(0,103,192,0.3)}
 .filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--code);border-radius:10px;border:1px solid var(--line)}
 .search-input{flex:1;min-width:220px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:inherit;font-size:13.5px;outline:none}
 .search-input:focus{border-color:var(--accent)}

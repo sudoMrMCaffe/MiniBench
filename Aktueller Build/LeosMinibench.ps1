@@ -5109,7 +5109,7 @@ public partial class DiagGui : Form
         nav.Add(ModNav("Lasttest", "Lasttest", "Komponenten und Dauer wählbar", UI.IcoFlame));
         nav.Add(ModNav("Wartung", "Wartung", "SFC, DISM, Bereinigung und Systempflege", UI.IcoWartung));
         nav.Add(ModNav("Optimierung", "Optimierung", "Windows Optimisation Pack, gruppiert", UI.IcoOpt));
-        navTools = ModNav("Tools", "Tools", "Portable Werkzeuge und Schnellstarter"); navTools.HasCheck = false; nav.Add(navTools);
+        navTools = ModNav("Tools", "Tools", "Portable Werkzeuge und Schnellstarter", UI.IcoTools); navTools.HasCheck = false; nav.Add(navTools);
         navSens = ModNav("Sensoren", "Sensoren live", "Temperatur, Takt, Lüfter, Leistung", UI.IcoSens); navSens.HasCheck = false; nav.Add(navSens);
         navDb = new NavItem("Vergleichsdatenbank", db.Count + " gespeicherte Systeme", UI.IcoDb); navDb.HasCheck = false; Tip(navDb, "Vergleichsdatenbank aller gespeicherten Systeme verwalten und vergleichen."); nav.Add(navDb);
         navChg = new NavItem("Änderungen", "Protokoll und Rückgängig", UI.IcoChg); navChg.HasCheck = false; Tip(navChg, "Änderungsprotokoll und Rückgängigmachung von Systemeinstellungen."); nav.Add(navChg);
@@ -5607,7 +5607,7 @@ public partial class DiagGui : Form
     List<Button> optPresetButtons = new List<Button>();
     static readonly string[] optPresetTips = new string[] {
         "Minimal wie im Optimisation Pack: Datenschutz-Einstellungen (O&O-Auswahl), Dienste und Aufgaben, Indizierung aus, Caches leeren.",
-        "Leos Empfehlung: Wie die Voreinstellung beim Start ausgewählt (72 empfohlene Optimierungen für Datenschutz, Apps, Dienste und System).",
+        "Leos Empfehlung: Wie die Voreinstellung beim Start ausgewählt (empfohlene Optimierungen für Datenschutz, Apps, Dienste und System).",
         "Erweitert wie im Optimisation Pack: Leos Empfehlung plus Windows-Funktionen, Zusatzfeatures, vorinstallierte Apps und Darstellung.",
         "Nichts gewählt." };
 
@@ -5626,7 +5626,7 @@ public partial class DiagGui : Form
         "AppPowerAutomate", "AppDevHome", "AppAltlasten", "AppKontakteAufgaben", "AppOutlookNeu",
         "Widgets", "JetztBesprechen", "DunklerModus", "Hintergrundqualitaet", "Laufwerksname",
         "Mausbeschleunigung", "Spieleprioritaet", "EdgeVerknuepfung", "EdgeHintergrund", "OneDriveRichtlinie",
-        "OneDriveEntfernen", "DefenderMeldungen"
+        "OneDriveEntfernen", "DefenderMeldungen", "TaskbarEndTask", "UefiNeustart"
     };
     HashSet<string> cachedLeoIds;
 
@@ -5650,6 +5650,13 @@ public partial class DiagGui : Form
         if (set.Count == 0)
         {
             foreach (string id in defaultLeoEmpfehlung) set.Add(id);
+        }
+        foreach (OptItem it in optItems)
+        {
+            if (it.Vorlagen != null && it.Vorlagen.IndexOf("S", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                set.Add(it.Id);
+            }
         }
         cachedLeoIds = set;
         return cachedLeoIds;
@@ -5763,7 +5770,7 @@ public partial class DiagGui : Form
             bool on = false;
             if (key == "S")
             {
-                on = leoIds != null && leoIds.Contains(it.Id);
+                on = (leoIds != null && leoIds.Contains(it.Id)) || (it.Vorlagen != null && it.Vorlagen.Contains("S"));
             }
             else if (key.Length > 0)
             {
@@ -7534,7 +7541,7 @@ public static class UI
     public const string IcoDb = "\uE81E";
     public const string IcoChg = "\uE81C";
     public const string IcoFlame = "\uECAD";
-    public const string IcoTools = "\uE74C";
+    public const string IcoTools = "\uE71D";
 
     public static GraphicsPath Round(RectangleF r, float rad)
     {
@@ -11589,6 +11596,9 @@ function Get-ReportCss {
 .tab-btn{font:inherit;font-size:13.5px;font-weight:600;padding:7px 16px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer;transition:all .15s ease}
 .tab-btn:hover{border-color:var(--muted);background:var(--code)}
 .tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 6px rgba(0,103,192,0.25)}
+a.tab-btn{text-decoration:none;display:inline-flex;align-items:center}
+.tab-btn.btn-dash{margin-left:auto;text-decoration:none;color:var(--accent);border-color:var(--accent);background:var(--panel);font-weight:650}
+.tab-btn.btn-dash:hover{background:var(--accent);color:var(--bg);border-color:var(--accent);box-shadow:0 2px 8px rgba(0,103,192,0.3)}
 .filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--code);border-radius:10px;border:1px solid var(--line)}
 .search-input{flex:1;min-width:220px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:inherit;font-size:13.5px;outline:none}
 .search-input:focus{border-color:var(--accent)}
@@ -13647,6 +13657,38 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       }
     }
 
+    // URL-Parameter oder Hash für System-Vorauswahl prüfen (?system=... oder #...)
+    let paramSys = null;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      paramSys = urlParams.get('system') || urlParams.get('pc') || urlParams.get('id');
+      if (!paramSys && window.location.hash) {
+        paramSys = decodeURIComponent(window.location.hash.replace(/^#/, ''));
+      }
+    } catch(e) {}
+    if (paramSys) {
+      const targetStr = String(paramSys).trim().toLowerCase();
+      const all = getAllSystems();
+      const match = all.find(s =>
+        (s.Id && String(s.Id).toLowerCase() === targetStr) ||
+        (s.Computer && String(s.Computer).toLowerCase() === targetStr) ||
+        (s.DisplayName && String(s.DisplayName).toLowerCase().includes(targetStr))
+      );
+      if (match) {
+        baseSelect.value = String(match.Id);
+        selectedCompareIds.delete(String(match.Id));
+        if (selectedCompareIds.size === 0) {
+          if (data.References && data.References.length > 0) {
+            const mid = data.References.find(r => r.DisplayName && r.DisplayName.includes('Mittelklasse')) || data.References[0];
+            selectedCompareIds.add(String(mid.Id));
+          } else {
+            const other = all.find(s => String(s.Id) !== String(match.Id));
+            if (other) selectedCompareIds.add(String(other.Id));
+          }
+        }
+      }
+    }
+
     renderCompareChips();
     updateDashboard();
 
@@ -14663,7 +14705,8 @@ function New-HtmlReport {
     [void]$sb.Append(('<title>Leos Minibench {0}</title><style>{1}</style></head><body><main>' -f (ConvertTo-HtmlText $env:COMPUTERNAME), $css))
     [void]$sb.Append(('<header><div><h1>Leos Minibench <span>{0}</span></h1><p class="meta">{1:dd.MM.yyyy HH:mm} bis {2:HH:mm} Uhr &middot; Dauer {3:hh\:mm\:ss} &middot; Modus {4} &middot; Risikostufe {8} &middot; Version {5}</p></div><div class="verdict {6}">{7}</div></header>' -f `
         (ConvertTo-HtmlText $env:COMPUTERNAME), $Start, $End, ($End - $Start), (ConvertTo-HtmlText $modus), $ScriptVersion, $vc, $vt, (Get-RiskLabel (Get-RunRisk))))
-    [void]$sb.Append('<nav class="report-nav"><button type="button" class="tab-btn active" onclick="switchSection(''all'', this)">Alle Abschnitte</button><button type="button" class="tab-btn" onclick="switchSection(''system'', this)">Systemübersicht</button><button type="button" class="tab-btn" onclick="switchSection(''benchmark'', this)">Benchmark</button><button type="button" class="tab-btn" onclick="switchSection(''befunde'', this)">Befunde</button><button type="button" class="tab-btn" onclick="switchSection(''hardware'', this)">Hardware</button><button type="button" class="tab-btn" onclick="switchSection(''sensoren'', this)">Sensoren</button></nav>')
+    $compParam = [uri]::EscapeDataString($env:COMPUTERNAME)
+    [void]$sb.Append(('<nav class="report-nav"><button type="button" class="tab-btn active" onclick="switchSection(''all'', this)">Alle Abschnitte</button><button type="button" class="tab-btn" onclick="switchSection(''system'', this)">Systemübersicht</button><button type="button" class="tab-btn" onclick="switchSection(''benchmark'', this)">Benchmark</button><button type="button" class="tab-btn" onclick="switchSection(''befunde'', this)">Befunde</button><button type="button" class="tab-btn" onclick="switchSection(''hardware'', this)">Hardware</button><button type="button" class="tab-btn" onclick="switchSection(''sensoren'', this)">Sensoren</button><a href="../Dashboard.html?system={0}" class="tab-btn btn-dash" target="_blank" title="Vergleichsdashboard für diesen PC im neuen Tab öffnen">📊 Vergleichsdashboard</a></nav>' -f $compParam))
     $stCard = ''
     if ($script:Stability) { $stCard = ('<div class="card st {0}"><b>{1}</b><span>Zuverlässigkeit von 10 ({2})</span></div>' -f $script:Stability.Klasse, ('{0:N1}' -f $script:Stability.Index), (ConvertTo-HtmlText $script:Stability.Stufe)) }
     $benchCard = ''
@@ -14778,7 +14821,7 @@ function New-HtmlReport {
         $cn = [string[]](@('Dieser PC') + @($script:CmpSystems | ForEach-Object { $_.Computer }))
         [void]$sb.Append('<section class="box" data-section="benchmark"><h2>Vergleich mit bereits geprüften Systemen</h2><p class="note">')
         for ($k = 0; $k -lt $cn.Count; $k++) { [void]$sb.Append(('<i class="sw c{0}"></i>{1}{2}&nbsp;&nbsp; ' -f $k, (ConvertTo-HtmlText $cn[$k]), $(if ($k) { ' (' + (ConvertTo-HtmlText $script:CmpSystems[$k - 1].Datum) + ')' } else { '' }))) }
-        [void]$sb.Append('<br>Längerer Balken = besser. Prozent: Abstand des anderen Systems zu diesem PC, grün = das andere System ist besser. Platz: Rang dieses PCs unter allen Systemen der Datenbank.</p>')
+        [void]$sb.Append(('<br>Längerer Balken = besser. Prozent: Abstand des anderen Systems zu diesem PC, grün = das andere System ist besser. Platz: Rang dieses PCs unter allen Systemen der Datenbank.</p><div style="margin:12px 0 16px"><a href="../Dashboard.html?system={0}" class="tab-btn btn-dash" target="_blank">📊 Interaktives Vergleichsdashboard öffnen (dieser PC vorausgewählt) &rarr;</a></div>' -f $compParam))
         $lastG = ''
         foreach ($r in $script:CmpRows) {
             $gname = $script:GroupOfKey[($r.Key -split '\|')[0]]
@@ -24037,6 +24080,13 @@ $kiFile = Join-Path $OutputDir $kiName
 $htmlFile = Join-Path $OutputDir 'Diagnosebericht.html'
 try { New-HtmlReport -Path $htmlFile -Sorted $sorted -NK $nK -NW $nW -NI $nI -Start $StartTime -End $EndTime }
 catch { Write-Warning ('HTML-Bericht konnte nicht erstellt werden: {0}' -f $_.Exception.Message); $htmlFile = '' }
+
+try {
+    $dashPath = Export-BenchDashboardHtml -ErrorAction SilentlyContinue
+    if ($dashPath -and (Test-Path -LiteralPath $dashPath)) {
+        Copy-Item -LiteralPath $dashPath -Destination (Join-Path $OutputDir 'Dashboard.html') -Force -ErrorAction SilentlyContinue
+    }
+} catch { }
 
 if ($script:GuiLog) { try { $script:GuiLog.Close(); $script:GuiLog = $null } catch { } }
 

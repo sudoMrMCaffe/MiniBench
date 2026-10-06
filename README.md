@@ -12,7 +12,7 @@
 [![Changelog](https://img.shields.io/badge/Changelog-MD-6366f1.svg)](CHANGELOG.md)
 [![Plattform](https://img.shields.io/badge/Windows-10%20%7C%2011%20(x64)-0078d4.svg)]()
 [![Laufzeit](https://img.shields.io/badge/PowerShell-5.1%20%7C%20C%23%205-1e293b.svg)]()
-[![Tests](https://img.shields.io/badge/Tests-650%2B%20bestanden-22c55e.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-660%2B%20bestanden-22c55e.svg)](tests/)
 [![Vibe Coding](https://img.shields.io/badge/Built%20With-Vibe%20Coding-7c3aed.svg)]()
 [![Portabel](https://img.shields.io/badge/USB-Zero--Footprint-f59e0b.svg)]()
 

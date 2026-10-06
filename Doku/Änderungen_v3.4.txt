@@ -65,6 +65,13 @@ GEFUNDEN UND BEHOBEN
      in New-MultiLineSvg und New-LineSvg für verzögerungsfreie Hover-Tooltips.
   4. Pester-Versionsprüfungen: Anpassung der Versionsüberprüfungen in bestehenden Testsuiten
      auf Version 3.4.
+  5. Voreinstellung 'Leos Empfehlung' in der GUI: TaskbarEndTask und UefiNeustart in defaultLeoEmpfehlung
+     aufgenommen und ApplyOptPreset('S') so erweitert, dass alle Katalog-Einträge mit Vorlage 'S'
+     zuverlässig markiert werden.
+  6. Eigenständiges Symbol für Modul 'Tools': IcoTools auf Segoe MDL2 AllApps (\uE71D - 4 Kacheln)
+     umgestellt und an ModNav übergeben, um eine klare optische Trennung von Wartung (\uE90F) zu gewährleisten.
+  7. Direktsprung zum Vergleichsdashboard: Schaltfläche im Diagnosebericht verlinkt direkt auf
+     das Vergleichsdashboard mit dem aktuellen PC als vorausgewähltem Basissystem (?system=...).
 
 GRENZEN
   - TaskbarEndTask erfordert Windows 11 Build 22621 (Moment 4 / 23H2) oder neuer. Auf älteren

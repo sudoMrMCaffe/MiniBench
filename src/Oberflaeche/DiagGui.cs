@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -718,7 +718,7 @@ public partial class DiagGui : Form
         nav.Add(ModNav("Lasttest", "Lasttest", "Komponenten und Dauer wählbar", UI.IcoFlame));
         nav.Add(ModNav("Wartung", "Wartung", "SFC, DISM, Bereinigung und Systempflege", UI.IcoWartung));
         nav.Add(ModNav("Optimierung", "Optimierung", "Windows Optimisation Pack, gruppiert", UI.IcoOpt));
-        navTools = ModNav("Tools", "Tools", "Portable Werkzeuge und Schnellstarter"); navTools.HasCheck = false; nav.Add(navTools);
+        navTools = ModNav("Tools", "Tools", "Portable Werkzeuge und Schnellstarter", UI.IcoTools); navTools.HasCheck = false; nav.Add(navTools);
         navSens = ModNav("Sensoren", "Sensoren live", "Temperatur, Takt, Lüfter, Leistung", UI.IcoSens); navSens.HasCheck = false; nav.Add(navSens);
         navDb = new NavItem("Vergleichsdatenbank", db.Count + " gespeicherte Systeme", UI.IcoDb); navDb.HasCheck = false; Tip(navDb, "Vergleichsdatenbank aller gespeicherten Systeme verwalten und vergleichen."); nav.Add(navDb);
         navChg = new NavItem("Änderungen", "Protokoll und Rückgängig", UI.IcoChg); navChg.HasCheck = false; Tip(navChg, "Änderungsprotokoll und Rückgängigmachung von Systemeinstellungen."); nav.Add(navChg);
@@ -1216,7 +1216,7 @@ public partial class DiagGui : Form
     List<Button> optPresetButtons = new List<Button>();
     static readonly string[] optPresetTips = new string[] {
         "Minimal wie im Optimisation Pack: Datenschutz-Einstellungen (O&O-Auswahl), Dienste und Aufgaben, Indizierung aus, Caches leeren.",
-        "Leos Empfehlung: Wie die Voreinstellung beim Start ausgewählt (72 empfohlene Optimierungen für Datenschutz, Apps, Dienste und System).",
+        "Leos Empfehlung: Wie die Voreinstellung beim Start ausgewählt (empfohlene Optimierungen für Datenschutz, Apps, Dienste und System).",
         "Erweitert wie im Optimisation Pack: Leos Empfehlung plus Windows-Funktionen, Zusatzfeatures, vorinstallierte Apps und Darstellung.",
         "Nichts gewählt." };
 
@@ -1235,7 +1235,7 @@ public partial class DiagGui : Form
         "AppPowerAutomate", "AppDevHome", "AppAltlasten", "AppKontakteAufgaben", "AppOutlookNeu",
         "Widgets", "JetztBesprechen", "DunklerModus", "Hintergrundqualitaet", "Laufwerksname",
         "Mausbeschleunigung", "Spieleprioritaet", "EdgeVerknuepfung", "EdgeHintergrund", "OneDriveRichtlinie",
-        "OneDriveEntfernen", "DefenderMeldungen"
+        "OneDriveEntfernen", "DefenderMeldungen", "TaskbarEndTask", "UefiNeustart"
     };
     HashSet<string> cachedLeoIds;
 
@@ -1259,6 +1259,13 @@ public partial class DiagGui : Form
         if (set.Count == 0)
         {
             foreach (string id in defaultLeoEmpfehlung) set.Add(id);
+        }
+        foreach (OptItem it in optItems)
+        {
+            if (it.Vorlagen != null && it.Vorlagen.IndexOf("S", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                set.Add(it.Id);
+            }
         }
         cachedLeoIds = set;
         return cachedLeoIds;
@@ -1372,7 +1379,7 @@ public partial class DiagGui : Form
             bool on = false;
             if (key == "S")
             {
-                on = leoIds != null && leoIds.Contains(it.Id);
+                on = (leoIds != null && leoIds.Contains(it.Id)) || (it.Vorlagen != null && it.Vorlagen.Contains("S"));
             }
             else if (key.Length > 0)
             {

@@ -1,4 +1,4 @@
-﻿# Changelog - Leos Minibench
+# Changelog - Leos Minibench
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
 
@@ -19,6 +19,11 @@ Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festge
   * **Live-Suche & Stufen-Filter für Befunde:** Sofortiges Durchsuchen von Befunden nach Text und Filtern nach Schweregraden (Kritisch, Warnung, Info) mit dynamischer Trefferzählung.
   * **Interaktive Sensor-Chart Tooltips:** Pure Vanilla JavaScript Hover-Tooltips für Messpunkte in Takt-, Temperatur-, Rendertest- und Durchsatz-Diagrammen ohne externe Bibliotheken.
   * **Designangleichung & kräftige Farbwelt:** Synchronisierung der CSS-Farbpaletten von `Dashboard.html` und `Diagnosebericht.html` auf Basis von `Stil.ps1` mit satten Badges, klaren Kontrasten und gestochen scharfer Typografie.
+  * **Direktverlinkung zum Vergleichsdashboard:** Neue Schaltfläche in der Bericht-Navigation und im Benchmark-Vergleichsbereich verlinkt direkt auf das interaktive `Dashboard.html` mit dem aktuellen PC als vorausgewähltem Basissystem (`?system=...`).
+* **Hotfix & Detailkorrekturen:**
+  * **Optimierungsauswahl 'Leos Empfehlung':** `TaskbarEndTask` und `UefiNeustart` in `defaultLeoEmpfehlung` aufgenommen und Auswahllogik in der GUI abgesichert, sodass die Option bei Wahl des Presets zuverlässig markiert wird.
+  * **Symbol für Modul 'Tools':** Eigenes Segoe MDL2-Symbol `\uE71D` (AllApps, 4 Kacheln) implementiert und an die linke Navigation übergeben (eindeutige Unterscheidung von der Wartungsseite `\uE90F`).
+  * **System-Vorauswahl im Dashboard:** `Dashboard.html` wertet URL-Parameter `?system=` bzw. Hash-Fragmente aus und schaltet das Basissystem automatisch auf den angegebenen PC um.
 
 ## v3.32 (06.10.2026)
 

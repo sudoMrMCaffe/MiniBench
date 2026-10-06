@@ -1,4 +1,4 @@
-﻿# Version 3.4: Modul Tools (Portable Werkzeuge & System-Shortcuts), Leos Empfehlung & interaktiver Hauptbericht
+# Version 3.4: Modul Tools (Portable Werkzeuge & System-Shortcuts), Leos Empfehlung & interaktiver Hauptbericht
 BeforeAll {
     . (Join-Path $PSScriptRoot 'Hilfen.ps1')
     $global:V34Src = $global:MinibenchSrcRoot
@@ -59,7 +59,7 @@ Describe 'Version 3.4 Deklaration und Dokumentation' {
 Describe 'Modul Tools in der Benutzeroberfläche' {
     It 'DiagGui.cs deklariert navTools und ordnet es zwischen Optimierung und Sensoren ein' {
         $global:V34Gui | Should -Match 'navTools'
-        $global:V34Gui | Should -Match 'navTools = ModNav\("Tools",\s*"Tools",\s*"Portable Werkzeuge und Schnellstarter"\);'
+        $global:V34Gui | Should -Match 'navTools = ModNav\("Tools",\s*"Tools",\s*"Portable Werkzeuge und Schnellstarter",\s*UI\.IcoTools\);'
         $global:V34Gui | Should -Match 'navTools\.HasCheck = false;'
         
         $idxOpt   = $global:V34Gui.IndexOf('navOpt = ModNav')
@@ -73,7 +73,7 @@ Describe 'Modul Tools in der Benutzeroberfläche' {
     }
 
     It 'DiagGui_Steuerelemente.cs definiert Icon UI.IcoTools und SecondaryButton in FluentCard' {
-        $global:V34Ctrl | Should -Match 'public const string IcoTools\s*=\s*"\\uE74C";'
+        $global:V34Ctrl | Should -Match 'public const string IcoTools\s*=\s*"\\uE71D";'
         $global:V34Ctrl | Should -Match 'public Button SecondaryButton'
     }
 
@@ -138,6 +138,11 @@ Describe 'Optimierungen: Leos Empfehlung' {
         $presetM = Get-OptPreset 'M'
         $presetM | Should -Contain 'TaskbarEndTask'
     }
+
+    It 'DiagGui.cs enthält TaskbarEndTask in defaultLeoEmpfehlung und wählt Vorlage S aus' {
+        $global:V34Gui | Should -Match 'defaultLeoEmpfehlung\s*=\s*new string\[\]\s*\{[^}]+"TaskbarEndTask"'
+        $global:V34Gui | Should -Match 'it\.Vorlagen\.Contains\("S"\)'
+    }
 }
 
 Describe 'Interaktiver Diagnosebericht & Stil' {
@@ -162,6 +167,17 @@ Describe 'Interaktiver Diagnosebericht & Stil' {
         $global:V34Html | Should -Match 'id="befundSearch"'
         $global:V34Html | Should -Match 'id="befundeTable"'
         $global:V34Html | Should -Match 'class="fchip'
+    }
+
+    It 'HtmlBericht.ps1 bindet Vergleichsdashboard-Button mit PC-Vorauswahl ein' {
+        $global:V34Html | Should -Match 'href="\.\./Dashboard\.html\?system='
+        $global:V34Html | Should -Match 'class="tab-btn btn-dash"'
+        $dash = [IO.File]::ReadAllText((Join-Path $global:V34Src 'Bericht/Bausteine_Dashboard.ps1'), [System.Text.Encoding]::UTF8)
+        $dash | Should -Match 'urlParams\.get\(''system''\)'
+    }
+
+    It 'Stil.ps1 definiert Styles für den Vergleichsdashboard-Button' {
+        $global:V34Stil | Should -Match '\.btn-dash'
     }
 
     It 'Stil.ps1 definiert Styles für Navigation, Filter-Bar und Chart-Tooltips' {

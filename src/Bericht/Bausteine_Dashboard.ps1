@@ -1,4 +1,4 @@
-﻿# =====================================================================================
+# =====================================================================================
 #             LEOS MINIBENCH: BENCHMARK- & DIAGNOSE-DASHBOARD (HTML5/VANILLA-JS)
 # =====================================================================================
 # Wiederverwendbare Daten- und HTML-Bausteine für das interaktive Benchmark- und
@@ -1515,6 +1515,38 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
         selectedCompareIds.add(String(mid.Id));
       } else if (data.Systems && data.Systems.length > 1) {
         selectedCompareIds.add(String(data.Systems[1].Id));
+      }
+    }
+
+    // URL-Parameter oder Hash für System-Vorauswahl prüfen (?system=... oder #...)
+    let paramSys = null;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      paramSys = urlParams.get('system') || urlParams.get('pc') || urlParams.get('id');
+      if (!paramSys && window.location.hash) {
+        paramSys = decodeURIComponent(window.location.hash.replace(/^#/, ''));
+      }
+    } catch(e) {}
+    if (paramSys) {
+      const targetStr = String(paramSys).trim().toLowerCase();
+      const all = getAllSystems();
+      const match = all.find(s =>
+        (s.Id && String(s.Id).toLowerCase() === targetStr) ||
+        (s.Computer && String(s.Computer).toLowerCase() === targetStr) ||
+        (s.DisplayName && String(s.DisplayName).toLowerCase().includes(targetStr))
+      );
+      if (match) {
+        baseSelect.value = String(match.Id);
+        selectedCompareIds.delete(String(match.Id));
+        if (selectedCompareIds.size === 0) {
+          if (data.References && data.References.length > 0) {
+            const mid = data.References.find(r => r.DisplayName && r.DisplayName.includes('Mittelklasse')) || data.References[0];
+            selectedCompareIds.add(String(mid.Id));
+          } else {
+            const other = all.find(s => String(s.Id) !== String(match.Id));
+            if (other) selectedCompareIds.add(String(other.Id));
+          }
+        }
       }
     }
 
