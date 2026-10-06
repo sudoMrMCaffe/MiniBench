@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -382,7 +382,9 @@ public partial class DiagGui : Form
     NavItem ModNav(string name, string title, string desc, string icon = "")
     {
         string[] mi; if (modInfo.TryGetValue(name, out mi)) { title = mi[0]; desc = mi[1]; }
-        return new NavItem(title, desc, icon);
+        NavItem it = new NavItem(title, desc, icon);
+        if (!String.IsNullOrEmpty(desc)) Tip(it, desc);
+        return it;
     }
 
     // ------------------------------------------------------------ Einrichtung
@@ -399,8 +401,8 @@ public partial class DiagGui : Form
         nav.Add(ModNav("Wartung", "Wartung", "SFC, DISM, Bereinigung und Systempflege", UI.IcoWartung));
         nav.Add(ModNav("Optimierung", "Optimierung", "Windows Optimisation Pack, gruppiert", UI.IcoOpt));
         navSens = ModNav("Sensoren", "Sensoren live", "Temperatur, Takt, Lüfter, Leistung", UI.IcoSens); navSens.HasCheck = false; nav.Add(navSens);
-        navDb = new NavItem("Vergleichsdatenbank", db.Count + " gespeicherte Systeme", UI.IcoDb); navDb.HasCheck = false; nav.Add(navDb);
-        navChg = new NavItem("Änderungen", "Protokoll und Rückgängig", UI.IcoChg); navChg.HasCheck = false; nav.Add(navChg);
+        navDb = new NavItem("Vergleichsdatenbank", db.Count + " gespeicherte Systeme", UI.IcoDb); navDb.HasCheck = false; Tip(navDb, "Vergleichsdatenbank aller gespeicherten Systeme verwalten und vergleichen."); nav.Add(navDb);
+        navChg = new NavItem("Änderungen", "Protokoll und Rückgängig", UI.IcoChg); navChg.HasCheck = false; Tip(navChg, "Änderungsprotokoll und Rückgängigmachung von Systemeinstellungen."); nav.Add(navChg);
         for (int i = 0; i < nav.Count; i++)
         {
             int idx = i;

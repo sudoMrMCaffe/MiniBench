@@ -170,7 +170,20 @@ public partial class DiagGui
         FlowLayoutPanel top = Page("Vergleichsdatenbank", "Jeder Lauf wird als System gespeichert. Hier lassen sich bereits geprüfte Systeme ohne neuen Benchmark vergleichen: mindestens zwei Systeme anhaken und \"Vergleichen\" klicken. Ältere Ausgabeordner lassen sich importieren. Ein Klick auf die Spaltenköpfe sortiert die Einträge.", -1);
         top.Dock = DockStyle.Top;
         top.AutoSize = true;
-        lblDbPath = Lbl("Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lblDbPath.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8)); top.Controls.Add(lblDbPath);
+        lblDbPath = Lbl("Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lblDbPath.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(4)); top.Controls.Add(lblDbPath);
+
+        FlowLayoutPanel topTools = Row();
+        topTools.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8));
+        Button imp = UI.Secondary("Importieren ..."); imp.Margin = new Padding(0); imp.Click += delegate { ImportFolder(); };
+        Tip(imp, "Übernimmt Benchmark-Werte aus Ausgabeordnern früherer Läufe in die Datenbank (auch von PC-Diagnose).");
+        btnDbClean = UI.Secondary("Aufräumen ..."); btnDbClean.Margin = new Padding(UI.S(8), 0, 0, 0); btnDbClean.Click += delegate { CleanData(); }; btnDbClean.Enabled = dataDir.Length > 0;
+        Tip(btnDbClean, "Räumt nicht vergleichbare oder abgebrochene Läufe auf und verschiebt sie ins Archiv.");
+        Button rel = UI.Secondary("Aktualisieren"); rel.Margin = new Padding(UI.S(8), 0, 0, 0); rel.Click += delegate { ReloadDb(); };
+        Tip(rel, "Liest Datenbank und Referenz neu ein.");
+        Button open = UI.Secondary("Datenordner"); open.Margin = new Padding(UI.S(8), 0, 0, 0); open.Click += delegate { if (dataDir.Length > 0) OpenShell(dataDir); };
+        Tip(open, "Öffnet den Datenordner (Berichte, Datenbank, Tools, Archiv).");
+        topTools.Controls.Add(imp); topTools.Controls.Add(btnDbClean); topTools.Controls.Add(rel); topTools.Controls.Add(open);
+        top.Controls.Add(topTools);
 
         FlowLayoutPanel bottom = new FlowLayoutPanel(); bottom.FlowDirection = FlowDirection.TopDown; bottom.WrapContents = false; bottom.AutoSize = true; bottom.BackColor = UI.Panel; bottom.Dock = DockStyle.Bottom;
         Label hint = Lbl("Doppelklick öffnet den Bericht des Laufs. Graue Einträge enthalten keine Benchmark-Werte. Klick auf Spaltenkopf sortiert die Tabelle.", 8.75f, false, UI.Muted); hint.Margin = new Padding(UI.S(4), UI.S(4), UI.S(4), 0); bottom.Controls.Add(hint);
@@ -184,16 +197,9 @@ public partial class DiagGui
         btnRename.Click += delegate { RenameSelectedEntry(); };
         btnRename.Enabled = false;
         Tip(btnRename, "Bearbeitet den Anzeigenamen des ausgewählten Systems (z. B. für Notizen wie Vor Reinigung oder Neuer Treiber), ohne die Hardware-Erkennung zu verändern.");
-        Button imp = UI.Secondary("Importieren ..."); imp.Margin = new Padding(UI.S(8), 0, 0, 0);
-        imp.Click += delegate { ImportFolder(); };
         btnDelete = UI.Secondary("Entfernen"); btnDelete.Margin = new Padding(UI.S(8), 0, 0, 0); btnDelete.Click += delegate { DeleteSelected(); };
-        Button rel = UI.Secondary("Aktualisieren"); rel.Margin = new Padding(UI.S(8), 0, 0, 0); rel.Click += delegate { ReloadDb(); };
-        Button open = UI.Secondary("Datenordner"); open.Margin = new Padding(UI.S(8), 0, 0, 0); open.Click += delegate { if (dataDir.Length > 0) OpenShell(dataDir); };
-        btnDbClean = UI.Secondary("Aufräumen ..."); btnDbClean.Margin = new Padding(UI.S(8), 0, 0, 0); btnDbClean.Click += delegate { CleanData(); }; btnDbClean.Enabled = dataDir.Length > 0;
-        Tip(imp, "Übernimmt Benchmark-Werte aus Ausgabeordnern früherer Läufe in die Datenbank (auch von PC-Diagnose).");
-        Tip(rel, "Liest Datenbank und Referenz neu ein.");
-        Tip(open, "Öffnet den Datenordner (Berichte, Datenbank, Tools, Archiv).");
-        b.Controls.Add(btnCompare); b.Controls.Add(btnDashboard); b.Controls.Add(btnRename); b.Controls.Add(imp); b.Controls.Add(btnDelete); b.Controls.Add(rel); b.Controls.Add(btnDbClean); b.Controls.Add(open); bottom.Controls.Add(b);
+        Tip(btnDelete, "Löscht die ausgewählten Systeme aus der Vergleichsdatenbank.");
+        b.Controls.Add(btnCompare); b.Controls.Add(btnDashboard); b.Controls.Add(btnRename); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
         lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
         lblDbClean.Margin = new Padding(UI.S(4), UI.S(8), UI.S(4), 0); bottom.Controls.Add(lblDbClean);
         bottom.Resize += delegate { lblDbClean.MaximumSize = new Size(Math.Max(UI.S(200), bottom.ClientSize.Width - UI.S(10)), 0); };
@@ -212,6 +218,31 @@ public partial class DiagGui
         lvDb.SelectedIndexChanged += delegate { UpdateDbButtons(); };
         lvDb.ColumnClick += OnDbColumnClick;
         Tip(lvDb, "Vergleichsdatenbank aller gespeicherten Systeme. Ein Klick auf die Spaltenköpfe sortiert nach Datum, Gesamtwertung, CPU oder GPU.");
+
+        ContextMenu cm = new ContextMenu();
+        MenuItem miCompare = new MenuItem("Vergleichen", delegate { CompareSelected(); });
+        MenuItem miDashboard = new MenuItem("Im Dashboard ansehen", delegate { OpenDashboard(); });
+        MenuItem miSep1 = new MenuItem("-");
+        MenuItem miRename = new MenuItem("Name ändern ...", delegate { RenameSelectedEntry(); });
+        MenuItem miOpen = new MenuItem("Bericht öffnen", delegate { if (lvDb.SelectedItems.Count > 0) OpenEntry((DbEntry)lvDb.SelectedItems[0].Tag); });
+        MenuItem miSep2 = new MenuItem("-");
+        MenuItem miDelete = new MenuItem("Aus Datenbank entfernen", delegate { DeleteSelected(); });
+        cm.MenuItems.Add(miCompare);
+        cm.MenuItems.Add(miDashboard);
+        cm.MenuItems.Add(miSep1);
+        cm.MenuItems.Add(miRename);
+        cm.MenuItems.Add(miOpen);
+        cm.MenuItems.Add(miSep2);
+        cm.MenuItems.Add(miDelete);
+        cm.Popup += delegate {
+            int selN = lvDb.SelectedItems.Count;
+            int chkN = CheckedEntries().Count;
+            miCompare.Enabled = chkN >= 2 || selN >= 2;
+            miRename.Enabled = selN == 1 || (selN == 0 && chkN == 1);
+            miOpen.Enabled = selN == 1;
+            miDelete.Enabled = chkN >= 1 || selN >= 1;
+        };
+        lvDb.ContextMenu = cm;
 
         f.Controls.Add(lvDb);
         f.Controls.Add(bottom);

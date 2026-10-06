@@ -89,6 +89,7 @@ function Export-BenchDashboardData {
         $datum = $(if ($j.Datum) { [string]$j.Datum } else { '' })
         $id = $(if ($isRef) { 'REF_' + ([System.IO.Path]::GetFileNameWithoutExtension($sourceFile) -replace '\W', '_') } else { ($comp + '_' + ($datum -replace '\W', '')) })
         if (-not $id) { $id = [guid]::NewGuid().ToString('N').Substring(0, 8) }
+        $id = [string]$id
 
         # Werte-Tabelle
         $werte = @{}
@@ -284,9 +285,9 @@ function Export-BenchDashboardData {
                 }
             }
             if ($j.Sensoren.Leerlauf) {
-                $id = $j.Sensoren.Leerlauf
-                if ($null -eq $cpuTIdle -and $id.CpuTemp) { $cpuTIdle = [double]$id.CpuTemp }
-                if ($null -eq $cpuMHzAvg -and $id.CpuMHz) { $cpuMHzAvg = [double]$id.CpuMHz }
+                $idleSens = $j.Sensoren.Leerlauf
+                if ($null -eq $cpuTIdle -and $idleSens.CpuTemp) { $cpuTIdle = [double]$idleSens.CpuTemp }
+                if ($null -eq $cpuMHzAvg -and $idleSens.CpuMHz) { $cpuMHzAvg = [double]$idleSens.CpuMHz }
             }
         }
 
@@ -1597,14 +1598,14 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
 
     // Standardauswahl
     if (data.Systems && data.Systems.length > 0) {
-      targetSelect.value = data.Systems[0].Id;
+      targetSelect.value = String(data.Systems[0].Id);
     }
 
     if (data.References && data.References.length > 0) {
       const mid = data.References.find(r => r.DisplayName.includes('Mittelklasse')) || data.References[0];
-      refSelect.value = mid.Id;
+      refSelect.value = String(mid.Id);
     } else if (data.Systems && data.Systems.length > 1) {
-      refSelect.value = data.Systems[1].Id;
+      refSelect.value = String(data.Systems[1].Id);
     }
 
     updateDashboard();
@@ -1623,9 +1624,10 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
   }
 
   function getSystemById(id) {
-    if (!data) return null;
+    if (!data || id === null || id === undefined) return null;
+    const targetId = String(id);
     const all = [ ...(data.Systems || []), ...(data.References || []) ];
-    return all.find(s => s.Id === id) || null;
+    return all.find(s => String(s.Id) === targetId) || null;
   }
 
   function populateSelects() {
@@ -1640,7 +1642,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     if (data.Systems) {
       data.Systems.forEach(s => {
         const opt = document.createElement('option');
-        opt.value = s.Id;
+        opt.value = String(s.Id);
         opt.textContent = s.DisplayName + (s.Datum ? ' (' + s.Datum + ')' : '');
         sysGroup.appendChild(opt);
       });
@@ -1649,7 +1651,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     if (data.References) {
       data.References.forEach(r => {
         const opt = document.createElement('option');
-        opt.value = r.Id;
+        opt.value = String(r.Id);
         opt.textContent = '⭐ ' + r.DisplayName;
         refGroup.appendChild(opt);
       });
@@ -1709,22 +1711,26 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
   function updateDashboard() {
     currentTarget = getSystemById(targetSelect.value);
     currentRef = getSystemById(refSelect.value);
-    if (!currentTarget || !currentRef) return;
+    if (!currentTarget || !currentRef) {
+      console.warn('Systeme nicht gefunden:', targetSelect.value, refSelect.value);
+      return;
+    }
 
     // 1. SPECS
-    document.getElementById('targetName').textContent = currentTarget.DisplayName;
-    document.getElementById('targetDate').textContent = currentTarget.Datum || 'Unbekannt';
-    document.getElementById('targetCpu').textContent = currentTarget.Hardware?.CPU || '-';
-    document.getElementById('targetGpu').textContent = currentTarget.Hardware?.GPU || '-';
-    document.getElementById('targetRam').textContent = currentTarget.Hardware?.RAM || '-';
-    document.getElementById('targetDisk').textContent = currentTarget.Hardware?.Datentraeger || '-';
+    function setTxt(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+    setTxt('targetName', currentTarget.DisplayName || currentTarget.Computer || '-');
+    setTxt('targetDate', currentTarget.Datum || 'Unbekannt');
+    setTxt('targetCpu', currentTarget.Hardware && currentTarget.Hardware.CPU ? currentTarget.Hardware.CPU : '-');
+    setTxt('targetGpu', currentTarget.Hardware && currentTarget.Hardware.GPU ? currentTarget.Hardware.GPU : '-');
+    setTxt('targetRam', currentTarget.Hardware && currentTarget.Hardware.RAM ? currentTarget.Hardware.RAM : '-');
+    setTxt('targetDisk', currentTarget.Hardware && currentTarget.Hardware.Datentraeger ? currentTarget.Hardware.Datentraeger : '-');
 
-    document.getElementById('refName').textContent = currentRef.DisplayName;
-    document.getElementById('refDate').textContent = currentRef.Datum || 'Referenz';
-    document.getElementById('refCpu').textContent = currentRef.Hardware?.CPU || '-';
-    document.getElementById('refGpu').textContent = currentRef.Hardware?.GPU || '-';
-    document.getElementById('refRam').textContent = currentRef.Hardware?.RAM || '-';
-    document.getElementById('refDisk').textContent = currentRef.Hardware?.Datentraeger || '-';
+    setTxt('refName', currentRef.DisplayName || currentRef.Computer || '-');
+    setTxt('refDate', currentRef.Datum || 'Referenz');
+    setTxt('refCpu', currentRef.Hardware && currentRef.Hardware.CPU ? currentRef.Hardware.CPU : '-');
+    setTxt('refGpu', currentRef.Hardware && currentRef.Hardware.GPU ? currentRef.Hardware.GPU : '-');
+    setTxt('refRam', currentRef.Hardware && currentRef.Hardware.RAM ? currentRef.Hardware.RAM : '-');
+    setTxt('refDisk', currentRef.Hardware && currentRef.Hardware.Datentraeger ? currentRef.Hardware.Datentraeger : '-');
 
     // 2. HERO PROFILES (GAMING, DESKTOP, WORKSTATION)
     updateProfileCard('game', currentTarget.Scores?.Gaming, currentRef.Scores?.Gaming);
@@ -1761,28 +1767,31 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
 
     // 4. TELEMETRIE & LASTTEST STATS
     const tel = currentTarget.Telemetry || {};
-    document.getElementById('statCpuTemp').textContent = tel.CpuTempMax ? tel.CpuTempMax + ' °C' : '-';
-    document.getElementById('statGpuTemp').textContent = tel.GpuTempMax ? tel.GpuTempMax + ' °C' : '-';
-    document.getElementById('statCpuClock').textContent = tel.CpuMHzAvg ? (tel.CpuMHzAvg >= 1000 ? (tel.CpuMHzAvg / 1000).toFixed(2) + ' GHz' : tel.CpuMHzAvg + ' MHz') : '-';
-    document.getElementById('statThrottle').textContent = tel.Drosselung || 'keine';
-    document.getElementById('statPauses').textContent = tel.UnterbrechungenUeber50ms ? 'Auffällig' : 'Keine';
+    function setStat(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+    setStat('statCpuTemp', tel.CpuTempMax ? tel.CpuTempMax + ' °C' : '-');
+    setStat('statGpuTemp', tel.GpuTempMax ? tel.GpuTempMax + ' °C' : '-');
+    setStat('statCpuClock', tel.CpuMHzAvg ? (tel.CpuMHzAvg >= 1000 ? (tel.CpuMHzAvg / 1000).toFixed(2) + ' GHz' : tel.CpuMHzAvg + ' MHz') : '-');
+    setStat('statThrottle', tel.Drosselung || 'keine');
+    setStat('statPauses', tel.UnterbrechungenUeber50ms ? 'Auffällig' : 'Keine');
 
     const banner = document.getElementById('throttleBanner');
     const bIcon = document.getElementById('throttleIcon');
     const bText = document.getElementById('throttleText');
 
-    if (tel.Drosselung === 'thermisch') {
-      banner.className = 'throttle-banner thermisch';
-      bIcon.textContent = '⚠️';
-      bText.textContent = 'Thermische Drosselung aufgetreten! CPU erreichte ' + (tel.CpuTempMax || 95) + ' °C (TjMax). Taktabfall um ' + (tel.TaktAbfall ? tel.TaktAbfall.toFixed(0) : '20') + ' % belegt.';
-    } else if (tel.Drosselung && tel.Drosselung !== 'keine') {
-      banner.className = 'throttle-banner leistung';
-      bIcon.textContent = 'ℹ️';
-      bText.textContent = 'Drosselung / Begrenzung aktiv (' + tel.Drosselung + '): Takt sank unter Last' + (tel.TaktAbfall ? ' um ' + tel.TaktAbfall.toFixed(0) + ' %' : '') + '.';
-    } else {
-      banner.className = 'throttle-banner ok';
-      bIcon.textContent = '✔️';
-      bText.textContent = 'Keine thermische Drosselung belegt. CPU-Takt und Kühlsystem arbeiten unter Volllast stabil.';
+    if (banner && bIcon && bText) {
+      if (tel.Drosselung === 'thermisch') {
+        banner.className = 'throttle-banner thermisch';
+        bIcon.textContent = '⚠️';
+        bText.textContent = 'Thermische Drosselung aufgetreten! CPU erreichte ' + (tel.CpuTempMax || 95) + ' °C (TjMax). Taktabfall um ' + (tel.TaktAbfall ? tel.TaktAbfall.toFixed(0) : '20') + ' % belegt.';
+      } else if (tel.Drosselung && tel.Drosselung !== 'keine') {
+        banner.className = 'throttle-banner leistung';
+        bIcon.textContent = 'ℹ️';
+        bText.textContent = 'Drosselung / Begrenzung aktiv (' + tel.Drosselung + '): Takt sank unter Last' + (tel.TaktAbfall ? ' um ' + tel.TaktAbfall.toFixed(0) + ' %' : '') + '.';
+      } else {
+        banner.className = 'throttle-banner ok';
+        bIcon.textContent = '✔️';
+        bText.textContent = 'Keine thermische Drosselung belegt. CPU-Takt und Kühlsystem arbeiten unter Volllast stabil.';
+      }
     }
 
     renderChart();
@@ -1795,6 +1804,8 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     const ratingEl = document.getElementById(prefix + 'Rating');
     const tValEl = document.getElementById(prefix + 'TargetVal');
     const rValEl = document.getElementById(prefix + 'RefVal');
+
+    if (!scoreEl || !pillEl || !barEl || !ratingEl || !tValEl || !rValEl) return;
 
     if (!tScore || !rScore) {
       scoreEl.innerHTML = '-<small> %</small>';
@@ -1825,6 +1836,8 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     const refEl = document.getElementById(id + 'Ref');
     const pillEl = document.getElementById(id + 'Pill');
     const barEl = document.getElementById(id + 'Bar');
+
+    if (!valEl || !refEl || !pillEl) return;
 
     valEl.textContent = (targetVal !== null && targetVal !== undefined && targetVal > 0) ? fmtNum(targetVal, decimals) + unit : '-';
     refEl.textContent = (refVal !== null && refVal !== undefined && refVal > 0) ? 'Ref: ' + fmtNum(refVal, decimals) + unit : '-';

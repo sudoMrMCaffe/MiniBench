@@ -462,7 +462,7 @@ class NavItem : Control
     {
         Title = title; Desc = desc; Icon = icon ?? "";
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
-        Cursor = Cursors.Hand; Size = new Size(UI.S(226), UI.S(66)); Margin = new Padding(0, 0, 0, UI.S(6)); BackColor = UI.Bg;
+        Cursor = Cursors.Hand; Size = new Size(UI.S(226), UI.S(40)); Margin = new Padding(0, 0, 0, UI.S(4)); BackColor = UI.Bg;
     }
     public bool Selected { get { return sel; } set { sel = value; Invalidate(); } }
     public bool Checked
@@ -501,7 +501,7 @@ class NavItem : Control
         // Bei Auswahl: Links ein 3 px breiter, abgerundeter blauer Akzentbalken
         if (sel)
         {
-            int barH = Height - UI.S(20);
+            int barH = Height - UI.S(16);
             RectangleF barR = new RectangleF(UI.S(3), (Height - barH) / 2f, UI.S(3), barH);
             using (GraphicsPath bp = UI.Round(barR, UI.SF(1.5f)))
             using (SolidBrush bb = new SolidBrush(UI.Accent))
@@ -523,9 +523,9 @@ class NavItem : Control
 
         if (!String.IsNullOrEmpty(Icon))
         {
-            int icoSize = UI.S(24);
+            int icoSize = UI.S(22);
             int icoY = (Height - icoSize) / 2;
-            using (Font ifont = UI.SymbolFont(UI.SF(13)))
+            using (Font ifont = UI.SymbolFont(UI.SF(12.5f)))
             {
                 Rectangle icoR = new Rectangle(x, icoY, icoSize, icoSize);
                 TextRenderer.DrawText(g, Icon, ifont, icoR, sel ? UI.Accent : UI.Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.NoClipping);
@@ -537,16 +537,8 @@ class NavItem : Control
         {
             Size tsz = TextRenderer.MeasureText(g, Title, ft);
             int th = Math.Max(tsz.Height, UI.S(18));
-            int startY = String.IsNullOrEmpty(Desc) ? (Height - th) / 2 : UI.S(12);
-            TextRenderer.DrawText(g, Title, ft, new Rectangle(x, startY, Width - x - UI.S(8), th), sel ? UI.AccentDark : UI.Text, TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
-            if (!String.IsNullOrEmpty(Desc))
-            {
-                using (Font fs = new Font("Segoe UI", UI.SF(8.5f)))
-                {
-                    int dy = startY + th + UI.S(2);
-                    TextRenderer.DrawText(g, Desc, fs, new Rectangle(x, dy, Width - x - UI.S(8), Height - dy - UI.S(4)), UI.Muted, TextFormatFlags.Left | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis);
-                }
-            }
+            int startY = (Height - th) / 2;
+            TextRenderer.DrawText(g, Title, ft, new Rectangle(x, startY, Width - x - UI.S(8), th), sel ? UI.AccentDark : UI.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         }
     }
 }

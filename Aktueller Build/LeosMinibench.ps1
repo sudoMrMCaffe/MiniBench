@@ -4757,7 +4757,9 @@ public partial class DiagGui : Form
     NavItem ModNav(string name, string title, string desc, string icon = "")
     {
         string[] mi; if (modInfo.TryGetValue(name, out mi)) { title = mi[0]; desc = mi[1]; }
-        return new NavItem(title, desc, icon);
+        NavItem it = new NavItem(title, desc, icon);
+        if (!String.IsNullOrEmpty(desc)) Tip(it, desc);
+        return it;
     }
 
     // ------------------------------------------------------------ Einrichtung
@@ -4774,8 +4776,8 @@ public partial class DiagGui : Form
         nav.Add(ModNav("Wartung", "Wartung", "SFC, DISM, Bereinigung und Systempflege", UI.IcoWartung));
         nav.Add(ModNav("Optimierung", "Optimierung", "Windows Optimisation Pack, gruppiert", UI.IcoOpt));
         navSens = ModNav("Sensoren", "Sensoren live", "Temperatur, Takt, Lüfter, Leistung", UI.IcoSens); navSens.HasCheck = false; nav.Add(navSens);
-        navDb = new NavItem("Vergleichsdatenbank", db.Count + " gespeicherte Systeme", UI.IcoDb); navDb.HasCheck = false; nav.Add(navDb);
-        navChg = new NavItem("Änderungen", "Protokoll und Rückgängig", UI.IcoChg); navChg.HasCheck = false; nav.Add(navChg);
+        navDb = new NavItem("Vergleichsdatenbank", db.Count + " gespeicherte Systeme", UI.IcoDb); navDb.HasCheck = false; Tip(navDb, "Vergleichsdatenbank aller gespeicherten Systeme verwalten und vergleichen."); nav.Add(navDb);
+        navChg = new NavItem("Änderungen", "Protokoll und Rückgängig", UI.IcoChg); navChg.HasCheck = false; Tip(navChg, "Änderungsprotokoll und Rückgängigmachung von Systemeinstellungen."); nav.Add(navChg);
         for (int i = 0; i < nav.Count; i++)
         {
             int idx = i;
@@ -7496,7 +7498,7 @@ class NavItem : Control
     {
         Title = title; Desc = desc; Icon = icon ?? "";
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
-        Cursor = Cursors.Hand; Size = new Size(UI.S(226), UI.S(66)); Margin = new Padding(0, 0, 0, UI.S(6)); BackColor = UI.Bg;
+        Cursor = Cursors.Hand; Size = new Size(UI.S(226), UI.S(40)); Margin = new Padding(0, 0, 0, UI.S(4)); BackColor = UI.Bg;
     }
     public bool Selected { get { return sel; } set { sel = value; Invalidate(); } }
     public bool Checked
@@ -7535,7 +7537,7 @@ class NavItem : Control
         // Bei Auswahl: Links ein 3 px breiter, abgerundeter blauer Akzentbalken
         if (sel)
         {
-            int barH = Height - UI.S(20);
+            int barH = Height - UI.S(16);
             RectangleF barR = new RectangleF(UI.S(3), (Height - barH) / 2f, UI.S(3), barH);
             using (GraphicsPath bp = UI.Round(barR, UI.SF(1.5f)))
             using (SolidBrush bb = new SolidBrush(UI.Accent))
@@ -7557,9 +7559,9 @@ class NavItem : Control
 
         if (!String.IsNullOrEmpty(Icon))
         {
-            int icoSize = UI.S(24);
+            int icoSize = UI.S(22);
             int icoY = (Height - icoSize) / 2;
-            using (Font ifont = UI.SymbolFont(UI.SF(13)))
+            using (Font ifont = UI.SymbolFont(UI.SF(12.5f)))
             {
                 Rectangle icoR = new Rectangle(x, icoY, icoSize, icoSize);
                 TextRenderer.DrawText(g, Icon, ifont, icoR, sel ? UI.Accent : UI.Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.NoClipping);
@@ -7571,16 +7573,8 @@ class NavItem : Control
         {
             Size tsz = TextRenderer.MeasureText(g, Title, ft);
             int th = Math.Max(tsz.Height, UI.S(18));
-            int startY = String.IsNullOrEmpty(Desc) ? (Height - th) / 2 : UI.S(12);
-            TextRenderer.DrawText(g, Title, ft, new Rectangle(x, startY, Width - x - UI.S(8), th), sel ? UI.AccentDark : UI.Text, TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
-            if (!String.IsNullOrEmpty(Desc))
-            {
-                using (Font fs = new Font("Segoe UI", UI.SF(8.5f)))
-                {
-                    int dy = startY + th + UI.S(2);
-                    TextRenderer.DrawText(g, Desc, fs, new Rectangle(x, dy, Width - x - UI.S(8), Height - dy - UI.S(4)), UI.Muted, TextFormatFlags.Left | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis);
-                }
-            }
+            int startY = (Height - th) / 2;
+            TextRenderer.DrawText(g, Title, ft, new Rectangle(x, startY, Width - x - UI.S(8), th), sel ? UI.AccentDark : UI.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         }
     }
 }
@@ -8159,7 +8153,20 @@ public partial class DiagGui
         FlowLayoutPanel top = Page("Vergleichsdatenbank", "Jeder Lauf wird als System gespeichert. Hier lassen sich bereits geprüfte Systeme ohne neuen Benchmark vergleichen: mindestens zwei Systeme anhaken und \"Vergleichen\" klicken. Ältere Ausgabeordner lassen sich importieren. Ein Klick auf die Spaltenköpfe sortiert die Einträge.", -1);
         top.Dock = DockStyle.Top;
         top.AutoSize = true;
-        lblDbPath = Lbl("Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lblDbPath.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8)); top.Controls.Add(lblDbPath);
+        lblDbPath = Lbl("Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lblDbPath.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(4)); top.Controls.Add(lblDbPath);
+
+        FlowLayoutPanel topTools = Row();
+        topTools.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8));
+        Button imp = UI.Secondary("Importieren ..."); imp.Margin = new Padding(0); imp.Click += delegate { ImportFolder(); };
+        Tip(imp, "Übernimmt Benchmark-Werte aus Ausgabeordnern früherer Läufe in die Datenbank (auch von PC-Diagnose).");
+        btnDbClean = UI.Secondary("Aufräumen ..."); btnDbClean.Margin = new Padding(UI.S(8), 0, 0, 0); btnDbClean.Click += delegate { CleanData(); }; btnDbClean.Enabled = dataDir.Length > 0;
+        Tip(btnDbClean, "Räumt nicht vergleichbare oder abgebrochene Läufe auf und verschiebt sie ins Archiv.");
+        Button rel = UI.Secondary("Aktualisieren"); rel.Margin = new Padding(UI.S(8), 0, 0, 0); rel.Click += delegate { ReloadDb(); };
+        Tip(rel, "Liest Datenbank und Referenz neu ein.");
+        Button open = UI.Secondary("Datenordner"); open.Margin = new Padding(UI.S(8), 0, 0, 0); open.Click += delegate { if (dataDir.Length > 0) OpenShell(dataDir); };
+        Tip(open, "Öffnet den Datenordner (Berichte, Datenbank, Tools, Archiv).");
+        topTools.Controls.Add(imp); topTools.Controls.Add(btnDbClean); topTools.Controls.Add(rel); topTools.Controls.Add(open);
+        top.Controls.Add(topTools);
 
         FlowLayoutPanel bottom = new FlowLayoutPanel(); bottom.FlowDirection = FlowDirection.TopDown; bottom.WrapContents = false; bottom.AutoSize = true; bottom.BackColor = UI.Panel; bottom.Dock = DockStyle.Bottom;
         Label hint = Lbl("Doppelklick öffnet den Bericht des Laufs. Graue Einträge enthalten keine Benchmark-Werte. Klick auf Spaltenkopf sortiert die Tabelle.", 8.75f, false, UI.Muted); hint.Margin = new Padding(UI.S(4), UI.S(4), UI.S(4), 0); bottom.Controls.Add(hint);
@@ -8173,16 +8180,9 @@ public partial class DiagGui
         btnRename.Click += delegate { RenameSelectedEntry(); };
         btnRename.Enabled = false;
         Tip(btnRename, "Bearbeitet den Anzeigenamen des ausgewählten Systems (z. B. für Notizen wie Vor Reinigung oder Neuer Treiber), ohne die Hardware-Erkennung zu verändern.");
-        Button imp = UI.Secondary("Importieren ..."); imp.Margin = new Padding(UI.S(8), 0, 0, 0);
-        imp.Click += delegate { ImportFolder(); };
         btnDelete = UI.Secondary("Entfernen"); btnDelete.Margin = new Padding(UI.S(8), 0, 0, 0); btnDelete.Click += delegate { DeleteSelected(); };
-        Button rel = UI.Secondary("Aktualisieren"); rel.Margin = new Padding(UI.S(8), 0, 0, 0); rel.Click += delegate { ReloadDb(); };
-        Button open = UI.Secondary("Datenordner"); open.Margin = new Padding(UI.S(8), 0, 0, 0); open.Click += delegate { if (dataDir.Length > 0) OpenShell(dataDir); };
-        btnDbClean = UI.Secondary("Aufräumen ..."); btnDbClean.Margin = new Padding(UI.S(8), 0, 0, 0); btnDbClean.Click += delegate { CleanData(); }; btnDbClean.Enabled = dataDir.Length > 0;
-        Tip(imp, "Übernimmt Benchmark-Werte aus Ausgabeordnern früherer Läufe in die Datenbank (auch von PC-Diagnose).");
-        Tip(rel, "Liest Datenbank und Referenz neu ein.");
-        Tip(open, "Öffnet den Datenordner (Berichte, Datenbank, Tools, Archiv).");
-        b.Controls.Add(btnCompare); b.Controls.Add(btnDashboard); b.Controls.Add(btnRename); b.Controls.Add(imp); b.Controls.Add(btnDelete); b.Controls.Add(rel); b.Controls.Add(btnDbClean); b.Controls.Add(open); bottom.Controls.Add(b);
+        Tip(btnDelete, "Löscht die ausgewählten Systeme aus der Vergleichsdatenbank.");
+        b.Controls.Add(btnCompare); b.Controls.Add(btnDashboard); b.Controls.Add(btnRename); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
         lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
         lblDbClean.Margin = new Padding(UI.S(4), UI.S(8), UI.S(4), 0); bottom.Controls.Add(lblDbClean);
         bottom.Resize += delegate { lblDbClean.MaximumSize = new Size(Math.Max(UI.S(200), bottom.ClientSize.Width - UI.S(10)), 0); };
@@ -8201,6 +8201,31 @@ public partial class DiagGui
         lvDb.SelectedIndexChanged += delegate { UpdateDbButtons(); };
         lvDb.ColumnClick += OnDbColumnClick;
         Tip(lvDb, "Vergleichsdatenbank aller gespeicherten Systeme. Ein Klick auf die Spaltenköpfe sortiert nach Datum, Gesamtwertung, CPU oder GPU.");
+
+        ContextMenu cm = new ContextMenu();
+        MenuItem miCompare = new MenuItem("Vergleichen", delegate { CompareSelected(); });
+        MenuItem miDashboard = new MenuItem("Im Dashboard ansehen", delegate { OpenDashboard(); });
+        MenuItem miSep1 = new MenuItem("-");
+        MenuItem miRename = new MenuItem("Name ändern ...", delegate { RenameSelectedEntry(); });
+        MenuItem miOpen = new MenuItem("Bericht öffnen", delegate { if (lvDb.SelectedItems.Count > 0) OpenEntry((DbEntry)lvDb.SelectedItems[0].Tag); });
+        MenuItem miSep2 = new MenuItem("-");
+        MenuItem miDelete = new MenuItem("Aus Datenbank entfernen", delegate { DeleteSelected(); });
+        cm.MenuItems.Add(miCompare);
+        cm.MenuItems.Add(miDashboard);
+        cm.MenuItems.Add(miSep1);
+        cm.MenuItems.Add(miRename);
+        cm.MenuItems.Add(miOpen);
+        cm.MenuItems.Add(miSep2);
+        cm.MenuItems.Add(miDelete);
+        cm.Popup += delegate {
+            int selN = lvDb.SelectedItems.Count;
+            int chkN = CheckedEntries().Count;
+            miCompare.Enabled = chkN >= 2 || selN >= 2;
+            miRename.Enabled = selN == 1 || (selN == 0 && chkN == 1);
+            miOpen.Enabled = selN == 1;
+            miDelete.Enabled = chkN >= 1 || selN >= 1;
+        };
+        lvDb.ContextMenu = cm;
 
         f.Controls.Add(lvDb);
         f.Controls.Add(bottom);
@@ -11238,6 +11263,7 @@ function Export-BenchDashboardData {
         $datum = $(if ($j.Datum) { [string]$j.Datum } else { '' })
         $id = $(if ($isRef) { 'REF_' + ([System.IO.Path]::GetFileNameWithoutExtension($sourceFile) -replace '\W', '_') } else { ($comp + '_' + ($datum -replace '\W', '')) })
         if (-not $id) { $id = [guid]::NewGuid().ToString('N').Substring(0, 8) }
+        $id = [string]$id
 
         # Werte-Tabelle
         $werte = @{}
@@ -11433,9 +11459,9 @@ function Export-BenchDashboardData {
                 }
             }
             if ($j.Sensoren.Leerlauf) {
-                $id = $j.Sensoren.Leerlauf
-                if ($null -eq $cpuTIdle -and $id.CpuTemp) { $cpuTIdle = [double]$id.CpuTemp }
-                if ($null -eq $cpuMHzAvg -and $id.CpuMHz) { $cpuMHzAvg = [double]$id.CpuMHz }
+                $idleSens = $j.Sensoren.Leerlauf
+                if ($null -eq $cpuTIdle -and $idleSens.CpuTemp) { $cpuTIdle = [double]$idleSens.CpuTemp }
+                if ($null -eq $cpuMHzAvg -and $idleSens.CpuMHz) { $cpuMHzAvg = [double]$idleSens.CpuMHz }
             }
         }
 
@@ -12746,14 +12772,14 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
 
     // Standardauswahl
     if (data.Systems && data.Systems.length > 0) {
-      targetSelect.value = data.Systems[0].Id;
+      targetSelect.value = String(data.Systems[0].Id);
     }
 
     if (data.References && data.References.length > 0) {
       const mid = data.References.find(r => r.DisplayName.includes('Mittelklasse')) || data.References[0];
-      refSelect.value = mid.Id;
+      refSelect.value = String(mid.Id);
     } else if (data.Systems && data.Systems.length > 1) {
-      refSelect.value = data.Systems[1].Id;
+      refSelect.value = String(data.Systems[1].Id);
     }
 
     updateDashboard();
@@ -12772,9 +12798,10 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
   }
 
   function getSystemById(id) {
-    if (!data) return null;
+    if (!data || id === null || id === undefined) return null;
+    const targetId = String(id);
     const all = [ ...(data.Systems || []), ...(data.References || []) ];
-    return all.find(s => s.Id === id) || null;
+    return all.find(s => String(s.Id) === targetId) || null;
   }
 
   function populateSelects() {
@@ -12789,7 +12816,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     if (data.Systems) {
       data.Systems.forEach(s => {
         const opt = document.createElement('option');
-        opt.value = s.Id;
+        opt.value = String(s.Id);
         opt.textContent = s.DisplayName + (s.Datum ? ' (' + s.Datum + ')' : '');
         sysGroup.appendChild(opt);
       });
@@ -12798,7 +12825,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     if (data.References) {
       data.References.forEach(r => {
         const opt = document.createElement('option');
-        opt.value = r.Id;
+        opt.value = String(r.Id);
         opt.textContent = '⭐ ' + r.DisplayName;
         refGroup.appendChild(opt);
       });
@@ -12858,22 +12885,26 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
   function updateDashboard() {
     currentTarget = getSystemById(targetSelect.value);
     currentRef = getSystemById(refSelect.value);
-    if (!currentTarget || !currentRef) return;
+    if (!currentTarget || !currentRef) {
+      console.warn('Systeme nicht gefunden:', targetSelect.value, refSelect.value);
+      return;
+    }
 
     // 1. SPECS
-    document.getElementById('targetName').textContent = currentTarget.DisplayName;
-    document.getElementById('targetDate').textContent = currentTarget.Datum || 'Unbekannt';
-    document.getElementById('targetCpu').textContent = currentTarget.Hardware?.CPU || '-';
-    document.getElementById('targetGpu').textContent = currentTarget.Hardware?.GPU || '-';
-    document.getElementById('targetRam').textContent = currentTarget.Hardware?.RAM || '-';
-    document.getElementById('targetDisk').textContent = currentTarget.Hardware?.Datentraeger || '-';
+    function setTxt(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+    setTxt('targetName', currentTarget.DisplayName || currentTarget.Computer || '-');
+    setTxt('targetDate', currentTarget.Datum || 'Unbekannt');
+    setTxt('targetCpu', currentTarget.Hardware && currentTarget.Hardware.CPU ? currentTarget.Hardware.CPU : '-');
+    setTxt('targetGpu', currentTarget.Hardware && currentTarget.Hardware.GPU ? currentTarget.Hardware.GPU : '-');
+    setTxt('targetRam', currentTarget.Hardware && currentTarget.Hardware.RAM ? currentTarget.Hardware.RAM : '-');
+    setTxt('targetDisk', currentTarget.Hardware && currentTarget.Hardware.Datentraeger ? currentTarget.Hardware.Datentraeger : '-');
 
-    document.getElementById('refName').textContent = currentRef.DisplayName;
-    document.getElementById('refDate').textContent = currentRef.Datum || 'Referenz';
-    document.getElementById('refCpu').textContent = currentRef.Hardware?.CPU || '-';
-    document.getElementById('refGpu').textContent = currentRef.Hardware?.GPU || '-';
-    document.getElementById('refRam').textContent = currentRef.Hardware?.RAM || '-';
-    document.getElementById('refDisk').textContent = currentRef.Hardware?.Datentraeger || '-';
+    setTxt('refName', currentRef.DisplayName || currentRef.Computer || '-');
+    setTxt('refDate', currentRef.Datum || 'Referenz');
+    setTxt('refCpu', currentRef.Hardware && currentRef.Hardware.CPU ? currentRef.Hardware.CPU : '-');
+    setTxt('refGpu', currentRef.Hardware && currentRef.Hardware.GPU ? currentRef.Hardware.GPU : '-');
+    setTxt('refRam', currentRef.Hardware && currentRef.Hardware.RAM ? currentRef.Hardware.RAM : '-');
+    setTxt('refDisk', currentRef.Hardware && currentRef.Hardware.Datentraeger ? currentRef.Hardware.Datentraeger : '-');
 
     // 2. HERO PROFILES (GAMING, DESKTOP, WORKSTATION)
     updateProfileCard('game', currentTarget.Scores?.Gaming, currentRef.Scores?.Gaming);
@@ -12910,28 +12941,31 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
 
     // 4. TELEMETRIE & LASTTEST STATS
     const tel = currentTarget.Telemetry || {};
-    document.getElementById('statCpuTemp').textContent = tel.CpuTempMax ? tel.CpuTempMax + ' °C' : '-';
-    document.getElementById('statGpuTemp').textContent = tel.GpuTempMax ? tel.GpuTempMax + ' °C' : '-';
-    document.getElementById('statCpuClock').textContent = tel.CpuMHzAvg ? (tel.CpuMHzAvg >= 1000 ? (tel.CpuMHzAvg / 1000).toFixed(2) + ' GHz' : tel.CpuMHzAvg + ' MHz') : '-';
-    document.getElementById('statThrottle').textContent = tel.Drosselung || 'keine';
-    document.getElementById('statPauses').textContent = tel.UnterbrechungenUeber50ms ? 'Auffällig' : 'Keine';
+    function setStat(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+    setStat('statCpuTemp', tel.CpuTempMax ? tel.CpuTempMax + ' °C' : '-');
+    setStat('statGpuTemp', tel.GpuTempMax ? tel.GpuTempMax + ' °C' : '-');
+    setStat('statCpuClock', tel.CpuMHzAvg ? (tel.CpuMHzAvg >= 1000 ? (tel.CpuMHzAvg / 1000).toFixed(2) + ' GHz' : tel.CpuMHzAvg + ' MHz') : '-');
+    setStat('statThrottle', tel.Drosselung || 'keine');
+    setStat('statPauses', tel.UnterbrechungenUeber50ms ? 'Auffällig' : 'Keine');
 
     const banner = document.getElementById('throttleBanner');
     const bIcon = document.getElementById('throttleIcon');
     const bText = document.getElementById('throttleText');
 
-    if (tel.Drosselung === 'thermisch') {
-      banner.className = 'throttle-banner thermisch';
-      bIcon.textContent = '⚠️';
-      bText.textContent = 'Thermische Drosselung aufgetreten! CPU erreichte ' + (tel.CpuTempMax || 95) + ' °C (TjMax). Taktabfall um ' + (tel.TaktAbfall ? tel.TaktAbfall.toFixed(0) : '20') + ' % belegt.';
-    } else if (tel.Drosselung && tel.Drosselung !== 'keine') {
-      banner.className = 'throttle-banner leistung';
-      bIcon.textContent = 'ℹ️';
-      bText.textContent = 'Drosselung / Begrenzung aktiv (' + tel.Drosselung + '): Takt sank unter Last' + (tel.TaktAbfall ? ' um ' + tel.TaktAbfall.toFixed(0) + ' %' : '') + '.';
-    } else {
-      banner.className = 'throttle-banner ok';
-      bIcon.textContent = '✔️';
-      bText.textContent = 'Keine thermische Drosselung belegt. CPU-Takt und Kühlsystem arbeiten unter Volllast stabil.';
+    if (banner && bIcon && bText) {
+      if (tel.Drosselung === 'thermisch') {
+        banner.className = 'throttle-banner thermisch';
+        bIcon.textContent = '⚠️';
+        bText.textContent = 'Thermische Drosselung aufgetreten! CPU erreichte ' + (tel.CpuTempMax || 95) + ' °C (TjMax). Taktabfall um ' + (tel.TaktAbfall ? tel.TaktAbfall.toFixed(0) : '20') + ' % belegt.';
+      } else if (tel.Drosselung && tel.Drosselung !== 'keine') {
+        banner.className = 'throttle-banner leistung';
+        bIcon.textContent = 'ℹ️';
+        bText.textContent = 'Drosselung / Begrenzung aktiv (' + tel.Drosselung + '): Takt sank unter Last' + (tel.TaktAbfall ? ' um ' + tel.TaktAbfall.toFixed(0) + ' %' : '') + '.';
+      } else {
+        banner.className = 'throttle-banner ok';
+        bIcon.textContent = '✔️';
+        bText.textContent = 'Keine thermische Drosselung belegt. CPU-Takt und Kühlsystem arbeiten unter Volllast stabil.';
+      }
     }
 
     renderChart();
@@ -12944,6 +12978,8 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     const ratingEl = document.getElementById(prefix + 'Rating');
     const tValEl = document.getElementById(prefix + 'TargetVal');
     const rValEl = document.getElementById(prefix + 'RefVal');
+
+    if (!scoreEl || !pillEl || !barEl || !ratingEl || !tValEl || !rValEl) return;
 
     if (!tScore || !rScore) {
       scoreEl.innerHTML = '-<small> %</small>';
@@ -12974,6 +13010,8 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     const refEl = document.getElementById(id + 'Ref');
     const pillEl = document.getElementById(id + 'Pill');
     const barEl = document.getElementById(id + 'Bar');
+
+    if (!valEl || !refEl || !pillEl) return;
 
     valEl.textContent = (targetVal !== null && targetVal !== undefined && targetVal > 0) ? fmtNum(targetVal, decimals) + unit : '-';
     refEl.textContent = (refVal !== null && refVal !== undefined && refVal > 0) ? 'Ref: ' + fmtNum(refVal, decimals) + unit : '-';
