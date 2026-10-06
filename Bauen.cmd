@@ -428,7 +428,7 @@ try {
     if ($gitCmd -and $isGitRepo) {
         Write-Host '  Git      : Automatische Aktualisierung ...'
         try {
-            $stageFiles = @('src', 'Doku', 'tests', 'Bauen.cmd', 'README.md', 'CHANGELOG.md')
+            $stageFiles = @('src', 'Doku', 'tests', 'Bauen.cmd', 'README.md', 'CHANGELOG.md', 'Aktueller Build', 'Archiv')
             & git.exe -C $Here add $stageFiles 2>&1 | Out-Null
             $status = & git.exe -C $Here status --porcelain 2>&1
             if ($status) {

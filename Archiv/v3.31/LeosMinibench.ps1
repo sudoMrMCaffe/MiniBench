@@ -224,7 +224,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenp
 }
 #endregion
 
-$ScriptVersion = '3.32'
+$ScriptVersion = '3.31'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -4400,8 +4400,6 @@ public partial class DiagGui : Form
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
     const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
     const int DWMWCP_ROUND = 2;
-    [DllImport("uxtheme.dll", EntryPoint = "#135", SetLastError = true)] static extern int SetPreferredAppMode(int appMode);
-    [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)] static extern int SetWindowTheme(IntPtr hWnd, string pszSubAppName, string pszSubIdList);
     [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
     [DllImport("user32.dll")] static extern bool AttachThreadInput(uint a, uint b, bool attach);
@@ -4425,7 +4423,6 @@ public partial class DiagGui : Form
     Font wsBold;
 
     Panel setupView, runView, content, head, body, contentHost;
-    FlowLayoutPanel left;
     Button btnThemeToggle;
     List<NavItem> nav = new List<NavItem>();
     List<Control> pages = new List<Control>();
@@ -4724,41 +4721,6 @@ public partial class DiagGui : Form
         base.OnHandleCreated(e);
         try { int round = DWMWCP_ROUND; DwmSetWindowAttribute(Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int)); } catch { }
         ApplyTitleBarTheme(UI.IsDark);
-        ApplyNativeControlThemes();
-    }
-
-    void ApplyNativeControlThemes()
-    {
-        string subApp = UI.IsDark ? "DarkMode_Explorer" : "Explorer";
-        try { SetPreferredAppMode(UI.IsDark ? 2 : 0); } catch { }
-        if (content != null && content.IsHandleCreated) try { SetWindowTheme(content.Handle, subApp, null); } catch { }
-        if (left != null && left.IsHandleCreated) try { SetWindowTheme(left.Handle, subApp, null); } catch { }
-        if (lvDb != null && lvDb.IsHandleCreated) try { SetWindowTheme(lvDb.Handle, subApp, null); } catch { }
-        if (lvSens != null && lvSens.IsHandleCreated) try { SetWindowTheme(lvSens.Handle, subApp, null); } catch { }
-        if (lvChg != null && lvChg.IsHandleCreated) try { SetWindowTheme(lvChg.Handle, subApp, null); } catch { }
-        if (clbDisks != null && clbDisks.IsHandleCreated) try { SetWindowTheme(clbDisks.Handle, subApp, null); } catch { }
-        if (clbCompare != null && clbCompare.IsHandleCreated) try { SetWindowTheme(clbCompare.Handle, subApp, null); } catch { }
-        if (txtLog != null && txtLog.IsHandleCreated) try { SetWindowTheme(txtLog.Handle, subApp, null); } catch { }
-    }
-
-    public void EnableDarkListView(ListView lv)
-    {
-        if (lv == null) return;
-        lv.OwnerDraw = true;
-        lv.BackColor = UI.Panel;
-        lv.ForeColor = UI.Text;
-        lv.DrawColumnHeader += delegate(object s, DrawListViewColumnHeaderEventArgs e) {
-            Color headerBg = UI.IsDark ? Color.FromArgb(28, 30, 32) : Color.FromArgb(248, 249, 251);
-            using (SolidBrush b = new SolidBrush(headerBg)) e.Graphics.FillRectangle(b, e.Bounds);
-            using (Pen pen = new Pen(UI.Line)) e.Graphics.DrawLine(pen, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
-            using (Font f = new Font("Segoe UI Semibold", 8.5f))
-                TextRenderer.DrawText(e.Graphics, e.Header.Text.ToUpperInvariant(), f,
-                    new Rectangle(e.Bounds.X + UI.S(8), e.Bounds.Y, e.Bounds.Width - UI.S(10), e.Bounds.Height),
-                    UI.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
-        };
-        lv.DrawItem += delegate(object s, DrawListViewItemEventArgs e) { e.DrawDefault = true; };
-        lv.DrawSubItem += delegate(object s, DrawListViewSubItemEventArgs e) { e.DrawDefault = true; };
-        if (lv.IsHandleCreated) try { SetWindowTheme(lv.Handle, UI.IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
     }
 
     void ApplyTitleBarTheme(bool dark)
@@ -4839,10 +4801,8 @@ public partial class DiagGui : Form
     void SetAppTheme(bool dark)
     {
         UI.SetTheme(dark);
-        try { SetPreferredAppMode(dark ? 2 : 0); } catch { }
         SaveThemePreference(dark);
         ApplyTitleBarTheme(dark);
-        ApplyNativeControlThemes();
         if (btnThemeToggle != null)
         {
             btnThemeToggle.Text = dark ? "☀️ Hell" : "🌙 Dunkel";
@@ -4879,7 +4839,6 @@ public partial class DiagGui : Form
         else if (c == content)
         {
             c.BackColor = UI.Panel;
-            if (c.IsHandleCreated) try { SetWindowTheme(c.Handle, UI.IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
         }
         else if (c is NavItem)
         {
@@ -4918,7 +4877,6 @@ public partial class DiagGui : Form
         {
             c.BackColor = UI.Panel;
             c.ForeColor = UI.Text;
-            if (c.IsHandleCreated) try { SetWindowTheme(c.Handle, UI.IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
             c.Invalidate();
         }
         else if (c is RichTextBox)
@@ -4934,18 +4892,15 @@ public partial class DiagGui : Form
                 c.ForeColor = UI.Text;
             }
         }
-        else if (c is DarkComboBox || c is ComboBox)
+        else if (c is ComboBox)
         {
             c.BackColor = UI.Panel;
             c.ForeColor = UI.Text;
-            c.Invalidate();
         }
         else if (c is CheckedListBox || c is ListBox)
         {
             c.BackColor = UI.Panel;
             c.ForeColor = UI.Text;
-            if (c.IsHandleCreated) try { SetWindowTheme(c.Handle, UI.IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
-            c.Invalidate();
         }
         else if (c is CheckBox || c is RadioButton)
         {
@@ -4959,7 +4914,7 @@ public partial class DiagGui : Form
                 btn.BackColor = UI.IsDark ? Color.FromArgb(38, 44, 54) : Color.FromArgb(40, 52, 72);
                 btn.ForeColor = Color.White;
             }
-            else if (btn == btnHtml || btn == btnStart || (btnUndo != null && btn == btnUndo) || (btnDashboard != null && btn == btnDashboard) || (btn.Font.Name.Contains("Semibold") && btn.ForeColor == Color.White && btn.BackColor != UI.Panel))
+            else if (btn == btnHtml || btn == btnStart || (btnUndo != null && btn == btnUndo) || (btnCompare != null && btn == btnCompare) || (btn.Font.Name.Contains("Semibold") && btn.ForeColor == Color.White && btn.BackColor != UI.Panel))
             {
                 btn.BackColor = UI.Accent;
                 btn.ForeColor = Color.White;
@@ -4974,7 +4929,6 @@ public partial class DiagGui : Form
                 btn.FlatAppearance.MouseOverBackColor = UI.IsDark ? Color.FromArgb(45, 48, 52) : Color.FromArgb(243, 244, 246);
                 btn.FlatAppearance.MouseDownBackColor = UI.IsDark ? Color.FromArgb(55, 58, 62) : Color.FromArgb(235, 237, 240);
             }
-            btn.Invalidate();
         }
         else if (c is Label)
         {
@@ -5006,10 +4960,6 @@ public partial class DiagGui : Form
             else if (bg == Color.FromArgb(229, 231, 235) || bg == Color.FromArgb(58, 59, 60))
             {
                 c.BackColor = UI.Line;
-            }
-            if (((Panel)c).AutoScroll && c.IsHandleCreated)
-            {
-                try { SetWindowTheme(c.Handle, UI.IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
             }
         }
 
@@ -5086,7 +5036,7 @@ public partial class DiagGui : Form
     {
         Panel p = new Panel(); p.BackColor = UI.Bg;
 
-        left = new FlowLayoutPanel(); left.Dock = DockStyle.Left; left.Width = UI.S(246); left.FlowDirection = FlowDirection.TopDown; left.WrapContents = false;
+        FlowLayoutPanel left = new FlowLayoutPanel(); left.Dock = DockStyle.Left; left.Width = UI.S(246); left.FlowDirection = FlowDirection.TopDown; left.WrapContents = false;
         left.BackColor = UI.Bg; left.Padding = new Padding(0, 0, UI.S(14), 0); left.AutoScroll = true;
         Label lm = Lbl("Module", 12f, true, UI.Text); lm.Margin = new Padding(UI.S(2), 0, 0, UI.S(10)); left.Controls.Add(lm);
         nav.Add(ModNav("Diagnose", "Diagnose", "Inventar, Prüfungen, Ereignisse", UI.IcoDiag));
@@ -5294,7 +5244,7 @@ public partial class DiagGui : Form
 
     static ComboBox Combo(int width, string[] items, int sel)
     {
-        DarkComboBox c = new DarkComboBox(); c.Width = UI.S(width); c.Margin = new Padding(0, UI.S(1), UI.S(16), UI.S(1));
+        ComboBox c = new ComboBox(); c.DropDownStyle = ComboBoxStyle.DropDownList; c.Width = width; c.Margin = new Padding(0, UI.S(1), UI.S(16), UI.S(1));
         foreach (string s in items) c.Items.Add(s);
         if (items.Length > 0) c.SelectedIndex = Math.Min(sel, items.Length - 1);
         return c;
@@ -5366,18 +5316,7 @@ public partial class DiagGui : Form
         fastHint.MaximumSize = new Size(UI.S(820), 0); fastHint.Margin = new Padding(UI.S(24), 0, 0, UI.S(4)); f.Controls.Add(fastHint);
         f.Controls.Add(Section("Prüfungen"));
         diagChk = new CheckBox[diagKeys.Length];
-        for (int i = 0; i < diagKeys.Length; i++) {
-            int chkIdx = i;
-            diagChk[i] = Chk(diagText[i], true);
-            diagChk[i].Click += delegate {
-                if (!rbCustom.Checked) {
-                    rbCustom.Checked = true;
-                    diagChk[chkIdx].Checked = !diagChk[chkIdx].Checked;
-                }
-            };
-            diagChk[i].CheckedChanged += delegate { UpdateSummary(); };
-            f.Controls.Add(diagChk[i]);
-        }
+        for (int i = 0; i < diagKeys.Length; i++) { diagChk[i] = Chk(diagText[i], true); diagChk[i].CheckedChanged += delegate { UpdateSummary(); }; f.Controls.Add(diagChk[i]); }
         Label cpuHint = Lbl("Die CPU-Stabilität prüft ab v2.7 das Modul Lasttest (Prozessor, ab 2 Minuten): eigener Lastprozess, Rechenfehler, Takt- und Temperaturverlauf und Drosselnachweis.", 8.5f, false, UI.Muted);
         cpuHint.MaximumSize = new Size(UI.S(820), 0); cpuHint.Margin = new Padding(UI.S(24), UI.S(2), 0, UI.S(4)); f.Controls.Add(cpuHint);
         f.Controls.Add(Section("Optionen"));
@@ -5408,17 +5347,11 @@ public partial class DiagGui : Form
         for (int i = 0; i < diagChk.Length; i++)
         {
             if (pick != null) diagChk[i].Checked = pick[i];
-            diagChk[i].AutoCheck = custom;
-            diagChk[i].ForeColor = custom ? UI.Text : (UI.IsDark ? Color.FromArgb(195, 200, 210) : Color.FromArgb(80, 85, 95));
+            diagChk[i].Enabled = custom;
         }
         chkInstall.Enabled = !crash && !rbTest.Checked;
-        chkInstall.ForeColor = chkInstall.Enabled ? UI.Text : (UI.IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168));
         chkMem.Enabled = !crash && !rbTest.Checked;
-        chkMem.ForeColor = chkMem.Enabled ? UI.Text : (UI.IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168));
-        if (chkFast != null) {
-            chkFast.Enabled = !crash && !rbTest.Checked;
-            chkFast.ForeColor = chkFast.Enabled ? UI.Text : (UI.IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168));
-        }
+        if (chkFast != null) chkFast.Enabled = !crash && !rbTest.Checked;
         cmbDays.Enabled = !rbTest.Checked;
         if (cmbSmartMax != null) cmbSmartMax.Enabled = !crash && !rbTest.Checked;
         UpdateSummary();
@@ -5431,7 +5364,7 @@ public partial class DiagGui : Form
         benchChk = new CheckBox[benchKeys.Length];
         for (int i = 0; i < benchKeys.Length; i++) { benchChk[i] = Chk(benchText[i], i < 4); benchChk[i].CheckedChanged += delegate { clbDisks.Enabled = benchChk[3].Checked; UpdateSummary(); }; f.Controls.Add(benchChk[i]); }
         f.Controls.Add(Section("Laufwerke"));
-        clbDisks = new CheckedListBox(); clbDisks.CheckOnClick = true; clbDisks.Width = UI.S(640); clbDisks.BorderStyle = BorderStyle.FixedSingle; clbDisks.IntegralHeight = false; clbDisks.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4)); clbDisks.BackColor = UI.Panel; clbDisks.ForeColor = UI.Text;
+        clbDisks = new CheckedListBox(); clbDisks.CheckOnClick = true; clbDisks.Width = UI.S(640); clbDisks.BorderStyle = BorderStyle.FixedSingle; clbDisks.IntegralHeight = false; clbDisks.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4));
         foreach (string d in disks)
         {
             string[] x = d.Split('|');
@@ -5462,7 +5395,7 @@ public partial class DiagGui : Form
         FlowLayoutPanel r2 = Row(); r2.Controls.Add(RowLabel("Referenz (100 %)", 150));
         cmbRef = Combo(520, new string[0], 0); r2.Controls.Add(cmbRef); f.Controls.Add(r2);
         f.Controls.Add(Section("Bereits geprüfte Systeme einblenden"));
-        clbCompare = new CheckedListBox(); clbCompare.CheckOnClick = true; clbCompare.Width = UI.S(640); clbCompare.BorderStyle = BorderStyle.FixedSingle; clbCompare.IntegralHeight = false; clbCompare.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4)); clbCompare.BackColor = UI.Panel; clbCompare.ForeColor = UI.Text;
+        clbCompare = new CheckedListBox(); clbCompare.CheckOnClick = true; clbCompare.Width = UI.S(640); clbCompare.BorderStyle = BorderStyle.FixedSingle; clbCompare.IntegralHeight = false; clbCompare.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4));
         f.Controls.Add(clbCompare);
         Label ch = Lbl("Die gewählten Systeme erscheinen im Bericht, in der KI-Datei und im Reiter Leistung als zusätzliche Vergleichswerte.", 8.75f, false, UI.Muted); ch.Margin = new Padding(UI.S(4), UI.S(3), 0, 0); ch.MaximumSize = new Size(UI.S(820), 0); f.Controls.Add(ch);
         f.Controls.Add(Section("Speichern"));
@@ -6060,7 +5993,6 @@ public partial class DiagGui : Form
         chartLive.Empty = "Noch keine Messwerte. \"Live-Ansicht starten\" öffnet die Sensoren.";
         f.Controls.Add(chartLive);
         lvSens = new ListView(); lvSens.View = View.Details; lvSens.FullRowSelect = true; lvSens.Width = UI.S(880); lvSens.Height = UI.S(380); lvSens.BorderStyle = BorderStyle.FixedSingle; lvSens.HideSelection = false; lvSens.ShowGroups = true; lvSens.ShowItemToolTips = true; lvSens.Margin = new Padding(UI.S(4), 0, 0, UI.S(4));
-        EnableDarkListView(lvSens);
         string[] cols = new string[] { "Sensor", "Art", "Aktuell", "Min", "Max", "Quelle" };
         int[] w = new int[] { UI.S(260), UI.S(120), UI.S(110), UI.S(110), UI.S(110), UI.S(140) };
         for (int i = 0; i < cols.Length; i++) lvSens.Columns.Add(cols[i], w[i], i >= 2 && i <= 4 ? HorizontalAlignment.Right : HorizontalAlignment.Left);
@@ -7558,77 +7490,12 @@ public static class UI
         Button b = new Button(); b.Text = text; b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderColor = Line;
         b.BackColor = Panel; b.ForeColor = Text; b.FlatAppearance.MouseOverBackColor = IsDark ? Color.FromArgb(45, 48, 52) : Color.FromArgb(243, 244, 246); b.FlatAppearance.MouseDownBackColor = IsDark ? Color.FromArgb(55, 58, 62) : Color.FromArgb(235, 237, 240);
         b.Font = new Font("Segoe UI", 9.75f); b.AutoSize = true; b.Padding = new Padding(S(10), S(3), S(10), S(3)); b.Margin = new Padding(S(8), 0, 0, 0); b.Cursor = Cursors.Hand; b.UseVisualStyleBackColor = false;
-        b.Paint += delegate(object s, PaintEventArgs pe) {
-            if (!b.Enabled) {
-                Graphics g = pe.Graphics;
-                Color disBg = IsDark ? Color.FromArgb(32, 33, 35) : Color.FromArgb(243, 244, 246);
-                Color disLine = IsDark ? Color.FromArgb(48, 50, 52) : Color.FromArgb(220, 222, 226);
-                Color disText = IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168);
-                using (SolidBrush bg = new SolidBrush(disBg)) g.FillRectangle(bg, b.ClientRectangle);
-                using (Pen p = new Pen(disLine)) g.DrawRectangle(p, 0, 0, b.Width - 1, b.Height - 1);
-                TextRenderer.DrawText(g, b.Text, b.Font, b.ClientRectangle, disText, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-            }
-        };
         return b;
     }
 
     public static Button SkipStepButton()
     {
         return Secondary("Diesen Schritt überspringen");
-    }
-}
-
-// Moderner Windows 11 DropDown / ComboBox (Dark & Light Mode fähig)
-public class DarkComboBox : ComboBox
-{
-    public DarkComboBox()
-    {
-        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
-        DrawMode = DrawMode.OwnerDrawFixed;
-        DropDownStyle = ComboBoxStyle.DropDownList;
-        ItemHeight = UI.S(24);
-        Font = new Font("Segoe UI", 9.5f);
-        Cursor = Cursors.Hand;
-        BackColor = UI.Panel;
-        ForeColor = UI.Text;
-    }
-
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        Graphics g = e.Graphics;
-        Color bg = Enabled ? UI.Panel : (UI.IsDark ? Color.FromArgb(30, 31, 32) : Color.FromArgb(243, 244, 246));
-        Color border = UI.Line;
-        Color fg = Enabled ? UI.Text : (UI.IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168));
-        using (SolidBrush b = new SolidBrush(bg)) g.FillRectangle(b, ClientRectangle);
-        using (Pen p = new Pen(border)) g.DrawRectangle(p, 0, 0, Width - 1, Height - 1);
-
-        string txt = SelectedItem != null ? SelectedItem.ToString() : Text;
-        int arrowW = UI.S(22);
-        Rectangle tr = new Rectangle(UI.S(8), 0, Math.Max(10, Width - arrowW - UI.S(10)), Height);
-        TextRenderer.DrawText(g, txt, Font, tr, fg, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-
-        int arrowX = Width - arrowW / 2 - UI.S(2);
-        int arrowY = Height / 2;
-        int asz = UI.S(4);
-        Point[] arrow = new Point[] {
-            new Point(arrowX - asz, arrowY - asz / 2),
-            new Point(arrowX + asz, arrowY - asz / 2),
-            new Point(arrowX, arrowY + asz / 2)
-        };
-        using (SolidBrush ab = new SolidBrush(UI.Muted)) g.FillPolygon(ab, arrow);
-    }
-
-    protected override void OnDrawItem(DrawItemEventArgs e)
-    {
-        if (e.Index < 0) return;
-        bool sel = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
-        Color bg = sel ? (UI.IsDark ? UI.AccentSoft : Color.FromArgb(235, 243, 251)) : UI.Panel;
-        Color fg = sel ? UI.Accent : UI.Text;
-        using (SolidBrush b = new SolidBrush(bg)) e.Graphics.FillRectangle(b, e.Bounds);
-        string itemText = Items[e.Index] != null ? Items[e.Index].ToString() : "";
-        TextRenderer.DrawText(e.Graphics, itemText, Font,
-            new Rectangle(e.Bounds.X + UI.S(6), e.Bounds.Y, e.Bounds.Width - UI.S(10), e.Bounds.Height),
-            fg, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
     }
 }
 
@@ -8556,9 +8423,6 @@ public partial class DiagGui
         tb.Text = defaultValue ?? "";
         tb.Location = new Point(UI.S(16), UI.S(48));
         tb.Size = new Size(UI.S(408), UI.S(24));
-        tb.BackColor = UI.Panel;
-        tb.ForeColor = UI.Text;
-        tb.BorderStyle = BorderStyle.FixedSingle;
 
         Button btnOk = UI.Primary("Speichern");
         btnOk.Location = new Point(UI.S(226), UI.S(92));
@@ -8624,7 +8488,7 @@ public partial class DiagGui
     Control BuildDbPage()
     {
         Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel;
-        FlowLayoutPanel top = Page("Vergleichsdatenbank", "Jeder Lauf wird als System gespeichert. Hier lassen sich bereits geprüfte Systeme ohne neuen Benchmark im interaktiven Multi-System-Dashboard gegenüberstellen: Systeme anhaken und \"Im Dashboard vergleichen\" klicken. Ältere Ausgabeordner lassen sich importieren. Ein Klick auf die Spaltenköpfe sortiert die Einträge.", -1);
+        FlowLayoutPanel top = Page("Vergleichsdatenbank", "Jeder Lauf wird als System gespeichert. Hier lassen sich bereits geprüfte Systeme ohne neuen Benchmark vergleichen: mindestens zwei Systeme anhaken und \"Vergleichen\" klicken. Ältere Ausgabeordner lassen sich importieren. Ein Klick auf die Spaltenköpfe sortiert die Einträge.", -1);
         top.Dock = DockStyle.Top;
         top.AutoSize = true;
         lblDbPath = Lbl("Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lblDbPath.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(4)); top.Controls.Add(lblDbPath);
@@ -8645,8 +8509,10 @@ public partial class DiagGui
         FlowLayoutPanel bottom = new FlowLayoutPanel(); bottom.FlowDirection = FlowDirection.TopDown; bottom.WrapContents = false; bottom.AutoSize = true; bottom.BackColor = UI.Panel; bottom.Dock = DockStyle.Bottom;
         Label hint = Lbl("Doppelklick öffnet den Bericht des Laufs. Graue Einträge enthalten keine Benchmark-Werte. Klick auf Spaltenkopf sortiert die Tabelle.", 8.75f, false, UI.Muted); hint.Margin = new Padding(UI.S(4), UI.S(4), UI.S(4), 0); bottom.Controls.Add(hint);
         FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(10), 0, 0);
-        // Hinweis: Der statische Bericht "Vergleichen (Klassisch)" ist ab v3.32 vollständig durch das interaktive Dashboard abgelöst
-        btnDashboard = UI.Primary("Interaktives Dashboard"); btnDashboard.Margin = new Padding(0); btnDashboard.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnDashboard.Font = new Font("Segoe UI Semibold", 9.75f);
+        btnCompare = UI.Primary("Vergleichen (Klassisch)"); btnCompare.Margin = new Padding(0); btnCompare.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnCompare.Font = new Font("Segoe UI Semibold", 9.75f);
+        btnCompare.Click += delegate { CompareSelected(); };
+        Tip(btnCompare, "Erzeugt den bewährten statischen HTML-Vergleichsbericht zweier oder mehrerer Systeme.");
+        btnDashboard = UI.Secondary("Interaktives Dashboard"); btnDashboard.Margin = new Padding(UI.S(8), 0, 0, 0);
         btnDashboard.Click += delegate { OpenDashboard(); };
         Tip(btnDashboard, "Öffnet das interaktive Multi-System-Dashboard im Browser mit den angehakten Systemen.");
         btnRename = UI.Secondary("Name ändern ..."); btnRename.Margin = new Padding(UI.S(8), 0, 0, 0);
@@ -8655,13 +8521,12 @@ public partial class DiagGui
         Tip(btnRename, "Bearbeitet den Anzeigenamen des ausgewählten Systems (z. B. für Notizen wie Vor Reinigung oder Neuer Treiber), ohne die Hardware-Erkennung zu verändern.");
         btnDelete = UI.Secondary("Entfernen"); btnDelete.Margin = new Padding(UI.S(8), 0, 0, 0); btnDelete.Click += delegate { DeleteSelected(); };
         Tip(btnDelete, "Löscht die ausgewählten Systeme aus der Vergleichsdatenbank.");
-        b.Controls.Add(btnDashboard); b.Controls.Add(btnRename); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
+        b.Controls.Add(btnCompare); b.Controls.Add(btnDashboard); b.Controls.Add(btnRename); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
         lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
         lblDbClean.Margin = new Padding(UI.S(4), UI.S(8), UI.S(4), 0); bottom.Controls.Add(lblDbClean);
         bottom.Resize += delegate { lblDbClean.MaximumSize = new Size(Math.Max(UI.S(200), bottom.ClientSize.Width - UI.S(10)), 0); };
 
         lvDb = new ListView(); lvDb.View = View.Details; lvDb.FullRowSelect = true; lvDb.CheckBoxes = true; lvDb.Dock = DockStyle.Fill; lvDb.BorderStyle = BorderStyle.FixedSingle; lvDb.HideSelection = false; lvDb.ShowItemToolTips = true;
-        EnableDarkListView(lvDb);
         string[] cols = new string[] { "System", "Datum", "Gesamt", "Prozessor", "Grafik", "Arbeitsspeicher", "CPU Mehrkern", "RAM Lesen", "GPU", "Befunde K/W/I" };
         int[] w = new int[] { UI.S(135), UI.S(95), UI.S(65), UI.S(125), UI.S(115), UI.S(105), UI.S(80), UI.S(70), UI.S(70), UI.S(62) };
         for (int i = 0; i < cols.Length; i++) lvDb.Columns.Add(cols[i], w[i]);
@@ -8677,12 +8542,14 @@ public partial class DiagGui
         Tip(lvDb, "Vergleichsdatenbank aller gespeicherten Systeme. Ein Klick auf die Spaltenköpfe sortiert nach Datum, Gesamtwertung, CPU oder GPU.");
 
         ContextMenu cm = new ContextMenu();
-        MenuItem miDashboard = new MenuItem("Im Dashboard vergleichen", delegate { OpenDashboard(); });
+        MenuItem miCompare = new MenuItem("Vergleichen (Klassisch)", delegate { CompareSelected(); });
+        MenuItem miDashboard = new MenuItem("Interaktives Dashboard", delegate { OpenDashboard(); });
         MenuItem miSep1 = new MenuItem("-");
         MenuItem miRename = new MenuItem("Name ändern ...", delegate { RenameSelectedEntry(); });
         MenuItem miOpen = new MenuItem("Bericht öffnen", delegate { if (lvDb.SelectedItems.Count > 0) OpenEntry((DbEntry)lvDb.SelectedItems[0].Tag); });
         MenuItem miSep2 = new MenuItem("-");
         MenuItem miDelete = new MenuItem("Aus Datenbank entfernen", delegate { DeleteSelected(); });
+        cm.MenuItems.Add(miCompare);
         cm.MenuItems.Add(miDashboard);
         cm.MenuItems.Add(miSep1);
         cm.MenuItems.Add(miRename);
@@ -8692,7 +8559,7 @@ public partial class DiagGui
         cm.Popup += delegate {
             int selN = lvDb.SelectedItems.Count;
             int chkN = CheckedEntries().Count;
-            miDashboard.Enabled = chkN >= 1 || selN >= 1;
+            miCompare.Enabled = chkN >= 2 || selN >= 2;
             miRename.Enabled = selN == 1 || (selN == 0 && chkN == 1);
             miOpen.Enabled = selN == 1;
             miDelete.Enabled = chkN >= 1 || selN >= 1;
@@ -8746,17 +8613,13 @@ public partial class DiagGui
 
     void UpdateDbButtons()
     {
-        if (btnDashboard == null && btnCompare == null) return;
+        if (btnCompare == null) return;
         int n = CheckedEntries().Count;
-        if (btnDelete != null) btnDelete.Enabled = n >= 1;
-        if (btnCompare != null)
-        {
-            btnCompare.Enabled = n >= 2;
-            btnCompare.Text = n >= 2 ? n + " Systeme vergleichen (Klassisch)" : "Vergleichen (Klassisch)";
-        }
+        btnCompare.Enabled = n >= 2; btnDelete.Enabled = n >= 1;
+        btnCompare.Text = n >= 2 ? n + " Systeme vergleichen (Klassisch)" : "Vergleichen (Klassisch)";
         if (btnDashboard != null)
         {
-            btnDashboard.Text = n >= 2 ? n + " Systeme im Dashboard vergleichen" : (n == 1 ? "1 System im Dashboard anzeigen" : "Interaktives Dashboard");
+            btnDashboard.Text = n >= 2 ? n + " Systeme im Dashboard" : "Interaktives Dashboard";
         }
         if (btnRename != null)
         {
@@ -8778,10 +8641,18 @@ public partial class DiagGui
         OpenSelect(e.Path);
     }
 
-    // Vergleichen (Klassisch): In v3.32 vollständig durch das interaktive Multi-System-Dashboard abgelöst
     void CompareSelected()
     {
-        OpenDashboard();
+        List<DbEntry> sel = CheckedEntries();
+        if (sel.Count < 2) return;
+        List<string> paths = new List<string>(); foreach (DbEntry e in sel) paths.Add(e.Path);
+        Cursor = Cursors.WaitCursor;
+        string html = ""; List<string> lines = new List<string>();
+        try { html = RunHelper("-Vergleich \"" + String.Join(";", paths.ToArray()) + "\"", out lines); }
+        catch (Exception ex) { lines.Add(ex.Message); }
+        Cursor = Cursors.Default;
+        if (html.Length > 0 && File.Exists(html)) OpenShell(html);
+        else MessageBox.Show(this, "Der Vergleich konnte nicht erstellt werden.\r\n\r\n" + String.Join("\r\n", lines.ToArray()), "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Warning);
     }
 
     void OpenDashboard()
@@ -8789,10 +8660,6 @@ public partial class DiagGui
         Cursor = Cursors.WaitCursor;
         List<string> lines = new List<string>(); string res = "";
         List<DbEntry> sel = CheckedEntries();
-        if (sel.Count == 0 && lvDb != null && lvDb.SelectedItems.Count > 0)
-        {
-            foreach (ListViewItem it in lvDb.SelectedItems) sel.Add((DbEntry)it.Tag);
-        }
         string args = "-Dashboard";
         if (sel.Count > 0)
         {
@@ -8903,7 +8770,6 @@ public partial class DiagGui
         b.Controls.Add(btnUndo); b.Controls.Add(rel); b.Controls.Add(open); bottom.Controls.Add(b);
 
         lvChg = new ListView(); lvChg.View = View.Details; lvChg.FullRowSelect = true; lvChg.CheckBoxes = true; lvChg.Dock = DockStyle.Fill; lvChg.BorderStyle = BorderStyle.FixedSingle; lvChg.HideSelection = false; lvChg.ShowItemToolTips = true;
-        EnableDarkListView(lvChg);
         string[] cols = new string[] { "Zeit", "Computer", "Maßnahme", "Ziel", "Vorher", "Nachher", "Status" };
         int[] w = new int[] { UI.S(112), UI.S(100), UI.S(170), UI.S(190), UI.S(90), UI.S(110), UI.S(96) };
         for (int i = 0; i < cols.Length; i++) lvChg.Columns.Add(cols[i], w[i]);
@@ -9632,9 +9498,6 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
-        new Eintrag("3.32", "06.10.2026", "Dark-Mode-Feinschliff (Scrollbars, ComboBox, Header & Kontraste) und Konsolidierung des Systemvergleichs",
-            "Dark-Mode-Feinschliff: Native dunkle Win32-Scrollbars für Inhalts- und Navigationsbereiche über SetPreferredAppMode (ForceDark) und SetWindowTheme (DarkMode_Explorer), neue DarkComboBox für nahtlos dunkle Dropdown-Menüs, einheitlich abgedunkelte Tabellenköpfe (Owner-Draw SysHeader32) und kontrastreiche Textdarstellung für deaktivierte Steuerelemente ohne Windows-GDI-Schattendruck. " +
-            "Konsolidierung des Systemvergleichs: Das interaktive Multi-System-Dashboard deckt sämtliche Hardware-Gegenüberstellungen, Benchmark-Matrizen und Befundvergleiche ab; die redundante statische Vergleichsfunktion wurde zugunsten eines einheitlichen Workflows abgelöst und die Vergleichsdatenbank aktualisiert."),
         new Eintrag("3.31", "06.10.2026", "Multi-System-Vergleich im Dashboard (N >= 2), nativer WinForms Dark Mode & Build-Synchronisation",
             "Multi-System-Vergleich im Dashboard: Beliebige Anzahl von Systemen (N >= 2) mit dynamischer Auswahl, direkter Hardware-Gegenüberstellung, vollständiger Benchmark-Matrix aller Metriken (inkl. Bestwert-Hervorhebung), synoptischem Befundvergleich und mehrfarbigem Canvas-Chartvergleich für Takt und Temperatur. " +
             "Paralleler Betriebsmodus in der Oberfläche: Klassischer statischer Vergleichsbericht und interaktives Multi-System-Dashboard stehen in Toolbar und Kontextmenü gleichberechtigt zur Verfügung. " +
@@ -20343,20 +20206,11 @@ if ($ImportOrdner) {
     exit 0
 }
 
-# Vergleich bereits geprüfter Systeme ohne neuen Benchmark (wird von der Befehlszeile oder Oberfläche aufgerufen)
+# Vergleich bereits geprüfter Systeme ohne neuen Benchmark (wird von der Oberfläche aufgerufen)
 if ($Vergleich) {
     $vf = ''
-    try {
-        $paths = @(([string]$Vergleich) -split ';' | ForEach-Object { $_.Trim().Trim('"') } | Where-Object { $_ -and (Test-Path -LiteralPath $_) })
-        if ($paths.Count -gt 0) {
-            $vf = Export-BenchDashboardHtml -SystemPaths $paths
-        }
-    }
-    catch { }
-    if (-not $vf) {
-        try { $vf = New-CompareReport @(([string]$Vergleich) -split ';' | ForEach-Object { $_.Trim().Trim('"') } | Where-Object { $_ }) }
-        catch { Write-Host ('Vergleich fehlgeschlagen: {0}' -f $_.Exception.Message) }
-    }
+    try { $vf = New-CompareReport @(([string]$Vergleich) -split ';' | ForEach-Object { $_.Trim().Trim('"') } | Where-Object { $_ }) }
+    catch { Write-Host ('Vergleich fehlgeschlagen: {0}' -f $_.Exception.Message) }
     if (-not $vf) { exit 1 }
     Send-GuiEvent 'RESULT' $vf
     if (-not $EventMode) { Invoke-Item -LiteralPath $vf }

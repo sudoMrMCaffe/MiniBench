@@ -100,7 +100,6 @@ param(
     [string]$Rueckgaengig,
     [switch]$Dashboard,
     [string]$DashboardExport,
-    [string]$DashboardSysteme = '',
     # Auswertung von Minibench-Daten\Laufzeit\Start.log ausgeben (Startzeit je Phase, Stick und Festplatte getrennt)
     [switch]$StartAuswertung,
     # Datenpflege (ab v2.7): Lasttests vor v2.67 (nicht vergleichbar), unvollständige und kurze Läufe ins Archiv
@@ -224,7 +223,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenp
 }
 #endregion
 
-$ScriptVersion = '3.32'
+$ScriptVersion = '3.3'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -4342,7 +4341,7 @@ function Undo-OptChange($Record) {
 
 #endregion
 #region ---------- Grafische Oberfläche ----------
-if (-not $EventMode -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme) {
+if (-not $EventMode -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $Dashboard -and -not $DashboardExport) {
     Write-StartPhase 'Datenordner gefunden'
     # Hardwareabfragen für die Oberfläche (Datenträgerliste, Geräteidentität) laufen parallel zum Laden der Oberfläche
     $hwPs = $null; $hwHandle = $null
@@ -4400,8 +4399,6 @@ public partial class DiagGui : Form
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
     const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
     const int DWMWCP_ROUND = 2;
-    [DllImport("uxtheme.dll", EntryPoint = "#135", SetLastError = true)] static extern int SetPreferredAppMode(int appMode);
-    [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)] static extern int SetWindowTheme(IntPtr hWnd, string pszSubAppName, string pszSubIdList);
     [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
     [DllImport("user32.dll")] static extern bool AttachThreadInput(uint a, uint b, bool attach);
@@ -4424,9 +4421,7 @@ public partial class DiagGui : Form
     List<DbEntry> db = new List<DbEntry>();
     Font wsBold;
 
-    Panel setupView, runView, content, head, body, contentHost;
-    FlowLayoutPanel left;
-    Button btnThemeToggle;
+    Panel setupView, runView, content;
     List<NavItem> nav = new List<NavItem>();
     List<Control> pages = new List<Control>();
     int curPage;
@@ -4657,8 +4652,6 @@ public partial class DiagGui : Form
         ReadContract(contract ?? new string[0]);
         Text = "Leos Minibench " + this.version;
         AutoScaleDimensions = new SizeF(96f, 96f); AutoScaleMode = AutoScaleMode.Dpi;
-        bool isDark = LoadThemePreference();
-        UI.SetTheme(isDark);
         Font = new Font("Segoe UI", 9.75f);
         BackColor = UI.Bg; ForeColor = UI.Text;
         StartPosition = FormStartPosition.CenterScreen;
@@ -4670,39 +4663,21 @@ public partial class DiagGui : Form
         try { Icon ic = AppSymbol.Get(); if (ic != null) Icon = ic; else Icon = Icon.ExtractAssociatedIcon(psExe); } catch { }
         try { int round = DWMWCP_ROUND; DwmSetWindowAttribute(Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int)); } catch { }
 
-        head = new Panel(); head.Dock = DockStyle.Top; head.Height = UI.S(74); head.BackColor = UI.Header;
+        Panel head = new Panel(); head.Dock = DockStyle.Top; head.Height = UI.S(74); head.BackColor = UI.Header;
         Label t1 = Lbl("Leos Minibench", 18f, true, Color.White); t1.Location = new Point(UI.S(76), UI.S(10));
         Label t2 = Lbl(Environment.MachineName + "   ·   " + OsName() + "   ·   Version " + this.version, 9.75f, false, Color.FromArgb(170, 182, 200)); t2.Location = new Point(UI.S(78), UI.S(44));
         PictureBox logo = new PictureBox(); logo.Size = new Size(UI.S(48), UI.S(48)); logo.Location = new Point(UI.S(18), UI.S(13)); logo.SizeMode = PictureBoxSizeMode.Zoom; logo.BackColor = Color.Transparent;
         try { logo.Image = AppSymbol.Image(UI.S(48)); } catch { }
         head.Controls.Add(logo); head.Controls.Add(t1); head.Controls.Add(t2);
         // ab v2.7: Versionshistorie oben rechts
-        FlowLayoutPanel hr = new FlowLayoutPanel(); hr.Dock = DockStyle.Right; hr.Width = UI.S(320); hr.FlowDirection = FlowDirection.RightToLeft; hr.BackColor = Color.Transparent; hr.Padding = new Padding(0, UI.S(24), UI.S(20), 0);
+        FlowLayoutPanel hr = new FlowLayoutPanel(); hr.Dock = DockStyle.Right; hr.Width = UI.S(240); hr.FlowDirection = FlowDirection.RightToLeft; hr.BackColor = Color.Transparent; hr.Padding = new Padding(0, UI.S(26), UI.S(20), 0);
         LinkLabel lnkVer = new LinkLabel(); lnkVer.Text = "Versionshistorie"; lnkVer.AutoSize = true; lnkVer.Font = new Font("Segoe UI", 9.75f);
         lnkVer.LinkColor = Color.FromArgb(147, 197, 253); lnkVer.ActiveLinkColor = Color.White; lnkVer.VisitedLinkColor = Color.FromArgb(147, 197, 253); lnkVer.BackColor = Color.Transparent;
         lnkVer.LinkClicked += delegate { if (setupView != null && setupView.Visible && versionPage >= 0) ShowPage(versionPage); };
         Tip(lnkVer, "Was sich von Version 1.0 bis " + this.version + " geändert hat.");
-        hr.Controls.Add(lnkVer);
+        hr.Controls.Add(lnkVer); head.Controls.Add(hr);
 
-        // ab v3.31: Theme-Umschalter (Dark Mode)
-        btnThemeToggle = new Button();
-        btnThemeToggle.Text = UI.IsDark ? "☀️ Hell" : "🌙 Dunkel";
-        btnThemeToggle.FlatStyle = FlatStyle.Flat;
-        btnThemeToggle.FlatAppearance.BorderSize = 0;
-        btnThemeToggle.BackColor = UI.IsDark ? Color.FromArgb(38, 44, 54) : Color.FromArgb(40, 52, 72);
-        btnThemeToggle.ForeColor = Color.White;
-        btnThemeToggle.Font = new Font("Segoe UI", 8.75f);
-        btnThemeToggle.AutoSize = true;
-        btnThemeToggle.Margin = new Padding(0, 0, UI.S(16), 0);
-        btnThemeToggle.Padding = new Padding(UI.S(8), UI.S(2), UI.S(8), UI.S(2));
-        btnThemeToggle.Cursor = Cursors.Hand;
-        btnThemeToggle.Click += delegate { ToggleTheme(); };
-        Tip(btnThemeToggle, "Wechselt zwischen hellem und dunklem Erscheinungsbild (Dark Mode).");
-        hr.Controls.Add(btnThemeToggle);
-
-        head.Controls.Add(hr);
-
-        body = new Panel(); body.Dock = DockStyle.Fill; body.Padding = new Padding(UI.S(20), UI.S(16), UI.S(20), UI.S(14)); body.BackColor = UI.Bg;
+        Panel body = new Panel(); body.Dock = DockStyle.Fill; body.Padding = new Padding(UI.S(20), UI.S(16), UI.S(20), UI.S(14)); body.BackColor = UI.Bg;
         LoadDb();
         setupView = BuildSetup(); runView = BuildRun();
         FillPresets(true);
@@ -4723,300 +4698,6 @@ public partial class DiagGui : Form
     {
         base.OnHandleCreated(e);
         try { int round = DWMWCP_ROUND; DwmSetWindowAttribute(Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int)); } catch { }
-        ApplyTitleBarTheme(UI.IsDark);
-        ApplyNativeControlThemes();
-    }
-
-    void ApplyNativeControlThemes()
-    {
-        string subApp = UI.IsDark ? "DarkMode_Explorer" : "Explorer";
-        try { SetPreferredAppMode(UI.IsDark ? 2 : 0); } catch { }
-        if (content != null && content.IsHandleCreated) try { SetWindowTheme(content.Handle, subApp, null); } catch { }
-        if (left != null && left.IsHandleCreated) try { SetWindowTheme(left.Handle, subApp, null); } catch { }
-        if (lvDb != null && lvDb.IsHandleCreated) try { SetWindowTheme(lvDb.Handle, subApp, null); } catch { }
-        if (lvSens != null && lvSens.IsHandleCreated) try { SetWindowTheme(lvSens.Handle, subApp, null); } catch { }
-        if (lvChg != null && lvChg.IsHandleCreated) try { SetWindowTheme(lvChg.Handle, subApp, null); } catch { }
-        if (clbDisks != null && clbDisks.IsHandleCreated) try { SetWindowTheme(clbDisks.Handle, subApp, null); } catch { }
-        if (clbCompare != null && clbCompare.IsHandleCreated) try { SetWindowTheme(clbCompare.Handle, subApp, null); } catch { }
-        if (txtLog != null && txtLog.IsHandleCreated) try { SetWindowTheme(txtLog.Handle, subApp, null); } catch { }
-    }
-
-    public void EnableDarkListView(ListView lv)
-    {
-        if (lv == null) return;
-        lv.OwnerDraw = true;
-        lv.BackColor = UI.Panel;
-        lv.ForeColor = UI.Text;
-        lv.DrawColumnHeader += delegate(object s, DrawListViewColumnHeaderEventArgs e) {
-            Color headerBg = UI.IsDark ? Color.FromArgb(28, 30, 32) : Color.FromArgb(248, 249, 251);
-            using (SolidBrush b = new SolidBrush(headerBg)) e.Graphics.FillRectangle(b, e.Bounds);
-            using (Pen pen = new Pen(UI.Line)) e.Graphics.DrawLine(pen, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
-            using (Font f = new Font("Segoe UI Semibold", 8.5f))
-                TextRenderer.DrawText(e.Graphics, e.Header.Text.ToUpperInvariant(), f,
-                    new Rectangle(e.Bounds.X + UI.S(8), e.Bounds.Y, e.Bounds.Width - UI.S(10), e.Bounds.Height),
-                    UI.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
-        };
-        lv.DrawItem += delegate(object s, DrawListViewItemEventArgs e) { e.DrawDefault = true; };
-        lv.DrawSubItem += delegate(object s, DrawListViewSubItemEventArgs e) { e.DrawDefault = true; };
-        if (lv.IsHandleCreated) try { SetWindowTheme(lv.Handle, UI.IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
-    }
-
-    void ApplyTitleBarTheme(bool dark)
-    {
-        if (!IsHandleCreated || Handle == IntPtr.Zero) return;
-        int darkMode = dark ? 1 : 0;
-        try
-        {
-            int hr = DwmSetWindowAttribute(Handle, 20, ref darkMode, sizeof(int));
-            if (hr != 0)
-            {
-                DwmSetWindowAttribute(Handle, 19, ref darkMode, sizeof(int));
-            }
-        }
-        catch { }
-    }
-
-    string SettingsFile { get { return dataDir.Length > 0 ? Path.Combine(dataDir, "Einstellungen.json") : ""; } }
-
-    bool DetectWindowsDarkTheme()
-    {
-        try
-        {
-            using (Microsoft.Win32.RegistryKey k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
-            {
-                if (k != null)
-                {
-                    object val = k.GetValue("AppsUseLightTheme");
-                    if (val is int) return ((int)val) == 0;
-                }
-            }
-        }
-        catch { }
-        return false;
-    }
-
-    bool LoadThemePreference()
-    {
-        try
-        {
-            if (SettingsFile.Length > 0 && File.Exists(SettingsFile))
-            {
-                System.Web.Script.Serialization.JavaScriptSerializer js = new System.Web.Script.Serialization.JavaScriptSerializer();
-                Dictionary<string, object> d = js.DeserializeObject(File.ReadAllText(SettingsFile, Encoding.UTF8)) as Dictionary<string, object>;
-                if (d != null && d.ContainsKey("DarkMode"))
-                {
-                    return Convert.ToBoolean(d["DarkMode"]);
-                }
-            }
-        }
-        catch { }
-        return DetectWindowsDarkTheme();
-    }
-
-    void SaveThemePreference(bool dark)
-    {
-        try
-        {
-            if (SettingsFile.Length == 0) return;
-            Dictionary<string, object> d = null;
-            System.Web.Script.Serialization.JavaScriptSerializer js = new System.Web.Script.Serialization.JavaScriptSerializer();
-            if (File.Exists(SettingsFile))
-            {
-                try { d = js.DeserializeObject(File.ReadAllText(SettingsFile, Encoding.UTF8)) as Dictionary<string, object>; } catch { }
-            }
-            if (d == null) d = new Dictionary<string, object>();
-            d["DarkMode"] = dark;
-            File.WriteAllText(SettingsFile, js.Serialize(d), Encoding.UTF8);
-        }
-        catch { }
-    }
-
-    void ToggleTheme()
-    {
-        SetAppTheme(!UI.IsDark);
-    }
-
-    void SetAppTheme(bool dark)
-    {
-        UI.SetTheme(dark);
-        try { SetPreferredAppMode(dark ? 2 : 0); } catch { }
-        SaveThemePreference(dark);
-        ApplyTitleBarTheme(dark);
-        ApplyNativeControlThemes();
-        if (btnThemeToggle != null)
-        {
-            btnThemeToggle.Text = dark ? "☀️ Hell" : "🌙 Dunkel";
-            btnThemeToggle.BackColor = dark ? Color.FromArgb(38, 44, 54) : Color.FromArgb(40, 52, 72);
-            Tip(btnThemeToggle, dark ? "Zu hellem Design wechseln." : "Zu dunklem Design wechseln (Dark Mode).");
-        }
-
-        SuspendLayout();
-        try
-        {
-            BackColor = UI.Bg;
-            ForeColor = UI.Text;
-            ApplyThemeRecursive(this);
-        }
-        finally
-        {
-            ResumeLayout(true);
-            Invalidate(true);
-        }
-    }
-
-    void ApplyThemeRecursive(Control c)
-    {
-        if (c == null) return;
-
-        if (c == head)
-        {
-            c.BackColor = UI.Header;
-        }
-        else if (c == contentHost)
-        {
-            c.BackColor = UI.Line;
-        }
-        else if (c == content)
-        {
-            c.BackColor = UI.Panel;
-            if (c.IsHandleCreated) try { SetWindowTheme(c.Handle, UI.IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
-        }
-        else if (c is NavItem)
-        {
-            c.BackColor = UI.Bg;
-            c.Invalidate();
-        }
-        else if (c is FluentCard)
-        {
-            c.BackColor = UI.Panel;
-            c.Invalidate();
-        }
-        else if (c is ToggleSwitch)
-        {
-            c.Invalidate();
-        }
-        else if (c is FlatBar)
-        {
-            c.Invalidate();
-        }
-        else if (c is StatCard)
-        {
-            c.BackColor = UI.Bg;
-            c.Invalidate();
-        }
-        else if (c is TabStrip)
-        {
-            c.BackColor = UI.Bg;
-            c.Invalidate();
-        }
-        else if (c is SensorChart)
-        {
-            c.BackColor = UI.Panel;
-            c.Invalidate();
-        }
-        else if (c is ListView)
-        {
-            c.BackColor = UI.Panel;
-            c.ForeColor = UI.Text;
-            if (c.IsHandleCreated) try { SetWindowTheme(c.Handle, UI.IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
-            c.Invalidate();
-        }
-        else if (c is RichTextBox)
-        {
-            c.BackColor = UI.Panel;
-            c.ForeColor = UI.Text;
-        }
-        else if (c is TextBox)
-        {
-            if (c != txtLog)
-            {
-                c.BackColor = UI.Panel;
-                c.ForeColor = UI.Text;
-            }
-        }
-        else if (c is DarkComboBox || c is ComboBox)
-        {
-            c.BackColor = UI.Panel;
-            c.ForeColor = UI.Text;
-            c.Invalidate();
-        }
-        else if (c is CheckedListBox || c is ListBox)
-        {
-            c.BackColor = UI.Panel;
-            c.ForeColor = UI.Text;
-            if (c.IsHandleCreated) try { SetWindowTheme(c.Handle, UI.IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
-            c.Invalidate();
-        }
-        else if (c is CheckBox || c is RadioButton)
-        {
-            c.ForeColor = UI.Text;
-        }
-        else if (c is Button)
-        {
-            Button btn = (Button)c;
-            if (btn == btnThemeToggle)
-            {
-                btn.BackColor = UI.IsDark ? Color.FromArgb(38, 44, 54) : Color.FromArgb(40, 52, 72);
-                btn.ForeColor = Color.White;
-            }
-            else if (btn == btnHtml || btn == btnStart || (btnUndo != null && btn == btnUndo) || (btnDashboard != null && btn == btnDashboard) || (btn.Font.Name.Contains("Semibold") && btn.ForeColor == Color.White && btn.BackColor != UI.Panel))
-            {
-                btn.BackColor = UI.Accent;
-                btn.ForeColor = Color.White;
-                btn.FlatAppearance.MouseOverBackColor = UI.AccentHover;
-                btn.FlatAppearance.MouseDownBackColor = UI.AccentActive;
-            }
-            else
-            {
-                btn.BackColor = UI.Panel;
-                btn.ForeColor = UI.Text;
-                btn.FlatAppearance.BorderColor = UI.Line;
-                btn.FlatAppearance.MouseOverBackColor = UI.IsDark ? Color.FromArgb(45, 48, 52) : Color.FromArgb(243, 244, 246);
-                btn.FlatAppearance.MouseDownBackColor = UI.IsDark ? Color.FromArgb(55, 58, 62) : Color.FromArgb(235, 237, 240);
-            }
-            btn.Invalidate();
-        }
-        else if (c is Label)
-        {
-            Label lbl = (Label)c;
-            if (lbl.Parent != head && lbl.ForeColor != Color.White)
-            {
-                Color fc = lbl.ForeColor;
-                if (fc == Color.FromArgb(28, 29, 31) || fc == Color.FromArgb(245, 246, 247) || fc == Color.Black)
-                {
-                    lbl.ForeColor = UI.Text;
-                }
-                else if (fc == Color.FromArgb(95, 99, 104) || fc == Color.FromArgb(156, 163, 175) || fc == Color.Gray)
-                {
-                    lbl.ForeColor = UI.Muted;
-                }
-            }
-        }
-        else if (c is Panel)
-        {
-            Color bg = c.BackColor;
-            if (bg == Color.FromArgb(249, 249, 251) || bg == Color.FromArgb(24, 25, 26))
-            {
-                c.BackColor = UI.Bg;
-            }
-            else if (bg == Color.White || bg == Color.FromArgb(36, 37, 38))
-            {
-                c.BackColor = UI.Panel;
-            }
-            else if (bg == Color.FromArgb(229, 231, 235) || bg == Color.FromArgb(58, 59, 60))
-            {
-                c.BackColor = UI.Line;
-            }
-            if (((Panel)c).AutoScroll && c.IsHandleCreated)
-            {
-                try { SetWindowTheme(c.Handle, UI.IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
-            }
-        }
-
-        foreach (Control child in c.Controls)
-        {
-            ApplyThemeRecursive(child);
-        }
     }
 
     // DoubleBuffered ist bei Panels und ListViews geschützt; per Reflexion für alle Unterelemente setzen
@@ -5086,7 +4767,7 @@ public partial class DiagGui : Form
     {
         Panel p = new Panel(); p.BackColor = UI.Bg;
 
-        left = new FlowLayoutPanel(); left.Dock = DockStyle.Left; left.Width = UI.S(246); left.FlowDirection = FlowDirection.TopDown; left.WrapContents = false;
+        FlowLayoutPanel left = new FlowLayoutPanel(); left.Dock = DockStyle.Left; left.Width = UI.S(246); left.FlowDirection = FlowDirection.TopDown; left.WrapContents = false;
         left.BackColor = UI.Bg; left.Padding = new Padding(0, 0, UI.S(14), 0); left.AutoScroll = true;
         Label lm = Lbl("Module", 12f, true, UI.Text); lm.Margin = new Padding(UI.S(2), 0, 0, UI.S(10)); left.Controls.Add(lm);
         nav.Add(ModNav("Diagnose", "Diagnose", "Inventar, Prüfungen, Ereignisse", UI.IcoDiag));
@@ -5109,7 +4790,7 @@ public partial class DiagGui : Form
         left.Layout += delegate { int w = left.ClientSize.Width - left.Padding.Horizontal - 2; if (w > UI.S(150)) foreach (NavItem n in nav) if (n.Width != w) n.Width = w; };
 
         content = new Panel(); content.Dock = DockStyle.Fill; content.BackColor = UI.Panel; content.Padding = new Padding(UI.S(32), UI.S(22), UI.S(28), UI.S(20)); content.AutoScroll = true;
-        contentHost = new Panel(); contentHost.Dock = DockStyle.Fill; contentHost.BackColor = UI.Line; contentHost.Padding = new Padding(1);
+        Panel contentHost = new Panel(); contentHost.Dock = DockStyle.Fill; contentHost.BackColor = UI.Line; contentHost.Padding = new Padding(1);
         contentHost.Controls.Add(content);
 
         pages.Add(BuildDiagPage()); pages.Add(BuildBenchPage()); pages.Add(BuildLoadPage()); pages.Add(BuildRepairPage()); pages.Add(BuildOptPage()); pages.Add(BuildSensorPage()); pages.Add(BuildDbPage()); pages.Add(BuildChangePage()); versionPage = pages.Count; pages.Add(BuildVersionPage());
@@ -5294,7 +4975,7 @@ public partial class DiagGui : Form
 
     static ComboBox Combo(int width, string[] items, int sel)
     {
-        DarkComboBox c = new DarkComboBox(); c.Width = UI.S(width); c.Margin = new Padding(0, UI.S(1), UI.S(16), UI.S(1));
+        ComboBox c = new ComboBox(); c.DropDownStyle = ComboBoxStyle.DropDownList; c.Width = width; c.Margin = new Padding(0, UI.S(1), UI.S(16), UI.S(1));
         foreach (string s in items) c.Items.Add(s);
         if (items.Length > 0) c.SelectedIndex = Math.Min(sel, items.Length - 1);
         return c;
@@ -5366,18 +5047,7 @@ public partial class DiagGui : Form
         fastHint.MaximumSize = new Size(UI.S(820), 0); fastHint.Margin = new Padding(UI.S(24), 0, 0, UI.S(4)); f.Controls.Add(fastHint);
         f.Controls.Add(Section("Prüfungen"));
         diagChk = new CheckBox[diagKeys.Length];
-        for (int i = 0; i < diagKeys.Length; i++) {
-            int chkIdx = i;
-            diagChk[i] = Chk(diagText[i], true);
-            diagChk[i].Click += delegate {
-                if (!rbCustom.Checked) {
-                    rbCustom.Checked = true;
-                    diagChk[chkIdx].Checked = !diagChk[chkIdx].Checked;
-                }
-            };
-            diagChk[i].CheckedChanged += delegate { UpdateSummary(); };
-            f.Controls.Add(diagChk[i]);
-        }
+        for (int i = 0; i < diagKeys.Length; i++) { diagChk[i] = Chk(diagText[i], true); diagChk[i].CheckedChanged += delegate { UpdateSummary(); }; f.Controls.Add(diagChk[i]); }
         Label cpuHint = Lbl("Die CPU-Stabilität prüft ab v2.7 das Modul Lasttest (Prozessor, ab 2 Minuten): eigener Lastprozess, Rechenfehler, Takt- und Temperaturverlauf und Drosselnachweis.", 8.5f, false, UI.Muted);
         cpuHint.MaximumSize = new Size(UI.S(820), 0); cpuHint.Margin = new Padding(UI.S(24), UI.S(2), 0, UI.S(4)); f.Controls.Add(cpuHint);
         f.Controls.Add(Section("Optionen"));
@@ -5408,17 +5078,11 @@ public partial class DiagGui : Form
         for (int i = 0; i < diagChk.Length; i++)
         {
             if (pick != null) diagChk[i].Checked = pick[i];
-            diagChk[i].AutoCheck = custom;
-            diagChk[i].ForeColor = custom ? UI.Text : (UI.IsDark ? Color.FromArgb(195, 200, 210) : Color.FromArgb(80, 85, 95));
+            diagChk[i].Enabled = custom;
         }
         chkInstall.Enabled = !crash && !rbTest.Checked;
-        chkInstall.ForeColor = chkInstall.Enabled ? UI.Text : (UI.IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168));
         chkMem.Enabled = !crash && !rbTest.Checked;
-        chkMem.ForeColor = chkMem.Enabled ? UI.Text : (UI.IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168));
-        if (chkFast != null) {
-            chkFast.Enabled = !crash && !rbTest.Checked;
-            chkFast.ForeColor = chkFast.Enabled ? UI.Text : (UI.IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168));
-        }
+        if (chkFast != null) chkFast.Enabled = !crash && !rbTest.Checked;
         cmbDays.Enabled = !rbTest.Checked;
         if (cmbSmartMax != null) cmbSmartMax.Enabled = !crash && !rbTest.Checked;
         UpdateSummary();
@@ -5431,7 +5095,7 @@ public partial class DiagGui : Form
         benchChk = new CheckBox[benchKeys.Length];
         for (int i = 0; i < benchKeys.Length; i++) { benchChk[i] = Chk(benchText[i], i < 4); benchChk[i].CheckedChanged += delegate { clbDisks.Enabled = benchChk[3].Checked; UpdateSummary(); }; f.Controls.Add(benchChk[i]); }
         f.Controls.Add(Section("Laufwerke"));
-        clbDisks = new CheckedListBox(); clbDisks.CheckOnClick = true; clbDisks.Width = UI.S(640); clbDisks.BorderStyle = BorderStyle.FixedSingle; clbDisks.IntegralHeight = false; clbDisks.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4)); clbDisks.BackColor = UI.Panel; clbDisks.ForeColor = UI.Text;
+        clbDisks = new CheckedListBox(); clbDisks.CheckOnClick = true; clbDisks.Width = UI.S(640); clbDisks.BorderStyle = BorderStyle.FixedSingle; clbDisks.IntegralHeight = false; clbDisks.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4));
         foreach (string d in disks)
         {
             string[] x = d.Split('|');
@@ -5462,7 +5126,7 @@ public partial class DiagGui : Form
         FlowLayoutPanel r2 = Row(); r2.Controls.Add(RowLabel("Referenz (100 %)", 150));
         cmbRef = Combo(520, new string[0], 0); r2.Controls.Add(cmbRef); f.Controls.Add(r2);
         f.Controls.Add(Section("Bereits geprüfte Systeme einblenden"));
-        clbCompare = new CheckedListBox(); clbCompare.CheckOnClick = true; clbCompare.Width = UI.S(640); clbCompare.BorderStyle = BorderStyle.FixedSingle; clbCompare.IntegralHeight = false; clbCompare.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4)); clbCompare.BackColor = UI.Panel; clbCompare.ForeColor = UI.Text;
+        clbCompare = new CheckedListBox(); clbCompare.CheckOnClick = true; clbCompare.Width = UI.S(640); clbCompare.BorderStyle = BorderStyle.FixedSingle; clbCompare.IntegralHeight = false; clbCompare.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4));
         f.Controls.Add(clbCompare);
         Label ch = Lbl("Die gewählten Systeme erscheinen im Bericht, in der KI-Datei und im Reiter Leistung als zusätzliche Vergleichswerte.", 8.75f, false, UI.Muted); ch.Margin = new Padding(UI.S(4), UI.S(3), 0, 0); ch.MaximumSize = new Size(UI.S(820), 0); f.Controls.Add(ch);
         f.Controls.Add(Section("Speichern"));
@@ -6060,7 +5724,6 @@ public partial class DiagGui : Form
         chartLive.Empty = "Noch keine Messwerte. \"Live-Ansicht starten\" öffnet die Sensoren.";
         f.Controls.Add(chartLive);
         lvSens = new ListView(); lvSens.View = View.Details; lvSens.FullRowSelect = true; lvSens.Width = UI.S(880); lvSens.Height = UI.S(380); lvSens.BorderStyle = BorderStyle.FixedSingle; lvSens.HideSelection = false; lvSens.ShowGroups = true; lvSens.ShowItemToolTips = true; lvSens.Margin = new Padding(UI.S(4), 0, 0, UI.S(4));
-        EnableDarkListView(lvSens);
         string[] cols = new string[] { "Sensor", "Art", "Aktuell", "Min", "Max", "Quelle" };
         int[] w = new int[] { UI.S(260), UI.S(120), UI.S(110), UI.S(110), UI.S(110), UI.S(140) };
         for (int i = 0; i < cols.Length; i++) lvSens.Columns.Add(cols[i], w[i], i >= 2 && i <= 4 ? HorizontalAlignment.Right : HorizontalAlignment.Left);
@@ -6946,8 +6609,7 @@ public partial class DiagGui : Form
         ImageList rowHeight = new ImageList(); rowHeight.ImageSize = new Size(1, UI.S(34)); lv.SmallImageList = rowHeight;
         for (int i = 0; i < cols.Length; i++) lv.Columns.Add(cols[i], widths[i]);
         lv.DrawColumnHeader += delegate(object s, DrawListViewColumnHeaderEventArgs e) {
-            Color headerBg = UI.IsDark ? Color.FromArgb(28, 30, 32) : Color.FromArgb(248, 249, 251);
-            using (SolidBrush b = new SolidBrush(headerBg)) e.Graphics.FillRectangle(b, e.Bounds);
+            using (SolidBrush b = new SolidBrush(Color.FromArgb(248, 249, 251))) e.Graphics.FillRectangle(b, e.Bounds);
             using (Pen pen = new Pen(UI.Line)) e.Graphics.DrawLine(pen, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
             using (Font f = new Font("Segoe UI Semibold", 8.5f))
                 TextRenderer.DrawText(e.Graphics, e.Header.Text.ToUpperInvariant(), f, new Rectangle(e.Bounds.X + UI.S(10), e.Bounds.Y, e.Bounds.Width - UI.S(12), e.Bounds.Height), UI.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
@@ -6959,10 +6621,9 @@ public partial class DiagGui : Form
             if (hdr && (e.ColumnIndex == 2 || e.ColumnIndex == 3)) return;
             Rectangle rb = e.Bounds;
             if (hdr && e.ColumnIndex == 1) { for (int ci = 2; ci <= 3 && ci < lv.Columns.Count; ci++) rb.Width += lv.Columns[ci].Width; }
-            Color back = e.Item.Selected ? UI.AccentSoft : (hdr ? (UI.IsDark ? Color.FromArgb(32, 34, 38) : Color.FromArgb(243, 245, 249)) : UI.Panel);
+            Color back = e.Item.Selected ? UI.AccentSoft : (hdr ? Color.FromArgb(243, 245, 249) : UI.Panel);
             using (SolidBrush b = new SolidBrush(back)) g.FillRectangle(b, rb);
-            Color borderLine = UI.IsDark ? Color.FromArgb(45, 48, 52) : Color.FromArgb(236, 239, 243);
-            using (Pen pen = new Pen(borderLine)) g.DrawLine(pen, rb.Left, rb.Bottom - 1, rb.Right, rb.Bottom - 1);
+            using (Pen pen = new Pen(Color.FromArgb(236, 239, 243))) g.DrawLine(pen, rb.Left, rb.Bottom - 1, rb.Right, rb.Bottom - 1);
             string txt = e.SubItem.Text;
             if (hdr && e.ColumnIndex == 1)
             {
@@ -7376,28 +7037,22 @@ public partial class DiagGui : Form
 // Grafische Oberflaeche: Steuerelemente
 public static class UI
 {
-    public static bool IsDark { get; set; }
-    public static Color Bg { get; set; }
-    public static Color Panel { get; set; }
-    public static Color Text { get; set; }
-    public static Color Muted { get; set; }
-    public static Color Line { get; set; }
-    public static Color Accent { get; set; }
-    public static Color AccentHover { get; set; }
-    public static Color AccentActive { get; set; }
-    public static Color AccentDark { get; set; }
-    public static Color AccentSoft { get; set; }
-    public static Color Header { get; set; }
-    public static Color Crit { get; set; }
-    public static Color CritBg { get; set; }
-    public static Color Warn { get; set; }
-    public static Color WarnBg { get; set; }
-    public static Color Info { get; set; }
-    public static Color InfoBg { get; set; }
-    public static Color Ok { get; set; }
-    public static Color OkBg { get; set; }
-    public static Color Skip { get; set; }
-    public static Color SkipBg { get; set; }
+    public static readonly Color Bg = Color.FromArgb(249, 249, 251);
+    public static readonly Color Panel = Color.White;
+    public static readonly Color Text = Color.FromArgb(28, 29, 31);
+    public static readonly Color Muted = Color.FromArgb(95, 99, 104);
+    public static readonly Color Line = Color.FromArgb(229, 231, 235);
+    public static readonly Color Accent = Color.FromArgb(0, 103, 192);
+    public static readonly Color AccentHover = Color.FromArgb(0, 90, 158);
+    public static readonly Color AccentActive = Color.FromArgb(0, 79, 138);
+    public static readonly Color AccentDark = Color.FromArgb(0, 79, 138);
+    public static readonly Color AccentSoft = Color.FromArgb(235, 243, 251);
+    public static readonly Color Header = Color.FromArgb(22, 30, 46);
+    public static readonly Color Crit = Color.FromArgb(196, 43, 28), CritBg = Color.FromArgb(253, 231, 233);
+    public static readonly Color Warn = Color.FromArgb(157, 93, 0), WarnBg = Color.FromArgb(255, 244, 206);
+    public static readonly Color Info = Color.FromArgb(0, 103, 192), InfoBg = Color.FromArgb(235, 243, 251);
+    public static readonly Color Ok = Color.FromArgb(16, 124, 65), OkBg = Color.FromArgb(223, 246, 221);
+    public static readonly Color Skip = Color.FromArgb(95, 99, 104), SkipBg = Color.FromArgb(243, 244, 246);
 
     public static float DpiScale = 1.0f;
 
@@ -7413,60 +7068,6 @@ public static class UI
         }
         catch { DpiScale = 1.0f; }
         if (DpiScale <= 0.1f) DpiScale = 1.0f;
-        SetTheme(false);
-    }
-
-    public static void SetTheme(bool dark)
-    {
-        IsDark = dark;
-        if (dark)
-        {
-            Bg = Color.FromArgb(24, 25, 26);           // #18191A
-            Panel = Color.FromArgb(36, 37, 38);        // #242526
-            Text = Color.FromArgb(245, 246, 247);      // #F5F6F7
-            Muted = Color.FromArgb(156, 163, 175);     // #9CA3AF
-            Line = Color.FromArgb(58, 59, 60);         // #3A3B3C
-            Header = Color.FromArgb(18, 19, 20);       // #121314
-            Accent = Color.FromArgb(76, 194, 255);     // #4CC2FF
-            AccentHover = Color.FromArgb(96, 205, 255);
-            AccentActive = Color.FromArgb(60, 160, 220);
-            AccentDark = Color.FromArgb(30, 78, 121);
-            AccentSoft = Color.FromArgb(35, 52, 70);   // #233446
-            Crit = Color.FromArgb(255, 153, 164);      // #FF99A4
-            CritBg = Color.FromArgb(68, 39, 38);       // #442726
-            Warn = Color.FromArgb(252, 225, 0);        // #FCE100
-            WarnBg = Color.FromArgb(63, 51, 22);       // #3F3316
-            Info = Color.FromArgb(76, 194, 255);       // #4CC2FF
-            InfoBg = Color.FromArgb(35, 52, 70);       // #233446
-            Ok = Color.FromArgb(108, 203, 95);         // #6CCB5F
-            OkBg = Color.FromArgb(27, 56, 40);         // #1B3828
-            Skip = Color.FromArgb(156, 163, 175);     // #9CA3AF
-            SkipBg = Color.FromArgb(51, 51, 51);       // #333333
-        }
-        else
-        {
-            Bg = Color.FromArgb(249, 249, 251);        // #F9F9FB
-            Panel = Color.White;                       // #FFFFFF
-            Text = Color.FromArgb(28, 29, 31);         // #1C1D1F
-            Muted = Color.FromArgb(95, 99, 104);       // #5F6368
-            Line = Color.FromArgb(229, 231, 235);      // #E5E7EB
-            Header = Color.FromArgb(22, 30, 46);       // #161E2E
-            Accent = Color.FromArgb(0, 103, 192);
-            AccentHover = Color.FromArgb(0, 90, 158);
-            AccentActive = Color.FromArgb(0, 79, 138);
-            AccentDark = Color.FromArgb(0, 79, 138);
-            AccentSoft = Color.FromArgb(235, 243, 251);
-            Crit = Color.FromArgb(196, 43, 28);
-            CritBg = Color.FromArgb(253, 231, 233);
-            Warn = Color.FromArgb(157, 93, 0);
-            WarnBg = Color.FromArgb(255, 244, 206);
-            Info = Color.FromArgb(0, 103, 192);
-            InfoBg = Color.FromArgb(235, 243, 251);
-            Ok = Color.FromArgb(16, 124, 65);
-            OkBg = Color.FromArgb(223, 246, 221);
-            Skip = Color.FromArgb(95, 99, 104);
-            SkipBg = Color.FromArgb(243, 244, 246);
-        }
     }
 
     public static int S(int px)
@@ -7556,79 +7157,14 @@ public static class UI
     public static Button Secondary(string text)
     {
         Button b = new Button(); b.Text = text; b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderColor = Line;
-        b.BackColor = Panel; b.ForeColor = Text; b.FlatAppearance.MouseOverBackColor = IsDark ? Color.FromArgb(45, 48, 52) : Color.FromArgb(243, 244, 246); b.FlatAppearance.MouseDownBackColor = IsDark ? Color.FromArgb(55, 58, 62) : Color.FromArgb(235, 237, 240);
+        b.BackColor = Panel; b.ForeColor = Text; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(243, 244, 246); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(235, 237, 240);
         b.Font = new Font("Segoe UI", 9.75f); b.AutoSize = true; b.Padding = new Padding(S(10), S(3), S(10), S(3)); b.Margin = new Padding(S(8), 0, 0, 0); b.Cursor = Cursors.Hand; b.UseVisualStyleBackColor = false;
-        b.Paint += delegate(object s, PaintEventArgs pe) {
-            if (!b.Enabled) {
-                Graphics g = pe.Graphics;
-                Color disBg = IsDark ? Color.FromArgb(32, 33, 35) : Color.FromArgb(243, 244, 246);
-                Color disLine = IsDark ? Color.FromArgb(48, 50, 52) : Color.FromArgb(220, 222, 226);
-                Color disText = IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168);
-                using (SolidBrush bg = new SolidBrush(disBg)) g.FillRectangle(bg, b.ClientRectangle);
-                using (Pen p = new Pen(disLine)) g.DrawRectangle(p, 0, 0, b.Width - 1, b.Height - 1);
-                TextRenderer.DrawText(g, b.Text, b.Font, b.ClientRectangle, disText, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-            }
-        };
         return b;
     }
 
     public static Button SkipStepButton()
     {
         return Secondary("Diesen Schritt überspringen");
-    }
-}
-
-// Moderner Windows 11 DropDown / ComboBox (Dark & Light Mode fähig)
-public class DarkComboBox : ComboBox
-{
-    public DarkComboBox()
-    {
-        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
-        DrawMode = DrawMode.OwnerDrawFixed;
-        DropDownStyle = ComboBoxStyle.DropDownList;
-        ItemHeight = UI.S(24);
-        Font = new Font("Segoe UI", 9.5f);
-        Cursor = Cursors.Hand;
-        BackColor = UI.Panel;
-        ForeColor = UI.Text;
-    }
-
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        Graphics g = e.Graphics;
-        Color bg = Enabled ? UI.Panel : (UI.IsDark ? Color.FromArgb(30, 31, 32) : Color.FromArgb(243, 244, 246));
-        Color border = UI.Line;
-        Color fg = Enabled ? UI.Text : (UI.IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168));
-        using (SolidBrush b = new SolidBrush(bg)) g.FillRectangle(b, ClientRectangle);
-        using (Pen p = new Pen(border)) g.DrawRectangle(p, 0, 0, Width - 1, Height - 1);
-
-        string txt = SelectedItem != null ? SelectedItem.ToString() : Text;
-        int arrowW = UI.S(22);
-        Rectangle tr = new Rectangle(UI.S(8), 0, Math.Max(10, Width - arrowW - UI.S(10)), Height);
-        TextRenderer.DrawText(g, txt, Font, tr, fg, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-
-        int arrowX = Width - arrowW / 2 - UI.S(2);
-        int arrowY = Height / 2;
-        int asz = UI.S(4);
-        Point[] arrow = new Point[] {
-            new Point(arrowX - asz, arrowY - asz / 2),
-            new Point(arrowX + asz, arrowY - asz / 2),
-            new Point(arrowX, arrowY + asz / 2)
-        };
-        using (SolidBrush ab = new SolidBrush(UI.Muted)) g.FillPolygon(ab, arrow);
-    }
-
-    protected override void OnDrawItem(DrawItemEventArgs e)
-    {
-        if (e.Index < 0) return;
-        bool sel = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
-        Color bg = sel ? (UI.IsDark ? UI.AccentSoft : Color.FromArgb(235, 243, 251)) : UI.Panel;
-        Color fg = sel ? UI.Accent : UI.Text;
-        using (SolidBrush b = new SolidBrush(bg)) e.Graphics.FillRectangle(b, e.Bounds);
-        string itemText = Items[e.Index] != null ? Items[e.Index].ToString() : "";
-        TextRenderer.DrawText(e.Graphics, itemText, Font,
-            new Rectangle(e.Bounds.X + UI.S(6), e.Bounds.Y, e.Bounds.Width - UI.S(10), e.Bounds.Height),
-            fg, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
     }
 }
 
@@ -7714,9 +7250,8 @@ public class ToggleSwitch : Control
             }
             else
             {
-                Color borderColor = hover ? (UI.IsDark ? Color.FromArgb(140, 140, 140) : Color.FromArgb(118, 118, 118)) : (UI.IsDark ? Color.FromArgb(80, 80, 80) : Color.FromArgb(209, 213, 219));
-                Color trackBg = UI.IsDark ? Color.FromArgb(45, 48, 52) : Color.White;
-                using (SolidBrush b = new SolidBrush(trackBg)) g.FillPath(b, trackPath);
+                Color borderColor = hover ? Color.FromArgb(118, 118, 118) : Color.FromArgb(209, 213, 219);
+                using (SolidBrush b = new SolidBrush(Color.White)) g.FillPath(b, trackPath);
                 using (Pen p = new Pen(borderColor, UI.SF(1.5f))) g.DrawPath(p, trackPath);
             }
         }
@@ -7730,15 +7265,13 @@ public class ToggleSwitch : Control
 
         // Weißer Schieber-Knopf
         RectangleF knobRect = new RectangleF(knobX, knobY, knobD, knobD);
-        Color knobColor = isChecked ? Color.White : (UI.IsDark ? Color.FromArgb(200, 205, 210) : Color.White);
-        using (SolidBrush kb = new SolidBrush(knobColor))
+        using (SolidBrush kb = new SolidBrush(Color.White))
         {
             g.FillEllipse(kb, knobRect);
         }
         if (!isChecked)
         {
-            Color kpCol = UI.IsDark ? Color.FromArgb(80, 80, 80) : Color.FromArgb(118, 118, 118);
-            using (Pen kp = new Pen(kpCol, 1f))
+            using (Pen kp = new Pen(Color.FromArgb(118, 118, 118), 1f))
             {
                 g.DrawEllipse(kp, knobRect);
             }
@@ -7874,8 +7407,8 @@ public class FluentCard : Control
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
         RectangleF r = new RectangleF(1, 1, Width - 3, Height - 3);
-        Color bg = hover ? (UI.IsDark ? Color.FromArgb(42, 44, 46) : Color.FromArgb(250, 251, 253)) : UI.Panel;
-        Color border = hover ? (UI.IsDark ? Color.FromArgb(80, 82, 85) : Color.FromArgb(209, 213, 219)) : UI.Line;
+        Color bg = hover ? Color.FromArgb(250, 251, 253) : UI.Panel;
+        Color border = hover ? Color.FromArgb(209, 213, 219) : UI.Line;
 
         using (GraphicsPath p = UI.Round(r, UI.SF(8)))
         {
@@ -7938,8 +7471,7 @@ class FlatBar : Control
         Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
         RectangleF r = new RectangleF(0, 0, Width - 1, Height - 1);
         float rad = Height / 2f;
-        Color trackColor = UI.IsDark ? Color.FromArgb(48, 50, 54) : Color.FromArgb(226, 231, 238);
-        using (GraphicsPath track = UI.Round(r, rad)) using (SolidBrush tb = new SolidBrush(trackColor)) g.FillPath(tb, track);
+        using (GraphicsPath track = UI.Round(r, rad)) using (SolidBrush tb = new SolidBrush(Color.FromArgb(226, 231, 238))) g.FillPath(tb, track);
         using (GraphicsPath clip = UI.Round(r, rad))
         {
             g.SetClip(clip);
@@ -7995,12 +7527,11 @@ class NavItem : Control
     {
         Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
         RectangleF r = new RectangleF(1, 1, Width - 3, Height - 3);
-        Color fill = sel ? UI.AccentSoft : (hover ? (UI.IsDark ? Color.FromArgb(45, 47, 50) : Color.FromArgb(240, 243, 248)) : UI.Panel);
-        Color borderPen = sel ? UI.Accent : (hover ? (UI.IsDark ? Color.FromArgb(80, 82, 85) : Color.FromArgb(209, 213, 219)) : UI.Line);
+        Color fill = sel ? UI.AccentSoft : (hover ? Color.FromArgb(240, 243, 248) : UI.Panel);
         using (GraphicsPath p = UI.Round(r, UI.SF(6)))
         {
             using (SolidBrush b = new SolidBrush(fill)) g.FillPath(b, p);
-            using (Pen pen = new Pen(borderPen, sel ? UI.SF(1.5f) : UI.SF(1f))) g.DrawPath(pen, p);
+            using (Pen pen = new Pen(sel ? UI.Accent : (hover ? Color.FromArgb(209, 213, 219) : UI.Line), sel ? UI.SF(1.5f) : UI.SF(1f))) g.DrawPath(pen, p);
         }
 
         // Bei Auswahl: Links ein 3 px breiter, abgerundeter blauer Akzentbalken
@@ -8020,8 +7551,7 @@ class NavItem : Control
             using (GraphicsPath bp = UI.Round(bx, UI.SF(5)))
             {
                 using (SolidBrush bb = new SolidBrush(chk ? UI.Accent : UI.Panel)) g.FillPath(bb, bp);
-                Color chkBorder = chk ? UI.Accent : (UI.IsDark ? Color.FromArgb(90, 95, 105) : Color.FromArgb(160, 170, 185));
-                using (Pen bpen = new Pen(chkBorder, UI.SF(1.5f))) g.DrawPath(bpen, bp);
+                using (Pen bpen = new Pen(chk ? UI.Accent : Color.FromArgb(160, 170, 185), UI.SF(1.5f))) g.DrawPath(bpen, bp);
             }
             if (chk) using (Pen ck = new Pen(Color.White, UI.SF(2.4f))) { ck.StartCap = LineCap.Round; ck.EndCap = LineCap.Round; g.DrawLines(ck, new Point[] { new Point(bx.X + UI.S(5), bx.Y + UI.S(10)), new Point(bx.X + UI.S(9), bx.Y + UI.S(14)), new Point(bx.X + UI.S(15), bx.Y + UI.S(6)) }); }
             x = bx.Right + UI.S(10);
@@ -8044,8 +7574,7 @@ class NavItem : Control
             Size tsz = TextRenderer.MeasureText(g, Title, ft);
             int th = Math.Max(tsz.Height, UI.S(18));
             int startY = (Height - th) / 2;
-            Color titleColor = sel ? (UI.IsDark ? UI.Accent : UI.AccentDark) : UI.Text;
-            TextRenderer.DrawText(g, Title, ft, new Rectangle(x, startY, Width - x - UI.S(8), th), titleColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            TextRenderer.DrawText(g, Title, ft, new Rectangle(x, startY, Width - x - UI.S(8), th), sel ? UI.AccentDark : UI.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         }
     }
 }
@@ -8246,7 +7775,7 @@ class SensorChart : Control
         double span = hi - lo; if (span < 1) span = 1;
         double step = NiceStep(span / 3);
         double y0 = Math.Floor(lo / step) * step, y1 = Math.Ceiling(hi / step) * step; if (y1 <= y0) y1 = y0 + step;
-        using (Pen grid = new Pen(UI.IsDark ? Color.FromArgb(45, 48, 52) : Color.FromArgb(236, 239, 243)))
+        using (Pen grid = new Pen(Color.FromArgb(236, 239, 243)))
         using (Font fa = new Font("Segoe UI", 7.75f))
         {
             for (double v = y0; v <= y1 + step / 1000; v += step)
@@ -8520,7 +8049,7 @@ public partial class DiagGui
     int dbSortCol = -1;
     bool dbSortAsc = true;
     Button btnRename;
-    Button btnCompare, btnDashboard, btnDelete;
+    Button btnCompare, btnDelete;
 
     void OnDbColumnClick(object sender, ColumnClickEventArgs e)
     {
@@ -8556,9 +8085,6 @@ public partial class DiagGui
         tb.Text = defaultValue ?? "";
         tb.Location = new Point(UI.S(16), UI.S(48));
         tb.Size = new Size(UI.S(408), UI.S(24));
-        tb.BackColor = UI.Panel;
-        tb.ForeColor = UI.Text;
-        tb.BorderStyle = BorderStyle.FixedSingle;
 
         Button btnOk = UI.Primary("Speichern");
         btnOk.Location = new Point(UI.S(226), UI.S(92));
@@ -8624,7 +8150,7 @@ public partial class DiagGui
     Control BuildDbPage()
     {
         Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel;
-        FlowLayoutPanel top = Page("Vergleichsdatenbank", "Jeder Lauf wird als System gespeichert. Hier lassen sich bereits geprüfte Systeme ohne neuen Benchmark im interaktiven Multi-System-Dashboard gegenüberstellen: Systeme anhaken und \"Im Dashboard vergleichen\" klicken. Ältere Ausgabeordner lassen sich importieren. Ein Klick auf die Spaltenköpfe sortiert die Einträge.", -1);
+        FlowLayoutPanel top = Page("Vergleichsdatenbank", "Jeder Lauf wird als System gespeichert. Hier lassen sich bereits geprüfte Systeme ohne neuen Benchmark vergleichen: mindestens zwei Systeme anhaken und \"Vergleichen\" klicken. Ältere Ausgabeordner lassen sich importieren. Ein Klick auf die Spaltenköpfe sortiert die Einträge.", -1);
         top.Dock = DockStyle.Top;
         top.AutoSize = true;
         lblDbPath = Lbl("Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lblDbPath.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(4)); top.Controls.Add(lblDbPath);
@@ -8645,23 +8171,23 @@ public partial class DiagGui
         FlowLayoutPanel bottom = new FlowLayoutPanel(); bottom.FlowDirection = FlowDirection.TopDown; bottom.WrapContents = false; bottom.AutoSize = true; bottom.BackColor = UI.Panel; bottom.Dock = DockStyle.Bottom;
         Label hint = Lbl("Doppelklick öffnet den Bericht des Laufs. Graue Einträge enthalten keine Benchmark-Werte. Klick auf Spaltenkopf sortiert die Tabelle.", 8.75f, false, UI.Muted); hint.Margin = new Padding(UI.S(4), UI.S(4), UI.S(4), 0); bottom.Controls.Add(hint);
         FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(10), 0, 0);
-        // Hinweis: Der statische Bericht "Vergleichen (Klassisch)" ist ab v3.32 vollständig durch das interaktive Dashboard abgelöst
-        btnDashboard = UI.Primary("Interaktives Dashboard"); btnDashboard.Margin = new Padding(0); btnDashboard.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnDashboard.Font = new Font("Segoe UI Semibold", 9.75f);
+        btnCompare = UI.Primary("Vergleichen"); btnCompare.Margin = new Padding(0); btnCompare.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnCompare.Font = new Font("Segoe UI Semibold", 9.75f);
+        btnCompare.Click += delegate { CompareSelected(); };
+        Button btnDashboard = UI.Secondary("Dashboard"); btnDashboard.Margin = new Padding(UI.S(8), 0, 0, 0);
         btnDashboard.Click += delegate { OpenDashboard(); };
-        Tip(btnDashboard, "Öffnet das interaktive Multi-System-Dashboard im Browser mit den angehakten Systemen.");
+        Tip(btnDashboard, "Öffnet das interaktive Benchmark- und Diagnose-Dashboard mit Referenzvergleich und Lasttest-Telemetrie im Browser.");
         btnRename = UI.Secondary("Name ändern ..."); btnRename.Margin = new Padding(UI.S(8), 0, 0, 0);
         btnRename.Click += delegate { RenameSelectedEntry(); };
         btnRename.Enabled = false;
         Tip(btnRename, "Bearbeitet den Anzeigenamen des ausgewählten Systems (z. B. für Notizen wie Vor Reinigung oder Neuer Treiber), ohne die Hardware-Erkennung zu verändern.");
         btnDelete = UI.Secondary("Entfernen"); btnDelete.Margin = new Padding(UI.S(8), 0, 0, 0); btnDelete.Click += delegate { DeleteSelected(); };
         Tip(btnDelete, "Löscht die ausgewählten Systeme aus der Vergleichsdatenbank.");
-        b.Controls.Add(btnDashboard); b.Controls.Add(btnRename); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
+        b.Controls.Add(btnCompare); b.Controls.Add(btnDashboard); b.Controls.Add(btnRename); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
         lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
         lblDbClean.Margin = new Padding(UI.S(4), UI.S(8), UI.S(4), 0); bottom.Controls.Add(lblDbClean);
         bottom.Resize += delegate { lblDbClean.MaximumSize = new Size(Math.Max(UI.S(200), bottom.ClientSize.Width - UI.S(10)), 0); };
 
         lvDb = new ListView(); lvDb.View = View.Details; lvDb.FullRowSelect = true; lvDb.CheckBoxes = true; lvDb.Dock = DockStyle.Fill; lvDb.BorderStyle = BorderStyle.FixedSingle; lvDb.HideSelection = false; lvDb.ShowItemToolTips = true;
-        EnableDarkListView(lvDb);
         string[] cols = new string[] { "System", "Datum", "Gesamt", "Prozessor", "Grafik", "Arbeitsspeicher", "CPU Mehrkern", "RAM Lesen", "GPU", "Befunde K/W/I" };
         int[] w = new int[] { UI.S(135), UI.S(95), UI.S(65), UI.S(125), UI.S(115), UI.S(105), UI.S(80), UI.S(70), UI.S(70), UI.S(62) };
         for (int i = 0; i < cols.Length; i++) lvDb.Columns.Add(cols[i], w[i]);
@@ -8677,12 +8203,14 @@ public partial class DiagGui
         Tip(lvDb, "Vergleichsdatenbank aller gespeicherten Systeme. Ein Klick auf die Spaltenköpfe sortiert nach Datum, Gesamtwertung, CPU oder GPU.");
 
         ContextMenu cm = new ContextMenu();
-        MenuItem miDashboard = new MenuItem("Im Dashboard vergleichen", delegate { OpenDashboard(); });
+        MenuItem miCompare = new MenuItem("Vergleichen", delegate { CompareSelected(); });
+        MenuItem miDashboard = new MenuItem("Im Dashboard ansehen", delegate { OpenDashboard(); });
         MenuItem miSep1 = new MenuItem("-");
         MenuItem miRename = new MenuItem("Name ändern ...", delegate { RenameSelectedEntry(); });
         MenuItem miOpen = new MenuItem("Bericht öffnen", delegate { if (lvDb.SelectedItems.Count > 0) OpenEntry((DbEntry)lvDb.SelectedItems[0].Tag); });
         MenuItem miSep2 = new MenuItem("-");
         MenuItem miDelete = new MenuItem("Aus Datenbank entfernen", delegate { DeleteSelected(); });
+        cm.MenuItems.Add(miCompare);
         cm.MenuItems.Add(miDashboard);
         cm.MenuItems.Add(miSep1);
         cm.MenuItems.Add(miRename);
@@ -8692,7 +8220,7 @@ public partial class DiagGui
         cm.Popup += delegate {
             int selN = lvDb.SelectedItems.Count;
             int chkN = CheckedEntries().Count;
-            miDashboard.Enabled = chkN >= 1 || selN >= 1;
+            miCompare.Enabled = chkN >= 2 || selN >= 2;
             miRename.Enabled = selN == 1 || (selN == 0 && chkN == 1);
             miOpen.Enabled = selN == 1;
             miDelete.Enabled = chkN >= 1 || selN >= 1;
@@ -8746,18 +8274,10 @@ public partial class DiagGui
 
     void UpdateDbButtons()
     {
-        if (btnDashboard == null && btnCompare == null) return;
+        if (btnCompare == null) return;
         int n = CheckedEntries().Count;
-        if (btnDelete != null) btnDelete.Enabled = n >= 1;
-        if (btnCompare != null)
-        {
-            btnCompare.Enabled = n >= 2;
-            btnCompare.Text = n >= 2 ? n + " Systeme vergleichen (Klassisch)" : "Vergleichen (Klassisch)";
-        }
-        if (btnDashboard != null)
-        {
-            btnDashboard.Text = n >= 2 ? n + " Systeme im Dashboard vergleichen" : (n == 1 ? "1 System im Dashboard anzeigen" : "Interaktives Dashboard");
-        }
+        btnCompare.Enabled = n >= 2; btnDelete.Enabled = n >= 1;
+        btnCompare.Text = n >= 2 ? n + " Systeme vergleichen" : "Vergleichen";
         if (btnRename != null)
         {
             int selCount = (lvDb != null ? lvDb.SelectedItems.Count : 0);
@@ -8778,29 +8298,25 @@ public partial class DiagGui
         OpenSelect(e.Path);
     }
 
-    // Vergleichen (Klassisch): In v3.32 vollständig durch das interaktive Multi-System-Dashboard abgelöst
     void CompareSelected()
     {
-        OpenDashboard();
+        List<DbEntry> sel = CheckedEntries();
+        if (sel.Count < 2) return;
+        List<string> paths = new List<string>(); foreach (DbEntry e in sel) paths.Add(e.Path);
+        Cursor = Cursors.WaitCursor;
+        string html = ""; List<string> lines = new List<string>();
+        try { html = RunHelper("-Vergleich \"" + String.Join(";", paths.ToArray()) + "\"", out lines); }
+        catch (Exception ex) { lines.Add(ex.Message); }
+        Cursor = Cursors.Default;
+        if (html.Length > 0 && File.Exists(html)) OpenShell(html);
+        else MessageBox.Show(this, "Der Vergleich konnte nicht erstellt werden.\r\n\r\n" + String.Join("\r\n", lines.ToArray()), "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Warning);
     }
 
     void OpenDashboard()
     {
         Cursor = Cursors.WaitCursor;
         List<string> lines = new List<string>(); string res = "";
-        List<DbEntry> sel = CheckedEntries();
-        if (sel.Count == 0 && lvDb != null && lvDb.SelectedItems.Count > 0)
-        {
-            foreach (ListViewItem it in lvDb.SelectedItems) sel.Add((DbEntry)it.Tag);
-        }
-        string args = "-Dashboard";
-        if (sel.Count > 0)
-        {
-            List<string> paths = new List<string>();
-            foreach (DbEntry e in sel) paths.Add(e.Path);
-            args += " -DashboardSysteme \"" + String.Join(";", paths.ToArray()) + "\"";
-        }
-        try { res = RunHelper(args, out lines); }
+        try { res = RunHelper("-Dashboard", out lines); }
         catch (Exception ex) { lines.Add("Dashboard-Aufruf fehlgeschlagen: " + ex.Message); }
         Cursor = Cursors.Default;
         if (res.Length > 0 && File.Exists(res)) OpenShell(res);
@@ -8903,7 +8419,6 @@ public partial class DiagGui
         b.Controls.Add(btnUndo); b.Controls.Add(rel); b.Controls.Add(open); bottom.Controls.Add(b);
 
         lvChg = new ListView(); lvChg.View = View.Details; lvChg.FullRowSelect = true; lvChg.CheckBoxes = true; lvChg.Dock = DockStyle.Fill; lvChg.BorderStyle = BorderStyle.FixedSingle; lvChg.HideSelection = false; lvChg.ShowItemToolTips = true;
-        EnableDarkListView(lvChg);
         string[] cols = new string[] { "Zeit", "Computer", "Maßnahme", "Ziel", "Vorher", "Nachher", "Status" };
         int[] w = new int[] { UI.S(112), UI.S(100), UI.S(170), UI.S(190), UI.S(90), UI.S(110), UI.S(96) };
         for (int i = 0; i < cols.Length; i++) lvChg.Columns.Add(cols[i], w[i]);
@@ -9632,14 +9147,6 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
-        new Eintrag("3.32", "06.10.2026", "Dark-Mode-Feinschliff (Scrollbars, ComboBox, Header & Kontraste) und Konsolidierung des Systemvergleichs",
-            "Dark-Mode-Feinschliff: Native dunkle Win32-Scrollbars für Inhalts- und Navigationsbereiche über SetPreferredAppMode (ForceDark) und SetWindowTheme (DarkMode_Explorer), neue DarkComboBox für nahtlos dunkle Dropdown-Menüs, einheitlich abgedunkelte Tabellenköpfe (Owner-Draw SysHeader32) und kontrastreiche Textdarstellung für deaktivierte Steuerelemente ohne Windows-GDI-Schattendruck. " +
-            "Konsolidierung des Systemvergleichs: Das interaktive Multi-System-Dashboard deckt sämtliche Hardware-Gegenüberstellungen, Benchmark-Matrizen und Befundvergleiche ab; die redundante statische Vergleichsfunktion wurde zugunsten eines einheitlichen Workflows abgelöst und die Vergleichsdatenbank aktualisiert."),
-        new Eintrag("3.31", "06.10.2026", "Multi-System-Vergleich im Dashboard (N >= 2), nativer WinForms Dark Mode & Build-Synchronisation",
-            "Multi-System-Vergleich im Dashboard: Beliebige Anzahl von Systemen (N >= 2) mit dynamischer Auswahl, direkter Hardware-Gegenüberstellung, vollständiger Benchmark-Matrix aller Metriken (inkl. Bestwert-Hervorhebung), synoptischem Befundvergleich und mehrfarbigem Canvas-Chartvergleich für Takt und Temperatur. " +
-            "Paralleler Betriebsmodus in der Oberfläche: Klassischer statischer Vergleichsbericht und interaktives Multi-System-Dashboard stehen in Toolbar und Kontextmenü gleichberechtigt zur Verfügung. " +
-            "Nativer GUI Dark Mode: Vollständig integriertes dynamisches Theme-System (Hell/Dunkel) für die WinForms-Oberfläche mit schnellem Umschalter in der Titelleiste, DWM Immersive Dark Mode für die Titelleiste und dauerhafter Speicherung in Einstellungen.json (Fallback: Windows-Systemdesign). " +
-            "Build- und Git-Synchronisation: Bauen.cmd synchronisiert und committet Quelltexte und Dokumentation nach erfolgreichem Bau und bestandenen Tests automatisch lokal in Git."),
         new Eintrag("3.3", "06.10.2026", "Interaktives Benchmark- & Diagnose-Dashboard, Lasttest-Telemetrie-Visualisierung, Fluent 2-Design und Dark Mode",
             "Eigenständiges HTML5-Dashboard: Vollständig offline-fähiges, interaktives Analyse- und Vergleichs-Dashboard mit Export-Funktion (Export-BenchDashboardData, New-BenchDashboardHtml) und Direktaufruf aus der Vergleichsseite sowie per CLI (-Dashboard). " +
             "Dual-Axis Telemetrie-Visualisierung: Interaktiver HTML5-Canvas-Chart für Takt (GHz/MHz) und Temperatur (°C) über den Lasttestverlauf mit TjMax-Referenzlinie, dynamischen Drosselungs-Markierungen (Thermal/Power Throttling) und Cursor-Tooltips. " +
@@ -11669,12 +11176,11 @@ function New-CompareReport([string[]]$Paths) {
 #             LEOS MINIBENCH: BENCHMARK- & DIAGNOSE-DASHBOARD (HTML5/VANILLA-JS)
 # =====================================================================================
 # Wiederverwendbare Daten- und HTML-Bausteine für das interaktive Benchmark- und
-# Diagnose-Dashboard (Fluent 2 / Wintoys-Look, Multi-System-Vergleich, 100 % offline-fähig).
+# Diagnose-Dashboard (Fluent 2 / Wintoys-Look, 100 % offline-fähig).
 
 function Export-BenchDashboardData {
     [CmdletBinding()]
     param(
-        [Alias('DatenOrdner')]
         [string]$DatabaseDir = '',
         [string]$ReportDir = '',
         [string[]]$SystemPaths = @(),
@@ -11685,9 +11191,6 @@ function Export-BenchDashboardData {
 
     # 1. Datenbank- und Berichtsverzeichnisse ermitteln
     $dbDir = $DatabaseDir
-    if ($dbDir -and (Test-Path -LiteralPath (Join-Path $dbDir 'Datenbank'))) {
-        $dbDir = (Join-Path $dbDir 'Datenbank')
-    }
     if (-not $dbDir -or -not (Test-Path -LiteralPath $dbDir)) {
         if ($script:DbDir -and (Test-Path -LiteralPath $script:DbDir)) { $dbDir = $script:DbDir }
         elseif (Test-Path -LiteralPath 'Minibench-Daten\Datenbank') { $dbDir = (Convert-Path 'Minibench-Daten\Datenbank') }
@@ -11790,53 +11293,17 @@ function Export-BenchDashboardData {
         $diskInfo = $(if ($j.Hardware -and $j.Hardware.Datentraeger) { [string]$j.Hardware.Datentraeger } else { '' })
         $mb = $(if ($j.Hardware -and $j.Hardware.Mainboard) { [string]$j.Hardware.Mainboard } else { '' })
         $os = $(if ($j.Hardware -and $j.Hardware.Betriebssystem) { [string]$j.Hardware.Betriebssystem } elseif ($j.System) { [string]$j.System } else { '' })
-        $winInst = $(if ($j.Hardware -and $j.Hardware.WindowsInstalliert) { [string]$j.Hardware.WindowsInstalliert } else { '' })
-        $sysBoard = $(if ($j.System) { [string]$j.System } else { '' })
-
-        # Befunde
-        $crit = 0; $warn = 0; $info = 0; $liste = @()
-        if ($j.Befunde -is [System.Collections.IDictionary] -or ($j.Befunde -and $j.Befunde.PSObject.Properties['Kritisch'])) {
-            $crit = [int]$j.Befunde.Kritisch
-            $warn = [int]$j.Befunde.Warnungen
-            $info = [int]$j.Befunde.Hinweise
-            if ($j.Befunde.Liste) { $liste = @($j.Befunde.Liste | ForEach-Object { [string]$_ }) }
-        } elseif ($j.Befunde -is [string] -and $j.Befunde -match '^(\d+)/(\d+)/(\d+)$') {
-            $crit = [int]$Matches[1]; $warn = [int]$Matches[2]; $info = [int]$Matches[3]
-        }
-        if ($j.BefundeDetails) {
-            $liste = @($j.BefundeDetails | ForEach-Object {
-                if ($_ -is [string]) { $_ }
-                elseif ($_.Text) {
-                    $st = $(if ($_.Stufe) { [string]$_.Stufe } else { 'Hinweis' }).ToUpperInvariant()
-                    $br = $(if ($_.Bereich) { [string]$_.Bereich } else { 'System' })
-                    '[{0}] {1}: {2}' -f $st, $br, $_.Text
-                } else { [string]$_ }
-            })
-        }
-        $befunde = [ordered]@{
-            Kritisch  = $crit
-            Warnungen = $warn
-            Hinweise  = $info
-            Liste     = $liste
-        }
 
         # Benchmark-Kernmesswerte
         $cpuSt = $(if ($werte.ContainsKey('CPU|ST')) { [double]$werte['CPU|ST'] } else { 0.0 })
         $cpuMt = $(if ($werte.ContainsKey('CPU|MT')) { [double]$werte['CPU|MT'] } else { 0.0 })
-        $cpuAes = $(if ($werte.ContainsKey('CPU|AES')) { [double]$werte['CPU|AES'] } else { 0.0 })
-        $cpuSha = $(if ($werte.ContainsKey('CPU|SHA')) { [double]$werte['CPU|SHA'] } else { 0.0 })
-        $cpuDefl = $(if ($werte.ContainsKey('CPU|DEFL')) { [double]$werte['CPU|DEFL'] } else { 0.0 })
-
         $ramLesen = $(if ($werte.ContainsKey('RAM|Lesen')) { [double]$werte['RAM|Lesen'] } else { 0.0 })
-        $ramSchreiben = $(if ($werte.ContainsKey('RAM|Schreiben')) { [double]$werte['RAM|Schreiben'] } else { 0.0 })
         $ramKopieren = $(if ($werte.ContainsKey('RAM|Kopieren')) { [double]$werte['RAM|Kopieren'] } else { 0.0 })
         $ramLatenz = $(if ($werte.ContainsKey('RAM|Latenz')) { [double]$werte['RAM|Latenz'] } else { 0.0 })
-
         $gpuRend = $(if ($werte.ContainsKey('GPU|REND')) { [double]$werte['GPU|REND'] } else { 0.0 })
         $gpuRend1 = $(if ($werte.ContainsKey('GPU|REND1')) { [double]$werte['GPU|REND1'] } else { 0.0 })
         $gpuRend01 = $(if ($werte.ContainsKey('GPU|REND01')) { [double]$werte['GPU|REND01'] } else { 0.0 })
         $gpuStutter = $(if ($werte.ContainsKey('GPU|STUTTER')) { [double]$werte['GPU|STUTTER'] } else { 0.0 })
-        $gpuVmb = $(if ($werte.ContainsKey('GPU|VMB')) { [double]$werte['GPU|VMB'] } else { 0.0 })
 
         # Rendertest Fallback
         if ($gpuRend -le 0 -and $j.Rendertest -and $j.Rendertest.Count -gt 0) {
@@ -12092,17 +11559,12 @@ function Export-BenchDashboardData {
             IsReference = $isRef
             OS          = $os
             Hardware    = [ordered]@{
-                CPU                = $cpu
-                RAM                = $ram
-                GPU                = $gpu
-                Datentraeger       = $diskInfo
-                Mainboard          = $(if ($mb) { $mb } elseif ($sysBoard) { $sysBoard } else { '' })
-                Betriebssystem     = $os
-                WindowsInstalliert = $winInst
-                FastestDisk        = $(if ($fastestDisk) { $fastestDisk.Model } else { '' })
-                System             = $sysBoard
+                CPU          = $cpu
+                RAM          = $ram
+                GPU          = $gpu
+                Datentraeger = $diskInfo
+                Mainboard    = $mb
             }
-            Befunde     = $befunde
             Scores      = [ordered]@{
                 Overall     = $overallScore
                 Gaming      = $gamingScore
@@ -12110,23 +11572,18 @@ function Export-BenchDashboardData {
                 Workstation = $workstationScore
             }
             Metrics     = [ordered]@{
-                CPU_ST        = $cpuSt
-                CPU_MT        = $cpuMt
-                CPU_AES       = $cpuAes
-                CPU_SHA       = $cpuSha
-                CPU_DEFL      = $cpuDefl
-                RAM_Lesen     = $ramLesen
-                RAM_Schreiben = $ramSchreiben
-                RAM_Kopieren  = $ramKopieren
-                RAM_Latenz    = $ramLatenz
-                GPU_REND      = $gpuRend
-                GPU_REND1     = $gpuRend1
-                GPU_REND01    = $gpuRend01
-                GPU_STUTTER   = $gpuStutter
-                GPU_VMB       = $gpuVmb
-                FastestDisk   = $fastestDisk
-                Disks         = @($disksList)
-                DisksByClass  = $disksByClass
+                CPU_ST       = $cpuSt
+                CPU_MT       = $cpuMt
+                RAM_Lesen    = $ramLesen
+                RAM_Kopieren = $ramKopieren
+                RAM_Latenz   = $ramLatenz
+                GPU_REND     = $gpuRend
+                GPU_REND1    = $gpuRend1
+                GPU_REND01   = $gpuRend01
+                GPU_STUTTER  = $gpuStutter
+                FastestDisk  = $fastestDisk
+                Disks        = @($disksList)
+                DisksByClass = $disksByClass
             }
             Telemetry   = [ordered]@{
                 CpuTempMax               = $cpuTMax
@@ -12149,47 +11606,24 @@ function Export-BenchDashboardData {
     # 2. Reale Daten laden
     $systems = [System.Collections.Generic.List[object]]::new()
     $references = [System.Collections.Generic.List[object]]::new()
-    $preselectedIds = [System.Collections.Generic.List[string]]::new()
-    $seenPaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
     # A) Datenbank-Dateien
-    # 1. Spezifisch übergebene Pfade zuerst
+    $dbFiles = @()
     if ($SystemPaths -and $SystemPaths.Count -gt 0) {
-        foreach ($p in $SystemPaths) {
-            if (Test-Path -LiteralPath $p) {
-                try {
-                    $full = (Convert-Path -LiteralPath $p)
-                    if ($seenPaths.Add($full)) {
-                        $raw = [IO.File]::ReadAllText($full, [System.Text.Encoding]::UTF8)
-                        $parsed = $raw | ConvertFrom-Json
-                        if ($parsed.Format -like 'PC-Diagnose-DB*') {
-                            $sysObj = & $parseSystemEntry $parsed $false $full
-                            if ($sysObj) {
-                                $systems.Add($sysObj)
-                                $preselectedIds.Add([string]$sysObj.Id)
-                            }
-                        }
-                    }
-                } catch { }
-            }
-        }
+        $dbFiles = @($SystemPaths | Where-Object { Test-Path -LiteralPath $_ })
+    } elseif ($dbDir -and (Test-Path -LiteralPath $dbDir)) {
+        $dbFiles = @(Get-ChildItem -LiteralPath $dbDir -Filter '*.json' -File | Where-Object { $_.Name -ne 'Referenz.json' } | ForEach-Object { $_.FullName })
     }
 
-    # 2. Weitere Datenbank-Dateien aus $dbDir laden
-    if ($dbDir -and (Test-Path -LiteralPath $dbDir)) {
-        $otherDb = @(Get-ChildItem -LiteralPath $dbDir -Filter '*.json' -File | Where-Object { $_.Name -ne 'Referenz.json' })
-        foreach ($f in $otherDb) {
-            if ($seenPaths.Add($f.FullName)) {
-                try {
-                    $raw = [IO.File]::ReadAllText($f.FullName, [System.Text.Encoding]::UTF8)
-                    $parsed = $raw | ConvertFrom-Json
-                    if ($parsed.Format -like 'PC-Diagnose-DB*') {
-                        $sysObj = & $parseSystemEntry $parsed $false $f.FullName
-                        if ($sysObj) { $systems.Add($sysObj) }
-                    }
-                } catch { }
+    foreach ($f in $dbFiles) {
+        try {
+            $raw = [IO.File]::ReadAllText($f, [System.Text.Encoding]::UTF8)
+            $parsed = $raw | ConvertFrom-Json
+            if ($parsed.Format -like 'PC-Diagnose-DB*') {
+                $sysObj = & $parseSystemEntry $parsed $false $f
+                if ($sysObj) { $systems.Add($sysObj) }
             }
-        }
+        } catch { }
     }
 
     # B) Eingebettete Referenzdaten
@@ -12217,11 +11651,10 @@ function Export-BenchDashboardData {
     }
 
     $aggData = [ordered]@{
-        Version        = '3.31'
-        Generated      = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
-        PreselectedIds = @($preselectedIds)
-        Systems        = @($systems)
-        References     = @($references)
+        Version    = '3.3'
+        Generated  = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+        Systems    = @($systems)
+        References = @($references)
     }
 
     if ($OutputPath) {
@@ -12281,12 +11714,12 @@ function Get-BenchDashboardHtmlTemplate {
     }
 
     [data-theme="dark"] {
-      --bg: #18191A;
-      --card-bg: #242526;
-      --card-border: #3A3B3C;
+      --bg: #202020;
+      --card-bg: #2B2B2B;
+      --card-border: #383838;
       --card-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-      --text: #F5F6F7;
-      --text-muted: #9CA3AF;
+      --text: #FFFFFF;
+      --text-muted: #A0A0A0;
       --text-subtle: #707070;
       --accent: #4CC2FF;
       --accent-hover: #60CDFF;
@@ -12301,11 +11734,11 @@ function Get-BenchDashboardHtmlTemplate {
       --crit-bg: #442726;
       --crit-text: #FF99A4;
       --crit-border: #733A38;
-      --neutral-bg: #2E2F30;
+      --neutral-bg: #333333;
       --neutral-text: #D1D5DB;
       --grid-line: #333333;
-      --canvas-bg: #202122;
-      --tooltip-bg: rgba(36, 37, 38, 0.96);
+      --canvas-bg: #262626;
+      --tooltip-bg: rgba(43, 43, 43, 0.96);
       --tooltip-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
       --curve-temp: #FF5A5A;
       --curve-temp-fill: rgba(255, 90, 90, 0.12);
@@ -12326,7 +11759,7 @@ function Get-BenchDashboardHtmlTemplate {
     }
 
     .container {
-      max-width: 1360px;
+      max-width: 1280px;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
@@ -12340,141 +11773,141 @@ function Get-BenchDashboardHtmlTemplate {
       align-items: center;
       flex-wrap: wrap;
       gap: 16px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--card-border);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: var(--card-shadow);
     }
     .brand {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
     }
     .brand-icon {
-      width: 44px;
-      height: 44px;
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #0078D4, #004F8A);
       border-radius: 10px;
-      background: linear-gradient(135deg, var(--accent), #004578);
-      color: white;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 22px;
-      box-shadow: 0 4px 10px rgba(0, 103, 192, 0.25);
+      color: #fff;
+      font-size: 20px;
+      font-weight: 700;
+      box-shadow: 0 4px 10px rgba(0, 103, 192, 0.3);
     }
     .brand-titles h1 {
-      font-size: 1.45rem;
-      font-weight: 700;
-      letter-spacing: -0.01em;
+      font-size: 1.25rem;
+      font-weight: 600;
       display: flex;
       align-items: center;
       gap: 8px;
     }
     .badge-ver {
-      font-size: 0.72rem;
-      font-weight: 600;
-      padding: 2px 7px;
-      border-radius: 20px;
+      font-size: 0.75rem;
       background: var(--accent-soft);
       color: var(--accent);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
       border: 1px solid var(--accent-border);
     }
     .brand-titles p {
       font-size: 0.85rem;
       color: var(--text-muted);
     }
+
     .header-actions {
       display: flex;
       align-items: center;
       gap: 12px;
+      flex-wrap: wrap;
     }
+
+    /* TOGGLE SWITCH */
     .theme-switch-container {
       display: flex;
       align-items: center;
       gap: 8px;
       font-size: 0.85rem;
       color: var(--text-muted);
-      user-select: none;
     }
     .toggle-switch {
-      width: 44px;
-      height: 24px;
-      border-radius: 12px;
-      background: var(--card-border);
-      border: none;
-      cursor: pointer;
       position: relative;
-      transition: background-color 0.2s ease;
+      width: 44px;
+      height: 22px;
+      background-color: var(--neutral-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      cursor: pointer;
       outline: none;
+      transition: background-color 0.2s, border-color 0.2s;
+      padding: 0;
     }
     .toggle-switch[aria-checked="true"] {
-      background: var(--accent);
+      background-color: var(--accent);
+      border-color: var(--accent);
     }
     .toggle-thumb {
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: white;
       position: absolute;
-      top: 3px;
-      left: 3px;
-      transition: transform 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background-color: #FFFFFF;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+      transition: transform 0.2s ease;
     }
     .toggle-switch[aria-checked="true"] .toggle-thumb {
-      transform: translateX(20px);
+      transform: translateX(22px);
     }
 
-    /* SELECTOR CARDS */
+    /* SELECTOR BAR */
     .selector-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 16px 20px;
       box-shadow: var(--card-shadow);
       display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .selector-top {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
       align-items: center;
-      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
     }
-    .selector-base-wrap {
+    .selector-group {
       flex: 1;
-      min-width: 280px;
+      min-width: 260px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
-    .selector-label {
-      font-size: 0.82rem;
+    .selector-group label {
+      font-size: 0.8rem;
       font-weight: 600;
       color: var(--text-muted);
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
       text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.5px;
     }
     .select-wrapper {
       position: relative;
-      width: 100%;
     }
     select {
       width: 100%;
-      appearance: none;
-      background: var(--card-bg);
+      padding: 9px 36px 9px 12px;
+      background: var(--bg);
+      color: var(--text);
       border: 1px solid var(--card-border);
       border-radius: 8px;
-      padding: 9px 34px 9px 12px;
-      font-size: 0.92rem;
-      color: var(--text);
-      cursor: pointer;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      font-size: 0.9rem;
       font-family: inherit;
+      appearance: none;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
     select:focus {
-      outline: none;
       border-color: var(--accent);
       box-shadow: 0 0 0 2px var(--accent-soft);
     }
@@ -12484,302 +11917,342 @@ function Get-BenchDashboardHtmlTemplate {
       top: 50%;
       transform: translateY(-50%);
       pointer-events: none;
-      font-size: 0.75rem;
       color: var(--text-muted);
+      font-size: 0.8rem;
     }
-    .multi-select-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .multi-actions {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    .btn-chip {
+    .btn-swap {
+      align-self: flex-end;
+      padding: 9px 14px;
       background: var(--neutral-bg);
-      border: 1px solid var(--card-border);
       color: var(--text);
-      font-size: 0.75rem;
-      padding: 3px 8px;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      font-family: inherit;
-    }
-    .btn-chip:hover {
-      background: var(--accent-soft);
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-    .compare-checkbox-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      max-height: 160px;
-      overflow-y: auto;
-      padding: 10px;
-      background: var(--neutral-bg);
       border: 1px solid var(--card-border);
       border-radius: 8px;
-    }
-    .compare-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 6px 12px;
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 6px;
       cursor: pointer;
-      font-size: 0.84rem;
-      user-select: none;
-      transition: all 0.15s ease;
+      font-size: 1rem;
+      transition: all 0.15s;
+      margin-bottom: 1px;
     }
-    .compare-chip:hover {
-      border-color: var(--accent);
-    }
-    .compare-chip.active {
+    .btn-swap:hover {
       background: var(--accent-soft);
-      border-color: var(--accent);
-      font-weight: 600;
-    }
-    .compare-chip input[type="checkbox"] {
-      cursor: pointer;
-      accent-color: var(--accent);
-    }
-    .sys-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      display: inline-block;
-      flex-shrink: 0;
-    }
-    .badge-count {
-      font-size: 0.75rem;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 12px;
-      background: var(--accent);
-      color: white;
-      margin-left: 6px;
+      border-color: var(--accent-border);
+      color: var(--accent);
     }
 
-    /* SECTION CARDS */
-    .dash-card {
+    /* SPECS BANNER */
+    .specs-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 10px;
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: var(--card-shadow);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 800px) {
+      .specs-card { grid-template-columns: 1fr; }
+    }
+    .spec-column {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .spec-header {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 6px;
+    }
+    .spec-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .spec-item {
+      background: var(--bg);
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--card-border);
+    }
+    .spec-item-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .spec-item-val {
+      font-size: 0.82rem;
+      color: var(--text);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* HERO PROFILES GRID */
+    .profiles-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 900px) {
+      .profiles-grid { grid-template-columns: 1fr; }
+    }
+    .profile-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
       padding: 20px;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+    .profile-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: var(--accent);
+      opacity: 0.8;
+    }
+    .profile-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .profile-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+    .score-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .score-big {
+      font-size: 2.2rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+    .score-big small {
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-left: 2px;
+    }
+
+    /* PILL BADGE */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .pill.ok { background: var(--ok-bg); color: var(--ok-text); border: 1px solid var(--ok-border); }
+    .pill.warn { background: var(--warn-bg); color: var(--warn-text); border: 1px solid var(--warn-border); }
+    .pill.crit { background: var(--crit-bg); color: var(--crit-text); border: 1px solid var(--crit-border); }
+    .pill.neutral { background: var(--neutral-bg); color: var(--neutral-text); border: 1px solid var(--card-border); }
+
+    .ratio-bar-wrap {
+      width: 100%;
+      height: 8px;
+      background: var(--neutral-bg);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 4px 0;
+      display: flex;
+    }
+    .ratio-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+    .profile-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* COMPONENT GRID */
+    .components-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 900px) {
+      .components-grid { grid-template-columns: 1fr; }
+    }
+    .comp-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 18px 20px;
       box-shadow: var(--card-shadow);
       display: flex;
       flex-direction: column;
       gap: 14px;
     }
-    .card-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .card-head h2 {
-      font-size: 1.15rem;
-      font-weight: 600;
+    .comp-header {
       display: flex;
       align-items: center;
-      gap: 8px;
-    }
-    .card-head p {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-    }
-
-    /* MATRIX TABLES */
-    .table-scroll {
-      width: 100%;
-      overflow-x: auto;
-      border: 1px solid var(--card-border);
-      border-radius: 8px;
-    }
-    .matrix-table {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      font-size: 0.86rem;
-      min-width: 650px;
-    }
-    .matrix-table th, .matrix-table td {
-      padding: 8px 12px;
+      justify-content: space-between;
       border-bottom: 1px solid var(--card-border);
-      vertical-align: middle;
+      padding-bottom: 8px;
     }
-    .matrix-table th {
-      background: var(--neutral-bg);
-      color: var(--text-muted);
-      font-weight: 600;
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
-    .matrix-table th.col-feature {
-      text-align: left;
-      width: 220px;
-      min-width: 180px;
-      position: sticky;
-      left: 0;
-      z-index: 2;
-    }
-    .matrix-table td.col-feature {
-      text-align: left;
-      font-weight: 500;
-      background: var(--card-bg);
-      position: sticky;
-      left: 0;
-      z-index: 1;
-      border-right: 1px solid var(--card-border);
-    }
-    .matrix-table tr.category-header td {
-      background: var(--accent-soft);
-      color: var(--accent);
-      font-weight: 700;
-      font-size: 0.88rem;
-      padding: 7px 12px;
-      border-top: 1px solid var(--accent-border);
-      border-bottom: 1px solid var(--accent-border);
-    }
-    .matrix-table td.sys-val {
-      text-align: right;
-      white-space: nowrap;
-    }
-    .matrix-table td.sys-val.is-best {
-      background: var(--ok-bg);
-      font-weight: 700;
-    }
-    .badge-best {
-      display: inline-block;
-      font-size: 0.7rem;
-      font-weight: 700;
-      padding: 1px 5px;
-      border-radius: 4px;
-      background: var(--ok-text);
-      color: #FFFFFF;
-      margin-left: 5px;
-      vertical-align: 1px;
-    }
-    .val-main {
-      font-weight: 600;
-    }
-    .val-sub {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      margin-left: 4px;
-    }
-
-    /* PILL BADGES */
-    .pill {
-      font-size: 0.72rem;
-      font-weight: 600;
-      padding: 2px 6px;
-      border-radius: 10px;
-      display: inline-block;
-      margin-left: 6px;
-      vertical-align: middle;
-    }
-    .pill.ok { background: var(--ok-bg); color: var(--ok-text); border: 1px solid var(--ok-border); }
-    .pill.warn { background: var(--warn-bg); color: var(--warn-text); border: 1px solid var(--warn-border); }
-    .pill.crit { background: var(--crit-bg); color: var(--crit-text); border: 1px solid var(--crit-border); }
-    .pill.neutral { background: var(--neutral-bg); color: var(--neutral-text); }
-    .badge {
-      display: inline-block;
-      padding: 2px 7px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-    .badge.crit { background: var(--crit-bg); color: var(--crit-text); }
-    .badge.warn { background: var(--warn-bg); color: var(--warn-text); }
-    .badge.info { background: var(--accent-soft); color: var(--accent); }
-    .badge.ok   { background: var(--ok-bg); color: var(--ok-text); }
-
-    /* PROFILES GRID */
-    .profiles-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 16px;
-    }
-    .profile-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 10px;
-      padding: 16px;
-      box-shadow: var(--card-shadow);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .profile-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-weight: 600;
+    .comp-title {
       font-size: 1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    .profile-sys-list {
+    .comp-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .metric-row {
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      margin-top: 4px;
+      gap: 4px;
     }
-    .profile-sys-row {
+    .metric-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
       font-size: 0.85rem;
-      padding: 4px 6px;
-      border-radius: 6px;
-      background: var(--neutral-bg);
     }
-    .profile-sys-row.is-base {
-      border-left: 3px solid var(--accent);
-      background: var(--accent-soft);
+    .metric-name {
+      color: var(--text);
+      font-weight: 500;
+    }
+    .metric-vals {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .metric-curr {
       font-weight: 600;
+      color: var(--text);
+    }
+    .metric-ref {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    .metric-bar-wrap {
+      width: 100%;
+      height: 6px;
+      background: var(--neutral-bg);
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+    }
+    .metric-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      transition: width 0.3s ease;
     }
 
-    /* TELEMETRY & CHART */
-    .chart-controls {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    .chart-btn {
-      background: var(--neutral-bg);
+    /* TELEMETRY & LASTTEST SECTION */
+    .telemetry-card {
+      background: var(--card-bg);
       border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .telemetry-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .telemetry-stats-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .stat-badge {
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      padding: 8px 12px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 110px;
+    }
+    .stat-badge-lbl {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .stat-badge-val {
+      font-size: 1.05rem;
+      font-weight: 700;
       color: var(--text);
-      font-size: 0.8rem;
+    }
+
+    /* THROTTLE BANNER */
+    .throttle-banner {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
       font-weight: 500;
-      padding: 5px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      font-family: inherit;
     }
-    .chart-btn.active {
-      background: var(--accent);
-      color: white;
-      border-color: var(--accent);
+    .throttle-banner.thermisch {
+      background: var(--crit-bg);
+      color: var(--crit-text);
+      border: 1px solid var(--crit-border);
     }
+    .throttle-banner.leistung {
+      background: var(--warn-bg);
+      color: var(--warn-text);
+      border: 1px solid var(--warn-border);
+    }
+    .throttle-banner.ok {
+      background: var(--ok-bg);
+      color: var(--ok-text);
+      border: 1px solid var(--ok-border);
+    }
+
+    /* CHART CONTAINER */
     .chart-container {
       position: relative;
       width: 100%;
-      height: 380px;
+      height: 320px;
       background: var(--canvas-bg);
       border: 1px solid var(--card-border);
       border-radius: 8px;
@@ -12791,29 +12264,13 @@ function Get-BenchDashboardHtmlTemplate {
       height: 100%;
       cursor: crosshair;
     }
-    .chart-tooltip {
-      position: absolute;
-      display: none;
-      background: var(--tooltip-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 0.8rem;
-      color: var(--text);
-      box-shadow: var(--tooltip-shadow);
-      pointer-events: none;
-      z-index: 10;
-      min-width: 200px;
-      max-width: 320px;
-      line-height: 1.45;
-    }
     .chart-legend {
       display: flex;
-      flex-wrap: wrap;
-      gap: 14px;
+      gap: 16px;
+      justify-content: flex-end;
+      align-items: center;
       font-size: 0.8rem;
       color: var(--text-muted);
-      align-items: center;
       padding-top: 4px;
     }
     .legend-item {
@@ -12822,65 +12279,26 @@ function Get-BenchDashboardHtmlTemplate {
       gap: 6px;
     }
     .legend-color {
-      width: 14px;
-      height: 14px;
+      width: 12px;
+      height: 12px;
       border-radius: 3px;
-      flex-shrink: 0;
     }
 
-    /* FINDINGS ACCORDION */
-    .findings-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 12px;
-    }
-    .finding-card {
-      background: var(--neutral-bg);
+    /* FLOATING TOOLTIP */
+    .chart-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: var(--tooltip-bg);
       border: 1px solid var(--card-border);
       border-radius: 8px;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .finding-card-head {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-weight: 600;
-      font-size: 0.88rem;
-    }
-    .finding-card-badges {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    details summary {
-      cursor: pointer;
-      font-size: 0.84rem;
-      font-weight: 600;
-      color: var(--accent);
-      user-select: none;
-      outline: none;
-    }
-    details summary:hover {
-      text-decoration: underline;
-    }
-    .findings-list {
-      margin-top: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+      padding: 8px 12px;
       font-size: 0.8rem;
-    }
-    .finding-item {
-      display: flex;
-      gap: 8px;
-      align-items: flex-start;
-      padding: 6px 8px;
-      border-radius: 4px;
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
+      color: var(--text);
+      box-shadow: var(--tooltip-shadow);
+      backdrop-filter: blur(8px);
+      display: none;
+      z-index: 10;
+      white-space: nowrap;
     }
 
     /* FOOTER */
@@ -12888,13 +12306,11 @@ function Get-BenchDashboardHtmlTemplate {
       text-align: center;
       font-size: 0.8rem;
       color: var(--text-muted);
-      padding: 24px 0 12px 0;
-      border-top: 1px solid var(--card-border);
+      padding: 12px 0 20px 0;
     }
   </style>
 </head>
 <body>
-
 <div class="container">
 
   <!-- HEADER -->
@@ -12902,8 +12318,8 @@ function Get-BenchDashboardHtmlTemplate {
     <div class="brand">
       <div class="brand-icon">⚡</div>
       <div class="brand-titles">
-        <h1>Leos Minibench <span class="badge-ver">v3.31</span></h1>
-        <p>Interaktives Benchmark- & Diagnose-Dashboard (Multi-System-Vergleich)</p>
+        <h1>Leos Minibench <span class="badge-ver">v3.3</span></h1>
+        <p>Interaktives Benchmark- & Diagnose-Dashboard</p>
       </div>
     </div>
     <div class="header-actions">
@@ -12916,103 +12332,371 @@ function Get-BenchDashboardHtmlTemplate {
     </div>
   </header>
 
-  <!-- MULTI-SYSTEM SELECTOR -->
+  <!-- SYSTEM SELECTOR -->
   <section class="selector-card">
-    <div class="selector-top">
-      <div class="selector-base-wrap">
-        <div class="selector-label">🎯 Basis- / Referenzsystem (100 % Bezugspunkt)</div>
-        <div class="select-wrapper">
-          <select id="baseSelect"></select>
-          <span class="select-arrow">▼</span>
+    <div class="selector-group">
+      <label for="targetSelect">Zielsystem (aus Datenbank / Lauf)</label>
+      <div class="select-wrapper">
+        <select id="targetSelect"></select>
+        <span class="select-arrow">▼</span>
+      </div>
+    </div>
+
+    <button id="swapBtn" class="btn-swap" title="Ziel- und Vergleichssystem tauschen">⇄</button>
+
+    <div class="selector-group">
+      <label for="refSelect">Vergleichssystem / Referenzprofil</label>
+      <div class="select-wrapper">
+        <select id="refSelect"></select>
+        <span class="select-arrow">▼</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- SPECS OVERVIEW -->
+  <section class="specs-card">
+    <div class="spec-column">
+      <div class="spec-header">
+        <span>ZIELSYSTEM</span>
+        <span id="targetDate">-</span>
+      </div>
+      <div class="spec-name" id="targetName">-</div>
+      <div class="spec-grid">
+        <div class="spec-item"><div class="spec-item-label">PROZESSOR</div><div class="spec-item-val" id="targetCpu">-</div></div>
+        <div class="spec-item"><div class="spec-item-label">GRAFIK</div><div class="spec-item-val" id="targetGpu">-</div></div>
+        <div class="spec-item"><div class="spec-item-label">SPEICHER</div><div class="spec-item-val" id="targetRam">-</div></div>
+        <div class="spec-item"><div class="spec-item-label">DATENTRÄGER</div><div class="spec-item-val" id="targetDisk">-</div></div>
+      </div>
+    </div>
+
+    <div class="spec-column">
+      <div class="spec-header">
+        <span>VERGLEICHSSYSTEM</span>
+        <span id="refDate">-</span>
+      </div>
+      <div class="spec-name" id="refName">-</div>
+      <div class="spec-grid">
+        <div class="spec-item"><div class="spec-item-label">PROZESSOR</div><div class="spec-item-val" id="refCpu">-</div></div>
+        <div class="spec-item"><div class="spec-item-label">GRAFIK</div><div class="spec-item-val" id="refGpu">-</div></div>
+        <div class="spec-item"><div class="spec-item-label">SPEICHER</div><div class="spec-item-val" id="refRam">-</div></div>
+        <div class="spec-item"><div class="spec-item-label">DATENTRÄGER</div><div class="spec-item-val" id="refDisk">-</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HERO PROFILES GRID (GAMING, DESKTOP, WORKSTATION) -->
+  <section class="profiles-grid">
+    <!-- GAMING -->
+    <div class="profile-card">
+      <div class="profile-header">
+        <div class="profile-title">🎮 Gaming</div>
+        <div id="gamePill" class="pill neutral">±0.0 %</div>
+      </div>
+      <div class="score-row">
+        <div class="score-big" id="gameScore">0<small> %</small></div>
+        <div class="profile-meta" id="gameRating">Bewertung</div>
+      </div>
+      <div class="ratio-bar-wrap">
+        <div class="ratio-bar-fill" id="gameBar" style="width: 50%;"></div>
+      </div>
+      <div class="profile-meta">
+        <span id="gameTargetVal">Ziel: -</span>
+        <span id="gameRefVal">Ref: -</span>
+      </div>
+    </div>
+
+    <!-- BÜRO / DESKTOP -->
+    <div class="profile-card">
+      <div class="profile-header">
+        <div class="profile-title">💼 Büro / Desktop</div>
+        <div id="deskPill" class="pill neutral">±0.0 %</div>
+      </div>
+      <div class="score-row">
+        <div class="score-big" id="deskScore">0<small> %</small></div>
+        <div class="profile-meta" id="deskRating">Bewertung</div>
+      </div>
+      <div class="ratio-bar-wrap">
+        <div class="ratio-bar-fill" id="deskBar" style="width: 50%;"></div>
+      </div>
+      <div class="profile-meta">
+        <span id="deskTargetVal">Ziel: -</span>
+        <span id="deskRefVal">Ref: -</span>
+      </div>
+    </div>
+
+    <!-- WORKSTATION -->
+    <div class="profile-card">
+      <div class="profile-header">
+        <div class="profile-title">⚙️ Workstation</div>
+        <div id="workPill" class="pill neutral">±0.0 %</div>
+      </div>
+      <div class="score-row">
+        <div class="score-big" id="workScore">0<small> %</small></div>
+        <div class="profile-meta" id="workRating">Bewertung</div>
+      </div>
+      <div class="ratio-bar-wrap">
+        <div class="ratio-bar-fill" id="workBar" style="width: 50%;"></div>
+      </div>
+      <div class="profile-meta">
+        <span id="workTargetVal">Ziel: -</span>
+        <span id="workRefVal">Ref: -</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- HARDWARE COMPONENT DETAILS -->
+  <section class="components-grid">
+    <!-- CPU -->
+    <div class="comp-card">
+      <div class="comp-header">
+        <div class="comp-title">🖥️ Prozessor (CPU)</div>
+        <div class="comp-sub" id="cpuOverallSub">Single- & Multi-Thread</div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Single-Thread (ST)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="cpuStVal">-</span>
+            <span class="metric-ref" id="cpuStRef">-</span>
+            <span class="pill neutral" id="cpuStPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="cpuStBar"></div>
         </div>
       </div>
-      <div>
-        <span id="comparedCountBadge" class="badge-count">1 System</span>
-      </div>
-    </div>
 
-    <div>
-      <div class="multi-select-header">
-        <div class="selector-label">🔍 Vergleichssysteme auswählen (N &ge; 1 zusätzliche Systeme):</div>
-        <div class="multi-actions">
-          <button id="btnSelectAll" class="btn-chip" type="button">Alle auswählen</button>
-          <button id="btnSelectNone" class="btn-chip" type="button">Keine</button>
-          <button id="btnSelectDbOnly" class="btn-chip" type="button">Nur Datenbank</button>
-          <button id="btnSelectRefOnly" class="btn-chip" type="button">Nur Referenzen</button>
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Multi-Thread (MT)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="cpuMtVal">-</span>
+            <span class="metric-ref" id="cpuMtRef">-</span>
+            <span class="pill neutral" id="cpuMtPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="cpuMtBar"></div>
         </div>
       </div>
-      <div id="compareChips" class="compare-checkbox-grid"></div>
+    </div>
+
+    <!-- GPU -->
+    <div class="comp-card">
+      <div class="comp-header">
+        <div class="comp-title">🎮 Grafik (GPU)</div>
+        <div class="comp-sub" id="gpuOverallSub">Rendertest & Frametimes</div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Renderleistung (Ø FPS)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="gpuRendVal">-</span>
+            <span class="metric-ref" id="gpuRendRef">-</span>
+            <span class="pill neutral" id="gpuRendPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="gpuRendBar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">1 %-Low FPS</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="gpuRend1Val">-</span>
+            <span class="metric-ref" id="gpuRend1Ref">-</span>
+            <span class="pill neutral" id="gpuRend1Pill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="gpuRend1Bar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">0,1 %-Low FPS</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="gpuRend01Val">-</span>
+            <span class="metric-ref" id="gpuRend01Ref">-</span>
+            <span class="pill neutral" id="gpuRend01Pill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="gpuRend01Bar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Mikroruckler (% > 50 ms)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="gpuStutterVal">-</span>
+            <span class="metric-ref" id="gpuStutterRef">-</span>
+            <span class="pill neutral" id="gpuStutterPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="gpuStutterBar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RAM -->
+    <div class="comp-card">
+      <div class="comp-header">
+        <div class="comp-title">🧠 Arbeitsspeicher (RAM)</div>
+        <div class="comp-sub" id="ramOverallSub">Durchsatz & Zugriffszeit</div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Lesen (GB/s)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="ramReadVal">-</span>
+            <span class="metric-ref" id="ramReadRef">-</span>
+            <span class="pill neutral" id="ramReadPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="ramReadBar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Kopieren (GB/s)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="ramCopyVal">-</span>
+            <span class="metric-ref" id="ramCopyRef">-</span>
+            <span class="pill neutral" id="ramCopyPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="ramCopyBar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Latenz (ns, niedriger ist besser)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="ramLatVal">-</span>
+            <span class="metric-ref" id="ramLatRef">-</span>
+            <span class="pill neutral" id="ramLatPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="ramLatBar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DISK -->
+    <div class="comp-card">
+      <div class="comp-header">
+        <div class="comp-title">💾 Datenträger (Storage)</div>
+        <div class="comp-sub" id="diskOverallSub">Sequentiell & 4K-Zufall</div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Sequentiell Lesen (MB/s)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="diskSrVal">-</span>
+            <span class="metric-ref" id="diskSrRef">-</span>
+            <span class="pill neutral" id="diskSrPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="diskSrBar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Sequentiell Schreiben (MB/s)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="diskSwVal">-</span>
+            <span class="metric-ref" id="diskSwRef">-</span>
+            <span class="pill neutral" id="diskSwPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="diskSwBar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">4K Zufall QD1 (IOPS)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="diskR1Val">-</span>
+            <span class="metric-ref" id="diskR1Ref">-</span>
+            <span class="pill neutral" id="diskR1Pill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="diskR1Bar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">4K Zufall 8 Threads (IOPS)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="diskR8Val">-</span>
+            <span class="metric-ref" id="diskR8Ref">-</span>
+            <span class="pill neutral" id="diskR8Pill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="diskR8Bar"></div>
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- HARDWARE-SPEZIFIKATIONEN IM DIREKTVERGLEICH -->
-  <section class="dash-card">
-    <div class="card-head">
+  <!-- TELEMETRIE & LASTTEST -->
+  <section class="telemetry-card">
+    <div class="telemetry-header">
       <div>
-        <h2>🖥️ Hardware-Spezifikationen im Direktvergleich</h2>
-        <p>Vollständige Gegenüberstellung aller verglichenen Systeme nebeneinander.</p>
+        <h2 style="font-size: 1.15rem; font-weight: 600;">🔥 Lasttest-Telemetrie & Sensorverlauf</h2>
+        <p style="font-size: 0.82rem; color: var(--text-muted);">Zeitreihen für Temperatur (°C) und Kerntakt (GHz/MHz) über die Belastungsdauer</p>
       </div>
-    </div>
-    <div class="table-scroll">
-      <table id="specsTable" class="matrix-table">
-        <!-- Generiert durch JavaScript -->
-      </table>
-    </div>
-  </section>
 
-  <!-- NUTZUNGSPROFILE IM MULTI-SYSTEM-VERGLEICH -->
-  <section class="dash-card">
-    <div class="card-head">
-      <div>
-        <h2>🎮 Nutzungsprofile &amp; Gesamtbewertung</h2>
-        <p>Scores und prozentuales Delta relativ zum gewählten Basissystem.</p>
+      <div class="telemetry-stats-bar">
+        <div class="stat-badge">
+          <div class="stat-badge-lbl">CPU MAX</div>
+          <div class="stat-badge-val" id="statCpuTemp">-</div>
+        </div>
+        <div class="stat-badge">
+          <div class="stat-badge-lbl">GPU MAX</div>
+          <div class="stat-badge-val" id="statGpuTemp">-</div>
+        </div>
+        <div class="stat-badge">
+          <div class="stat-badge-lbl">Ø TAKT</div>
+          <div class="stat-badge-val" id="statCpuClock">-</div>
+        </div>
+        <div class="stat-badge">
+          <div class="stat-badge-lbl">DROSSELUNG</div>
+          <div class="stat-badge-val" id="statThrottle">-</div>
+        </div>
+        <div class="stat-badge">
+          <div class="stat-badge-lbl">>50 MS PAUSEN</div>
+          <div class="stat-badge-val" id="statPauses">-</div>
+        </div>
       </div>
     </div>
-    <div id="profilesGrid" class="profiles-grid">
-      <!-- Generiert durch JavaScript -->
-    </div>
-  </section>
 
-  <!-- VOLLSTÄNDIGE BENCHMARK-MATRIX -->
-  <section class="dash-card">
-    <div class="card-head">
-      <div>
-        <h2>📊 Vollständige Benchmark-Matrix</h2>
-        <p>Gegenüberstellung aller vorliegenden Messwerte mit Bestwert-Hervorhebung (👑) und Abweichung zum Basissystem.</p>
-      </div>
-    </div>
-    <div class="table-scroll">
-      <table id="matrixTable" class="matrix-table">
-        <!-- Generiert durch JavaScript -->
-      </table>
-    </div>
-  </section>
-
-  <!-- BEFUNDE-VERGLEICH -->
-  <section class="dash-card">
-    <div class="card-head">
-      <div>
-        <h2>🔍 Befunde der Systeme im Vergleich</h2>
-        <p>Synoptische Gegenüberstellung aller Diagnose-Befunde (Kritisch, Warnungen, Hinweise).</p>
-      </div>
-    </div>
-    <div id="findingsGrid" class="findings-grid">
-      <!-- Generiert durch JavaScript -->
-    </div>
-  </section>
-
-  <!-- INTERAKTIVER SYSTEMVERGLEICH-CHART -->
-  <section class="dash-card">
-    <div class="card-head">
-      <div>
-        <h2>🔥 Lasttest-Telemetrie &amp; Multi-System-Sensorverlauf</h2>
-        <p>Zeitreihen für Temperatur (°C) und Kerntakt (GHz) über die Belastungsdauer mit Farbcodierung je System.</p>
-      </div>
-      <div class="chart-controls">
-        <button id="btnModeTemp" class="chart-btn active" type="button">🌡️ Temperatur (°C) aller Systeme</button>
-        <button id="btnModeMhz" class="chart-btn" type="button">⚡ Kerntakt (GHz) aller Systeme</button>
-        <button id="btnModeBase" class="chart-btn" type="button">📊 Basissystem Detailansicht</button>
-      </div>
+    <!-- THROTTLE WARNING BANNER -->
+    <div id="throttleBanner" class="throttle-banner ok">
+      <span id="throttleIcon">✔️</span>
+      <span id="throttleText">Keine thermische Drosselung festgestellt. Takt und Kühlung stabil.</span>
     </div>
 
     <!-- CANVAS TELEMETRY CHART -->
@@ -13021,14 +12705,17 @@ function Get-BenchDashboardHtmlTemplate {
       <div id="chartTooltip" class="chart-tooltip"></div>
     </div>
 
-    <div id="chartLegend" class="chart-legend">
-      <!-- Generiert durch JavaScript -->
+    <div class="chart-legend">
+      <div class="legend-item"><div class="legend-color" style="background: var(--curve-temp);"></div><span>CPU Temperatur (°C)</span></div>
+      <div class="legend-item"><div class="legend-color" style="background: var(--curve-mhz);"></div><span>CPU Takt (GHz)</span></div>
+      <div class="legend-item" id="gpuLegendItem" style="display: none;"><div class="legend-color" style="background: var(--curve-gpu);"></div><span>GPU Temperatur (°C)</span></div>
+      <div class="legend-item"><div class="legend-color" style="background: #E81123; border: 1px dashed #E81123; height: 2px;"></div><span>TjMax Grenze</span></div>
     </div>
   </section>
 
   <!-- FOOTER -->
   <footer>
-    Leos Minibench v3.31 &middot; Multi-System Benchmark- &amp; Diagnose-Dashboard &middot; 100 % Offline &middot; UTF-8
+    Leos Minibench v3.3 &middot; Fluent 2 Benchmark- &amp; Diagnose-Dashboard &middot; 100 % Offline &middot; UTF-8
   </footer>
 
 </div>
@@ -13041,50 +12728,17 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
   'use strict';
 
   let data = window.MINIBENCH_DASHBOARD_DATA;
-  let baseSystem = null;
-  let comparedSystems = [];
-  let selectedCompareIds = new Set();
-  let chartMode = 'temp'; // 'temp', 'mhz', 'base'
-
-  // Farbpalette für bis zu N Systeme
-  const SYSTEM_COLORS = [
-    { stroke: '#0078D4', strokeDark: '#4CC2FF', fill: 'rgba(0, 120, 212, 0.12)', fillDark: 'rgba(76, 194, 255, 0.12)' },
-    { stroke: '#E81123', strokeDark: '#FF5A5A', fill: 'rgba(232, 17, 35, 0.12)', fillDark: 'rgba(255, 90, 90, 0.12)' },
-    { stroke: '#107C41', strokeDark: '#6CCB5F', fill: 'rgba(16, 124, 65, 0.12)', fillDark: 'rgba(108, 203, 95, 0.12)' },
-    { stroke: '#8E44AD', strokeDark: '#B388FF', fill: 'rgba(142, 68, 173, 0.12)', fillDark: 'rgba(179, 136, 255, 0.12)' },
-    { stroke: '#F7630C', strokeDark: '#FFA057', fill: 'rgba(247, 99, 12, 0.12)', fillDark: 'rgba(255, 160, 87, 0.12)' },
-    { stroke: '#009688', strokeDark: '#26A69A', fill: 'rgba(0, 150, 136, 0.12)', fillDark: 'rgba(38, 166, 154, 0.12)' },
-    { stroke: '#C239B3', strokeDark: '#FF77E9', fill: 'rgba(194, 57, 179, 0.12)', fillDark: 'rgba(255, 119, 233, 0.12)' },
-    { stroke: '#D83B01', strokeDark: '#FF8A65', fill: 'rgba(216, 59, 1, 0.12)', fillDark: 'rgba(255, 138, 101, 0.12)' }
-  ];
-
-  function getSysColor(idx, isDark) {
-    const c = SYSTEM_COLORS[idx % SYSTEM_COLORS.length];
-    return isDark ? c.strokeDark : c.stroke;
-  }
+  let currentTarget = null;
+  let currentRef = null;
 
   // DOM-Elemente
   const themeToggle = document.getElementById('themeToggle');
-  const baseSelect = document.getElementById('baseSelect');
-  const compareChips = document.getElementById('compareChips');
-  const comparedCountBadge = document.getElementById('comparedCountBadge');
-  const specsTable = document.getElementById('specsTable');
-  const profilesGrid = document.getElementById('profilesGrid');
-  const matrixTable = document.getElementById('matrixTable');
-  const findingsGrid = document.getElementById('findingsGrid');
-  const chartWrapper = document.getElementById('chartWrapper');
+  const targetSelect = document.getElementById('targetSelect');
+  const refSelect = document.getElementById('refSelect');
+  const swapBtn = document.getElementById('swapBtn');
   const canvas = document.getElementById('telemetryCanvas');
+  const chartWrapper = document.getElementById('chartWrapper');
   const tooltip = document.getElementById('chartTooltip');
-  const chartLegend = document.getElementById('chartLegend');
-
-  const btnModeTemp = document.getElementById('btnModeTemp');
-  const btnModeMhz = document.getElementById('btnModeMhz');
-  const btnModeBase = document.getElementById('btnModeBase');
-
-  const btnSelectAll = document.getElementById('btnSelectAll');
-  const btnSelectNone = document.getElementById('btnSelectNone');
-  const btnSelectDbOnly = document.getElementById('btnSelectDbOnly');
-  const btnSelectRefOnly = document.getElementById('btnSelectRefOnly');
 
   // THEME MANAGEMENT
   function initTheme() {
@@ -13106,54 +12760,6 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     setTheme(!isDark);
   });
 
-  // HILFSFUNKTIONEN
-  function getAllSystems() {
-    if (!data) return [];
-    return [ ...(data.Systems || []), ...(data.References || []) ];
-  }
-
-  function getSystemById(id) {
-    if (!id) return null;
-    const sId = String(id);
-    return getAllSystems().find(s => String(s.Id) === sId) || null;
-  }
-
-  function fmtNum(n, decimals = 0) {
-    if (n === null || n === undefined || isNaN(n) || n === 0) return '-';
-    return Number(n).toLocaleString('de-DE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-  }
-
-  function calcDelta(currVal, refVal, lowerIsBetter = false) {
-    if (!currVal || !refVal || currVal <= 0 || refVal <= 0) return null;
-    let pct = 0;
-    if (lowerIsBetter) {
-      pct = ((refVal - currVal) / refVal) * 100.0;
-    } else {
-      pct = ((currVal - refVal) / refVal) * 100.0;
-    }
-    return pct;
-  }
-
-  function renderPill(pct, lowerIsBetter = false) {
-    if (pct === null || isNaN(pct)) return '<span class="pill neutral">n/v</span>';
-    const sign = pct > 0 ? '+' : '';
-    const txt = sign + pct.toFixed(1) + ' %';
-    let cls = 'neutral';
-    if (pct >= 2.0) cls = 'ok';
-    else if (pct <= -5.0) cls = 'crit';
-    return `<span class="pill ${cls}">${txt}</span>`;
-  }
-
-  function getRatingWord(score) {
-    if (score >= 130) return 'Exzellent';
-    if (score >= 115) return 'Sehr gut';
-    if (score >= 100) return 'Referenzniveau';
-    if (score >= 85) return 'Gut';
-    if (score >= 70) return 'Befriedigend';
-    if (score >= 50) return 'Mäßig';
-    return 'Schwach';
-  }
-
   // INITIALISIERUNG
   function init() {
     initTheme();
@@ -13162,89 +12768,46 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       return;
     }
 
-    populateBaseSelect();
+    populateSelects();
 
-    // Vorauswahl ermitteln
-    const preselected = data.PreselectedIds || [];
-    if (preselected && preselected.length > 0) {
-      baseSelect.value = String(preselected[0]);
-      selectedCompareIds.clear();
-      for (let i = 1; i < preselected.length; i++) {
-        selectedCompareIds.add(String(preselected[i]));
-      }
-    } else {
-      if (data.Systems && data.Systems.length > 0) {
-        baseSelect.value = String(data.Systems[0].Id);
-      }
-      selectedCompareIds.clear();
-      if (data.References && data.References.length > 0) {
-        const mid = data.References.find(r => r.DisplayName.includes('Mittelklasse')) || data.References[0];
-        selectedCompareIds.add(String(mid.Id));
-      } else if (data.Systems && data.Systems.length > 1) {
-        selectedCompareIds.add(String(data.Systems[1].Id));
-      }
+    // Standardauswahl
+    if (data.Systems && data.Systems.length > 0) {
+      targetSelect.value = String(data.Systems[0].Id);
     }
 
-    renderCompareChips();
+    if (data.References && data.References.length > 0) {
+      const mid = data.References.find(r => r.DisplayName.includes('Mittelklasse')) || data.References[0];
+      refSelect.value = String(mid.Id);
+    } else if (data.Systems && data.Systems.length > 1) {
+      refSelect.value = String(data.Systems[1].Id);
+    }
+
     updateDashboard();
 
-    baseSelect.addEventListener('change', () => {
-      // Falls das neue Basissystem in der Vergleichsauswahl war, entfernen
-      selectedCompareIds.delete(baseSelect.value);
-      renderCompareChips();
+    targetSelect.addEventListener('change', updateDashboard);
+    refSelect.addEventListener('change', updateDashboard);
+    swapBtn.addEventListener('click', () => {
+      const t = targetSelect.value;
+      const r = refSelect.value;
+      targetSelect.value = r;
+      refSelect.value = t;
       updateDashboard();
     });
-
-    btnSelectAll.addEventListener('click', () => {
-      getAllSystems().forEach(s => {
-        if (String(s.Id) !== baseSelect.value) selectedCompareIds.add(String(s.Id));
-      });
-      renderCompareChips();
-      updateDashboard();
-    });
-
-    btnSelectNone.addEventListener('click', () => {
-      selectedCompareIds.clear();
-      renderCompareChips();
-      updateDashboard();
-    });
-
-    btnSelectDbOnly.addEventListener('click', () => {
-      selectedCompareIds.clear();
-      (data.Systems || []).forEach(s => {
-        if (String(s.Id) !== baseSelect.value) selectedCompareIds.add(String(s.Id));
-      });
-      renderCompareChips();
-      updateDashboard();
-    });
-
-    btnSelectRefOnly.addEventListener('click', () => {
-      selectedCompareIds.clear();
-      (data.References || []).forEach(r => {
-        if (String(r.Id) !== baseSelect.value) selectedCompareIds.add(String(r.Id));
-      });
-      renderCompareChips();
-      updateDashboard();
-    });
-
-    // Chart Modus-Umschalter
-    btnModeTemp.addEventListener('click', () => { setChartMode('temp'); });
-    btnModeMhz.addEventListener('click', () => { setChartMode('mhz'); });
-    btnModeBase.addEventListener('click', () => { setChartMode('base'); });
 
     window.addEventListener('resize', renderChart);
   }
 
-  function setChartMode(mode) {
-    chartMode = mode;
-    btnModeTemp.classList.toggle('active', mode === 'temp');
-    btnModeMhz.classList.toggle('active', mode === 'mhz');
-    btnModeBase.classList.toggle('active', mode === 'base');
-    renderChart();
+  function getSystemById(id) {
+    if (!data || id === null || id === undefined) return null;
+    const targetId = String(id);
+    const all = [ ...(data.Systems || []), ...(data.References || []) ];
+    return all.find(s => String(s.Id) === targetId) || null;
   }
 
-  function populateBaseSelect() {
-    baseSelect.innerHTML = '';
+  function populateSelects() {
+    targetSelect.innerHTML = '';
+    refSelect.innerHTML = '';
+
     const sysGroup = document.createElement('optgroup');
     sysGroup.label = 'Geprüfte Systeme (Datenbank)';
     const refGroup = document.createElement('optgroup');
@@ -13268,354 +12831,210 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       });
     }
 
-    baseSelect.appendChild(sysGroup);
-    baseSelect.appendChild(refGroup);
+    targetSelect.appendChild(sysGroup.cloneNode(true));
+    targetSelect.appendChild(refGroup.cloneNode(true));
+
+    refSelect.appendChild(refGroup.cloneNode(true));
+    refSelect.appendChild(sysGroup.cloneNode(true));
   }
 
-  function renderCompareChips() {
-    compareChips.innerHTML = '';
-    const all = getAllSystems();
-    const curBaseId = baseSelect.value;
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  function fmtNum(n, decimals = 0) {
+    if (n === null || n === undefined || isNaN(n) || n === 0) return '-';
+    return Number(n).toLocaleString('de-DE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  }
 
-    let colorIdx = 1;
-    all.forEach(sys => {
-      const sId = String(sys.Id);
-      if (sId === curBaseId) return; // Basissystem nicht in Vergleichsliste anzeigen
+  function calcDelta(targetVal, refVal, lowerIsBetter = false) {
+    if (!targetVal || !refVal || targetVal <= 0 || refVal <= 0) return null;
+    let pct = 0;
+    if (lowerIsBetter) {
+      pct = ((refVal - targetVal) / refVal) * 100.0;
+    } else {
+      pct = ((targetVal - refVal) / refVal) * 100.0;
+    }
+    return pct;
+  }
 
-      const isChecked = selectedCompareIds.has(sId);
-      const label = document.createElement('label');
-      label.className = 'compare-chip' + (isChecked ? ' active' : '');
+  function renderPill(el, pct, lowerIsBetter = false) {
+    if (pct === null || isNaN(pct)) {
+      el.className = 'pill neutral';
+      el.textContent = 'n/v';
+      return;
+    }
+    const sign = pct > 0 ? '+' : '';
+    const txt = sign + pct.toFixed(1) + ' %';
+    el.textContent = txt;
+    if (pct >= 2.0) {
+      el.className = 'pill ok';
+    } else if (pct <= -5.0) {
+      el.className = 'pill crit';
+    } else {
+      el.className = 'pill neutral';
+    }
+  }
 
-      const chk = document.createElement('input');
-      chk.type = 'checkbox';
-      chk.checked = isChecked;
-      chk.value = sId;
-      chk.addEventListener('change', () => {
-        if (chk.checked) selectedCompareIds.add(sId);
-        else selectedCompareIds.delete(sId);
-        label.classList.toggle('active', chk.checked);
-        updateDashboard();
-      });
-
-      const dot = document.createElement('span');
-      dot.className = 'sys-dot';
-      dot.style.background = isChecked ? getSysColor(colorIdx, isDark) : 'var(--text-subtle)';
-
-      const txt = document.createElement('span');
-      txt.textContent = (sys.IsReference ? '⭐ ' : '') + sys.DisplayName + (sys.Datum ? ' (' + sys.Datum.split(' ')[0] + ')' : '');
-
-      label.appendChild(chk);
-      label.appendChild(dot);
-      label.appendChild(txt);
-      compareChips.appendChild(label);
-
-      if (isChecked) colorIdx++;
-    });
+  function getRatingWord(score) {
+    if (score >= 130) return 'Exzellent';
+    if (score >= 115) return 'Sehr gut';
+    if (score >= 100) return 'Referenzniveau';
+    if (score >= 85) return 'Gut';
+    if (score >= 70) return 'Befriedigend';
+    if (score >= 50) return 'Mäßig';
+    return 'Schwach';
   }
 
   function updateDashboard() {
-    baseSystem = getSystemById(baseSelect.value);
-    if (!baseSystem && getAllSystems().length > 0) {
-      baseSystem = getAllSystems()[0];
-      baseSelect.value = String(baseSystem.Id);
+    currentTarget = getSystemById(targetSelect.value);
+    currentRef = getSystemById(refSelect.value);
+    if (!currentTarget || !currentRef) {
+      console.warn('Systeme nicht gefunden:', targetSelect.value, refSelect.value);
+      return;
     }
 
-    // Liste aller aktiven Systeme: Basissystem zuerst, dann die angehakten
-    comparedSystems = [];
-    if (baseSystem) comparedSystems.push(baseSystem);
+    // 1. SPECS
+    function setTxt(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+    setTxt('targetName', currentTarget.DisplayName || currentTarget.Computer || '-');
+    setTxt('targetDate', currentTarget.Datum || 'Unbekannt');
+    setTxt('targetCpu', currentTarget.Hardware && currentTarget.Hardware.CPU ? currentTarget.Hardware.CPU : '-');
+    setTxt('targetGpu', currentTarget.Hardware && currentTarget.Hardware.GPU ? currentTarget.Hardware.GPU : '-');
+    setTxt('targetRam', currentTarget.Hardware && currentTarget.Hardware.RAM ? currentTarget.Hardware.RAM : '-');
+    setTxt('targetDisk', currentTarget.Hardware && currentTarget.Hardware.Datentraeger ? currentTarget.Hardware.Datentraeger : '-');
 
-    selectedCompareIds.forEach(id => {
-      const s = getSystemById(id);
-      if (s && s !== baseSystem) comparedSystems.push(s);
-    });
+    setTxt('refName', currentRef.DisplayName || currentRef.Computer || '-');
+    setTxt('refDate', currentRef.Datum || 'Referenz');
+    setTxt('refCpu', currentRef.Hardware && currentRef.Hardware.CPU ? currentRef.Hardware.CPU : '-');
+    setTxt('refGpu', currentRef.Hardware && currentRef.Hardware.GPU ? currentRef.Hardware.GPU : '-');
+    setTxt('refRam', currentRef.Hardware && currentRef.Hardware.RAM ? currentRef.Hardware.RAM : '-');
+    setTxt('refDisk', currentRef.Hardware && currentRef.Hardware.Datentraeger ? currentRef.Hardware.Datentraeger : '-');
 
-    const totalN = comparedSystems.length;
-    comparedCountBadge.textContent = totalN + (totalN === 1 ? ' System' : ' Systeme im Vergleich');
+    // 2. HERO PROFILES (GAMING, DESKTOP, WORKSTATION)
+    updateProfileCard('game', currentTarget.Scores?.Gaming, currentRef.Scores?.Gaming);
+    updateProfileCard('desk', currentTarget.Scores?.Desktop, currentRef.Scores?.Desktop);
+    updateProfileCard('work', currentTarget.Scores?.Workstation, currentRef.Scores?.Workstation);
 
-    renderSpecsTable();
-    renderProfilesGrid();
-    renderMatrixTable();
-    renderFindingsGrid();
-    renderChartLegend();
+    // 3. HARDWARE COMPONENTS
+    const tm = currentTarget.Metrics || {};
+    const rm = currentRef.Metrics || {};
+
+    // CPU
+    updateMetricRow('cpuSt', tm.CPU_ST, rm.CPU_ST, '', 0);
+    updateMetricRow('cpuMt', tm.CPU_MT, rm.CPU_MT, '', 0);
+
+    // GPU
+    updateMetricRow('gpuRend', tm.GPU_REND, rm.GPU_REND, ' FPS', 1);
+    updateMetricRow('gpuRend1', tm.GPU_REND1, rm.GPU_REND1, ' FPS', 1);
+    updateMetricRow('gpuRend01', tm.GPU_REND01, rm.GPU_REND01, ' FPS', 1);
+    updateMetricRow('gpuStutter', tm.GPU_STUTTER, rm.GPU_STUTTER, ' %', 1, true);
+
+    // RAM
+    updateMetricRow('ramRead', tm.RAM_Lesen, rm.RAM_Lesen, ' GB/s', 1);
+    updateMetricRow('ramCopy', tm.RAM_Kopieren, rm.RAM_Kopieren, ' GB/s', 1);
+    updateMetricRow('ramLat', tm.RAM_Latenz, rm.RAM_Latenz, ' ns', 1, true);
+
+    // DISK
+    const td = tm.FastestDisk || {};
+    const rd = rm.FastestDisk || {};
+    document.getElementById('diskOverallSub').textContent = (td.Model || 'Speicher') + (td.Klasse ? ' (' + td.Klasse + ')' : '');
+    updateMetricRow('diskSr', td.SR, rd.SR, ' MB/s', 0);
+    updateMetricRow('diskSw', td.SW, rd.SW, ' MB/s', 0);
+    updateMetricRow('diskR1', td.R1, rd.R1, ' IOPS', 0);
+    updateMetricRow('diskR8', td.R8, rd.R8, ' IOPS', 0);
+
+    // 4. TELEMETRIE & LASTTEST STATS
+    const tel = currentTarget.Telemetry || {};
+    function setStat(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+    setStat('statCpuTemp', tel.CpuTempMax ? tel.CpuTempMax + ' °C' : '-');
+    setStat('statGpuTemp', tel.GpuTempMax ? tel.GpuTempMax + ' °C' : '-');
+    setStat('statCpuClock', tel.CpuMHzAvg ? (tel.CpuMHzAvg >= 1000 ? (tel.CpuMHzAvg / 1000).toFixed(2) + ' GHz' : tel.CpuMHzAvg + ' MHz') : '-');
+    setStat('statThrottle', tel.Drosselung || 'keine');
+    setStat('statPauses', tel.UnterbrechungenUeber50ms ? 'Auffällig' : 'Keine');
+
+    const banner = document.getElementById('throttleBanner');
+    const bIcon = document.getElementById('throttleIcon');
+    const bText = document.getElementById('throttleText');
+
+    if (banner && bIcon && bText) {
+      if (tel.Drosselung === 'thermisch') {
+        banner.className = 'throttle-banner thermisch';
+        bIcon.textContent = '⚠️';
+        bText.textContent = 'Thermische Drosselung aufgetreten! CPU erreichte ' + (tel.CpuTempMax || 95) + ' °C (TjMax). Taktabfall um ' + (tel.TaktAbfall ? tel.TaktAbfall.toFixed(0) : '20') + ' % belegt.';
+      } else if (tel.Drosselung && tel.Drosselung !== 'keine') {
+        banner.className = 'throttle-banner leistung';
+        bIcon.textContent = 'ℹ️';
+        bText.textContent = 'Drosselung / Begrenzung aktiv (' + tel.Drosselung + '): Takt sank unter Last' + (tel.TaktAbfall ? ' um ' + tel.TaktAbfall.toFixed(0) + ' %' : '') + '.';
+      } else {
+        banner.className = 'throttle-banner ok';
+        bIcon.textContent = '✔️';
+        bText.textContent = 'Keine thermische Drosselung belegt. CPU-Takt und Kühlsystem arbeiten unter Volllast stabil.';
+      }
+    }
+
     renderChart();
   }
 
-  // 1. HARDWARE-SPEZIFIKATIONEN TABELLE
-  function renderSpecsTable() {
-    if (!specsTable) return;
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  function updateProfileCard(prefix, tScore, rScore) {
+    const scoreEl = document.getElementById(prefix + 'Score');
+    const pillEl = document.getElementById(prefix + 'Pill');
+    const barEl = document.getElementById(prefix + 'Bar');
+    const ratingEl = document.getElementById(prefix + 'Rating');
+    const tValEl = document.getElementById(prefix + 'TargetVal');
+    const rValEl = document.getElementById(prefix + 'RefVal');
 
-    let html = '<thead><tr><th class="col-feature">Merkmal</th>';
-    comparedSystems.forEach((s, idx) => {
-      const color = getSysColor(idx, isDark);
-      const isBase = (idx === 0);
-      html += `<th>
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <span class="sys-dot" style="background: ${color};"></span>
-          <span>${s.DisplayName || s.Computer}</span>
-          ${isBase ? '<span class="pill ok">Basis</span>' : ''}
-        </div>
-        <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">${s.Datum || 'Referenz'}</div>
-      </th>`;
-    });
-    html += '</tr></thead><tbody>';
+    if (!scoreEl || !pillEl || !barEl || !ratingEl || !tValEl || !rValEl) return;
 
-    const rows = [
-      { key: 'Computer', label: 'Rechnername', get: s => s.Computer || '-' },
-      { key: 'CPU', label: 'Prozessor (CPU)', get: s => s.Hardware?.CPU || '-' },
-      { key: 'RAM', label: 'Arbeitsspeicher (RAM)', get: s => s.Hardware?.RAM || '-' },
-      { key: 'GPU', label: 'Grafikkarte (GPU)', get: s => s.Hardware?.GPU || '-' },
-      { key: 'Disk', label: 'Datenträger', get: s => s.Hardware?.Datentraeger || s.Hardware?.FastestDisk || '-' },
-      { key: 'Mainboard', label: 'Mainboard / System', get: s => s.Hardware?.Mainboard || s.Hardware?.System || '-' },
-      { key: 'OS', label: 'Betriebssystem', get: s => s.OS || s.Hardware?.Betriebssystem || '-' },
-      { key: 'Installiert', label: 'Windows installiert', get: s => s.Hardware?.WindowsInstalliert || '-' },
-      { key: 'Befunde', label: 'Diagnose-Befunde', get: s => {
-        const b = s.Befunde || { Kritisch: 0, Warnungen: 0, Hinweise: 0 };
-        return `<span class="badge ${b.Kritisch > 0 ? 'crit' : 'neutral'}">${b.Kritisch} kritisch</span>
-                <span class="badge ${b.Warnungen > 0 ? 'warn' : 'neutral'}">${b.Warnungen} Warnungen</span>
-                <span class="badge info">${b.Hinweise} Hinweise</span>`;
-      }}
-    ];
-
-    rows.forEach(r => {
-      html += `<tr><td class="col-feature">${r.label}</td>`;
-      comparedSystems.forEach(s => {
-        html += `<td>${r.get(s)}</td>`;
-      });
-      html += '</tr>';
-    });
-
-    html += '</tbody>';
-    specsTable.innerHTML = html;
-  }
-
-  // 2. NUTZUNGSPROFILE GRID
-  function renderProfilesGrid() {
-    if (!profilesGrid) return;
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-
-    const profiles = [
-      { key: 'Gaming', title: '🎮 Gaming', desc: 'GPU- & Single-Thread-Fokus' },
-      { key: 'Desktop', title: '💼 Büro / Desktop', desc: 'Reaktionszeit & SSD-Leistung' },
-      { key: 'Workstation', title: '⚙️ Workstation', desc: 'Mehrkern- & RAM-Durchsatz' }
-    ];
-
-    let html = '';
-    profiles.forEach(p => {
-      const baseScore = baseSystem?.Scores?.[p.key] || 0;
-      html += `<div class="profile-card">
-        <div class="profile-header">
-          <span>${p.title}</span>
-          <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: normal;">${p.desc}</span>
-        </div>
-        <div class="profile-sys-list">`;
-
-      comparedSystems.forEach((s, idx) => {
-        const sc = s.Scores?.[p.key] || 0;
-        const isBase = (idx === 0);
-        const color = getSysColor(idx, isDark);
-        const delta = isBase ? 0 : calcDelta(sc, baseScore);
-        const deltaHtml = isBase ? '<span class="pill ok">100 % (Basis)</span>' : renderPill(delta);
-
-        html += `<div class="profile-sys-row ${isBase ? 'is-base' : ''}">
-          <div style="display: flex; align-items: center; gap: 6px;">
-            <span class="sys-dot" style="background: ${color};"></span>
-            <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s.DisplayName || s.Computer}</span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <span style="font-weight: 700;">${fmtNum(sc)}</span>
-            ${deltaHtml}
-          </div>
-        </div>`;
-      });
-
-      html += `</div></div>`;
-    });
-
-    profilesGrid.innerHTML = html;
-  }
-
-  // 3. VOLLSTÄNDIGE BENCHMARK-MATRIX
-  function renderMatrixTable() {
-    if (!matrixTable) return;
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-
-    let html = '<thead><tr><th class="col-feature">Messgröße</th>';
-    comparedSystems.forEach((s, idx) => {
-      const color = getSysColor(idx, isDark);
-      const isBase = (idx === 0);
-      html += `<th style="text-align: right;">
-        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
-          <span class="sys-dot" style="background: ${color};"></span>
-          <span>${s.DisplayName || s.Computer}</span>
-          ${isBase ? '<span class="pill ok">Basis</span>' : ''}
-        </div>
-      </th>`;
-    });
-    html += '</tr></thead><tbody>';
-
-    const categories = [
-      {
-        name: 'Prozessor (CPU)',
-        metrics: [
-          { key: 'CPU_ST', label: 'Single-Thread (ST)', unit: 'Punkte', dec: 0, lower: false },
-          { key: 'CPU_MT', label: 'Multi-Thread (MT)', unit: 'Punkte', dec: 0, lower: false },
-          { key: 'CPU_AES', label: 'AES-256 Verschlüsselung', unit: 'MB/s', dec: 0, lower: false },
-          { key: 'CPU_SHA', label: 'SHA-256 Prüfsumme', unit: 'MB/s', dec: 0, lower: false },
-          { key: 'CPU_DEFL', label: 'Deflate Kompression', unit: 'MB/s', dec: 0, lower: false }
-        ]
-      },
-      {
-        name: 'Arbeitsspeicher (RAM)',
-        metrics: [
-          { key: 'RAM_Lesen', label: 'Lesen Durchsatz', unit: 'GB/s', dec: 1, lower: false },
-          { key: 'RAM_Schreiben', label: 'Schreiben Durchsatz', unit: 'GB/s', dec: 1, lower: false },
-          { key: 'RAM_Kopieren', label: 'Kopieren Durchsatz', unit: 'GB/s', dec: 1, lower: false },
-          { key: 'RAM_Latenz', label: 'Zugriffslatenz', unit: 'ns', dec: 1, lower: true }
-        ]
-      },
-      {
-        name: 'Grafik (GPU)',
-        metrics: [
-          { key: 'GPU_REND', label: 'Renderleistung (Ø FPS)', unit: 'FPS', dec: 1, lower: false },
-          { key: 'GPU_REND1', label: '1 %-Low Bildrate', unit: 'FPS', dec: 1, lower: false },
-          { key: 'GPU_REND01', label: '0,1 %-Low Bildrate', unit: 'FPS', dec: 1, lower: false },
-          { key: 'GPU_STUTTER', label: 'Mikroruckler-Anteil', unit: '%', dec: 1, lower: true },
-          { key: 'GPU_VMB', label: 'Videospeicher-Bandbreite', unit: 'GB/s', dec: 1, lower: false }
-        ]
-      },
-      {
-        name: 'Datenträger (Speicher)',
-        metrics: [
-          { key: 'DISK_SR', label: 'Sequentiell Lesen', unit: 'MB/s', dec: 0, lower: false, get: s => s.Metrics?.FastestDisk?.SR || s.RawValues?.['DISK|NVMe4|SR'] || 0 },
-          { key: 'DISK_SW', label: 'Sequentiell Schreiben', unit: 'MB/s', dec: 0, lower: false, get: s => s.Metrics?.FastestDisk?.SW || s.RawValues?.['DISK|NVMe4|SW'] || 0 },
-          { key: 'DISK_R1', label: '4K Zufall QD1', unit: 'IOPS', dec: 0, lower: false, get: s => s.Metrics?.FastestDisk?.R1 || s.RawValues?.['DISK|NVMe4|R1'] || 0 },
-          { key: 'DISK_R8', label: '4K Zufall 8 Threads', unit: 'IOPS', dec: 0, lower: false, get: s => s.Metrics?.FastestDisk?.R8 || s.RawValues?.['DISK|NVMe4|R8'] || 0 },
-          { key: 'DISK_W1', label: '4K Schreiben', unit: 'IOPS', dec: 0, lower: false, get: s => s.Metrics?.FastestDisk?.W1 || s.RawValues?.['DISK|NVMe4|W1'] || 0 }
-        ]
-      }
-    ];
-
-    categories.forEach(cat => {
-      html += `<tr class="category-header"><td class="col-feature" colspan="${comparedSystems.length + 1}">${cat.name}</td></tr>`;
-
-      cat.metrics.forEach(m => {
-        // Werte aller Systeme sammeln
-        const vals = comparedSystems.map(s => {
-          if (m.get) return m.get(s);
-          return s.Metrics?.[m.key] || s.RawValues?.[m.key.replace('_', '|')] || 0;
-        });
-
-        // Bestwert ermitteln (nur unter Werten > 0)
-        const validVals = vals.filter(v => v !== null && v !== undefined && v > 0);
-        let bestVal = null;
-        if (validVals.length > 1) {
-          bestVal = m.lower ? Math.min(...validVals) : Math.max(...validVals);
-        }
-
-        const baseVal = vals[0] || 0;
-
-        html += `<tr><td class="col-feature">${m.label} <span style="font-size: 0.72rem; color: var(--text-muted);">(${m.unit}${m.lower ? ', niedriger = besser' : ''})</span></td>`;
-
-        vals.forEach((v, idx) => {
-          const isBase = (idx === 0);
-          const isBest = (bestVal !== null && v === bestVal);
-          const delta = (isBase || v <= 0 || baseVal <= 0) ? null : calcDelta(v, baseVal, m.lower);
-
-          html += `<td class="sys-val ${isBest ? 'is-best' : ''}">
-            <span class="val-main">${fmtNum(v, m.dec)}</span>
-            <span class="val-sub">${m.unit}</span>
-            ${isBest ? '<span class="badge-best" title="Bestwert aller Systeme">👑 Bestwert</span>' : ''}
-            ${!isBase && delta !== null ? renderPill(delta, m.lower) : ''}
-          </td>`;
-        });
-
-        html += `</tr>`;
-      });
-    });
-
-    html += '</tbody>';
-    matrixTable.innerHTML = html;
-  }
-
-  // 4. BEFUNDE-VERGLEICH
-  function renderFindingsGrid() {
-    if (!findingsGrid) return;
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-
-    let html = '';
-    comparedSystems.forEach((s, idx) => {
-      const color = getSysColor(idx, isDark);
-      const b = s.Befunde || { Kritisch: 0, Warnungen: 0, Hinweise: 0, Liste: [] };
-      const list = b.Liste || [];
-
-      html += `<div class="finding-card">
-        <div class="finding-card-head">
-          <span class="sys-dot" style="background: ${color};"></span>
-          <span>${s.DisplayName || s.Computer}</span>
-        </div>
-        <div class="finding-card-badges">
-          <span class="badge ${b.Kritisch > 0 ? 'crit' : 'neutral'}">${b.Kritisch} kritisch</span>
-          <span class="badge ${b.Warnungen > 0 ? 'warn' : 'neutral'}">${b.Warnungen} Warnungen</span>
-          <span class="badge info">${b.Hinweise} Hinweise</span>
-        </div>`;
-
-      if (list.length > 0) {
-        html += `<details>
-          <summary>${list.length} Befunde anzeigen</summary>
-          <div class="findings-list">`;
-        list.forEach(f => {
-          let bCls = 'info';
-          let txt = String(f);
-          if (txt.includes('[KRITISCH]') || txt.includes('[FEHLER]')) bCls = 'crit';
-          else if (txt.includes('[WARNUNG]')) bCls = 'warn';
-
-          html += `<div class="finding-item">
-            <span class="badge ${bCls}" style="flex-shrink: 0;">${bCls.toUpperCase()}</span>
-            <span>${txt.replace(/^\[\w+\]\s*/, '')}</span>
-          </div>`;
-        });
-        html += `</div></details>`;
-      } else {
-        html += `<div style="font-size: 0.8rem; color: var(--text-muted);">Keine Auffälligkeiten oder Befunde dokumentiert.</div>`;
-      }
-
-      html += `</div>`;
-    });
-
-    findingsGrid.innerHTML = html;
-  }
-
-  // 5. CHART-LEGENDE
-  function renderChartLegend() {
-    if (!chartLegend) return;
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-
-    let html = '';
-    if (chartMode === 'base') {
-      html = `
-        <div class="legend-item"><div class="legend-color" style="background: var(--curve-temp);"></div><span>Basis CPU Temperatur (°C)</span></div>
-        <div class="legend-item"><div class="legend-color" style="background: var(--curve-mhz);"></div><span>Basis CPU Takt (GHz)</span></div>
-        <div class="legend-item"><div class="legend-color" style="background: #E81123; border: 1px dashed #E81123; height: 2px;"></div><span>TjMax Grenze</span></div>
-      `;
-    } else {
-      comparedSystems.forEach((s, idx) => {
-        const color = getSysColor(idx, isDark);
-        const label = (idx === 0 ? '🎯 Basis: ' : '') + (s.DisplayName || s.Computer);
-        html += `<div class="legend-item">
-          <div class="legend-color" style="background: ${color};"></div>
-          <span>${label}</span>
-        </div>`;
-      });
+    if (!tScore || !rScore) {
+      scoreEl.innerHTML = '-<small> %</small>';
+      pillEl.className = 'pill neutral';
+      pillEl.textContent = 'n/v';
+      barEl.style.width = '0%';
+      ratingEl.textContent = '-';
+      tValEl.textContent = 'Ziel: -';
+      rValEl.textContent = 'Ref: -';
+      return;
     }
 
-    chartLegend.innerHTML = html;
+    const relPct = Math.round((tScore / rScore) * 100.0);
+    const delta = relPct - 100.0;
+
+    scoreEl.innerHTML = relPct + '<small> %</small>';
+    renderPill(pillEl, delta);
+    ratingEl.textContent = getRatingWord(relPct);
+    tValEl.textContent = 'Score: ' + fmtNum(tScore);
+    rValEl.textContent = 'Ref: ' + fmtNum(rScore);
+
+    const barW = Math.max(5, Math.min(100, (relPct / 150.0) * 100));
+    barEl.style.width = barW + '%';
   }
 
-  // 6. CANVAS CHART RENDERING (MULTI-SYSTEM CANVAS)
+  function updateMetricRow(id, targetVal, refVal, unit, decimals, lowerIsBetter = false) {
+    const valEl = document.getElementById(id + 'Val');
+    const refEl = document.getElementById(id + 'Ref');
+    const pillEl = document.getElementById(id + 'Pill');
+    const barEl = document.getElementById(id + 'Bar');
+
+    if (!valEl || !refEl || !pillEl) return;
+
+    valEl.textContent = (targetVal !== null && targetVal !== undefined && targetVal > 0) ? fmtNum(targetVal, decimals) + unit : '-';
+    refEl.textContent = (refVal !== null && refVal !== undefined && refVal > 0) ? 'Ref: ' + fmtNum(refVal, decimals) + unit : '-';
+
+    const delta = calcDelta(targetVal, refVal, lowerIsBetter);
+    renderPill(pillEl, delta, lowerIsBetter);
+
+    if (barEl) {
+      if (targetVal > 0 && refVal > 0) {
+        const ratio = (targetVal / Math.max(targetVal, refVal)) * 100;
+        barEl.style.width = Math.max(2, Math.min(100, ratio)) + '%';
+      } else if (targetVal > 0) {
+        barEl.style.width = '80%';
+      } else {
+        barEl.style.width = '0%';
+      }
+    }
+  }
+
+  // PURE VANILLA CANVAS CHART RENDERING
   function renderChart() {
-    if (!canvas || !chartWrapper) return;
+    if (!currentTarget) return;
+    const series = currentTarget.Telemetry?.Series || [];
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
     const dpr = window.devicePixelRatio || 1;
@@ -13632,11 +13051,11 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
 
-    if (comparedSystems.length === 0) {
+    if (series.length < 2) {
       ctx.fillStyle = isDark ? '#A0A0A0' : '#5F6368';
       ctx.font = '14px system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Keine Systeme zur Anzeige ausgewählt.', width / 2, height / 2);
+      ctx.fillText('Keine Zeitreihen-Messdaten für dieses System verfügbar.', width / 2, height / 2);
       return;
     }
 
@@ -13644,19 +13063,11 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     const chartW = width - padding.left - padding.right;
     const chartH = height - padding.top - padding.bottom;
 
-    // Maximale Zeit & Y-Werte über alle aktiven Systeme ermitteln
-    let tMax = 120;
-    let maxMhz = 5000;
-    comparedSystems.forEach(s => {
-      const srs = s.Telemetry?.Series || [];
-      if (srs.length > 0) {
-        const lastT = srs[srs.length - 1].T;
-        if (lastT > tMax) tMax = lastT;
-        srs.forEach(pt => { if (pt.MHz && pt.MHz > maxMhz) maxMhz = pt.MHz * 1.1; });
-      }
-    });
-
+    const tMax = series[series.length - 1].T || 120;
     const tempMax = 110;
+    let maxMhz = 5000;
+    series.forEach(pt => { if (pt.MHz && pt.MHz > maxMhz) maxMhz = pt.MHz * 1.1; });
+
     const getX = t => padding.left + (t / tMax) * chartW;
     const getYTemp = temp => padding.top + chartH - (temp / tempMax) * chartH;
     const getYMhz = mhz => padding.top + chartH - (mhz / maxMhz) * chartH;
@@ -13667,34 +13078,24 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     ctx.fillStyle = isDark ? '#808080' : '#888888';
     ctx.font = '11px system-ui, sans-serif';
 
-    if (chartMode === 'temp' || chartMode === 'base') {
-      [0, 25, 50, 75, 100].forEach(deg => {
-        const y = getYTemp(deg);
-        ctx.beginPath();
-        ctx.moveTo(padding.left, y);
-        ctx.lineTo(padding.left + chartW, y);
-        ctx.stroke();
+    // Temp Steps: 0, 25, 50, 75, 100 °C
+    [0, 25, 50, 75, 100].forEach(deg => {
+      const y = getYTemp(deg);
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(padding.left + chartW, y);
+      ctx.stroke();
 
-        ctx.textAlign = 'right';
-        ctx.fillText(deg + ' °C', padding.left - 8, y + 4);
-      });
-    }
+      ctx.textAlign = 'right';
+      ctx.fillText(deg + ' °C', padding.left - 8, y + 4);
+    });
 
-    if (chartMode === 'mhz' || chartMode === 'base') {
-      const align = (chartMode === 'mhz') ? 'right' : 'left';
-      const xPos = (chartMode === 'mhz') ? padding.left - 8 : padding.left + chartW + 8;
-      [0, 2000, 4000, 6000].filter(m => m <= maxMhz).forEach(m => {
-        const y = getYMhz(m);
-        if (chartMode === 'mhz') {
-          ctx.beginPath();
-          ctx.moveTo(padding.left, y);
-          ctx.lineTo(padding.left + chartW, y);
-          ctx.stroke();
-        }
-        ctx.textAlign = align;
-        ctx.fillText((m / 1000).toFixed(1) + ' GHz', xPos, y + 4);
-      });
-    }
+    // Mhz Right Axis Labels
+    [0, 2000, 4000, 6000].filter(m => m <= maxMhz).forEach(m => {
+      const y = getYMhz(m);
+      ctx.textAlign = 'left';
+      ctx.fillText((m / 1000).toFixed(1) + ' GHz', padding.left + chartW + 8, y + 4);
+    });
 
     // X Axis Time Labels
     ctx.textAlign = 'center';
@@ -13707,96 +13108,88 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       ctx.fillText(timeStr, x, padding.top + chartH + 20);
     }
 
-    // KURVEN ZEICHNEN
-    if (chartMode === 'base') {
-      // Detailansicht Basissystem (Temperatur + Takt)
-      const baseSrs = baseSystem?.Telemetry?.Series || [];
-      const tjMax = baseSystem?.Telemetry?.TjMax || 100;
+    // TJMAX GUIDELINE
+    const tjMax = currentTarget.Telemetry?.TjMax || 100;
+    const yTj = getYTemp(tjMax);
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(232, 17, 35, 0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, yTj);
+    ctx.lineTo(padding.left + chartW, yTj);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(232, 17, 35, 0.85)';
+    ctx.textAlign = 'left';
+    ctx.fillText('TjMax (' + tjMax + ' °C)', padding.left + 8, yTj - 6);
+    ctx.restore();
 
-      // TjMax Referenz
-      const yTj = getYTemp(tjMax);
+    // THROTTLE VERTICAL LINE
+    const events = currentTarget.Telemetry?.ThrottleEvents || [];
+    events.forEach(ev => {
+      const xEv = getX(ev.T);
       ctx.save();
-      ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = 'rgba(232, 17, 35, 0.6)';
-      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = '#D13438';
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(padding.left, yTj);
-      ctx.lineTo(padding.left + chartW, yTj);
+      ctx.moveTo(xEv, padding.top);
+      ctx.lineTo(xEv, padding.top + chartH);
       ctx.stroke();
-      ctx.fillStyle = 'rgba(232, 17, 35, 0.85)';
+
+      // Flag Banner
+      ctx.fillStyle = isDark ? '#442726' : '#FDE7E9';
+      ctx.fillRect(xEv - 4, padding.top + 6, 120, 20);
+      ctx.strokeStyle = '#D13438';
+      ctx.strokeRect(xEv - 4, padding.top + 6, 120, 20);
+      ctx.fillStyle = '#D13438';
+      ctx.font = '10px system-ui, sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText('TjMax (' + tjMax + ' °C)', padding.left + 8, yTj - 6);
+      ctx.fillText('⚠️ ' + (ev.Label || 'Drosselung'), xEv + 2, padding.top + 20);
       ctx.restore();
+    });
 
-      // CPU Clock
-      ctx.save();
-      ctx.strokeStyle = isDark ? '#4CC2FF' : '#0078D4';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      let startedMhz = false;
-      baseSrs.forEach(pt => {
-        if (pt.MHz) {
-          const x = getX(pt.T);
-          const y = getYMhz(pt.MHz);
-          if (!startedMhz) { ctx.moveTo(x, y); startedMhz = true; } else { ctx.lineTo(x, y); }
-        }
-      });
-      ctx.stroke();
-      ctx.restore();
-
-      // CPU Temp
-      ctx.save();
-      ctx.strokeStyle = isDark ? '#FF5A5A' : '#E81123';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      let startedTemp = false;
-      baseSrs.forEach(pt => {
-        if (pt.Temp) {
-          const x = getX(pt.T);
-          const y = getYTemp(pt.Temp);
-          if (!startedTemp) { ctx.moveTo(x, y); startedTemp = true; } else { ctx.lineTo(x, y); }
-        }
-      });
-      ctx.stroke();
-
-      if (baseSrs.length > 1) {
-        ctx.lineTo(getX(baseSrs[baseSrs.length - 1].T), padding.top + chartH);
-        ctx.lineTo(getX(baseSrs[0].T), padding.top + chartH);
-        ctx.closePath();
-        const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
-        grad.addColorStop(0, isDark ? 'rgba(255, 90, 90, 0.2)' : 'rgba(232, 17, 35, 0.15)');
-        grad.addColorStop(1, 'rgba(232, 17, 35, 0.0)');
-        ctx.fillStyle = grad;
-        ctx.fill();
+    // CURVE: CPU CLOCK (BLUE)
+    ctx.save();
+    ctx.strokeStyle = isDark ? '#4CC2FF' : '#0078D4';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    let started = false;
+    series.forEach(pt => {
+      if (pt.MHz) {
+        const x = getX(pt.T);
+        const y = getYMhz(pt.MHz);
+        if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
       }
-      ctx.restore();
+    });
+    ctx.stroke();
+    ctx.restore();
 
-    } else {
-      // Multi-System Überlagerung: Temperatur oder Kerntakt
-      comparedSystems.forEach((s, idx) => {
-        const srs = s.Telemetry?.Series || [];
-        if (srs.length < 2) return;
-        const color = getSysColor(idx, isDark);
+    // CURVE: CPU TEMPERATURE (RED) WITH GRADIENT AREA
+    ctx.save();
+    ctx.strokeStyle = isDark ? '#FF5A5A' : '#E81123';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    let startedT = false;
+    series.forEach(pt => {
+      if (pt.Temp) {
+        const x = getX(pt.T);
+        const y = getYTemp(pt.Temp);
+        if (!startedT) { ctx.moveTo(x, y); startedT = true; } else { ctx.lineTo(x, y); }
+      }
+    });
+    ctx.stroke();
 
-        ctx.save();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = (idx === 0) ? 3.0 : 2.0; // Basissystem etwas dicker
-        if (idx > 0 && idx % 2 === 1) ctx.setLineDash([6, 3]); // Jedes zweite Vergleichssystem leicht gestrichelt
-        ctx.beginPath();
-        let started = false;
-
-        srs.forEach(pt => {
-          const val = (chartMode === 'temp') ? pt.Temp : pt.MHz;
-          if (val) {
-            const x = getX(pt.T);
-            const y = (chartMode === 'temp') ? getYTemp(val) : getYMhz(val);
-            if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
-          }
-        });
-        ctx.stroke();
-        ctx.restore();
-      });
-    }
+    // Area fill
+    ctx.lineTo(getX(series[series.length - 1].T), padding.top + chartH);
+    ctx.lineTo(getX(series[0].T), padding.top + chartH);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
+    grad.addColorStop(0, isDark ? 'rgba(255, 90, 90, 0.2)' : 'rgba(232, 17, 35, 0.15)');
+    grad.addColorStop(1, 'rgba(232, 17, 35, 0.0)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.restore();
 
     // HOVER INTERACTION
     canvas.onmousemove = function(e) {
@@ -13811,9 +13204,20 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       const ratio = (mouseX - padding.left) / chartW;
       const targetT = ratio * tMax;
 
+      let closest = series[0];
+      let minDiff = Infinity;
+      series.forEach(pt => {
+        const diff = Math.abs(pt.T - targetT);
+        if (diff < minDiff) { minDiff = diff; closest = pt; }
+      });
+
+      if (!closest) return;
+
       renderChartStatic();
 
-      const cx = padding.left + ratio * chartW;
+      const cx = getX(closest.T);
+      const cyTemp = closest.Temp ? getYTemp(closest.Temp) : null;
+      const cyMhz = closest.MHz ? getYMhz(closest.MHz) : null;
 
       // Crosshair
       ctx.save();
@@ -13824,73 +13228,52 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       ctx.lineTo(cx, padding.top + chartH);
       ctx.stroke();
 
-      // Tooltip HTML bauen
-      const mm = Math.floor(targetT / 60);
-      const ss = Math.floor(targetT % 60);
-      const timeStr = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
-
-      let tipHtml = `
-        <div style="font-weight: 700; margin-bottom: 6px; border-bottom: 1px solid var(--card-border); padding-bottom: 3px;">
-          ⏱️ Zeit: ${timeStr} (${targetT.toFixed(0)} s)
-        </div>
-      `;
-
-      comparedSystems.forEach((s, idx) => {
-        const srs = s.Telemetry?.Series || [];
-        if (srs.length === 0) return;
-
-        let closest = srs[0];
-        let minDiff = Infinity;
-        srs.forEach(pt => {
-          const diff = Math.abs(pt.T - targetT);
-          if (diff < minDiff) { minDiff = diff; closest = pt; }
-        });
-
-        const color = getSysColor(idx, isDark);
-        const name = (idx === 0 ? '🎯 Basis: ' : '') + (s.DisplayName || s.Computer);
-
-        if (chartMode === 'temp') {
-          tipHtml += `<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 3px;">
-            <span style="color: ${color}; font-weight: 600;">● ${name}</span>
-            <span style="font-weight: 700;">${closest.Temp ? closest.Temp.toFixed(1) + ' °C' : '-'}</span>
-          </div>`;
-          if (closest.Temp) {
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.arc(cx, getYTemp(closest.Temp), 4.5, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        } else if (chartMode === 'mhz') {
-          tipHtml += `<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 3px;">
-            <span style="color: ${color}; font-weight: 600;">● ${name}</span>
-            <span style="font-weight: 700;">${closest.MHz ? (closest.MHz / 1000).toFixed(2) + ' GHz' : '-'}</span>
-          </div>`;
-          if (closest.MHz) {
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.arc(cx, getYMhz(closest.MHz), 4.5, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        } else {
-          // Basis Detail
-          tipHtml += `
-            <div style="color: var(--curve-temp); font-weight: 600;">🌡️ CPU-Temp: ${closest.Temp ? closest.Temp.toFixed(1) + ' °C' : '-'}</div>
-            <div style="color: var(--curve-mhz); font-weight: 600;">⚡ CPU-Takt: ${closest.MHz ? (closest.MHz / 1000).toFixed(2) + ' GHz' : '-'}</div>
-            ${closest.GpuTemp ? '<div style="color: var(--curve-gpu);">🎮 GPU-Temp: ' + closest.GpuTemp.toFixed(1) + ' °C</div>' : ''}
-            ${closest.CpuW ? '<div>💡 CPU-Paket: ' + closest.CpuW.toFixed(1) + ' W</div>' : ''}
-          `;
-        }
-      });
-
+      // Highlight dots
+      if (cyTemp) {
+        ctx.fillStyle = isDark ? '#FF5A5A' : '#E81123';
+        ctx.beginPath();
+        ctx.arc(cx, cyTemp, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      if (cyMhz) {
+        ctx.fillStyle = isDark ? '#4CC2FF' : '#0078D4';
+        ctx.beginPath();
+        ctx.arc(cx, cyMhz, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
       ctx.restore();
 
-      tooltip.innerHTML = tipHtml;
-      tooltip.style.display = 'block';
+      // Tooltip HTML
+      const mm = Math.floor(closest.T / 60);
+      const ss = Math.floor(closest.T % 60);
+      const timeStr = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
 
+      tooltip.innerHTML = `
+        <div style="font-weight: 700; margin-bottom: 4px; border-bottom: 1px solid var(--card-border); padding-bottom: 2px;">
+          ⏱️ Zeit: ${timeStr} (${closest.T.toFixed(0)} s)
+        </div>
+        <div style="color: var(--curve-temp); font-weight: 600;">
+          🌡️ CPU-Temperatur: ${closest.Temp ? closest.Temp.toFixed(1) + ' °C' : '-'}
+        </div>
+        <div style="color: var(--curve-mhz); font-weight: 600;">
+          ⚡ CPU-Takt: ${closest.MHz ? (closest.MHz / 1000).toFixed(2) + ' GHz (' + closest.MHz + ' MHz)' : '-'}
+        </div>
+        ${closest.GpuTemp ? '<div style="color: var(--curve-gpu);">🎮 GPU-Temp: ' + closest.GpuTemp.toFixed(1) + ' °C</div>' : ''}
+        ${closest.CpuW ? '<div>💡 CPU-Paket: ' + closest.CpuW.toFixed(1) + ' W</div>' : ''}
+        ${closest.Fps ? '<div>📊 Rendertest: ' + closest.Fps.toFixed(1) + ' FPS</div>' : ''}
+      `;
+
+      tooltip.style.display = 'block';
       let tooltipX = cx + 15;
-      if (tooltipX + 220 > width) tooltipX = cx - 230;
-      tooltip.style.left = Math.max(10, tooltipX) + 'px';
-      tooltip.style.top = (padding.top + 10) + 'px';
+      if (tooltipX + 180 > width) tooltipX = cx - 190;
+      tooltip.style.left = tooltipX + 'px';
+      tooltip.style.top = Math.max(10, (cyTemp || padding.top) - 30) + 'px';
     };
 
     canvas.onmouseleave = function() {
@@ -13959,19 +13342,13 @@ function Export-BenchDashboardHtml {
     [CmdletBinding()]
     param(
         [string]$OutputPath = '',
-        [Alias('DatenOrdner')]
         [string]$DatabaseDir = '',
-        [string]$ReportDir = '',
-        [string[]]$SystemPaths = @()
+        [string]$ReportDir = ''
     )
 
     $target = $OutputPath
     if (-not $target) {
-        if ($DatabaseDir -and (Test-Path -LiteralPath $DatabaseDir) -and (Test-Path -LiteralPath (Join-Path $DatabaseDir 'Datenbank'))) {
-            $rep = Join-Path $DatabaseDir 'Berichte'
-            if (-not (Test-Path -LiteralPath $rep)) { New-Item -ItemType Directory -Path $rep -Force | Out-Null }
-            $target = Join-Path $rep 'Dashboard.html'
-        } elseif ($script:DataDir -and (Test-Path -LiteralPath $script:DataDir)) {
+        if ($script:DataDir -and (Test-Path -LiteralPath $script:DataDir)) {
             $target = Join-Path $script:DataDir 'Berichte\Dashboard.html'
         } elseif (Test-Path -LiteralPath 'Minibench-Daten\Berichte') {
             $target = (Convert-Path 'Minibench-Daten\Berichte') + '\Dashboard.html'
@@ -13982,7 +13359,7 @@ function Export-BenchDashboardHtml {
         }
     }
 
-    return (New-BenchDashboardHtml -OutputPath $target -DatabaseDir $DatabaseDir -ReportDir $ReportDir -SystemPaths $SystemPaths)
+    return (New-BenchDashboardHtml -OutputPath $target -DatabaseDir $DatabaseDir -ReportDir $ReportDir)
 }
 
 function Show-BenchDashboard {
@@ -13990,11 +13367,10 @@ function Show-BenchDashboard {
     param(
         [string]$DatabaseDir = '',
         [string]$ReportDir = '',
-        [string]$OutputPath = '',
-        [string[]]$SystemPaths = @()
+        [string]$OutputPath = ''
     )
 
-    $f = Export-BenchDashboardHtml -OutputPath $OutputPath -DatabaseDir $DatabaseDir -ReportDir $ReportDir -SystemPaths $SystemPaths
+    $f = Export-BenchDashboardHtml -OutputPath $OutputPath -DatabaseDir $DatabaseDir -ReportDir $ReportDir
     if ($f -and (Test-Path -LiteralPath $f)) {
         Start-Process $f
     }
@@ -20343,20 +19719,11 @@ if ($ImportOrdner) {
     exit 0
 }
 
-# Vergleich bereits geprüfter Systeme ohne neuen Benchmark (wird von der Befehlszeile oder Oberfläche aufgerufen)
+# Vergleich bereits geprüfter Systeme ohne neuen Benchmark (wird von der Oberfläche aufgerufen)
 if ($Vergleich) {
     $vf = ''
-    try {
-        $paths = @(([string]$Vergleich) -split ';' | ForEach-Object { $_.Trim().Trim('"') } | Where-Object { $_ -and (Test-Path -LiteralPath $_) })
-        if ($paths.Count -gt 0) {
-            $vf = Export-BenchDashboardHtml -SystemPaths $paths
-        }
-    }
-    catch { }
-    if (-not $vf) {
-        try { $vf = New-CompareReport @(([string]$Vergleich) -split ';' | ForEach-Object { $_.Trim().Trim('"') } | Where-Object { $_ }) }
-        catch { Write-Host ('Vergleich fehlgeschlagen: {0}' -f $_.Exception.Message) }
-    }
+    try { $vf = New-CompareReport @(([string]$Vergleich) -split ';' | ForEach-Object { $_.Trim().Trim('"') } | Where-Object { $_ }) }
+    catch { Write-Host ('Vergleich fehlgeschlagen: {0}' -f $_.Exception.Message) }
     if (-not $vf) { exit 1 }
     Send-GuiEvent 'RESULT' $vf
     if (-not $EventMode) { Invoke-Item -LiteralPath $vf }
@@ -20364,15 +19731,11 @@ if ($Vergleich) {
 }
 
 # Interaktives Dashboard generieren oder öffnen (wird von der Oberfläche oder über die Befehlszeile aufgerufen)
-if ($Dashboard -or $DashboardExport -or $DashboardSysteme) {
+if ($Dashboard -or $DashboardExport) {
     $df = ''
     try {
         $outPath = $(if ($DashboardExport) { $DashboardExport } else { '' })
-        $sysPaths = @()
-        if ($DashboardSysteme) {
-            $sysPaths = @($DashboardSysteme -split ';' | Where-Object { $_ -and (Test-Path -LiteralPath $_) })
-        }
-        $df = Export-BenchDashboardHtml -OutputPath $outPath -SystemPaths $sysPaths
+        $df = Export-BenchDashboardHtml -OutputPath $outPath
     } catch {
         Write-Host ('Dashboard-Erstellung fehlgeschlagen: {0}' -f $_.Exception.Message)
     }
