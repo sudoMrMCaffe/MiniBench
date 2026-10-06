@@ -1,4 +1,4 @@
-﻿// Grafische Oberflaeche: Steuerelemente
+// Grafische Oberflaeche: Steuerelemente
 public static class UI
 {
     public static bool IsDark { get; set; }
@@ -183,12 +183,77 @@ public static class UI
         Button b = new Button(); b.Text = text; b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderColor = Line;
         b.BackColor = Panel; b.ForeColor = Text; b.FlatAppearance.MouseOverBackColor = IsDark ? Color.FromArgb(45, 48, 52) : Color.FromArgb(243, 244, 246); b.FlatAppearance.MouseDownBackColor = IsDark ? Color.FromArgb(55, 58, 62) : Color.FromArgb(235, 237, 240);
         b.Font = new Font("Segoe UI", 9.75f); b.AutoSize = true; b.Padding = new Padding(S(10), S(3), S(10), S(3)); b.Margin = new Padding(S(8), 0, 0, 0); b.Cursor = Cursors.Hand; b.UseVisualStyleBackColor = false;
+        b.Paint += delegate(object s, PaintEventArgs pe) {
+            if (!b.Enabled) {
+                Graphics g = pe.Graphics;
+                Color disBg = IsDark ? Color.FromArgb(32, 33, 35) : Color.FromArgb(243, 244, 246);
+                Color disLine = IsDark ? Color.FromArgb(48, 50, 52) : Color.FromArgb(220, 222, 226);
+                Color disText = IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168);
+                using (SolidBrush bg = new SolidBrush(disBg)) g.FillRectangle(bg, b.ClientRectangle);
+                using (Pen p = new Pen(disLine)) g.DrawRectangle(p, 0, 0, b.Width - 1, b.Height - 1);
+                TextRenderer.DrawText(g, b.Text, b.Font, b.ClientRectangle, disText, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
+        };
         return b;
     }
 
     public static Button SkipStepButton()
     {
         return Secondary("Diesen Schritt überspringen");
+    }
+}
+
+// Moderner Windows 11 DropDown / ComboBox (Dark & Light Mode fähig)
+public class DarkComboBox : ComboBox
+{
+    public DarkComboBox()
+    {
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        DrawMode = DrawMode.OwnerDrawFixed;
+        DropDownStyle = ComboBoxStyle.DropDownList;
+        ItemHeight = UI.S(24);
+        Font = new Font("Segoe UI", 9.5f);
+        Cursor = Cursors.Hand;
+        BackColor = UI.Panel;
+        ForeColor = UI.Text;
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        Graphics g = e.Graphics;
+        Color bg = Enabled ? UI.Panel : (UI.IsDark ? Color.FromArgb(30, 31, 32) : Color.FromArgb(243, 244, 246));
+        Color border = UI.Line;
+        Color fg = Enabled ? UI.Text : (UI.IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168));
+        using (SolidBrush b = new SolidBrush(bg)) g.FillRectangle(b, ClientRectangle);
+        using (Pen p = new Pen(border)) g.DrawRectangle(p, 0, 0, Width - 1, Height - 1);
+
+        string txt = SelectedItem != null ? SelectedItem.ToString() : Text;
+        int arrowW = UI.S(22);
+        Rectangle tr = new Rectangle(UI.S(8), 0, Math.Max(10, Width - arrowW - UI.S(10)), Height);
+        TextRenderer.DrawText(g, txt, Font, tr, fg, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+
+        int arrowX = Width - arrowW / 2 - UI.S(2);
+        int arrowY = Height / 2;
+        int asz = UI.S(4);
+        Point[] arrow = new Point[] {
+            new Point(arrowX - asz, arrowY - asz / 2),
+            new Point(arrowX + asz, arrowY - asz / 2),
+            new Point(arrowX, arrowY + asz / 2)
+        };
+        using (SolidBrush ab = new SolidBrush(UI.Muted)) g.FillPolygon(ab, arrow);
+    }
+
+    protected override void OnDrawItem(DrawItemEventArgs e)
+    {
+        if (e.Index < 0) return;
+        bool sel = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+        Color bg = sel ? (UI.IsDark ? UI.AccentSoft : Color.FromArgb(235, 243, 251)) : UI.Panel;
+        Color fg = sel ? UI.Accent : UI.Text;
+        using (SolidBrush b = new SolidBrush(bg)) e.Graphics.FillRectangle(b, e.Bounds);
+        string itemText = Items[e.Index] != null ? Items[e.Index].ToString() : "";
+        TextRenderer.DrawText(e.Graphics, itemText, Font,
+            new Rectangle(e.Bounds.X + UI.S(6), e.Bounds.Y, e.Bounds.Width - UI.S(10), e.Bounds.Height),
+            fg, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
     }
 }
 

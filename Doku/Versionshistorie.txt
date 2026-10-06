@@ -1,9 +1,20 @@
-﻿LEOS MINIBENCH: VERSIONSHISTORIE
+LEOS MINIBENCH: VERSIONSHISTORIE
 ================================
 
 Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab 2.2). Für 1.0 bis 2.1 gibt es
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Verweis Versionshistorie oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
+
+VERSION 3.32   (06.10.2026)  DARK-MODE-FEINSCHLIFF & KONSOLIDIERUNG DES SYSTEMVERGLEICHS
+====================================================================================================
+Dark-Mode-Feinschliff: Native dunkle Win32-Scrollbars für Inhalts- und Navigationsbereiche über
+SetPreferredAppMode (ForceDark) und SetWindowTheme (DarkMode_Explorer), neue DarkComboBox für
+nahtlos dunkle Dropdown-Menüs, einheitlich abgedunkelte Tabellenköpfe (Owner-Draw SysHeader32) und
+kontrastreiche Textdarstellung für deaktivierte Steuerelemente ohne Windows-GDI-Schattendruck.
+Konsolidierung des Systemvergleichs: Das interaktive Multi-System-Dashboard deckt sämtliche
+Hardware-Gegenüberstellungen, Benchmark-Matrizen und Befundvergleiche ab; die redundante statische
+Vergleichsfunktion wurde zugunsten eines einheitlichen Workflows abgelöst und die Vergleichsdatenbank
+entsprechend aktualisiert.
 
 VERSION 3.31   (06.10.2026)  MULTI-SYSTEM DASHBOARD (N >= 2), NATIVER GUI DARK MODE & BUILD-SYNC
 ====================================================================================================

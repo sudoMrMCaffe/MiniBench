@@ -4,11 +4,20 @@ if ($ImportOrdner) {
     exit 0
 }
 
-# Vergleich bereits geprüfter Systeme ohne neuen Benchmark (wird von der Oberfläche aufgerufen)
+# Vergleich bereits geprüfter Systeme ohne neuen Benchmark (wird von der Befehlszeile oder Oberfläche aufgerufen)
 if ($Vergleich) {
     $vf = ''
-    try { $vf = New-CompareReport @(([string]$Vergleich) -split ';' | ForEach-Object { $_.Trim().Trim('"') } | Where-Object { $_ }) }
-    catch { Write-Host ('Vergleich fehlgeschlagen: {0}' -f $_.Exception.Message) }
+    try {
+        $paths = @(([string]$Vergleich) -split ';' | ForEach-Object { $_.Trim().Trim('"') } | Where-Object { $_ -and (Test-Path -LiteralPath $_) })
+        if ($paths.Count -gt 0) {
+            $vf = Export-BenchDashboardHtml -SystemPaths $paths
+        }
+    }
+    catch { }
+    if (-not $vf) {
+        try { $vf = New-CompareReport @(([string]$Vergleich) -split ';' | ForEach-Object { $_.Trim().Trim('"') } | Where-Object { $_ }) }
+        catch { Write-Host ('Vergleich fehlgeschlagen: {0}' -f $_.Exception.Message) }
+    }
     if (-not $vf) { exit 1 }
     Send-GuiEvent 'RESULT' $vf
     if (-not $EventMode) { Invoke-Item -LiteralPath $vf }

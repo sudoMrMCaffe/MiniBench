@@ -1,4 +1,4 @@
-﻿// Vergleichsdatenbank und Systemvergleich (Teilklasse DiagGui)
+// Vergleichsdatenbank und Systemvergleich (Teilklasse DiagGui)
 public partial class DiagGui
 {
     class DbItemComparer : System.Collections.IComparer
@@ -102,6 +102,9 @@ public partial class DiagGui
         tb.Text = defaultValue ?? "";
         tb.Location = new Point(UI.S(16), UI.S(48));
         tb.Size = new Size(UI.S(408), UI.S(24));
+        tb.BackColor = UI.Panel;
+        tb.ForeColor = UI.Text;
+        tb.BorderStyle = BorderStyle.FixedSingle;
 
         Button btnOk = UI.Primary("Speichern");
         btnOk.Location = new Point(UI.S(226), UI.S(92));
@@ -167,7 +170,7 @@ public partial class DiagGui
     Control BuildDbPage()
     {
         Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel;
-        FlowLayoutPanel top = Page("Vergleichsdatenbank", "Jeder Lauf wird als System gespeichert. Hier lassen sich bereits geprüfte Systeme ohne neuen Benchmark vergleichen: mindestens zwei Systeme anhaken und \"Vergleichen\" klicken. Ältere Ausgabeordner lassen sich importieren. Ein Klick auf die Spaltenköpfe sortiert die Einträge.", -1);
+        FlowLayoutPanel top = Page("Vergleichsdatenbank", "Jeder Lauf wird als System gespeichert. Hier lassen sich bereits geprüfte Systeme ohne neuen Benchmark im interaktiven Multi-System-Dashboard gegenüberstellen: Systeme anhaken und \"Im Dashboard vergleichen\" klicken. Ältere Ausgabeordner lassen sich importieren. Ein Klick auf die Spaltenköpfe sortiert die Einträge.", -1);
         top.Dock = DockStyle.Top;
         top.AutoSize = true;
         lblDbPath = Lbl("Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lblDbPath.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(4)); top.Controls.Add(lblDbPath);
@@ -188,10 +191,8 @@ public partial class DiagGui
         FlowLayoutPanel bottom = new FlowLayoutPanel(); bottom.FlowDirection = FlowDirection.TopDown; bottom.WrapContents = false; bottom.AutoSize = true; bottom.BackColor = UI.Panel; bottom.Dock = DockStyle.Bottom;
         Label hint = Lbl("Doppelklick öffnet den Bericht des Laufs. Graue Einträge enthalten keine Benchmark-Werte. Klick auf Spaltenkopf sortiert die Tabelle.", 8.75f, false, UI.Muted); hint.Margin = new Padding(UI.S(4), UI.S(4), UI.S(4), 0); bottom.Controls.Add(hint);
         FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(10), 0, 0);
-        btnCompare = UI.Primary("Vergleichen (Klassisch)"); btnCompare.Margin = new Padding(0); btnCompare.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnCompare.Font = new Font("Segoe UI Semibold", 9.75f);
-        btnCompare.Click += delegate { CompareSelected(); };
-        Tip(btnCompare, "Erzeugt den bewährten statischen HTML-Vergleichsbericht zweier oder mehrerer Systeme.");
-        btnDashboard = UI.Secondary("Interaktives Dashboard"); btnDashboard.Margin = new Padding(UI.S(8), 0, 0, 0);
+        // Hinweis: Der statische Bericht "Vergleichen (Klassisch)" ist ab v3.32 vollständig durch das interaktive Dashboard abgelöst
+        btnDashboard = UI.Primary("Interaktives Dashboard"); btnDashboard.Margin = new Padding(0); btnDashboard.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnDashboard.Font = new Font("Segoe UI Semibold", 9.75f);
         btnDashboard.Click += delegate { OpenDashboard(); };
         Tip(btnDashboard, "Öffnet das interaktive Multi-System-Dashboard im Browser mit den angehakten Systemen.");
         btnRename = UI.Secondary("Name ändern ..."); btnRename.Margin = new Padding(UI.S(8), 0, 0, 0);
@@ -200,12 +201,13 @@ public partial class DiagGui
         Tip(btnRename, "Bearbeitet den Anzeigenamen des ausgewählten Systems (z. B. für Notizen wie Vor Reinigung oder Neuer Treiber), ohne die Hardware-Erkennung zu verändern.");
         btnDelete = UI.Secondary("Entfernen"); btnDelete.Margin = new Padding(UI.S(8), 0, 0, 0); btnDelete.Click += delegate { DeleteSelected(); };
         Tip(btnDelete, "Löscht die ausgewählten Systeme aus der Vergleichsdatenbank.");
-        b.Controls.Add(btnCompare); b.Controls.Add(btnDashboard); b.Controls.Add(btnRename); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
+        b.Controls.Add(btnDashboard); b.Controls.Add(btnRename); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
         lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
         lblDbClean.Margin = new Padding(UI.S(4), UI.S(8), UI.S(4), 0); bottom.Controls.Add(lblDbClean);
         bottom.Resize += delegate { lblDbClean.MaximumSize = new Size(Math.Max(UI.S(200), bottom.ClientSize.Width - UI.S(10)), 0); };
 
         lvDb = new ListView(); lvDb.View = View.Details; lvDb.FullRowSelect = true; lvDb.CheckBoxes = true; lvDb.Dock = DockStyle.Fill; lvDb.BorderStyle = BorderStyle.FixedSingle; lvDb.HideSelection = false; lvDb.ShowItemToolTips = true;
+        EnableDarkListView(lvDb);
         string[] cols = new string[] { "System", "Datum", "Gesamt", "Prozessor", "Grafik", "Arbeitsspeicher", "CPU Mehrkern", "RAM Lesen", "GPU", "Befunde K/W/I" };
         int[] w = new int[] { UI.S(135), UI.S(95), UI.S(65), UI.S(125), UI.S(115), UI.S(105), UI.S(80), UI.S(70), UI.S(70), UI.S(62) };
         for (int i = 0; i < cols.Length; i++) lvDb.Columns.Add(cols[i], w[i]);
@@ -221,14 +223,12 @@ public partial class DiagGui
         Tip(lvDb, "Vergleichsdatenbank aller gespeicherten Systeme. Ein Klick auf die Spaltenköpfe sortiert nach Datum, Gesamtwertung, CPU oder GPU.");
 
         ContextMenu cm = new ContextMenu();
-        MenuItem miCompare = new MenuItem("Vergleichen (Klassisch)", delegate { CompareSelected(); });
-        MenuItem miDashboard = new MenuItem("Interaktives Dashboard", delegate { OpenDashboard(); });
+        MenuItem miDashboard = new MenuItem("Im Dashboard vergleichen", delegate { OpenDashboard(); });
         MenuItem miSep1 = new MenuItem("-");
         MenuItem miRename = new MenuItem("Name ändern ...", delegate { RenameSelectedEntry(); });
         MenuItem miOpen = new MenuItem("Bericht öffnen", delegate { if (lvDb.SelectedItems.Count > 0) OpenEntry((DbEntry)lvDb.SelectedItems[0].Tag); });
         MenuItem miSep2 = new MenuItem("-");
         MenuItem miDelete = new MenuItem("Aus Datenbank entfernen", delegate { DeleteSelected(); });
-        cm.MenuItems.Add(miCompare);
         cm.MenuItems.Add(miDashboard);
         cm.MenuItems.Add(miSep1);
         cm.MenuItems.Add(miRename);
@@ -238,7 +238,7 @@ public partial class DiagGui
         cm.Popup += delegate {
             int selN = lvDb.SelectedItems.Count;
             int chkN = CheckedEntries().Count;
-            miCompare.Enabled = chkN >= 2 || selN >= 2;
+            miDashboard.Enabled = chkN >= 1 || selN >= 1;
             miRename.Enabled = selN == 1 || (selN == 0 && chkN == 1);
             miOpen.Enabled = selN == 1;
             miDelete.Enabled = chkN >= 1 || selN >= 1;
@@ -292,13 +292,17 @@ public partial class DiagGui
 
     void UpdateDbButtons()
     {
-        if (btnCompare == null) return;
+        if (btnDashboard == null && btnCompare == null) return;
         int n = CheckedEntries().Count;
-        btnCompare.Enabled = n >= 2; btnDelete.Enabled = n >= 1;
-        btnCompare.Text = n >= 2 ? n + " Systeme vergleichen (Klassisch)" : "Vergleichen (Klassisch)";
+        if (btnDelete != null) btnDelete.Enabled = n >= 1;
+        if (btnCompare != null)
+        {
+            btnCompare.Enabled = n >= 2;
+            btnCompare.Text = n >= 2 ? n + " Systeme vergleichen (Klassisch)" : "Vergleichen (Klassisch)";
+        }
         if (btnDashboard != null)
         {
-            btnDashboard.Text = n >= 2 ? n + " Systeme im Dashboard" : "Interaktives Dashboard";
+            btnDashboard.Text = n >= 2 ? n + " Systeme im Dashboard vergleichen" : (n == 1 ? "1 System im Dashboard anzeigen" : "Interaktives Dashboard");
         }
         if (btnRename != null)
         {
@@ -320,18 +324,10 @@ public partial class DiagGui
         OpenSelect(e.Path);
     }
 
+    // Vergleichen (Klassisch): In v3.32 vollständig durch das interaktive Multi-System-Dashboard abgelöst
     void CompareSelected()
     {
-        List<DbEntry> sel = CheckedEntries();
-        if (sel.Count < 2) return;
-        List<string> paths = new List<string>(); foreach (DbEntry e in sel) paths.Add(e.Path);
-        Cursor = Cursors.WaitCursor;
-        string html = ""; List<string> lines = new List<string>();
-        try { html = RunHelper("-Vergleich \"" + String.Join(";", paths.ToArray()) + "\"", out lines); }
-        catch (Exception ex) { lines.Add(ex.Message); }
-        Cursor = Cursors.Default;
-        if (html.Length > 0 && File.Exists(html)) OpenShell(html);
-        else MessageBox.Show(this, "Der Vergleich konnte nicht erstellt werden.\r\n\r\n" + String.Join("\r\n", lines.ToArray()), "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        OpenDashboard();
     }
 
     void OpenDashboard()
@@ -339,6 +335,10 @@ public partial class DiagGui
         Cursor = Cursors.WaitCursor;
         List<string> lines = new List<string>(); string res = "";
         List<DbEntry> sel = CheckedEntries();
+        if (sel.Count == 0 && lvDb != null && lvDb.SelectedItems.Count > 0)
+        {
+            foreach (ListViewItem it in lvDb.SelectedItems) sel.Add((DbEntry)it.Tag);
+        }
         string args = "-Dashboard";
         if (sel.Count > 0)
         {

@@ -1,4 +1,4 @@
-﻿// Seiten der grafischen Oberfläche: Versionen und Änderungen (Teilklasse DiagGui)
+// Seiten der grafischen Oberfläche: Versionen und Änderungen (Teilklasse DiagGui)
 public partial class DiagGui
 {
     Control BuildVersionPage()
@@ -47,6 +47,7 @@ public partial class DiagGui
         b.Controls.Add(btnUndo); b.Controls.Add(rel); b.Controls.Add(open); bottom.Controls.Add(b);
 
         lvChg = new ListView(); lvChg.View = View.Details; lvChg.FullRowSelect = true; lvChg.CheckBoxes = true; lvChg.Dock = DockStyle.Fill; lvChg.BorderStyle = BorderStyle.FixedSingle; lvChg.HideSelection = false; lvChg.ShowItemToolTips = true;
+        EnableDarkListView(lvChg);
         string[] cols = new string[] { "Zeit", "Computer", "Maßnahme", "Ziel", "Vorher", "Nachher", "Status" };
         int[] w = new int[] { UI.S(112), UI.S(100), UI.S(170), UI.S(190), UI.S(90), UI.S(110), UI.S(96) };
         for (int i = 0; i < cols.Length; i++) lvChg.Columns.Add(cols[i], w[i]);

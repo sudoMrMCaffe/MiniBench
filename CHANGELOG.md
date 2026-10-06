@@ -1,6 +1,18 @@
-﻿# Changelog - Leos Minibench
+# Changelog - Leos Minibench
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
+
+## v3.32 (06.10.2026)
+
+* **Dark-Mode-Feinschliff für die WinForms-Oberfläche:**
+  * **Native dunkle Win32-Scrollbars:** Aktivierung des Windows-eigenen Fluent-Dunkelmodus für Scrollbars über `SetPreferredAppMode(2)` (ForceDark) und `SetWindowTheme(hWnd, "DarkMode_Explorer", null)`. Beseitigt grell-weiße Scrollbalken in Inhaltsbereichen (`content`), Navigationsleisten (`left`), `ListView`-Listen und `CheckedListBox`-Steuerelementen ohne Fremdbibliotheken oder Eingriffe ins Gesamtsystem.
+  * **Eigene `DarkComboBox`-Komponente:** Ersatz der standardmäßigen WinForms-ComboBoxen durch eine vollständig darkmode-fähige Dropdown-Komponente mit sauber abgedunkeltem Hintergrund (`UI.Panel`), dezentem Rahmen (`UI.Line`), hochauflösend gezeichnetem Pfeilsymbol und owner-drawn Auswahlelementen im Fluent-Design.
+  * **Dunkle Tabellenköpfe (`SysHeader32`):** ListView-Spaltenköpfe werden über `EnableDarkListView` im Dark Mode sauber abgedunkelt gezeichnet (`#1C1E20` mit dezentem Segmenttrenner und Beschriftung in Segoe UI Semibold), wodurch weiße Kopfzeilen in allen Tabellen entfallen.
+  * **Optimierte Textkontraste & Deaktivierte Steuerelemente:** Deaktivierte Schaltflächen (wie "Entfernen") und Optionen nutzen ein eigens gezeichnetes Farbschema (`#8C919B` auf dezentem Panel-Hintergrund) anstelle des unleserlichen Windows-GDI-Schattendrucks ("schwarzer/grauer Text auf dunklem Grund"). Diagnose-Optionen schalten bei Klick im Vorgaben-Modus barrierefrei auf benutzerdefinierte Auswahl um.
+* **Konsolidierung des Systemvergleichs:**
+  * **Vollständige Dashboard-Ablösung:** Das interaktive Multi-System-Dashboard deckt nun alle Funktionen des älteren Vergleichssystems ab (Hardwaredaten im Direktvergleich, lückenlose Benchmark-Matrix mit Bestwert-Hervorhebung, Befunde-Gegenüberstellung und Multi-Kurven-Telemetrie).
+  * **Bereinigung redundanter Pfade:** Die statische Vergleichsfunktion wurde aus der Benutzeroberfläche und der Befehlszeile nahtlos auf das interaktive Dashboard konsolidiert.
+  * **Aktualisierte Vergleichsdatenbank:** Die Vergleichsseite bietet nun eine fokussierte, einheitliche primäre Aktionsschaltfläche ("Im Dashboard vergleichen") mit dynamischer Systemanzahlanzeige sowie ein angepasstes Kontextmenü.
 
 ## v3.31 (06.10.2026)
 

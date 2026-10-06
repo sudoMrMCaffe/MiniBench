@@ -1,0 +1,14 @@
+﻿Nr;Bereich;Testfall;Umgebung;Erwartung;Art;Ergebnis;Datum;Bemerkung
+A1;Bau;Testen.cmd ausfÃ¼hren;Windows 10/11 mit Pester 5/6;alle Pester-Tests bestanden, 0 fehlgeschlagen, Version332.Tests.ps1 dabei;automatisch;;;
+A2;Bau;Bauen.cmd ausfÃ¼hren & Git-Sync;Windows-Buildumgebung;Version 3.32 erzeugt, Archiv\v3.31 gesichert, Stand.txt aktuell, automatischer Git-Commit;automatisch;;;
+U1;UI;Win32 Scrollbars im Dark Mode;Windows 10 1809+ / Windows 11;Scrollbars in Panel, ListView und CheckedListBox nativ dunkel via SetPreferredAppMode(2);automatisch;;;
+U2;UI;DarkComboBox Dropdown-Theming;WinForms Dark/Light Mode;Abgedunkeltes Panel-Design, Vektor-Pfeil und Owner-Draw Listenelemente;automatisch;;;
+U3;UI;ListView SpaltenkÃ¶pfe abgedunkelt;WinForms Dark Mode;SysHeader32 wird Ã¼ber DrawColumnHeader dunkel (#1C1E20) mit Semibold gerendert;automatisch;;;
+U4;UI;Deaktivierte Steuerelemente Kontrast;WinForms Dark Mode;Buttons und Checkboxen ohne GDI-Schattendruck, gut lesbar (#8C919B auf Dark);automatisch;;;
+V1;Vergleich;Konsolidierung im Hauptprogramm;Vergleichsseite & KontextmenÃ¼;Einheitliche Aktion "Im Dashboard vergleichen" mit Systemanzahl;automatisch;;;
+V2;Vergleich;Befehlszeilen-Aufruf -Vergleich;CLI & PowerShell;Aufruf erzeugt automatisch das interaktive Dashboard fÃ¼r Ã¼bergebene Systeme;automatisch;;;
+V3;Vergleich;Multi-System Abdeckung N >= 2;Browser / Dashboard;VollstÃ¤ndige Hardware-GegenÃ¼berstellung, Metriken-Matrix und Befundvergleich;automatisch;;;
+H1;Hardware;Testlauf Desktop Intel Core + NVIDIA dGPU;Intel i9 / i7 + RTX dGPU;Dark Mode Steuerelemente und Dashboard-Vergleich fehlerfrei;manuell;;;
+H2;Hardware;Testlauf Desktop AMD Ryzen + Radeon dGPU;AMD Ryzen 9/7 + RX dGPU;Dunkle Scrollbars und Dropdown-MenÃ¼s fehlerfrei;manuell;;;
+H3;Hardware;Testlauf Notebook mit iGPU;Intel Core Iris Xe / AMD APU;Responsives Layout ohne weiÃŸe RÃ¤nder oder unleserliche Buttons;manuell;;;
+H4;Hardware;Testlauf Notebook mit Hybridgrafik;Intel/AMD iGPU + NVIDIA dGPU;Interaktiver Multi-System-Vergleich und Telemetriekurven;manuell;;;

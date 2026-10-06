@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -24,6 +24,8 @@ public partial class DiagGui : Form
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
     const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
     const int DWMWCP_ROUND = 2;
+    [DllImport("uxtheme.dll", EntryPoint = "#135", SetLastError = true)] static extern int SetPreferredAppMode(int appMode);
+    [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)] static extern int SetWindowTheme(IntPtr hWnd, string pszSubAppName, string pszSubIdList);
     [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
     [DllImport("user32.dll")] static extern bool AttachThreadInput(uint a, uint b, bool attach);
@@ -47,6 +49,7 @@ public partial class DiagGui : Form
     Font wsBold;
 
     Panel setupView, runView, content, head, body, contentHost;
+    FlowLayoutPanel left;
     Button btnThemeToggle;
     List<NavItem> nav = new List<NavItem>();
     List<Control> pages = new List<Control>();
@@ -345,6 +348,41 @@ public partial class DiagGui : Form
         base.OnHandleCreated(e);
         try { int round = DWMWCP_ROUND; DwmSetWindowAttribute(Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int)); } catch { }
         ApplyTitleBarTheme(UI.IsDark);
+        ApplyNativeControlThemes();
+    }
+
+    void ApplyNativeControlThemes()
+    {
+        string subApp = UI.IsDark ? "DarkMode_Explorer" : "Explorer";
+        try { SetPreferredAppMode(UI.IsDark ? 2 : 0); } catch { }
+        if (content != null && content.IsHandleCreated) try { SetWindowTheme(content.Handle, subApp, null); } catch { }
+        if (left != null && left.IsHandleCreated) try { SetWindowTheme(left.Handle, subApp, null); } catch { }
+        if (lvDb != null && lvDb.IsHandleCreated) try { SetWindowTheme(lvDb.Handle, subApp, null); } catch { }
+        if (lvSens != null && lvSens.IsHandleCreated) try { SetWindowTheme(lvSens.Handle, subApp, null); } catch { }
+        if (lvChg != null && lvChg.IsHandleCreated) try { SetWindowTheme(lvChg.Handle, subApp, null); } catch { }
+        if (clbDisks != null && clbDisks.IsHandleCreated) try { SetWindowTheme(clbDisks.Handle, subApp, null); } catch { }
+        if (clbCompare != null && clbCompare.IsHandleCreated) try { SetWindowTheme(clbCompare.Handle, subApp, null); } catch { }
+        if (txtLog != null && txtLog.IsHandleCreated) try { SetWindowTheme(txtLog.Handle, subApp, null); } catch { }
+    }
+
+    public void EnableDarkListView(ListView lv)
+    {
+        if (lv == null) return;
+        lv.OwnerDraw = true;
+        lv.BackColor = UI.Panel;
+        lv.ForeColor = UI.Text;
+        lv.DrawColumnHeader += delegate(object s, DrawListViewColumnHeaderEventArgs e) {
+            Color headerBg = UI.IsDark ? Color.FromArgb(28, 30, 32) : Color.FromArgb(248, 249, 251);
+            using (SolidBrush b = new SolidBrush(headerBg)) e.Graphics.FillRectangle(b, e.Bounds);
+            using (Pen pen = new Pen(UI.Line)) e.Graphics.DrawLine(pen, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+            using (Font f = new Font("Segoe UI Semibold", 8.5f))
+                TextRenderer.DrawText(e.Graphics, e.Header.Text.ToUpperInvariant(), f,
+                    new Rectangle(e.Bounds.X + UI.S(8), e.Bounds.Y, e.Bounds.Width - UI.S(10), e.Bounds.Height),
+                    UI.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+        };
+        lv.DrawItem += delegate(object s, DrawListViewItemEventArgs e) { e.DrawDefault = true; };
+        lv.DrawSubItem += delegate(object s, DrawListViewSubItemEventArgs e) { e.DrawDefault = true; };
+        if (lv.IsHandleCreated) try { SetWindowTheme(lv.Handle, UI.IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
     }
 
     void ApplyTitleBarTheme(bool dark)
@@ -425,8 +463,10 @@ public partial class DiagGui : Form
     void SetAppTheme(bool dark)
     {
         UI.SetTheme(dark);
+        try { SetPreferredAppMode(dark ? 2 : 0); } catch { }
         SaveThemePreference(dark);
         ApplyTitleBarTheme(dark);
+        ApplyNativeControlThemes();
         if (btnThemeToggle != null)
         {
             btnThemeToggle.Text = dark ? "☀️ Hell" : "🌙 Dunkel";
@@ -463,6 +503,7 @@ public partial class DiagGui : Form
         else if (c == content)
         {
             c.BackColor = UI.Panel;
+            if (c.IsHandleCreated) try { SetWindowTheme(c.Handle, UI.IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
         }
         else if (c is NavItem)
         {
@@ -501,6 +542,7 @@ public partial class DiagGui : Form
         {
             c.BackColor = UI.Panel;
             c.ForeColor = UI.Text;
+            if (c.IsHandleCreated) try { SetWindowTheme(c.Handle, UI.IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
             c.Invalidate();
         }
         else if (c is RichTextBox)
@@ -516,15 +558,18 @@ public partial class DiagGui : Form
                 c.ForeColor = UI.Text;
             }
         }
-        else if (c is ComboBox)
+        else if (c is DarkComboBox || c is ComboBox)
         {
             c.BackColor = UI.Panel;
             c.ForeColor = UI.Text;
+            c.Invalidate();
         }
         else if (c is CheckedListBox || c is ListBox)
         {
             c.BackColor = UI.Panel;
             c.ForeColor = UI.Text;
+            if (c.IsHandleCreated) try { SetWindowTheme(c.Handle, UI.IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
+            c.Invalidate();
         }
         else if (c is CheckBox || c is RadioButton)
         {
@@ -538,7 +583,7 @@ public partial class DiagGui : Form
                 btn.BackColor = UI.IsDark ? Color.FromArgb(38, 44, 54) : Color.FromArgb(40, 52, 72);
                 btn.ForeColor = Color.White;
             }
-            else if (btn == btnHtml || btn == btnStart || (btnUndo != null && btn == btnUndo) || (btnCompare != null && btn == btnCompare) || (btn.Font.Name.Contains("Semibold") && btn.ForeColor == Color.White && btn.BackColor != UI.Panel))
+            else if (btn == btnHtml || btn == btnStart || (btnUndo != null && btn == btnUndo) || (btnDashboard != null && btn == btnDashboard) || (btn.Font.Name.Contains("Semibold") && btn.ForeColor == Color.White && btn.BackColor != UI.Panel))
             {
                 btn.BackColor = UI.Accent;
                 btn.ForeColor = Color.White;
@@ -553,6 +598,7 @@ public partial class DiagGui : Form
                 btn.FlatAppearance.MouseOverBackColor = UI.IsDark ? Color.FromArgb(45, 48, 52) : Color.FromArgb(243, 244, 246);
                 btn.FlatAppearance.MouseDownBackColor = UI.IsDark ? Color.FromArgb(55, 58, 62) : Color.FromArgb(235, 237, 240);
             }
+            btn.Invalidate();
         }
         else if (c is Label)
         {
@@ -584,6 +630,10 @@ public partial class DiagGui : Form
             else if (bg == Color.FromArgb(229, 231, 235) || bg == Color.FromArgb(58, 59, 60))
             {
                 c.BackColor = UI.Line;
+            }
+            if (((Panel)c).AutoScroll && c.IsHandleCreated)
+            {
+                try { SetWindowTheme(c.Handle, UI.IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
             }
         }
 
@@ -660,7 +710,7 @@ public partial class DiagGui : Form
     {
         Panel p = new Panel(); p.BackColor = UI.Bg;
 
-        FlowLayoutPanel left = new FlowLayoutPanel(); left.Dock = DockStyle.Left; left.Width = UI.S(246); left.FlowDirection = FlowDirection.TopDown; left.WrapContents = false;
+        left = new FlowLayoutPanel(); left.Dock = DockStyle.Left; left.Width = UI.S(246); left.FlowDirection = FlowDirection.TopDown; left.WrapContents = false;
         left.BackColor = UI.Bg; left.Padding = new Padding(0, 0, UI.S(14), 0); left.AutoScroll = true;
         Label lm = Lbl("Module", 12f, true, UI.Text); lm.Margin = new Padding(UI.S(2), 0, 0, UI.S(10)); left.Controls.Add(lm);
         nav.Add(ModNav("Diagnose", "Diagnose", "Inventar, Prüfungen, Ereignisse", UI.IcoDiag));
@@ -868,7 +918,7 @@ public partial class DiagGui : Form
 
     static ComboBox Combo(int width, string[] items, int sel)
     {
-        ComboBox c = new ComboBox(); c.DropDownStyle = ComboBoxStyle.DropDownList; c.Width = width; c.Margin = new Padding(0, UI.S(1), UI.S(16), UI.S(1));
+        DarkComboBox c = new DarkComboBox(); c.Width = UI.S(width); c.Margin = new Padding(0, UI.S(1), UI.S(16), UI.S(1));
         foreach (string s in items) c.Items.Add(s);
         if (items.Length > 0) c.SelectedIndex = Math.Min(sel, items.Length - 1);
         return c;
@@ -940,7 +990,18 @@ public partial class DiagGui : Form
         fastHint.MaximumSize = new Size(UI.S(820), 0); fastHint.Margin = new Padding(UI.S(24), 0, 0, UI.S(4)); f.Controls.Add(fastHint);
         f.Controls.Add(Section("Prüfungen"));
         diagChk = new CheckBox[diagKeys.Length];
-        for (int i = 0; i < diagKeys.Length; i++) { diagChk[i] = Chk(diagText[i], true); diagChk[i].CheckedChanged += delegate { UpdateSummary(); }; f.Controls.Add(diagChk[i]); }
+        for (int i = 0; i < diagKeys.Length; i++) {
+            int chkIdx = i;
+            diagChk[i] = Chk(diagText[i], true);
+            diagChk[i].Click += delegate {
+                if (!rbCustom.Checked) {
+                    rbCustom.Checked = true;
+                    diagChk[chkIdx].Checked = !diagChk[chkIdx].Checked;
+                }
+            };
+            diagChk[i].CheckedChanged += delegate { UpdateSummary(); };
+            f.Controls.Add(diagChk[i]);
+        }
         Label cpuHint = Lbl("Die CPU-Stabilität prüft ab v2.7 das Modul Lasttest (Prozessor, ab 2 Minuten): eigener Lastprozess, Rechenfehler, Takt- und Temperaturverlauf und Drosselnachweis.", 8.5f, false, UI.Muted);
         cpuHint.MaximumSize = new Size(UI.S(820), 0); cpuHint.Margin = new Padding(UI.S(24), UI.S(2), 0, UI.S(4)); f.Controls.Add(cpuHint);
         f.Controls.Add(Section("Optionen"));
@@ -971,11 +1032,17 @@ public partial class DiagGui : Form
         for (int i = 0; i < diagChk.Length; i++)
         {
             if (pick != null) diagChk[i].Checked = pick[i];
-            diagChk[i].Enabled = custom;
+            diagChk[i].AutoCheck = custom;
+            diagChk[i].ForeColor = custom ? UI.Text : (UI.IsDark ? Color.FromArgb(195, 200, 210) : Color.FromArgb(80, 85, 95));
         }
         chkInstall.Enabled = !crash && !rbTest.Checked;
+        chkInstall.ForeColor = chkInstall.Enabled ? UI.Text : (UI.IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168));
         chkMem.Enabled = !crash && !rbTest.Checked;
-        if (chkFast != null) chkFast.Enabled = !crash && !rbTest.Checked;
+        chkMem.ForeColor = chkMem.Enabled ? UI.Text : (UI.IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168));
+        if (chkFast != null) {
+            chkFast.Enabled = !crash && !rbTest.Checked;
+            chkFast.ForeColor = chkFast.Enabled ? UI.Text : (UI.IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168));
+        }
         cmbDays.Enabled = !rbTest.Checked;
         if (cmbSmartMax != null) cmbSmartMax.Enabled = !crash && !rbTest.Checked;
         UpdateSummary();
@@ -988,7 +1055,7 @@ public partial class DiagGui : Form
         benchChk = new CheckBox[benchKeys.Length];
         for (int i = 0; i < benchKeys.Length; i++) { benchChk[i] = Chk(benchText[i], i < 4); benchChk[i].CheckedChanged += delegate { clbDisks.Enabled = benchChk[3].Checked; UpdateSummary(); }; f.Controls.Add(benchChk[i]); }
         f.Controls.Add(Section("Laufwerke"));
-        clbDisks = new CheckedListBox(); clbDisks.CheckOnClick = true; clbDisks.Width = UI.S(640); clbDisks.BorderStyle = BorderStyle.FixedSingle; clbDisks.IntegralHeight = false; clbDisks.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4));
+        clbDisks = new CheckedListBox(); clbDisks.CheckOnClick = true; clbDisks.Width = UI.S(640); clbDisks.BorderStyle = BorderStyle.FixedSingle; clbDisks.IntegralHeight = false; clbDisks.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4)); clbDisks.BackColor = UI.Panel; clbDisks.ForeColor = UI.Text;
         foreach (string d in disks)
         {
             string[] x = d.Split('|');
@@ -1019,7 +1086,7 @@ public partial class DiagGui : Form
         FlowLayoutPanel r2 = Row(); r2.Controls.Add(RowLabel("Referenz (100 %)", 150));
         cmbRef = Combo(520, new string[0], 0); r2.Controls.Add(cmbRef); f.Controls.Add(r2);
         f.Controls.Add(Section("Bereits geprüfte Systeme einblenden"));
-        clbCompare = new CheckedListBox(); clbCompare.CheckOnClick = true; clbCompare.Width = UI.S(640); clbCompare.BorderStyle = BorderStyle.FixedSingle; clbCompare.IntegralHeight = false; clbCompare.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4));
+        clbCompare = new CheckedListBox(); clbCompare.CheckOnClick = true; clbCompare.Width = UI.S(640); clbCompare.BorderStyle = BorderStyle.FixedSingle; clbCompare.IntegralHeight = false; clbCompare.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4)); clbCompare.BackColor = UI.Panel; clbCompare.ForeColor = UI.Text;
         f.Controls.Add(clbCompare);
         Label ch = Lbl("Die gewählten Systeme erscheinen im Bericht, in der KI-Datei und im Reiter Leistung als zusätzliche Vergleichswerte.", 8.75f, false, UI.Muted); ch.Margin = new Padding(UI.S(4), UI.S(3), 0, 0); ch.MaximumSize = new Size(UI.S(820), 0); f.Controls.Add(ch);
         f.Controls.Add(Section("Speichern"));
@@ -1617,6 +1684,7 @@ public partial class DiagGui : Form
         chartLive.Empty = "Noch keine Messwerte. \"Live-Ansicht starten\" öffnet die Sensoren.";
         f.Controls.Add(chartLive);
         lvSens = new ListView(); lvSens.View = View.Details; lvSens.FullRowSelect = true; lvSens.Width = UI.S(880); lvSens.Height = UI.S(380); lvSens.BorderStyle = BorderStyle.FixedSingle; lvSens.HideSelection = false; lvSens.ShowGroups = true; lvSens.ShowItemToolTips = true; lvSens.Margin = new Padding(UI.S(4), 0, 0, UI.S(4));
+        EnableDarkListView(lvSens);
         string[] cols = new string[] { "Sensor", "Art", "Aktuell", "Min", "Max", "Quelle" };
         int[] w = new int[] { UI.S(260), UI.S(120), UI.S(110), UI.S(110), UI.S(110), UI.S(140) };
         for (int i = 0; i < cols.Length; i++) lvSens.Columns.Add(cols[i], w[i], i >= 2 && i <= 4 ? HorizontalAlignment.Right : HorizontalAlignment.Left);

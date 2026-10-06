@@ -12,18 +12,18 @@ BeforeAll {
 }
 
 Describe 'Version 3.31 Deklaration' {
-    It 'Version.ps1 definiert Version 3.31' {
+    It 'Version.ps1 definiert Version 3.31 oder 3.32' {
         $vPs1 = [IO.File]::ReadAllText((Join-Path $global:MinibenchSrcRoot 'Kern/Version.ps1'))
-        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''3\.31'''
+        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''(3\.31|3\.32)'''
     }
 
-    It 'Versionen.cs enthält den Eintrag für 3.31' {
-        $global:V331Ver | Should -Match 'new Eintrag\("3\.31",'
+    It 'Versionen.cs enthält den Eintrag für 3.31 oder 3.32' {
+        $global:V331Ver | Should -Match 'new Eintrag\("(3\.31|3\.32)",'
     }
 
-    It 'Doku/Versionshistorie.txt enthält den Eintrag für 3.31' {
+    It 'Doku/Versionshistorie.txt enthält den Eintrag für 3.31 oder 3.32' {
         $vh = [IO.File]::ReadAllText((Join-Path $global:MinibenchRepoRoot 'Doku/Versionshistorie.txt'))
-        $vh | Should -Match 'VERSION 3\.31'
+        $vh | Should -Match 'VERSION (3\.31|3\.32)'
     }
 }
 

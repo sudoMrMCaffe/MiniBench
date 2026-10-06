@@ -1,0 +1,76 @@
+﻿LEOS MINIBENCH 3.32: Ã„NDERUNGEN
+===============================
+
+Version 3.32 bringt einen umfassenden Feinschliff fÃ¼r den nativen WinForms Dark Mode und konsolidiert
+den Systemvergleich: Das interaktive Multi-System-Dashboard Ã¼bernimmt alle Funktionen des Ã¤lteren
+statischen Vergleichssystems vollstÃ¤ndig, wÃ¤hrend redundante Schnittstellen bereinigt und die
+Vergleichsdatenbank auf einen einheitlichen modernen Ablauf umgestellt wurden.
+
+1. DARK-MODE-FEINSCHLIFF FÃœR DIE WINFORMS-OBERFLÃ„CHE
+   * Native dunkle Win32-Scrollbars:
+     - Integration von SetPreferredAppMode(2) (ForceDark, Ordinal 135 aus uxtheme.dll) und
+       SetWindowTheme(hWnd, "DarkMode_Explorer", null) fÃ¼r WinForms-Scrollbars.
+     - Beseitigt grell-weiÃŸe Standard-Scrollbalken in Inhaltsseiten (content), der Modul-Navigation
+       (left), allen ListView-Tabellen und CheckedListBox-Steuerelementen ohne Fremdbibliotheken.
+   * Moderne DarkComboBox-Komponente:
+     - Ersatz der WinForms-Standard-ComboBox durch DarkComboBox in src\Oberflaeche\DiagGui_Steuerelemente.cs.
+     - Saubere Farbgebung im dunklen Panel-Design (UI.Panel) mit dezentem 1px-Rahmen (UI.Line),
+       hochauflÃ¶sendem Vektor-Pfeil und abgedunkelten Owner-Drawn-Auswahlelementen.
+   * Dunkle TabellenkÃ¶pfe (SysHeader32):
+     - ListView-SpaltenkÃ¶pfe werden Ã¼ber EnableDarkListView in DiagGui.cs im Dark Mode dunkel
+       gezeichnet (#1C1E20 mit dezentem Segmenttrenner UI.Line und Beschriftung in Segoe UI Semibold).
+     - WeiÃŸe Win32-Kopfzeilen in allen Tabellen (Vergleichsdatenbank, Sensoren, Ã„nderungen) entfallen.
+   * Optimierte Textkontraste & Deaktivierte Steuerelemente:
+     - Deaktivierte SchaltflÃ¤chen (z. B. "Entfernen") nutzen einen eigenen Paint-Handler mit
+       lesbarem Textkontrast (#8C919B auf #202123) anstelle des unleserlichen Windows-GDI-Schattendrucks
+       ("schwarzer Text auf dunklem Grund").
+     - Diagnose-PrÃ¼fungen schalten bei Klick im Vorgaben-Modus automatisch barrierefrei auf die
+       benutzerdefinierte Auswahl um, sodass alle Optionen stets optimal lesbar und bedienbar bleiben.
+
+2. KONSOLIDIERUNG DES SYSTEMVERGLEICHS
+   * VollstÃ¤ndige Abdeckung durch das interaktive Dashboard:
+     - Das in v3.31 eingefÃ¼hrte Multi-System-Dashboard deckt sÃ¤mtliche Anforderungen des frÃ¼heren
+       Vergleichsberichts ab: Hardware-GegenÃ¼berstellung nebeneinander, lÃ¼ckenlose Benchmark-Matrix aller
+       Metriken mit Bestwert-Hervorhebung, synoptischer Befund-Vergleich und interaktive Canvas-Telemetriekurven.
+   * Bereinigung redundanter Funktionen:
+     - Die redundante statische Vergleichsfunktion ("Vergleichen (Klassisch)") wurde zugunsten eines
+       einheitlichen Workflows konsolidiert.
+     - Befehlszeilen-Aufrufe mit -Vergleich erzeugen nun automatisch das interaktive Multi-System-Dashboard.
+   * Aktualisierte Vergleichsdatenbank:
+     - Die Vergleichsseite fÃ¼hrt als zentrale Hauptaktion die SchaltflÃ¤che "Im Dashboard vergleichen"
+       mit dynamischer Systemanzahlanzeige.
+     - Das KontextmenÃ¼ der Tabelle bietet den direkten Dashboard-Aufruf fÃ¼r ausgewÃ¤hlte oder angehakte
+       Systeme.
+
+GEFUNDEN UND BEHOBEN
+  1. WinForms Scrollbars im Dark Mode: Win32-Scrollbars ignorieren SetWindowTheme, wenn die Anwendung
+     nicht Ã¼ber SetPreferredAppMode(2) als DarkMode-fÃ¤hig registriert wurde. Durch Koppelung beider
+     Aufrufe schalten alle Scrollbars nativ auf das Windows-Dunkeldesign um.
+  2. SysHeader32 Ignoranz gegenÃ¼ber Control-Theming: SpaltenkÃ¶pfe von ListViews blieben unter WinForms
+     trotz dunkler Hintergrundfarbe weiÃŸ. Durch EnableDarkListView mit OwnerDraw und DrawColumnHeader
+     werden die Header einheitlich dunkel gerendert.
+  3. GDI-Schattendruck auf Flat-Buttons: Bei Enabled = false zeichnet Windows GDI den Text standardmÃ¤ÃŸig
+     in unleserlichem Schwarz/Reliefgrau. Der Paint-Handler in UI.Secondary stellt dauerhaft lesbare
+     Kontraste sicher.
+  4. NullReference-Schutz in UpdateDbButtons: Durch die Umstellung auf eine primÃ¤re Dashboard-SchaltflÃ¤che
+     wurde UpdateDbButtons gegen null-Referenzen abgesichert.
+
+GRENZEN
+  - Native dunkle Win32-Scrollbars erfordern Windows 10 Version 1809 (Build 17763) oder neuer. Auf Ã¤lteren
+    Systemen greift der Standard-Look ohne Absturz.
+  - Das interaktive Dashboard setzt einen modernen Browser mit HTML5-Canvas-UnterstÃ¼tzung voraus.
+
+UMSTIEG
+  1. Bauen.cmd ausfÃ¼hren (baut LeosMinibench.exe und LeosMinibench.ps1 fÃ¼r v3.32 und committet lokal).
+  2. Inhalt des Ordners "Aktueller Build" auf den USB-Stick kopieren.
+  3. FrÃ¼here DatenbankeintrÃ¤ge, Berichte und Einstellungen bleiben vollstÃ¤ndig kompatibel.
+
+ERGEBNIS
+  Alle Pester-Tests bestanden.
+  VollstÃ¤ndig konsistenter WinForms Dark Mode ohne weiÃŸe Scrollbars oder unleserliche Kontraste.
+  Einheitlicher Multi-System-Vergleich Ã¼ber das interaktive Dashboard.
+
+QUELLEN
+  - Microsoft Docs: Uxtheme SetPreferredAppMode / SetWindowTheme.
+  - Microsoft Docs: ListView.OwnerDraw & DrawListViewColumnHeaderEventArgs.
+  - Microsoft Docs: ControlStyles.UserPaint in WinForms.
