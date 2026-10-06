@@ -66,7 +66,7 @@ public partial class DiagGui
     int dbSortCol = -1;
     bool dbSortAsc = true;
     Button btnRename;
-    Button btnCompare, btnDelete;
+    Button btnCompare, btnDashboard, btnDelete;
 
     void OnDbColumnClick(object sender, ColumnClickEventArgs e)
     {
@@ -188,11 +188,12 @@ public partial class DiagGui
         FlowLayoutPanel bottom = new FlowLayoutPanel(); bottom.FlowDirection = FlowDirection.TopDown; bottom.WrapContents = false; bottom.AutoSize = true; bottom.BackColor = UI.Panel; bottom.Dock = DockStyle.Bottom;
         Label hint = Lbl("Doppelklick öffnet den Bericht des Laufs. Graue Einträge enthalten keine Benchmark-Werte. Klick auf Spaltenkopf sortiert die Tabelle.", 8.75f, false, UI.Muted); hint.Margin = new Padding(UI.S(4), UI.S(4), UI.S(4), 0); bottom.Controls.Add(hint);
         FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(10), 0, 0);
-        btnCompare = UI.Primary("Vergleichen"); btnCompare.Margin = new Padding(0); btnCompare.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnCompare.Font = new Font("Segoe UI Semibold", 9.75f);
+        btnCompare = UI.Primary("Vergleichen (Klassisch)"); btnCompare.Margin = new Padding(0); btnCompare.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnCompare.Font = new Font("Segoe UI Semibold", 9.75f);
         btnCompare.Click += delegate { CompareSelected(); };
-        Button btnDashboard = UI.Secondary("Dashboard"); btnDashboard.Margin = new Padding(UI.S(8), 0, 0, 0);
+        Tip(btnCompare, "Erzeugt den bewährten statischen HTML-Vergleichsbericht zweier oder mehrerer Systeme.");
+        btnDashboard = UI.Secondary("Interaktives Dashboard"); btnDashboard.Margin = new Padding(UI.S(8), 0, 0, 0);
         btnDashboard.Click += delegate { OpenDashboard(); };
-        Tip(btnDashboard, "Öffnet das interaktive Benchmark- und Diagnose-Dashboard mit Referenzvergleich und Lasttest-Telemetrie im Browser.");
+        Tip(btnDashboard, "Öffnet das interaktive Multi-System-Dashboard im Browser mit den angehakten Systemen.");
         btnRename = UI.Secondary("Name ändern ..."); btnRename.Margin = new Padding(UI.S(8), 0, 0, 0);
         btnRename.Click += delegate { RenameSelectedEntry(); };
         btnRename.Enabled = false;
@@ -220,8 +221,8 @@ public partial class DiagGui
         Tip(lvDb, "Vergleichsdatenbank aller gespeicherten Systeme. Ein Klick auf die Spaltenköpfe sortiert nach Datum, Gesamtwertung, CPU oder GPU.");
 
         ContextMenu cm = new ContextMenu();
-        MenuItem miCompare = new MenuItem("Vergleichen", delegate { CompareSelected(); });
-        MenuItem miDashboard = new MenuItem("Im Dashboard ansehen", delegate { OpenDashboard(); });
+        MenuItem miCompare = new MenuItem("Vergleichen (Klassisch)", delegate { CompareSelected(); });
+        MenuItem miDashboard = new MenuItem("Interaktives Dashboard", delegate { OpenDashboard(); });
         MenuItem miSep1 = new MenuItem("-");
         MenuItem miRename = new MenuItem("Name ändern ...", delegate { RenameSelectedEntry(); });
         MenuItem miOpen = new MenuItem("Bericht öffnen", delegate { if (lvDb.SelectedItems.Count > 0) OpenEntry((DbEntry)lvDb.SelectedItems[0].Tag); });
@@ -294,7 +295,11 @@ public partial class DiagGui
         if (btnCompare == null) return;
         int n = CheckedEntries().Count;
         btnCompare.Enabled = n >= 2; btnDelete.Enabled = n >= 1;
-        btnCompare.Text = n >= 2 ? n + " Systeme vergleichen" : "Vergleichen";
+        btnCompare.Text = n >= 2 ? n + " Systeme vergleichen (Klassisch)" : "Vergleichen (Klassisch)";
+        if (btnDashboard != null)
+        {
+            btnDashboard.Text = n >= 2 ? n + " Systeme im Dashboard" : "Interaktives Dashboard";
+        }
         if (btnRename != null)
         {
             int selCount = (lvDb != null ? lvDb.SelectedItems.Count : 0);
@@ -333,7 +338,15 @@ public partial class DiagGui
     {
         Cursor = Cursors.WaitCursor;
         List<string> lines = new List<string>(); string res = "";
-        try { res = RunHelper("-Dashboard", out lines); }
+        List<DbEntry> sel = CheckedEntries();
+        string args = "-Dashboard";
+        if (sel.Count > 0)
+        {
+            List<string> paths = new List<string>();
+            foreach (DbEntry e in sel) paths.Add(e.Path);
+            args += " -DashboardSysteme \"" + String.Join(";", paths.ToArray()) + "\"";
+        }
+        try { res = RunHelper(args, out lines); }
         catch (Exception ex) { lines.Add("Dashboard-Aufruf fehlgeschlagen: " + ex.Message); }
         Cursor = Cursors.Default;
         if (res.Length > 0 && File.Exists(res)) OpenShell(res);

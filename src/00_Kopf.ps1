@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 # Diese Datei erzeugt Bauen.cmd aus dem Ordner src. Änderungen bitte in src vornehmen, nicht hier.
 <#
 .SYNOPSIS
@@ -100,6 +100,7 @@ param(
     [string]$Rueckgaengig,
     [switch]$Dashboard,
     [string]$DashboardExport,
+    [string]$DashboardSysteme = '',
     # Auswertung von Minibench-Daten\Laufzeit\Start.log ausgeben (Startzeit je Phase, Stick und Festplatte getrennt)
     [switch]$StartAuswertung,
     # Datenpflege (ab v2.7): Lasttests vor v2.67 (nicht vergleichbar), unvollständige und kurze Läufe ins Archiv

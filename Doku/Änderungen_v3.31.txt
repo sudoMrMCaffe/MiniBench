@@ -1,0 +1,93 @@
+﻿LEOS MINIBENCH 3.31: ÄNDERUNGEN
+===============================
+
+Version 3.31 erweitert das interaktive Benchmark- und Diagnose-Dashboard um die vollständige Funktionalität
+der klassischen Vergleichsfunktion für beliebig viele Systeme (N >= 2). Beide Vergleichswege (statischer
+HTML-Bericht und interaktives HTML5-Dashboard) stehen in der Benutzeroberfläche gleichberechtigt zur Verfügung.
+Zudem erhält das WinForms-Hauptprogramm einen nativen Dark Mode mit Titelleistenanpassung via DWM, und Bauen.cmd
+aktualisiert Git nach erfolgreichem Build und bestandenen Tests automatisch.
+
+1. MULTI-SYSTEM-VERGLEICH IM INTERAKTIVEN DASHBOARD (N >= 2)
+   * Flexible Systemauswahl: Die starre 2er-Auswahl (Zielsystem vs. Referenz) wurde durch eine dynamische
+     Auswahl ersetzt: Ein Basis- bzw. Referenzsystem aus Dropdown oder Systemliste plus beliebig viele
+     Vergleichssysteme über interaktive System-Chips mit Schnellauswahl ("Alle auswählen", "Auswahl aufheben").
+   * Vollständige Hardware-Spezifikationen im Direktvergleich: Übersichtstabelle aller gewählten Systeme nebeneinander
+     (Rechnername, CPU, RAM, GPU, Datenträger, Betriebssystem, Mainboard, Installationsdatum) identisch
+     zum klassischen Vergleichsbericht.
+   * Vollständige Benchmark-Matrix: Synoptische Gegenüberstellung sämtlicher vorliegender Messwerte:
+     - Prozessor: Einzelkern (CPU|ST), Mehrkern (CPU|MT), AES-256 (CPU|AES), SHA-256 (CPU|SHA), Deflate (CPU|DEFL).
+     - Arbeitsspeicher: Lesedurchsatz (RAM|Lesen), Schreibdurchsatz (RAM|Schreiben), Kopierdurchsatz (RAM|Kopieren),
+       Speicherlatenz (RAM|Latenz).
+     - Grafik: Rendertest (GPU|REND Ø FPS, 1%-Low GPU|REND1, 0,1%-Low GPU|REND01, Mikroruckler GPU|STUTTER),
+       Speicherdurchsatz (GPU|VMB), Desktop-Komposition (GPU|DWM), Render-Punktzahl (GPU|RPKT).
+     - Datenträger: Sequentielles Lesen und Schreiben (SR/SW) sowie 4K-Messungen (R1/R8/W1) je Klasse.
+     - Automatische Hervorhebung des Bestwerts ("👑 Bestwert") je Messreihe mit grünem Badge.
+   * Synoptischer Befund-Vergleich: Gegenüberstellung aller Diagnose-Befunde (Kritisch, Warnungen, Hinweise)
+     für jedes verglichene System mit aufklappbaren Detailkarten.
+   * Multi-System Canvas Telemetrie-Chart: Umschaltbare Takt- und Temperaturkurven mit Farbcodierung je System,
+     Mehrsystem-Temperaturmodus, Mehrsystem-Taktmodus und Basissystem-Detailansicht sowie synchronem
+     Mehrsystem-Cursor-Tooltip beim Überfahren des Charts.
+
+2. NATIVEN DARK MODE FÜR DIE MINIBENCH-APP (WINFORMS GUI)
+   * Dynamisches Farbsystem in src\Oberflaeche\DiagGui_Steuerelemente.cs:
+     - Statische Farbdefinitionen wurden in zustandsabhängige Eigenschaften mit Umschaltlogik UI.SetTheme(bool dark)
+       überführt.
+     - Helles Theme: Bg = #F9F9FB, Panel = #FFFFFF, Text = #1C1D1F, Muted = #5F6368, Line = #E5E7EB, Header = #161E2E.
+     - Dunkles Theme: Bg = #18191A, Panel = #242526, Text = #F5F6F7, Muted = #9CA3AF, Line = #3A3B3C, Header = #121314.
+     - Sanfte, augenschonende Status- und Kontrastfarben für Kritisch, Warnung, Information und OK im Dark Mode.
+     - Angepasste Zeichenroutinen für ToggleSwitch, FluentCard, NavItem, FlatBar und SensorChart.
+   * Fenster- und Titelleisten-Steuerung in src\Oberflaeche\DiagGui.cs:
+     - Diskreter Umschalter oben rechts in der Kopfzeile neben "Versionshistorie" mit Tooltip ("Tip(...)").
+     - Aktualisierung der Windows-Titelleiste über DwmSetWindowAttribute (DWMWA_USE_IMMERSIVE_DARK_MODE = 20, Fallback 19).
+     - Dauerhafte Speicherung der Theme-Einstellung in Minibench-Daten\Einstellungen.json (Fallback: automatische
+       Übernahme des Windows-Systemdesigns via Registrierungseintrag AppsUseLightTheme).
+     - Flackerfreie, rekursive Steuerelement-Aktualisierung (ApplyThemeRecursive) unter Nutzung von SuspendLayout / ResumeLayout.
+
+3. PARALLELE VERGLEICHSWEGE IN DER OBERFLÄCHE
+   * Toolbar der Vergleichsseite in src\Oberflaeche\DiagGui_Vergleich.cs:
+     - Schaltfläche "Vergleichen (Klassisch)" erzeugt wie bisher den bewährten statischen Vergleichsbericht.html.
+     - Schaltfläche "Interaktives Dashboard" übergibt alle angehakten Systeme via CLI-Parameter -DashboardSysteme
+       an das Dashboard und öffnet es im Standardbrowser.
+   * Kontextmenü der Vergleichsdatenbank:
+     - Beide Menüpunkte ("Vergleichen (Klassisch)" und "Interaktives Dashboard") direkt per Rechtsklick erreichbar.
+     - Automatische Plural-Anzeige bei mehreren angehakten Systemen (z. B. "3 Systeme vergleichen (Klassisch)" bzw.
+       "3 Systeme im Dashboard").
+
+4. BUILD-PROZESS UND GIT-AUTOMATISIERUNG
+   * Erweiterung in Bauen.cmd:
+     - Nach erfolgreicher Kompilierung, bestandenen Tests und Datenpflege prüft das Skript, ob git.exe verfügbar
+       und das Verzeichnis ein Git-Repository ist.
+     - Führt standardmäßig "git add src Doku tests Bauen.cmd README.md CHANGELOG.md" aus.
+     - Erstellt einen Release-Commit mit formatiertem Text: "Release v3.31: Multi-System Dashboard, nativer GUI Dark Mode & Build-Sync".
+     - Gibt eine klare Statusmeldung in der Konsole aus, dass der Build lokal committet wurde und per "git push"
+       bereitgestellt werden kann.
+
+GEFUNDEN UND BEHOBEN
+  1. Befunde-Parsing bei Altdatenbanken: Im Dashboard-Export wurden Befunde aus PC-Diagnose-DB/2, die als formatierter
+     String "K/W/I" (z. B. "1/0/1") abgelegt sind, korrekt geparst und um BefundeDetails-Texte ergänzt.
+  2. DatenOrdner-Alias für Dashboard-Export: Export-BenchDashboardData und Export-BenchDashboardHtml akzeptieren nun
+     auch den Parameter -DatenOrdner als Alias für -DatabaseDir und lösen Unterordner Datenbank/Berichte automatisch auf.
+  3. C#-Kompilierung im Testrunner: DiagGui_Steuerelemente.cs benötigt beim concatenierten Kompilieren keine separaten
+     using-Direktiven am Dateianfang, da diese von DiagGui.cs bereitgestellt werden; isolierte Testkompilierung bindet
+     die Namensräume dynamisch ein.
+  4. Script-Parameter-Vertrag: Parameter DashboardSysteme wurde im Modulvertrag-Test als allgemeiner CLI-Parameter
+     registriert.
+
+GRENZEN
+  - Zur Anzeige des Dashboards ist ein moderner Webbrowser mit HTML5-Canvas-Unterstützung erforderlich.
+  - Der Windows-Titelleisten-Dark-Mode via DWM erfordert Windows 10 Version 1809 oder neuer (auf älteren Versionen
+    bleibt die Titelleiste im Standardsystemstil, während das Anwendungsfenster dunkel gefärbt wird).
+
+UMSTIEG
+  1. Bauen.cmd ausführen (baut LeosMinibench.exe und LeosMinibench.ps1 für v3.31 und committet lokal).
+  2. Inhalt des Ordners "Aktueller Build" auf den USB-Stick kopieren.
+  3. Frühere Datenbankeinträge und Einstellungen bleiben unverändert erhalten.
+
+ERGEBNIS
+  Alle Pester-Tests bestanden (620 Tests insgesamt grün).
+  Vollständiger Multi-System-Vergleich im Dashboard und nativer WinForms Dark Mode nach C# 5 / .NET 4 Vorgaben.
+
+QUELLEN
+  - Microsoft Docs: DwmSetWindowAttribute (DWMWA_USE_IMMERSIVE_DARK_MODE).
+  - Microsoft Docs: Personalize Registry Key (AppsUseLightTheme).
+  - W3C HTML5 Canvas 2D Context Specification.

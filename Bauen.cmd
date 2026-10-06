@@ -1,4 +1,4 @@
-<# : batch
+﻿<# : batch
 @echo off
 setlocal
 title Leos Minibench bauen
@@ -420,6 +420,28 @@ try {
             $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $build 'LeosMinibench.ps1') -Datenpflege -DatenDir $bData -ArchivDir (Join-Path $Here 'Archiv\Minibench-Daten') 2>&1
             foreach ($l in @($out)) { $t = [string]$l; if ($t.Trim()) { Write-Host ('             ' + $t.Trim()) } }
         } catch { Write-Host ('  Hinweis  : Datenpflege nicht möglich: {0}' -f $_.Exception.Message) -ForegroundColor Yellow }
+    }
+
+    # 6. Git-Automatisierung (ab v3.31): Nach erfolgreichem Bau und bestandenen Tests lokalen Commit erzeugen
+    $gitCmd = Get-Command git.exe -ErrorAction SilentlyContinue
+    $isGitRepo = Test-Path -LiteralPath (Join-Path $Here '.git')
+    if ($gitCmd -and $isGitRepo) {
+        Write-Host '  Git      : Automatische Aktualisierung ...'
+        try {
+            $stageFiles = @('src', 'Doku', 'tests', 'Bauen.cmd', 'README.md', 'CHANGELOG.md')
+            & git.exe -C $Here add $stageFiles 2>&1 | Out-Null
+            $status = & git.exe -C $Here status --porcelain 2>&1
+            if ($status) {
+                $commitMsg = ('Release v{0}: Multi-System Dashboard, nativer GUI Dark Mode & Build-Sync' -f $ver)
+                $commitOut = & git.exe -C $Here commit -m $commitMsg 2>&1
+                Write-Host ('  Git      : Stand lokal committed ({0})' -f $commitMsg) -ForegroundColor Green
+                Write-Host '  Git      : Bereit zur Übertragung mit "git push".' -ForegroundColor Cyan
+            } else {
+                Write-Host '  Git      : Keine uncommitteten Änderungen vorhanden.' -ForegroundColor Gray
+            }
+        } catch {
+            Write-Host ('  Hinweis  : Git-Commit nicht möglich: {0}' -f $_.Exception.Message) -ForegroundColor Yellow
+        }
     }
 
     Write-Host ''

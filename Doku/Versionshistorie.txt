@@ -5,6 +5,22 @@ Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Verweis Versionshistorie oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
 
+VERSION 3.31   (06.10.2026)  MULTI-SYSTEM DASHBOARD (N >= 2), NATIVER GUI DARK MODE & BUILD-SYNC
+====================================================================================================
+Multi-System-Vergleich im Dashboard: Beliebige Anzahl von Systemen (N >= 2) mit dynamischer Systemauswahl,
+direkter Hardware-Gegenüberstellung, vollständiger Benchmark-Matrix aller Messwerte (CPU ST/MT/Krypto,
+RAM-Bandbreite und -Latenzen, GPU Frametimes und Mikroruckler, Datenträger sequentiell und 4K) mit
+Bestwert-Hervorhebung ("👑 Bestwert"), synoptischer Gegenüberstellung der Befunde (Kritisch/Warnung/Info)
+sowie interaktivem Multi-System Canvas-Chartvergleich für Takt und Temperatur.
+Paralleler Betriebsmodus: Sowohl der bewährte statische Vergleichsbericht ("Vergleichen (Klassisch)") als auch
+das neue interaktive Dashboard ("Interaktives Dashboard") stehen in der Datenbank-Toolbar und im Kontextmenü
+vollwertig zur Verfügung.
+Nativer WinForms Dark Mode: Vollständig integriertes dynamisches Theme-System (Hell/Dunkel) für das Hauptprogramm
+mit diskretem Theme-Schalter in der Titelleiste, DWM Immersive Dark Mode für die Fensterleiste und dauerhafter
+Speicherung in Minibench-Daten\Einstellungen.json (Fallback auf Windows-Systemdesign).
+Build- und Git-Synchronisation: Bauen.cmd synchronisiert und committet Quelltexte und Dokumentation nach
+erfolgreichem Bau und bestandenen Tests automatisch lokal in Git.
+
 VERSION 3.3   (06.10.2026)  INTERAKTIVES BENCHMARK- & DIAGNOSE-DASHBOARD, LASTTEST-TELEMETRIE & DARK MODE
 ====================================================================================================
 Eigenständiges HTML5-Dashboard: Vollständig offline-fähiges, interaktives Analyse- und Vergleichs-Dashboard mit

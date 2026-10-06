@@ -1,22 +1,28 @@
 ﻿// Grafische Oberflaeche: Steuerelemente
 public static class UI
 {
-    public static readonly Color Bg = Color.FromArgb(249, 249, 251);
-    public static readonly Color Panel = Color.White;
-    public static readonly Color Text = Color.FromArgb(28, 29, 31);
-    public static readonly Color Muted = Color.FromArgb(95, 99, 104);
-    public static readonly Color Line = Color.FromArgb(229, 231, 235);
-    public static readonly Color Accent = Color.FromArgb(0, 103, 192);
-    public static readonly Color AccentHover = Color.FromArgb(0, 90, 158);
-    public static readonly Color AccentActive = Color.FromArgb(0, 79, 138);
-    public static readonly Color AccentDark = Color.FromArgb(0, 79, 138);
-    public static readonly Color AccentSoft = Color.FromArgb(235, 243, 251);
-    public static readonly Color Header = Color.FromArgb(22, 30, 46);
-    public static readonly Color Crit = Color.FromArgb(196, 43, 28), CritBg = Color.FromArgb(253, 231, 233);
-    public static readonly Color Warn = Color.FromArgb(157, 93, 0), WarnBg = Color.FromArgb(255, 244, 206);
-    public static readonly Color Info = Color.FromArgb(0, 103, 192), InfoBg = Color.FromArgb(235, 243, 251);
-    public static readonly Color Ok = Color.FromArgb(16, 124, 65), OkBg = Color.FromArgb(223, 246, 221);
-    public static readonly Color Skip = Color.FromArgb(95, 99, 104), SkipBg = Color.FromArgb(243, 244, 246);
+    public static bool IsDark { get; set; }
+    public static Color Bg { get; set; }
+    public static Color Panel { get; set; }
+    public static Color Text { get; set; }
+    public static Color Muted { get; set; }
+    public static Color Line { get; set; }
+    public static Color Accent { get; set; }
+    public static Color AccentHover { get; set; }
+    public static Color AccentActive { get; set; }
+    public static Color AccentDark { get; set; }
+    public static Color AccentSoft { get; set; }
+    public static Color Header { get; set; }
+    public static Color Crit { get; set; }
+    public static Color CritBg { get; set; }
+    public static Color Warn { get; set; }
+    public static Color WarnBg { get; set; }
+    public static Color Info { get; set; }
+    public static Color InfoBg { get; set; }
+    public static Color Ok { get; set; }
+    public static Color OkBg { get; set; }
+    public static Color Skip { get; set; }
+    public static Color SkipBg { get; set; }
 
     public static float DpiScale = 1.0f;
 
@@ -32,6 +38,60 @@ public static class UI
         }
         catch { DpiScale = 1.0f; }
         if (DpiScale <= 0.1f) DpiScale = 1.0f;
+        SetTheme(false);
+    }
+
+    public static void SetTheme(bool dark)
+    {
+        IsDark = dark;
+        if (dark)
+        {
+            Bg = Color.FromArgb(24, 25, 26);           // #18191A
+            Panel = Color.FromArgb(36, 37, 38);        // #242526
+            Text = Color.FromArgb(245, 246, 247);      // #F5F6F7
+            Muted = Color.FromArgb(156, 163, 175);     // #9CA3AF
+            Line = Color.FromArgb(58, 59, 60);         // #3A3B3C
+            Header = Color.FromArgb(18, 19, 20);       // #121314
+            Accent = Color.FromArgb(76, 194, 255);     // #4CC2FF
+            AccentHover = Color.FromArgb(96, 205, 255);
+            AccentActive = Color.FromArgb(60, 160, 220);
+            AccentDark = Color.FromArgb(30, 78, 121);
+            AccentSoft = Color.FromArgb(35, 52, 70);   // #233446
+            Crit = Color.FromArgb(255, 153, 164);      // #FF99A4
+            CritBg = Color.FromArgb(68, 39, 38);       // #442726
+            Warn = Color.FromArgb(252, 225, 0);        // #FCE100
+            WarnBg = Color.FromArgb(63, 51, 22);       // #3F3316
+            Info = Color.FromArgb(76, 194, 255);       // #4CC2FF
+            InfoBg = Color.FromArgb(35, 52, 70);       // #233446
+            Ok = Color.FromArgb(108, 203, 95);         // #6CCB5F
+            OkBg = Color.FromArgb(27, 56, 40);         // #1B3828
+            Skip = Color.FromArgb(156, 163, 175);     // #9CA3AF
+            SkipBg = Color.FromArgb(51, 51, 51);       // #333333
+        }
+        else
+        {
+            Bg = Color.FromArgb(249, 249, 251);        // #F9F9FB
+            Panel = Color.White;                       // #FFFFFF
+            Text = Color.FromArgb(28, 29, 31);         // #1C1D1F
+            Muted = Color.FromArgb(95, 99, 104);       // #5F6368
+            Line = Color.FromArgb(229, 231, 235);      // #E5E7EB
+            Header = Color.FromArgb(22, 30, 46);       // #161E2E
+            Accent = Color.FromArgb(0, 103, 192);
+            AccentHover = Color.FromArgb(0, 90, 158);
+            AccentActive = Color.FromArgb(0, 79, 138);
+            AccentDark = Color.FromArgb(0, 79, 138);
+            AccentSoft = Color.FromArgb(235, 243, 251);
+            Crit = Color.FromArgb(196, 43, 28);
+            CritBg = Color.FromArgb(253, 231, 233);
+            Warn = Color.FromArgb(157, 93, 0);
+            WarnBg = Color.FromArgb(255, 244, 206);
+            Info = Color.FromArgb(0, 103, 192);
+            InfoBg = Color.FromArgb(235, 243, 251);
+            Ok = Color.FromArgb(16, 124, 65);
+            OkBg = Color.FromArgb(223, 246, 221);
+            Skip = Color.FromArgb(95, 99, 104);
+            SkipBg = Color.FromArgb(243, 244, 246);
+        }
     }
 
     public static int S(int px)
@@ -121,7 +181,7 @@ public static class UI
     public static Button Secondary(string text)
     {
         Button b = new Button(); b.Text = text; b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderColor = Line;
-        b.BackColor = Panel; b.ForeColor = Text; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(243, 244, 246); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(235, 237, 240);
+        b.BackColor = Panel; b.ForeColor = Text; b.FlatAppearance.MouseOverBackColor = IsDark ? Color.FromArgb(45, 48, 52) : Color.FromArgb(243, 244, 246); b.FlatAppearance.MouseDownBackColor = IsDark ? Color.FromArgb(55, 58, 62) : Color.FromArgb(235, 237, 240);
         b.Font = new Font("Segoe UI", 9.75f); b.AutoSize = true; b.Padding = new Padding(S(10), S(3), S(10), S(3)); b.Margin = new Padding(S(8), 0, 0, 0); b.Cursor = Cursors.Hand; b.UseVisualStyleBackColor = false;
         return b;
     }
@@ -214,8 +274,9 @@ public class ToggleSwitch : Control
             }
             else
             {
-                Color borderColor = hover ? Color.FromArgb(118, 118, 118) : Color.FromArgb(209, 213, 219);
-                using (SolidBrush b = new SolidBrush(Color.White)) g.FillPath(b, trackPath);
+                Color borderColor = hover ? (UI.IsDark ? Color.FromArgb(140, 140, 140) : Color.FromArgb(118, 118, 118)) : (UI.IsDark ? Color.FromArgb(80, 80, 80) : Color.FromArgb(209, 213, 219));
+                Color trackBg = UI.IsDark ? Color.FromArgb(45, 48, 52) : Color.White;
+                using (SolidBrush b = new SolidBrush(trackBg)) g.FillPath(b, trackPath);
                 using (Pen p = new Pen(borderColor, UI.SF(1.5f))) g.DrawPath(p, trackPath);
             }
         }
@@ -229,13 +290,15 @@ public class ToggleSwitch : Control
 
         // Weißer Schieber-Knopf
         RectangleF knobRect = new RectangleF(knobX, knobY, knobD, knobD);
-        using (SolidBrush kb = new SolidBrush(Color.White))
+        Color knobColor = isChecked ? Color.White : (UI.IsDark ? Color.FromArgb(200, 205, 210) : Color.White);
+        using (SolidBrush kb = new SolidBrush(knobColor))
         {
             g.FillEllipse(kb, knobRect);
         }
         if (!isChecked)
         {
-            using (Pen kp = new Pen(Color.FromArgb(118, 118, 118), 1f))
+            Color kpCol = UI.IsDark ? Color.FromArgb(80, 80, 80) : Color.FromArgb(118, 118, 118);
+            using (Pen kp = new Pen(kpCol, 1f))
             {
                 g.DrawEllipse(kp, knobRect);
             }
@@ -371,8 +434,8 @@ public class FluentCard : Control
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
         RectangleF r = new RectangleF(1, 1, Width - 3, Height - 3);
-        Color bg = hover ? Color.FromArgb(250, 251, 253) : UI.Panel;
-        Color border = hover ? Color.FromArgb(209, 213, 219) : UI.Line;
+        Color bg = hover ? (UI.IsDark ? Color.FromArgb(42, 44, 46) : Color.FromArgb(250, 251, 253)) : UI.Panel;
+        Color border = hover ? (UI.IsDark ? Color.FromArgb(80, 82, 85) : Color.FromArgb(209, 213, 219)) : UI.Line;
 
         using (GraphicsPath p = UI.Round(r, UI.SF(8)))
         {
@@ -435,7 +498,8 @@ class FlatBar : Control
         Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
         RectangleF r = new RectangleF(0, 0, Width - 1, Height - 1);
         float rad = Height / 2f;
-        using (GraphicsPath track = UI.Round(r, rad)) using (SolidBrush tb = new SolidBrush(Color.FromArgb(226, 231, 238))) g.FillPath(tb, track);
+        Color trackColor = UI.IsDark ? Color.FromArgb(48, 50, 54) : Color.FromArgb(226, 231, 238);
+        using (GraphicsPath track = UI.Round(r, rad)) using (SolidBrush tb = new SolidBrush(trackColor)) g.FillPath(tb, track);
         using (GraphicsPath clip = UI.Round(r, rad))
         {
             g.SetClip(clip);
@@ -491,11 +555,12 @@ class NavItem : Control
     {
         Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
         RectangleF r = new RectangleF(1, 1, Width - 3, Height - 3);
-        Color fill = sel ? UI.AccentSoft : (hover ? Color.FromArgb(240, 243, 248) : UI.Panel);
+        Color fill = sel ? UI.AccentSoft : (hover ? (UI.IsDark ? Color.FromArgb(45, 47, 50) : Color.FromArgb(240, 243, 248)) : UI.Panel);
+        Color borderPen = sel ? UI.Accent : (hover ? (UI.IsDark ? Color.FromArgb(80, 82, 85) : Color.FromArgb(209, 213, 219)) : UI.Line);
         using (GraphicsPath p = UI.Round(r, UI.SF(6)))
         {
             using (SolidBrush b = new SolidBrush(fill)) g.FillPath(b, p);
-            using (Pen pen = new Pen(sel ? UI.Accent : (hover ? Color.FromArgb(209, 213, 219) : UI.Line), sel ? UI.SF(1.5f) : UI.SF(1f))) g.DrawPath(pen, p);
+            using (Pen pen = new Pen(borderPen, sel ? UI.SF(1.5f) : UI.SF(1f))) g.DrawPath(pen, p);
         }
 
         // Bei Auswahl: Links ein 3 px breiter, abgerundeter blauer Akzentbalken
@@ -515,7 +580,8 @@ class NavItem : Control
             using (GraphicsPath bp = UI.Round(bx, UI.SF(5)))
             {
                 using (SolidBrush bb = new SolidBrush(chk ? UI.Accent : UI.Panel)) g.FillPath(bb, bp);
-                using (Pen bpen = new Pen(chk ? UI.Accent : Color.FromArgb(160, 170, 185), UI.SF(1.5f))) g.DrawPath(bpen, bp);
+                Color chkBorder = chk ? UI.Accent : (UI.IsDark ? Color.FromArgb(90, 95, 105) : Color.FromArgb(160, 170, 185));
+                using (Pen bpen = new Pen(chkBorder, UI.SF(1.5f))) g.DrawPath(bpen, bp);
             }
             if (chk) using (Pen ck = new Pen(Color.White, UI.SF(2.4f))) { ck.StartCap = LineCap.Round; ck.EndCap = LineCap.Round; g.DrawLines(ck, new Point[] { new Point(bx.X + UI.S(5), bx.Y + UI.S(10)), new Point(bx.X + UI.S(9), bx.Y + UI.S(14)), new Point(bx.X + UI.S(15), bx.Y + UI.S(6)) }); }
             x = bx.Right + UI.S(10);
@@ -538,7 +604,8 @@ class NavItem : Control
             Size tsz = TextRenderer.MeasureText(g, Title, ft);
             int th = Math.Max(tsz.Height, UI.S(18));
             int startY = (Height - th) / 2;
-            TextRenderer.DrawText(g, Title, ft, new Rectangle(x, startY, Width - x - UI.S(8), th), sel ? UI.AccentDark : UI.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            Color titleColor = sel ? (UI.IsDark ? UI.Accent : UI.AccentDark) : UI.Text;
+            TextRenderer.DrawText(g, Title, ft, new Rectangle(x, startY, Width - x - UI.S(8), th), titleColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         }
     }
 }
@@ -739,7 +806,7 @@ class SensorChart : Control
         double span = hi - lo; if (span < 1) span = 1;
         double step = NiceStep(span / 3);
         double y0 = Math.Floor(lo / step) * step, y1 = Math.Ceiling(hi / step) * step; if (y1 <= y0) y1 = y0 + step;
-        using (Pen grid = new Pen(Color.FromArgb(236, 239, 243)))
+        using (Pen grid = new Pen(UI.IsDark ? Color.FromArgb(45, 48, 52) : Color.FromArgb(236, 239, 243)))
         using (Font fa = new Font("Segoe UI", 7.75f))
         {
             for (double v = y0; v <= y1 + step / 1000; v += step)

@@ -1,4 +1,4 @@
-﻿# Import älterer Ausgabeordner in die Vergleichsdatenbank (wird von der Oberfläche aufgerufen)
+# Import älterer Ausgabeordner in die Vergleichsdatenbank (wird von der Oberfläche aufgerufen)
 if ($ImportOrdner) {
     Import-LegacyFolder $ImportOrdner
     exit 0
@@ -16,11 +16,15 @@ if ($Vergleich) {
 }
 
 # Interaktives Dashboard generieren oder öffnen (wird von der Oberfläche oder über die Befehlszeile aufgerufen)
-if ($Dashboard -or $DashboardExport) {
+if ($Dashboard -or $DashboardExport -or $DashboardSysteme) {
     $df = ''
     try {
         $outPath = $(if ($DashboardExport) { $DashboardExport } else { '' })
-        $df = Export-BenchDashboardHtml -OutputPath $outPath
+        $sysPaths = @()
+        if ($DashboardSysteme) {
+            $sysPaths = @($DashboardSysteme -split ';' | Where-Object { $_ -and (Test-Path -LiteralPath $_) })
+        }
+        $df = Export-BenchDashboardHtml -OutputPath $outPath -SystemPaths $sysPaths
     } catch {
         Write-Host ('Dashboard-Erstellung fehlgeschlagen: {0}' -f $_.Exception.Message)
     }

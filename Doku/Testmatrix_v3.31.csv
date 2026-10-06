@@ -1,0 +1,16 @@
+﻿Nr;Bereich;Testfall;Umgebung;Erwartung;Art;Ergebnis;Datum;Bemerkung
+A1;Bau;Testen.cmd ausführen;Windows 10/11 mit Pester 5/6;alle Pester-Tests bestanden, 0 fehlgeschlagen, Version331.Tests.ps1 dabei;automatisch;;;
+A2;Bau;Bauen.cmd ausführen & Git-Sync;Windows-Buildumgebung;Version 3.31 erzeugt, Archiv\v3.3 gesichert, Stand.txt aktuell, automatischer Git-Commit;automatisch;;;
+D1;Daten;Multi-System-Export N >= 2;PowerShell 5.1 / 7;Export-BenchDashboardData aggregiert N Systeme mit Hardware, Matrix und Befunden;automatisch;;;
+D2;Daten;Hardware-Spezifikationen Direktvergleich;3 Systeme;Tabelle mit Rechnername, CPU, RAM, GPU, Disks, OS, Mainboard, Install-Datum nebeneinander;automatisch;;;
+D3;Daten;Benchmark-Matrix aller Metriken;Testdaten mit CPU, RAM, GPU, Disk;Gegenüberstellung aller Metriken mit Bestwert-Hervorhebung fehlerfrei;automatisch;;;
+D4;Daten;Befunde-Vergleich;Systeme mit Kritisch/Warnung/Info;Synoptische Befunde-Karten und Listen je System nebeneinander;automatisch;;;
+D5;Daten;Canvas-Chart Multi-System Überlagerung;Browser;Temperatur- und Taktkurven mehrerer Systeme farbcodiert übereinander;automatisch;;;
+U1;UI;GUI Dark Mode Umschaltung;Windows 10/11 WinForms;Umschalter wechselt Farbschema sofort und flackerfrei (#18191A / #F9F9FB);automatisch;;;
+U2;UI;DWM Titelleisten-Dark-Mode;Windows 10 20H1+ / Windows 11;Fenstertitelleiste schaltet synchron dunkel/hell via DWM-Attribut 20/19;manuell;;;
+U3;UI;Theme-Persistenz & Fallback;Einstellungen.json / Registry;Theme-Wahl bleibt nach Neustart erhalten, Fallback auf AppsUseLightTheme;automatisch;;;
+U4;GUI;Parallele Vergleichsoptionen;Vergleichsseite & Kontextmenü;Vergleichen (Klassisch) und Interaktives Dashboard funktionieren parallel;automatisch;;;
+H1;Hardware;Testlauf Desktop Intel Core + NVIDIA dGPU;Intel i9 / i7 + RTX dGPU;Multi-System Dashboard und WinForms Dark Mode fehlerfrei;manuell;;;
+H2;Hardware;Testlauf Desktop AMD Ryzen + Radeon dGPU;AMD Ryzen 9/7 + RX dGPU;Hardware-Gegenüberstellung und Benchmark-Matrix vollständig;manuell;;;
+H3;Hardware;Testlauf Notebook mit iGPU;Intel Core Iris Xe / AMD APU;Canvas-Chart skaliert auf 1080p mit 150 % Skalierung ohne Überlauf;manuell;;;
+H4;Hardware;Testlauf Notebook mit Hybridgrafik;Intel/AMD iGPU + NVIDIA dGPU;Umschaltung zwischen klassischem Bericht und interaktivem Dashboard;manuell;;;

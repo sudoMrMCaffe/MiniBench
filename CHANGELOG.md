@@ -2,6 +2,27 @@
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
 
+## v3.31 (06.10.2026)
+
+* **Multi-System-Vergleich im interaktiven Dashboard (N >= 2):**
+  * Umstellung der starren 2-System-Auswahl auf flexible Multi-System-Selektion: Ein beliebiges Basissystem plus beliebig viele Vergleichssysteme über interaktive System-Chips mit Schaltflächen zur Schnellauswahl.
+  * Vollständige Hardware-Spezifikationen im Direktvergleich: Übersichtstabelle aller gewählten Systeme nebeneinander (Rechnername, CPU, RAM, GPU, Datenträger, Betriebssystem, Mainboard, Installationsdatum) äquivalent zum klassischen Vergleichsbericht.
+  * Vollständige Benchmark-Matrix: Synoptische Gegenüberstellung sämtlicher vorliegender Messwerte (CPU Single/Multi/AES/SHA/Deflate, RAM Lesen/Schreiben/Kopieren/Latenz, GPU FPS/1%-Low/0,1%-Low/Mikroruckler, Datenträger sequentiell und 4K) mit automatischer Bestwert-Hervorhebung (`👑 Bestwert`).
+  * Synoptischer Befund-Vergleich: Gegenüberstellung aller Diagnose-Befunde (Kritisch, Warnungen, Hinweise) aufgeschlüsselt nach den verglichenen Systemen.
+  * Interaktiver Canvas-Chart für mehrere Systeme: Umschaltbare Takt- und Temperaturkurven (Temperatur-Modus, Takt-Modus, Einzel-Detailansicht) mit Farbcodierung je System und simultanem Multi-System-Tooltip beim Überfahren mit der Maus.
+* **Paralleler Betriebsmodus in der Oberfläche:**
+  * Gleichberechtigte Koexistenz beider Vergleichswege in der Toolbar und im Kontextmenü der Vergleichsseite:
+    * *Vergleichen (Klassisch)* erzeugt den bewährten statischen `Vergleichsbericht.html`.
+    * *Interaktives Dashboard* übergibt alle angehakten Systeme an `Show-BenchDashboard` und öffnet das interaktive Dashboard mit vorausgewählten Systemen.
+* **Nativer Dark Mode für die MiniBench-App (DiagGui.cs):**
+  * Dynamisches Farbsystem in `DiagGui_Steuerelemente.cs` (`UI.IsDark`, `UI.SetTheme(bool dark)`): Saubere Umschaltung zwischen hellem Modus (`#F9F9FB`, `#FFFFFF`, `#1C1D1F`, `#5F6368`, `#E5E7EB`, `#161E2E`) und augenschonendem dunklem Modus (`#18191A`, `#242526`, `#F5F6F7`, `#9CA3AF`, `#3A3B3C`, `#121314`) inklusive angepasster Statusfarben und Steuerflächen.
+  * Titelleisten-Umschalter: Diskreter Theme-Schalter (☀️/🌙) in der Kopfzeile neben der Versionshistorie mit Mouseover-Tooltip (`Tip`).
+  * Windows DWM Immersive Dark Mode: Dynamische Umschaltung der Windows-Fensterleiste via `DwmSetWindowAttribute` (`DWMWA_USE_IMMERSIVE_DARK_MODE`).
+  * Einstellungs-Persistierung: Speicherung der gewählten Theme-Präferenz in `Minibench-Daten/Einstellungen.json` mit automatischem Fallback auf das Windows-Systemdesign (`AppsUseLightTheme`).
+  * Flackerfreie Neuzeichnung durch rekursive Steuerelement-Aktualisierung und Doppelpufferung.
+* **Build-Prozess & Git-Automatisierung:**
+  * Erweiterung von `Bauen.cmd`: Nach erfolgreichem Bau und bestandenen Tests wird das Git-Repository geprüft, Quell- und Dokumentationsdateien gestaged und ein lokaler Release-Commit formatiert erzeugt.
+
 ## v3.3 (06.10.2026)
 
 * **Interaktives Benchmark- & Diagnose-Dashboard:**

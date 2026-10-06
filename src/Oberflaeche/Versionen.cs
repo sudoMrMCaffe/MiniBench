@@ -11,6 +11,11 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.31", "06.10.2026", "Multi-System-Vergleich im Dashboard (N >= 2), nativer WinForms Dark Mode & Build-Synchronisation",
+            "Multi-System-Vergleich im Dashboard: Beliebige Anzahl von Systemen (N >= 2) mit dynamischer Auswahl, direkter Hardware-Gegenüberstellung, vollständiger Benchmark-Matrix aller Metriken (inkl. Bestwert-Hervorhebung), synoptischem Befundvergleich und mehrfarbigem Canvas-Chartvergleich für Takt und Temperatur. " +
+            "Paralleler Betriebsmodus in der Oberfläche: Klassischer statischer Vergleichsbericht und interaktives Multi-System-Dashboard stehen in Toolbar und Kontextmenü gleichberechtigt zur Verfügung. " +
+            "Nativer GUI Dark Mode: Vollständig integriertes dynamisches Theme-System (Hell/Dunkel) für die WinForms-Oberfläche mit schnellem Umschalter in der Titelleiste, DWM Immersive Dark Mode für die Titelleiste und dauerhafter Speicherung in Einstellungen.json (Fallback: Windows-Systemdesign). " +
+            "Build- und Git-Synchronisation: Bauen.cmd synchronisiert und committet Quelltexte und Dokumentation nach erfolgreichem Bau und bestandenen Tests automatisch lokal in Git."),
         new Eintrag("3.3", "06.10.2026", "Interaktives Benchmark- & Diagnose-Dashboard, Lasttest-Telemetrie-Visualisierung, Fluent 2-Design und Dark Mode",
             "Eigenständiges HTML5-Dashboard: Vollständig offline-fähiges, interaktives Analyse- und Vergleichs-Dashboard mit Export-Funktion (Export-BenchDashboardData, New-BenchDashboardHtml) und Direktaufruf aus der Vergleichsseite sowie per CLI (-Dashboard). " +
             "Dual-Axis Telemetrie-Visualisierung: Interaktiver HTML5-Canvas-Chart für Takt (GHz/MHz) und Temperatur (°C) über den Lasttestverlauf mit TjMax-Referenzlinie, dynamischen Drosselungs-Markierungen (Thermal/Power Throttling) und Cursor-Tooltips. " +

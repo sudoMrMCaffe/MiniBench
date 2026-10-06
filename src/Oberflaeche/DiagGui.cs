@@ -46,7 +46,8 @@ public partial class DiagGui : Form
     List<DbEntry> db = new List<DbEntry>();
     Font wsBold;
 
-    Panel setupView, runView, content;
+    Panel setupView, runView, content, head, body, contentHost;
+    Button btnThemeToggle;
     List<NavItem> nav = new List<NavItem>();
     List<Control> pages = new List<Control>();
     int curPage;
@@ -277,6 +278,8 @@ public partial class DiagGui : Form
         ReadContract(contract ?? new string[0]);
         Text = "Leos Minibench " + this.version;
         AutoScaleDimensions = new SizeF(96f, 96f); AutoScaleMode = AutoScaleMode.Dpi;
+        bool isDark = LoadThemePreference();
+        UI.SetTheme(isDark);
         Font = new Font("Segoe UI", 9.75f);
         BackColor = UI.Bg; ForeColor = UI.Text;
         StartPosition = FormStartPosition.CenterScreen;
@@ -288,21 +291,39 @@ public partial class DiagGui : Form
         try { Icon ic = AppSymbol.Get(); if (ic != null) Icon = ic; else Icon = Icon.ExtractAssociatedIcon(psExe); } catch { }
         try { int round = DWMWCP_ROUND; DwmSetWindowAttribute(Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int)); } catch { }
 
-        Panel head = new Panel(); head.Dock = DockStyle.Top; head.Height = UI.S(74); head.BackColor = UI.Header;
+        head = new Panel(); head.Dock = DockStyle.Top; head.Height = UI.S(74); head.BackColor = UI.Header;
         Label t1 = Lbl("Leos Minibench", 18f, true, Color.White); t1.Location = new Point(UI.S(76), UI.S(10));
         Label t2 = Lbl(Environment.MachineName + "   ·   " + OsName() + "   ·   Version " + this.version, 9.75f, false, Color.FromArgb(170, 182, 200)); t2.Location = new Point(UI.S(78), UI.S(44));
         PictureBox logo = new PictureBox(); logo.Size = new Size(UI.S(48), UI.S(48)); logo.Location = new Point(UI.S(18), UI.S(13)); logo.SizeMode = PictureBoxSizeMode.Zoom; logo.BackColor = Color.Transparent;
         try { logo.Image = AppSymbol.Image(UI.S(48)); } catch { }
         head.Controls.Add(logo); head.Controls.Add(t1); head.Controls.Add(t2);
         // ab v2.7: Versionshistorie oben rechts
-        FlowLayoutPanel hr = new FlowLayoutPanel(); hr.Dock = DockStyle.Right; hr.Width = UI.S(240); hr.FlowDirection = FlowDirection.RightToLeft; hr.BackColor = Color.Transparent; hr.Padding = new Padding(0, UI.S(26), UI.S(20), 0);
+        FlowLayoutPanel hr = new FlowLayoutPanel(); hr.Dock = DockStyle.Right; hr.Width = UI.S(320); hr.FlowDirection = FlowDirection.RightToLeft; hr.BackColor = Color.Transparent; hr.Padding = new Padding(0, UI.S(24), UI.S(20), 0);
         LinkLabel lnkVer = new LinkLabel(); lnkVer.Text = "Versionshistorie"; lnkVer.AutoSize = true; lnkVer.Font = new Font("Segoe UI", 9.75f);
         lnkVer.LinkColor = Color.FromArgb(147, 197, 253); lnkVer.ActiveLinkColor = Color.White; lnkVer.VisitedLinkColor = Color.FromArgb(147, 197, 253); lnkVer.BackColor = Color.Transparent;
         lnkVer.LinkClicked += delegate { if (setupView != null && setupView.Visible && versionPage >= 0) ShowPage(versionPage); };
         Tip(lnkVer, "Was sich von Version 1.0 bis " + this.version + " geändert hat.");
-        hr.Controls.Add(lnkVer); head.Controls.Add(hr);
+        hr.Controls.Add(lnkVer);
 
-        Panel body = new Panel(); body.Dock = DockStyle.Fill; body.Padding = new Padding(UI.S(20), UI.S(16), UI.S(20), UI.S(14)); body.BackColor = UI.Bg;
+        // ab v3.31: Theme-Umschalter (Dark Mode)
+        btnThemeToggle = new Button();
+        btnThemeToggle.Text = UI.IsDark ? "☀️ Hell" : "🌙 Dunkel";
+        btnThemeToggle.FlatStyle = FlatStyle.Flat;
+        btnThemeToggle.FlatAppearance.BorderSize = 0;
+        btnThemeToggle.BackColor = UI.IsDark ? Color.FromArgb(38, 44, 54) : Color.FromArgb(40, 52, 72);
+        btnThemeToggle.ForeColor = Color.White;
+        btnThemeToggle.Font = new Font("Segoe UI", 8.75f);
+        btnThemeToggle.AutoSize = true;
+        btnThemeToggle.Margin = new Padding(0, 0, UI.S(16), 0);
+        btnThemeToggle.Padding = new Padding(UI.S(8), UI.S(2), UI.S(8), UI.S(2));
+        btnThemeToggle.Cursor = Cursors.Hand;
+        btnThemeToggle.Click += delegate { ToggleTheme(); };
+        Tip(btnThemeToggle, "Wechselt zwischen hellem und dunklem Erscheinungsbild (Dark Mode).");
+        hr.Controls.Add(btnThemeToggle);
+
+        head.Controls.Add(hr);
+
+        body = new Panel(); body.Dock = DockStyle.Fill; body.Padding = new Padding(UI.S(20), UI.S(16), UI.S(20), UI.S(14)); body.BackColor = UI.Bg;
         LoadDb();
         setupView = BuildSetup(); runView = BuildRun();
         FillPresets(true);
@@ -323,6 +344,253 @@ public partial class DiagGui : Form
     {
         base.OnHandleCreated(e);
         try { int round = DWMWCP_ROUND; DwmSetWindowAttribute(Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int)); } catch { }
+        ApplyTitleBarTheme(UI.IsDark);
+    }
+
+    void ApplyTitleBarTheme(bool dark)
+    {
+        if (!IsHandleCreated || Handle == IntPtr.Zero) return;
+        int darkMode = dark ? 1 : 0;
+        try
+        {
+            int hr = DwmSetWindowAttribute(Handle, 20, ref darkMode, sizeof(int));
+            if (hr != 0)
+            {
+                DwmSetWindowAttribute(Handle, 19, ref darkMode, sizeof(int));
+            }
+        }
+        catch { }
+    }
+
+    string SettingsFile { get { return dataDir.Length > 0 ? Path.Combine(dataDir, "Einstellungen.json") : ""; } }
+
+    bool DetectWindowsDarkTheme()
+    {
+        try
+        {
+            using (Microsoft.Win32.RegistryKey k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
+            {
+                if (k != null)
+                {
+                    object val = k.GetValue("AppsUseLightTheme");
+                    if (val is int) return ((int)val) == 0;
+                }
+            }
+        }
+        catch { }
+        return false;
+    }
+
+    bool LoadThemePreference()
+    {
+        try
+        {
+            if (SettingsFile.Length > 0 && File.Exists(SettingsFile))
+            {
+                System.Web.Script.Serialization.JavaScriptSerializer js = new System.Web.Script.Serialization.JavaScriptSerializer();
+                Dictionary<string, object> d = js.DeserializeObject(File.ReadAllText(SettingsFile, Encoding.UTF8)) as Dictionary<string, object>;
+                if (d != null && d.ContainsKey("DarkMode"))
+                {
+                    return Convert.ToBoolean(d["DarkMode"]);
+                }
+            }
+        }
+        catch { }
+        return DetectWindowsDarkTheme();
+    }
+
+    void SaveThemePreference(bool dark)
+    {
+        try
+        {
+            if (SettingsFile.Length == 0) return;
+            Dictionary<string, object> d = null;
+            System.Web.Script.Serialization.JavaScriptSerializer js = new System.Web.Script.Serialization.JavaScriptSerializer();
+            if (File.Exists(SettingsFile))
+            {
+                try { d = js.DeserializeObject(File.ReadAllText(SettingsFile, Encoding.UTF8)) as Dictionary<string, object>; } catch { }
+            }
+            if (d == null) d = new Dictionary<string, object>();
+            d["DarkMode"] = dark;
+            File.WriteAllText(SettingsFile, js.Serialize(d), Encoding.UTF8);
+        }
+        catch { }
+    }
+
+    void ToggleTheme()
+    {
+        SetAppTheme(!UI.IsDark);
+    }
+
+    void SetAppTheme(bool dark)
+    {
+        UI.SetTheme(dark);
+        SaveThemePreference(dark);
+        ApplyTitleBarTheme(dark);
+        if (btnThemeToggle != null)
+        {
+            btnThemeToggle.Text = dark ? "☀️ Hell" : "🌙 Dunkel";
+            btnThemeToggle.BackColor = dark ? Color.FromArgb(38, 44, 54) : Color.FromArgb(40, 52, 72);
+            Tip(btnThemeToggle, dark ? "Zu hellem Design wechseln." : "Zu dunklem Design wechseln (Dark Mode).");
+        }
+
+        SuspendLayout();
+        try
+        {
+            BackColor = UI.Bg;
+            ForeColor = UI.Text;
+            ApplyThemeRecursive(this);
+        }
+        finally
+        {
+            ResumeLayout(true);
+            Invalidate(true);
+        }
+    }
+
+    void ApplyThemeRecursive(Control c)
+    {
+        if (c == null) return;
+
+        if (c == head)
+        {
+            c.BackColor = UI.Header;
+        }
+        else if (c == contentHost)
+        {
+            c.BackColor = UI.Line;
+        }
+        else if (c == content)
+        {
+            c.BackColor = UI.Panel;
+        }
+        else if (c is NavItem)
+        {
+            c.BackColor = UI.Bg;
+            c.Invalidate();
+        }
+        else if (c is FluentCard)
+        {
+            c.BackColor = UI.Panel;
+            c.Invalidate();
+        }
+        else if (c is ToggleSwitch)
+        {
+            c.Invalidate();
+        }
+        else if (c is FlatBar)
+        {
+            c.Invalidate();
+        }
+        else if (c is StatCard)
+        {
+            c.BackColor = UI.Bg;
+            c.Invalidate();
+        }
+        else if (c is TabStrip)
+        {
+            c.BackColor = UI.Bg;
+            c.Invalidate();
+        }
+        else if (c is SensorChart)
+        {
+            c.BackColor = UI.Panel;
+            c.Invalidate();
+        }
+        else if (c is ListView)
+        {
+            c.BackColor = UI.Panel;
+            c.ForeColor = UI.Text;
+            c.Invalidate();
+        }
+        else if (c is RichTextBox)
+        {
+            c.BackColor = UI.Panel;
+            c.ForeColor = UI.Text;
+        }
+        else if (c is TextBox)
+        {
+            if (c != txtLog)
+            {
+                c.BackColor = UI.Panel;
+                c.ForeColor = UI.Text;
+            }
+        }
+        else if (c is ComboBox)
+        {
+            c.BackColor = UI.Panel;
+            c.ForeColor = UI.Text;
+        }
+        else if (c is CheckedListBox || c is ListBox)
+        {
+            c.BackColor = UI.Panel;
+            c.ForeColor = UI.Text;
+        }
+        else if (c is CheckBox || c is RadioButton)
+        {
+            c.ForeColor = UI.Text;
+        }
+        else if (c is Button)
+        {
+            Button btn = (Button)c;
+            if (btn == btnThemeToggle)
+            {
+                btn.BackColor = UI.IsDark ? Color.FromArgb(38, 44, 54) : Color.FromArgb(40, 52, 72);
+                btn.ForeColor = Color.White;
+            }
+            else if (btn == btnHtml || btn == btnStart || (btnUndo != null && btn == btnUndo) || (btnCompare != null && btn == btnCompare) || (btn.Font.Name.Contains("Semibold") && btn.ForeColor == Color.White && btn.BackColor != UI.Panel))
+            {
+                btn.BackColor = UI.Accent;
+                btn.ForeColor = Color.White;
+                btn.FlatAppearance.MouseOverBackColor = UI.AccentHover;
+                btn.FlatAppearance.MouseDownBackColor = UI.AccentActive;
+            }
+            else
+            {
+                btn.BackColor = UI.Panel;
+                btn.ForeColor = UI.Text;
+                btn.FlatAppearance.BorderColor = UI.Line;
+                btn.FlatAppearance.MouseOverBackColor = UI.IsDark ? Color.FromArgb(45, 48, 52) : Color.FromArgb(243, 244, 246);
+                btn.FlatAppearance.MouseDownBackColor = UI.IsDark ? Color.FromArgb(55, 58, 62) : Color.FromArgb(235, 237, 240);
+            }
+        }
+        else if (c is Label)
+        {
+            Label lbl = (Label)c;
+            if (lbl.Parent != head && lbl.ForeColor != Color.White)
+            {
+                Color fc = lbl.ForeColor;
+                if (fc == Color.FromArgb(28, 29, 31) || fc == Color.FromArgb(245, 246, 247) || fc == Color.Black)
+                {
+                    lbl.ForeColor = UI.Text;
+                }
+                else if (fc == Color.FromArgb(95, 99, 104) || fc == Color.FromArgb(156, 163, 175) || fc == Color.Gray)
+                {
+                    lbl.ForeColor = UI.Muted;
+                }
+            }
+        }
+        else if (c is Panel)
+        {
+            Color bg = c.BackColor;
+            if (bg == Color.FromArgb(249, 249, 251) || bg == Color.FromArgb(24, 25, 26))
+            {
+                c.BackColor = UI.Bg;
+            }
+            else if (bg == Color.White || bg == Color.FromArgb(36, 37, 38))
+            {
+                c.BackColor = UI.Panel;
+            }
+            else if (bg == Color.FromArgb(229, 231, 235) || bg == Color.FromArgb(58, 59, 60))
+            {
+                c.BackColor = UI.Line;
+            }
+        }
+
+        foreach (Control child in c.Controls)
+        {
+            ApplyThemeRecursive(child);
+        }
     }
 
     // DoubleBuffered ist bei Panels und ListViews geschützt; per Reflexion für alle Unterelemente setzen
@@ -415,7 +683,7 @@ public partial class DiagGui : Form
         left.Layout += delegate { int w = left.ClientSize.Width - left.Padding.Horizontal - 2; if (w > UI.S(150)) foreach (NavItem n in nav) if (n.Width != w) n.Width = w; };
 
         content = new Panel(); content.Dock = DockStyle.Fill; content.BackColor = UI.Panel; content.Padding = new Padding(UI.S(32), UI.S(22), UI.S(28), UI.S(20)); content.AutoScroll = true;
-        Panel contentHost = new Panel(); contentHost.Dock = DockStyle.Fill; contentHost.BackColor = UI.Line; contentHost.Padding = new Padding(1);
+        contentHost = new Panel(); contentHost.Dock = DockStyle.Fill; contentHost.BackColor = UI.Line; contentHost.Padding = new Padding(1);
         contentHost.Controls.Add(content);
 
         pages.Add(BuildDiagPage()); pages.Add(BuildBenchPage()); pages.Add(BuildLoadPage()); pages.Add(BuildRepairPage()); pages.Add(BuildOptPage()); pages.Add(BuildSensorPage()); pages.Add(BuildDbPage()); pages.Add(BuildChangePage()); versionPage = pages.Count; pages.Add(BuildVersionPage());
@@ -2234,7 +2502,8 @@ public partial class DiagGui : Form
         ImageList rowHeight = new ImageList(); rowHeight.ImageSize = new Size(1, UI.S(34)); lv.SmallImageList = rowHeight;
         for (int i = 0; i < cols.Length; i++) lv.Columns.Add(cols[i], widths[i]);
         lv.DrawColumnHeader += delegate(object s, DrawListViewColumnHeaderEventArgs e) {
-            using (SolidBrush b = new SolidBrush(Color.FromArgb(248, 249, 251))) e.Graphics.FillRectangle(b, e.Bounds);
+            Color headerBg = UI.IsDark ? Color.FromArgb(28, 30, 32) : Color.FromArgb(248, 249, 251);
+            using (SolidBrush b = new SolidBrush(headerBg)) e.Graphics.FillRectangle(b, e.Bounds);
             using (Pen pen = new Pen(UI.Line)) e.Graphics.DrawLine(pen, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
             using (Font f = new Font("Segoe UI Semibold", 8.5f))
                 TextRenderer.DrawText(e.Graphics, e.Header.Text.ToUpperInvariant(), f, new Rectangle(e.Bounds.X + UI.S(10), e.Bounds.Y, e.Bounds.Width - UI.S(12), e.Bounds.Height), UI.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
@@ -2246,9 +2515,10 @@ public partial class DiagGui : Form
             if (hdr && (e.ColumnIndex == 2 || e.ColumnIndex == 3)) return;
             Rectangle rb = e.Bounds;
             if (hdr && e.ColumnIndex == 1) { for (int ci = 2; ci <= 3 && ci < lv.Columns.Count; ci++) rb.Width += lv.Columns[ci].Width; }
-            Color back = e.Item.Selected ? UI.AccentSoft : (hdr ? Color.FromArgb(243, 245, 249) : UI.Panel);
+            Color back = e.Item.Selected ? UI.AccentSoft : (hdr ? (UI.IsDark ? Color.FromArgb(32, 34, 38) : Color.FromArgb(243, 245, 249)) : UI.Panel);
             using (SolidBrush b = new SolidBrush(back)) g.FillRectangle(b, rb);
-            using (Pen pen = new Pen(Color.FromArgb(236, 239, 243))) g.DrawLine(pen, rb.Left, rb.Bottom - 1, rb.Right, rb.Bottom - 1);
+            Color borderLine = UI.IsDark ? Color.FromArgb(45, 48, 52) : Color.FromArgb(236, 239, 243);
+            using (Pen pen = new Pen(borderLine)) g.DrawLine(pen, rb.Left, rb.Bottom - 1, rb.Right, rb.Bottom - 1);
             string txt = e.SubItem.Text;
             if (hdr && e.ColumnIndex == 1)
             {
