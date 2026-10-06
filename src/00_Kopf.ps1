@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Diese Datei erzeugt Bauen.cmd aus dem Ordner src. Änderungen bitte in src vornehmen, nicht hier.
 <#
 .SYNOPSIS

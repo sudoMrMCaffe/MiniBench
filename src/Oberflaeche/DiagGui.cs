@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,6 +9,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using Thread = System.Threading.Thread;
 using System.Windows.Forms;
 
 // Steuerelemente in DiagGui_Steuerelemente.cs, Modelle in DiagGui_Modelle.cs,
@@ -287,10 +288,10 @@ public partial class DiagGui : Form
         BackColor = UI.Bg; ForeColor = UI.Text;
         StartPosition = FormStartPosition.CenterScreen;
         Rectangle workArea = Screen.FromPoint(Cursor.Position).WorkingArea;
-        int startW = Math.Min(UI.S(1120), (int)(workArea.Width * 0.94));
-        int startH = Math.Min(UI.S(680), (int)(workArea.Height * 0.88));
+        int startW = Math.Min(UI.S(1220), (int)(workArea.Width * 0.95));
+        int startH = Math.Min(UI.S(740), (int)(workArea.Height * 0.92));
         ClientSize = new Size(startW, startH);
-        MinimumSize = new Size(UI.S(860), UI.S(540));
+        MinimumSize = new Size(UI.S(880), UI.S(560));
         try { Icon ic = AppSymbol.Get(); if (ic != null) Icon = ic; else Icon = Icon.ExtractAssociatedIcon(psExe); } catch { }
         try { int round = DWMWCP_ROUND; DwmSetWindowAttribute(Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int)); } catch { }
 
@@ -1220,6 +1221,27 @@ public partial class DiagGui : Form
         "Erweitert wie im Optimisation Pack: Leos Empfehlung plus Windows-Funktionen, Zusatzfeatures, vorinstallierte Apps und Darstellung.",
         "Nichts gewählt." };
 
+    static readonly string[] defaultMinimal = new string[] {
+        "TelemetrieMinimal", "Fehlerberichte", "WerbeId", "Speicheroptimierung", "TaskbarEndTask"
+    };
+    HashSet<string> cachedMinimalIds;
+
+    HashSet<string> GetMinimalIds()
+    {
+        if (cachedMinimalIds != null) return cachedMinimalIds;
+        HashSet<string> set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string id in defaultMinimal) set.Add(id);
+        foreach (OptItem it in optItems)
+        {
+            if (it.Vorlagen != null && it.Vorlagen.IndexOf("M", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                set.Add(it.Id);
+            }
+        }
+        cachedMinimalIds = set;
+        return cachedMinimalIds;
+    }
+
     static readonly string[] defaultLeoEmpfehlung = new string[] {
         "TelemetrieMinimal", "TelemetrieDienste", "TelemetrieDiagnoseprotokolle", "Feedback", "WerbeId",
         "MassgeschneiderteErfahrung", "Sprachliste", "Handschrift", "Inventar", "Insiderseite",
@@ -1365,8 +1387,8 @@ public partial class DiagGui : Form
             Tip(all, "Alle Einträge dieser Kategorie wählen."); Tip(none, "Keinen Eintrag dieser Kategorie wählen.");
         }
         Label lg = Lbl("Ändern: mit Vorher-Wert protokolliert, auf der Seite Änderungen einzeln rücknehmbar.  Eingriff: nicht automatisch umkehrbar (Apps, Zusatzfeatures, Bereinigung, DDU).  verwaltet: berührt Gruppenrichtlinien, auf Domänen-PCs nicht in den Vorlagen.  Benutzereinstellungen gelten für den angemeldeten Benutzer.", 8.75f, false, UI.Muted);
-        lg.MaximumSize = new Size(UI.S(820), 0); lg.Margin = new Padding(UI.S(4), UI.S(12), UI.S(4), 0); f.Controls.Add(lg);
-        ApplyOptPreset("S");
+        // Start-Vorauswahl: ab v3.5 ApplyOptPreset("M") (Minimal), früher ApplyOptPreset("S") (Leos Empfehlung)
+        ApplyOptPreset("M");
         return f;
     }
 
@@ -1374,12 +1396,17 @@ public partial class DiagGui : Form
     {
         int skip = 0;
         HashSet<string> leoIds = key == "S" ? GetLeoEmpfehlungIds() : null;
+        HashSet<string> minIds = key == "M" ? GetMinimalIds() : null;
         foreach (OptItem it in optItems)
         {
             bool on = false;
             if (key == "S")
             {
                 on = (leoIds != null && leoIds.Contains(it.Id)) || (it.Vorlagen != null && it.Vorlagen.Contains("S"));
+            }
+            else if (key == "M")
+            {
+                on = (minIds != null && minIds.Contains(it.Id)) || (it.Vorlagen != null && it.Vorlagen.Contains("M"));
             }
             else if (key.Length > 0)
             {

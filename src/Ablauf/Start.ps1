@@ -1,4 +1,4 @@
-# Import älterer Ausgabeordner in die Vergleichsdatenbank (wird von der Oberfläche aufgerufen)
+﻿# Import älterer Ausgabeordner in die Vergleichsdatenbank (wird von der Oberfläche aufgerufen)
 if ($ImportOrdner) {
     Import-LegacyFolder $ImportOrdner
     exit 0

@@ -9,6 +9,24 @@ function Test-WritableDir([string]$Dir) {
     } catch { return $false }
 }
 function Resolve-DataDir {
+    # 1. Optionalen Netzwerk- / NAS-Pfad aus Netzwerk.json prüfen
+    $localCfgDirs = @()
+    if ($PSScriptRoot -and $PSScriptRoot -notlike "$env:TEMP*") { $localCfgDirs += (Join-Path $PSScriptRoot 'Minibench-Daten') }
+    if ($DatenDir) { $localCfgDirs += $DatenDir.TrimEnd('\') }
+    foreach ($lcd in $localCfgDirs) {
+        $netCfg = Join-Path $lcd 'Netzwerk.json'
+        if (Test-Path -LiteralPath $netCfg) {
+            try {
+                $netObj = Get-Content -LiteralPath $netCfg -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+                $nas = $(if ($netObj.NasPfad) { [string]$netObj.NasPfad } elseif ($netObj.NetzwerkPfad) { [string]$netObj.NetzwerkPfad } else { '' }).Trim().TrimEnd('\')
+                if ($nas -and (Test-WritableDir $nas)) {
+                    return $nas
+                }
+            } catch { }
+        }
+    }
+
+    # 2. Lokale Kandidaten (USB-Stick / Übergabepfad) mit automatischem Fallback
     $cands = @()
     if ($DatenDir) { $cands += $DatenDir.TrimEnd('\') }
     if ($PSScriptRoot -and $PSScriptRoot -notlike "$env:TEMP*") { $cands += (Join-Path $PSScriptRoot 'Minibench-Daten') }

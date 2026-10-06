@@ -1,4 +1,4 @@
-// Grafische Oberflaeche: Steuerelemente
+﻿// Grafische Oberflaeche: Steuerelemente
 public static class UI
 {
     public static bool IsDark { get; set; }

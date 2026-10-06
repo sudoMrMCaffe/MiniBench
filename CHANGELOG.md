@@ -2,6 +2,26 @@
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
 
+## v3.5 (06.10.2026)
+
+* **Fehlerbehebung & Optimierungs-Presets:**
+  * **Entkopplung der Taskleisten-Gruppierung:** `TaskleisteGruppieren` in `Katalog.psd1` bereinigt; steuert nun ausschließlich die reine Gruppierung (`TaskbarGlomLevel`) ohne ungewollte Nebeneffekte.
+  * **Eigenständiger Eintrag 'Taskleiste: Task beenden per Rechtsklick':** `TaskbarEndTask` als eigenständiger Eintrag mit Vorlagen `MSE` in Kategorie `Explorer, Taskleiste und Start` definiert; setzt `TaskbarEndTask` = 1 in `TaskbarDeveloperSettings` und `Advanced` (Gegenbefehl: 0).
+  * **Schlankes Minimal-Preset als Standardvorauswahl:** Preset **Minimal** (`M`) auf ein kompaktes Basispaket gestrafft (Minimaltelemetrie, Fehlerberichte, Werbe-ID, Speicheroptimierung, TaskbarEndTask). `BuildOptPage()` wählt nun beim Start standardmäßig `ApplyOptPreset("M")` vor. "Leos Empfehlung" (`S`) bleibt das umfassende Standardpaket.
+* **Erweitertes responsives Fensterlayout:**
+  * **Größere Startabmessungen:** Responsiv vergrößert auf `Math.Min(UI.S(1220), (int)(WorkingArea.Width * 0.95))` Breite und `Math.Min(UI.S(740), (int)(WorkingArea.Height * 0.92))` Höhe (`MinimumSize`: `880x560`). Bietet sofort mehr Raum für Tabellen, Kacheln und Vergleiche, ohne auf 1080p-Notebooks mit Skalierung überzulaufen.
+* **Modul 'Tools': Softwarepakete installieren (winget):**
+  * **Integrierter Software-Paket-Manager:** Neuer Abschnitt auf der Tools-Seite zur einfachen 1-Klick-Installation populärer Standardsoftware via Windows Package Manager (`winget.exe`).
+  * **Paketauswahl:** Web-Browser (Google Chrome, Mozilla Firefox, Opera), Gaming & Chat (Steam, Discord) und Produktivität (Notepad++, ONLYOFFICE Desktop Editors, 7-Zip, VLC Media Player).
+  * **Hintergrundprüfung & asynchroner Installer:** Prüft beim Start im Hintergrund auf Vorhandensein von `winget.exe` (mit klarer Hinweismeldung und deaktiviertem Button, falls nicht vorhanden). Ausführung läuft asynchron mit Live-Fortschritt im UI-Status.
+* **NAS- & Netzlaufwerk-Integration:**
+  * **Konfigurierbare Netzlaufwerke:** Unterstützung für `Minibench-Daten\Netzwerk.json` (`NasPfad` / `NetzwerkPfad`) in `Resolve-DataDir`.
+  * **Robuster lokaler Fallback:** Automatische Prüfung auf Schreibrechte (`Test-WritableDir`). Ist das NAS nicht erreichbar oder schreibgeschützt, fällt Minibench automatisch und ohne Fehlerdialog auf den lokalen Datenordner zurück.
+  * **1-Klick-Einbindung im UI:** Neuer Dialog "Netzlaufwerk / NAS verbinden" auf der Tools- und Datenbankseite mit Eingabe für UNC-Pfade, optionalen Anmeldedaten (`net use`), Verbindungstest und direktem Live-Umschalten des Datenverzeichnisses.
+* **Interaktive Berichtsdiagramme & Befunde-Bereinigung:**
+  * **Hoverbare Sensor-Diagramme:** Sensor-Charts (Temperatur, Takt, Leistung, Auslastung) im Hauptbericht (`Diagnosebericht.html`) mit derselben interaktiven Hover-Tooltip-Logik wie im Dashboard: Beim Bewegen der Maus über Kurven oder Messpunkte werden Zeitstempel, °C, GHz und Watt an genau diesem Punkt angezeigt (100 % inline ohne externe Bibliotheken).
+  * **Bereinigte Befunde-Ansicht:** Entfernung des Text-Suchfelds zugunsten aufgeräumter, praktischer Filter-Badges (Alle, Kritisch, Warnung, Info) und klarer Trefferzählung.
+
 ## v3.4 (06.10.2026)
 
 * **Neues Modul 'Tools' in der Benutzeroberfläche:**

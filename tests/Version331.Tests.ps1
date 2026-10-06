@@ -14,7 +14,7 @@ BeforeAll {
 Describe 'Version 3.31 Deklaration' {
     It 'Version.ps1 definiert Version 3.31 oder höher' {
         $vPs1 = [IO.File]::ReadAllText((Join-Path $global:MinibenchSrcRoot 'Kern/Version.ps1'))
-        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''(3\.31|3\.32|3\.4)'''
+        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''(3\.31|3\.32|3\.4|3\.5)'''
     }
 
     It 'Versionen.cs enthält den Eintrag für 3.31 oder 3.32' {

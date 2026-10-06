@@ -1,4 +1,4 @@
-function Get-ReportCss {
+﻿function Get-ReportCss {
     return @'
 :root{--bg:#f5f6f8;--panel:#fff;--text:#1c2330;--muted:#5f6878;--line:#e2e5ea;--code:#f1f3f6;
 --accent:#0067c0;--accent-hover:#005a9e;--accent-soft:#ebf3fb;--accent-border:#bdd7ee;
@@ -24,7 +24,7 @@ a.tab-btn{text-decoration:none;display:inline-flex;align-items:center}
 .fchip.chip-warn.active{background:var(--warn);color:#fff;border-color:var(--warn)}
 .fchip.chip-info.active{background:var(--info);color:#fff;border-color:var(--info)}
 .filter-count{font-size:12.5px;color:var(--muted);font-weight:600;white-space:nowrap;margin-left:auto}
-.chart-tooltip{position:absolute;pointer-events:none;z-index:1000;padding:7px 12px;border-radius:6px;font-size:12.5px;font-weight:600;background:var(--panel);color:var(--text);border:1px solid var(--line);box-shadow:0 6px 18px rgba(0,0,0,0.18);transition:opacity .1s ease;white-space:nowrap}
+.chart-tooltip{position:absolute;pointer-events:none;z-index:1000;padding:8px 12px;border-radius:8px;font-size:12.5px;font-weight:500;line-height:1.45;background:var(--panel);color:var(--text);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,0.2);transition:opacity .1s ease;min-width:140px;max-width:320px}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif}
 main{max-width:1200px;margin:0 auto;padding:28px 20px 60px}
@@ -102,7 +102,7 @@ th small{font-weight:400;text-transform:none;letter-spacing:0}
 .chart .grid{stroke:var(--line);stroke-width:1}
 .chart .tick{stroke:var(--line)}
 .chart .line{fill:none;stroke:var(--info);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
-.chart .hit{fill:transparent}
+.chart .hit{fill:transparent;stroke:transparent;stroke-width:10}
 .chart .hit:hover{fill:var(--info)}
 .chart .line.s1{stroke:var(--info)} .chart .line.s2{stroke:#c2410c} .chart .line.s3{stroke:#0f766e} .chart .line.s4{stroke:#7c3aed} .chart .line.s5{stroke:#ca8a04;stroke-dasharray:5 3}
 .chart .hit.s2:hover{fill:#c2410c} .chart .hit.s3:hover{fill:#0f766e} .chart .hit.s4:hover{fill:#7c3aed} .chart .hit.s5:hover{fill:#ca8a04}

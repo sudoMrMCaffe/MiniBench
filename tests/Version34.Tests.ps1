@@ -1,4 +1,4 @@
-# Version 3.4: Modul Tools (Portable Werkzeuge & System-Shortcuts), Leos Empfehlung & interaktiver Hauptbericht
+﻿# Version 3.4: Modul Tools (Portable Werkzeuge & System-Shortcuts), Leos Empfehlung & interaktiver Hauptbericht
 BeforeAll {
     . (Join-Path $PSScriptRoot 'Hilfen.ps1')
     $global:V34Src = $global:MinibenchSrcRoot
@@ -18,14 +18,13 @@ BeforeAll {
 }
 
 Describe 'Version 3.4 Deklaration und Dokumentation' {
-    It 'Version.ps1 definiert Version 3.4' {
+    It 'Version.ps1 definiert Version 3.4 oder höher' {
         $vPs1 = [IO.File]::ReadAllText((Join-Path $global:MinibenchSrcRoot 'Kern/Version.ps1'), [System.Text.Encoding]::UTF8)
-        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''3\.4'''
+        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''3\.[45]'''
     }
 
-    It 'Versionen.cs enthält den Eintrag für 3.4 an oberster Stelle' {
-        $firstVer = [regex]::Match($global:V34Ver, 'new Eintrag\("([^"]+)"').Groups[1].Value
-        $firstVer | Should -Be '3.4'
+    It 'Versionen.cs enthält den Eintrag für 3.4' {
+        $global:V34Ver | Should -Match 'new Eintrag\("3\.4"'
     }
 
     It 'Doku/Versionshistorie.txt enthält den Eintrag für 3.4 an oberster Stelle' {
@@ -163,8 +162,7 @@ Describe 'Interaktiver Diagnosebericht & Stil' {
         $global:V34Html | Should -Match 'data-section="sensoren"'
     }
 
-    It 'HtmlBericht.ps1 bindet Filter-Bar und Suchfeld für Befunde ein' {
-        $global:V34Html | Should -Match 'id="befundSearch"'
+    It 'HtmlBericht.ps1 bindet Filter-Bar und Filter-Chips für Befunde ein' {
         $global:V34Html | Should -Match 'id="befundeTable"'
         $global:V34Html | Should -Match 'class="fchip'
     }

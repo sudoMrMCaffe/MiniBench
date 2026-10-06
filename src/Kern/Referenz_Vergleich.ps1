@@ -487,8 +487,13 @@ function New-MultiLineSvg {
         $stepPts = [math]::Max(1, [int][math]::Ceiling($s.Points.Count / 200))
         for ($i = 0; $i -lt $s.Points.Count; $i += $stepPts) {
             $p = $s.Points[$i]
-            $tl = '{0}:{1:00} min  ·  {2}: {3} {4}' -f [int][math]::Floor($p.T / 60), [int]($p.T % 60), $s.Name, ([double]$p.V).ToString($Fmt, [Globalization.CultureInfo]::CurrentCulture), $Unit
-            [void]$sb.Append([string]::Format($inv, '<circle class="hit {3}" cx="{0:0.#}" cy="{1:0.#}" r="6" data-tip="{2}"><title>{2}</title></circle>', (& $fx $p.T), (& $fy ([double]$p.V)), (ConvertTo-HtmlText $tl), $s.Cls))
+            if ($p.Tip) {
+                $tl = $p.Tip
+            } else {
+                $tl = '{0}:{1:00} min  ·  {2}: {3} {4}' -f [int][math]::Floor($p.T / 60), [int]($p.T % 60), $s.Name, ([double]$p.V).ToString($Fmt, [Globalization.CultureInfo]::CurrentCulture), $Unit
+            }
+            $cleanTitle = ($tl -replace '<[^>]+>', ' · ').Trim(' ·')
+            [void]$sb.Append([string]::Format($inv, '<circle class="hit {3}" cx="{0:0.#}" cy="{1:0.#}" r="7" data-tip="{2}"><title>{4}</title></circle>', (& $fx $p.T), (& $fy ([double]$p.V)), (ConvertTo-HtmlText $tl), $s.Cls, (ConvertTo-HtmlText $cleanTitle)))
         }
     }
     [void]$sb.Append('</svg>')

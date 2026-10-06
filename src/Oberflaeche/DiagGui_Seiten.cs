@@ -159,8 +159,13 @@ public partial class DiagGui
             try { Directory.CreateDirectory(td); } catch { }
             OpenShell(td);
         };
+        Button btnConnectNas = UI.Secondary("Netzlaufwerk verbinden ...");
+        btnConnectNas.Margin = new Padding(UI.S(8), 0, 0, 0);
+        Tip(btnConnectNas, "Verbindet ein Netzlaufwerk oder NAS für Berichte und Datenbank mit lokalem Fallback.");
+        btnConnectNas.Click += delegate { ShowConnectNasDialog(); };
         topBar.Controls.Add(btnRefreshTools);
         topBar.Controls.Add(btnOpenToolsDir);
+        topBar.Controls.Add(btnConnectNas);
         body.Controls.Add(topBar);
 
         FlowLayoutPanel pnlCards = new FlowLayoutPanel();
@@ -290,7 +295,140 @@ public partial class DiagGui
             Tip(cWiz, "WizTree: Speicherfresser blitzschnell aufspüren.");
             pnlCards.Controls.Add(cWiz);
 
-            // 2. Schnellstarter & Shortcuts
+            // 2. Softwarepakete installieren (winget)
+            pnlCards.Controls.Add(Section("Softwarepakete installieren (winget)"));
+            Label lWingetDesc = Lbl("Auswahl populärer Basisprogramme zur automatischen und stillen Installation via Windows-Paket-Manager (winget).", 9f, false, UI.Muted);
+            lWingetDesc.MaximumSize = new Size(UI.S(740), 0);
+            lWingetDesc.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
+            pnlCards.Controls.Add(lWingetDesc);
+
+            Panel pnlWgBox = new Panel();
+            pnlWgBox.Width = cardW;
+            pnlWgBox.BackColor = UI.Panel;
+            pnlWgBox.BorderStyle = BorderStyle.FixedSingle;
+            pnlWgBox.Padding = new Padding(UI.S(12));
+            pnlWgBox.AutoSize = true;
+            pnlWgBox.Margin = new Padding(UI.S(4), 0, 0, UI.S(12));
+
+            FlowLayoutPanel pnlWgInner = new FlowLayoutPanel();
+            pnlWgInner.Dock = DockStyle.Fill;
+            pnlWgInner.AutoSize = true;
+            pnlWgInner.FlowDirection = FlowDirection.TopDown;
+            pnlWgInner.WrapContents = false;
+
+            string wingetPath;
+            bool hasWinget = IsWingetAvailable(out wingetPath);
+
+            // Web-Browser
+            Label lCatBrowser = Lbl("Web-Browser", 9.5f, true, UI.Text);
+            lCatBrowser.Margin = new Padding(0, 0, 0, UI.S(4));
+            pnlWgInner.Controls.Add(lCatBrowser);
+
+            FlowLayoutPanel rowBrowser = Row();
+            rowBrowser.Margin = new Padding(0, 0, 0, UI.S(8));
+            CheckBox chkChrome = Chk("Google Chrome (Google.Chrome)", false);
+            Tip(chkChrome, "Google Chrome Webbrowser via winget (Google.Chrome)");
+            CheckBox chkFirefox = Chk("Mozilla Firefox (Mozilla.Firefox)", false);
+            Tip(chkFirefox, "Mozilla Firefox Webbrowser via winget (Mozilla.Firefox)");
+            CheckBox chkOpera = Chk("Opera (Opera.Opera)", false);
+            Tip(chkOpera, "Opera Webbrowser via winget (Opera.Opera)");
+            rowBrowser.Controls.Add(chkChrome);
+            rowBrowser.Controls.Add(chkFirefox);
+            rowBrowser.Controls.Add(chkOpera);
+            pnlWgInner.Controls.Add(rowBrowser);
+
+            // Gaming & Chat
+            Label lCatGaming = Lbl("Gaming & Chat", 9.5f, true, UI.Text);
+            lCatGaming.Margin = new Padding(0, UI.S(4), 0, UI.S(4));
+            pnlWgInner.Controls.Add(lCatGaming);
+
+            FlowLayoutPanel rowGaming = Row();
+            rowGaming.Margin = new Padding(0, 0, 0, UI.S(8));
+            CheckBox chkSteam = Chk("Steam (Valve.Steam)", false);
+            Tip(chkSteam, "Steam Gaming-Plattform via winget (Valve.Steam)");
+            CheckBox chkDiscord = Chk("Discord (Discord.Discord)", false);
+            Tip(chkDiscord, "Discord Chat- und Sprach-Client via winget (Discord.Discord)");
+            rowGaming.Controls.Add(chkSteam);
+            rowGaming.Controls.Add(chkDiscord);
+            pnlWgInner.Controls.Add(rowGaming);
+
+            // Produktivität & Tools
+            Label lCatProd = Lbl("Produktivität & Tools", 9.5f, true, UI.Text);
+            lCatProd.Margin = new Padding(0, UI.S(4), 0, UI.S(4));
+            pnlWgInner.Controls.Add(lCatProd);
+
+            FlowLayoutPanel rowProd = Row();
+            rowProd.Margin = new Padding(0, 0, 0, UI.S(10));
+            CheckBox chkNpp = Chk("Notepad++ (Notepad++.Notepad++)", false);
+            Tip(chkNpp, "Notepad++ Quelltext-Editor via winget (Notepad++.Notepad++)");
+            CheckBox chkOnlyOffice = Chk("ONLYOFFICE Desktop Editors (ONLYOFFICE.DesktopEditors)", false);
+            Tip(chkOnlyOffice, "ONLYOFFICE Office-Suite via winget (ONLYOFFICE.DesktopEditors)");
+            CheckBox chk7zip = Chk("7-Zip (7zip.7zip)", false);
+            Tip(chk7zip, "7-Zip Packprogramm via winget (7zip.7zip)");
+            CheckBox chkVlc = Chk("VLC Media Player (VideoLAN.VLC)", false);
+            Tip(chkVlc, "VLC Media Player via winget (VideoLAN.VLC)");
+            rowProd.Controls.Add(chkNpp);
+            rowProd.Controls.Add(chkOnlyOffice);
+            rowProd.Controls.Add(chk7zip);
+            rowProd.Controls.Add(chkVlc);
+            pnlWgInner.Controls.Add(rowProd);
+
+            // Aktionen & Status
+            FlowLayoutPanel rowWgActions = Row();
+            rowWgActions.Margin = new Padding(0, UI.S(4), 0, 0);
+
+            LinkLabel lnkWgAll = new LinkLabel(); lnkWgAll.Text = "alle"; lnkWgAll.AutoSize = true;
+            lnkWgAll.Margin = new Padding(0, UI.S(6), UI.S(8), 0); lnkWgAll.LinkColor = UI.Accent;
+            Tip(lnkWgAll, "Alle Softwarepakete auswählen.");
+            LinkLabel lnkWgNone = new LinkLabel(); lnkWgNone.Text = "keine"; lnkWgNone.AutoSize = true;
+            lnkWgNone.Margin = new Padding(0, UI.S(6), UI.S(16), 0); lnkWgNone.LinkColor = UI.Accent;
+            Tip(lnkWgNone, "Alle Softwarepakete abwählen.");
+
+            CheckBox[] allWgBoxes = new CheckBox[] { chkChrome, chkFirefox, chkOpera, chkSteam, chkDiscord, chkNpp, chkOnlyOffice, chk7zip, chkVlc };
+            string[] allWgIds = new string[] { "Google.Chrome", "Mozilla.Firefox", "Opera.Opera", "Valve.Steam", "Discord.Discord", "Notepad++.Notepad++", "ONLYOFFICE.DesktopEditors", "7zip.7zip", "VideoLAN.VLC" };
+            string[] allWgNames = new string[] { "Google Chrome", "Mozilla Firefox", "Opera", "Steam", "Discord", "Notepad++", "ONLYOFFICE Desktop Editors", "7-Zip", "VLC Media Player" };
+
+            lnkWgAll.LinkClicked += delegate { foreach (CheckBox cb in allWgBoxes) cb.Checked = true; };
+            lnkWgNone.LinkClicked += delegate { foreach (CheckBox cb in allWgBoxes) cb.Checked = false; };
+
+            Button btnInstallWg = UI.Primary("Ausgewählte Programme installieren");
+            btnInstallWg.Margin = new Padding(0);
+            Label lblWgStatus = Lbl("", 9f, false, UI.Muted);
+            lblWgStatus.Margin = new Padding(UI.S(12), UI.S(6), 0, 0);
+
+            if (!hasWinget)
+            {
+                btnInstallWg.Enabled = false;
+                lblWgStatus.Text = "winget ist auf diesem System nicht installiert.";
+                lblWgStatus.ForeColor = UI.Warn;
+                Tip(btnInstallWg, "winget ist auf diesem System nicht installiert.");
+            }
+            else
+            {
+                Tip(btnInstallWg, "Führt 'winget install' für alle markierten Programme still im Hintergrund aus.");
+                btnInstallWg.Click += delegate {
+                    List<int> selIndices = new List<int>();
+                    for (int i = 0; i < allWgBoxes.Length; i++) {
+                        if (allWgBoxes[i].Checked) selIndices.Add(i);
+                    }
+                    if (selIndices.Count == 0) {
+                        MessageBox.Show(this, "Bitte wählen Sie mindestens ein Programm zur Installation aus.", "Softwarepakete installieren", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                    InstallWingetPackagesAsync(wingetPath, selIndices, allWgIds, allWgNames, lblWgStatus, btnInstallWg, allWgBoxes, lnkWgAll, lnkWgNone);
+                };
+            }
+
+            rowWgActions.Controls.Add(lnkWgAll);
+            rowWgActions.Controls.Add(lnkWgNone);
+            rowWgActions.Controls.Add(btnInstallWg);
+            rowWgActions.Controls.Add(lblWgStatus);
+
+            pnlWgInner.Controls.Add(rowWgActions);
+            pnlWgBox.Controls.Add(pnlWgInner);
+            pnlCards.Controls.Add(pnlWgBox);
+
+            // 3. Schnellstarter & Shortcuts
             pnlCards.Controls.Add(Section("Schnellstarter & System-Shortcuts"));
             Label lShortDesc = Lbl("Direkter Aufruf nativer Windows-Verwaltungskonsolen und Neustart in die Firmware.", 9f, false, UI.Muted);
             lShortDesc.MaximumSize = new Size(UI.S(740), 0);
@@ -520,5 +658,249 @@ public partial class DiagGui
             }
         }
         return null;
+    }
+
+    public void InstallWingetPackagesAsync(string exeToRun, List<int> selIndices, string[] allWgIds, string[] allWgNames, Label lblWgStatus, Button btnInstallWg, CheckBox[] allWgBoxes, LinkLabel lnkWgAll, LinkLabel lnkWgNone)
+    {
+        btnInstallWg.Enabled = false;
+        foreach (CheckBox cb in allWgBoxes) cb.Enabled = false;
+        lnkWgAll.Enabled = false; lnkWgNone.Enabled = false;
+
+        System.Threading.Thread t = new System.Threading.Thread(delegate() {
+            int okCount = 0;
+            int failCount = 0;
+            int total = selIndices.Count;
+            for (int s = 0; s < total; s++) {
+                int idx = selIndices[s];
+                string pkgId = allWgIds[idx];
+                string pkgName = allWgNames[idx];
+                string statusTxt = String.Format("Installiere ({0} von {1}): {2} ...", s + 1, total, pkgName);
+                try {
+                    this.BeginInvoke(new MethodInvoker(delegate {
+                        lblWgStatus.Text = statusTxt;
+                        lblWgStatus.ForeColor = UI.Accent;
+                    }));
+                } catch { }
+
+                try {
+                    ProcessStartInfo psi = new ProcessStartInfo();
+                    psi.FileName = exeToRun;
+                    psi.Arguments = "install --id " + pkgId + " -e --silent --accept-package-agreements --accept-source-agreements";
+                    psi.UseShellExecute = false;
+                    psi.CreateNoWindow = true;
+                    psi.RedirectStandardOutput = true;
+                    psi.RedirectStandardError = true;
+                    using (Process proc = Process.Start(psi)) {
+                        proc.WaitForExit();
+                        if (proc.ExitCode == 0) okCount++; else failCount++;
+                    }
+                } catch { failCount++; }
+            }
+
+            try {
+                this.BeginInvoke(new MethodInvoker(delegate {
+                    btnInstallWg.Enabled = true;
+                    foreach (CheckBox cb in allWgBoxes) cb.Enabled = true;
+                    lnkWgAll.Enabled = true; lnkWgNone.Enabled = true;
+                    if (failCount == 0) {
+                        lblWgStatus.Text = String.Format("Installation abgeschlossen: {0} Programme erfolgreich installiert.", okCount);
+                        lblWgStatus.ForeColor = UI.Ok;
+                    } else {
+                        lblWgStatus.Text = String.Format("Abgeschlossen: {0} erfolgreich, {1} fehlgeschlagen.", okCount, failCount);
+                        lblWgStatus.ForeColor = UI.Warn;
+                    }
+                }));
+            } catch { }
+        });
+        t.IsBackground = true;
+        t.Start();
+    }
+
+    public static bool IsWingetAvailable(out string wingetPath)
+    {
+        wingetPath = "winget.exe";
+        try
+        {
+            string appDataWinget = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\WindowsApps\winget.exe");
+            if (File.Exists(appDataWinget)) { wingetPath = appDataWinget; return true; }
+            ProcessStartInfo psi = new ProcessStartInfo("where.exe", "winget");
+            psi.UseShellExecute = false;
+            psi.CreateNoWindow = true;
+            psi.RedirectStandardOutput = true;
+            using (Process p = Process.Start(psi))
+            {
+                string o = p.StandardOutput.ReadToEnd();
+                p.WaitForExit();
+                if (p.ExitCode == 0 && !String.IsNullOrEmpty(o))
+                {
+                    string first = o.Split(new char[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)[0].Trim();
+                    if (File.Exists(first)) { wingetPath = first; return true; }
+                    return true;
+                }
+            }
+        }
+        catch { }
+        return false;
+    }
+
+    public static bool TestWritableDir(string dir)
+    {
+        if (String.IsNullOrEmpty(dir)) return false;
+        try
+        {
+            Directory.CreateDirectory(dir);
+            string testFile = Path.Combine(dir, ".schreibtest_" + Process.GetCurrentProcess().Id + ".tmp");
+            File.WriteAllText(testFile, "x", Encoding.UTF8);
+            File.Delete(testFile);
+            return true;
+        }
+        catch { return false; }
+    }
+
+    public void SwitchDataDir(string newDir)
+    {
+        if (String.IsNullOrEmpty(newDir)) return;
+        this.dataDir = newDir.TrimEnd('\\');
+        this.dbDir = Path.Combine(this.dataDir, "Datenbank");
+        this.changeDir = Path.Combine(this.dataDir, "Änderungen");
+        try { Directory.CreateDirectory(this.dataDir); } catch { }
+        try { Directory.CreateDirectory(this.dbDir); } catch { }
+        try { Directory.CreateDirectory(this.changeDir); } catch { }
+        try { ReloadDb(); } catch { }
+    }
+
+    public void ShowConnectNasDialog()
+    {
+        using (Form dlg = new Form())
+        {
+            dlg.Text = "Netzlaufwerk für Berichte & Datenbank verbinden";
+            dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+            dlg.MaximizeBox = false; dlg.MinimizeBox = false; dlg.ShowInTaskbar = false;
+            dlg.StartPosition = FormStartPosition.CenterParent;
+            dlg.Font = new Font("Segoe UI", 9.5f);
+            dlg.BackColor = UI.Bg; dlg.ForeColor = UI.Text;
+            dlg.ClientSize = new Size(UI.S(520), UI.S(380));
+
+            FlowLayoutPanel p = new FlowLayoutPanel();
+            p.Dock = DockStyle.Fill;
+            p.FlowDirection = FlowDirection.TopDown;
+            p.WrapContents = false;
+            p.Padding = new Padding(UI.S(16));
+
+            Label lInfo = Lbl("Verbindet ein Netzlaufwerk oder NAS für Berichte und Vergleichsdatenbank. Ist das Netzlaufwerk offline oder nicht beschreibbar, schaltet Minibench automatisch auf den lokalen Datenordner zurück.", 9f, false, UI.Muted);
+            lInfo.MaximumSize = new Size(UI.S(480), 0);
+            lInfo.Margin = new Padding(0, 0, 0, UI.S(12));
+            p.Controls.Add(lInfo);
+
+            Label lPath = Lbl("Netzwerkpfad (UNC-Pfad oder Netzlaufwerk):", 9.5f, true, UI.Text);
+            lPath.Margin = new Padding(0, 0, 0, UI.S(4));
+            p.Controls.Add(lPath);
+
+            TextBox tbPath = new TextBox();
+            tbPath.Width = UI.S(480);
+            tbPath.Text = (dataDir != null && dataDir.StartsWith(@"\\")) ? dataDir : @"\\NAS\Freigabe\Minibench-Daten";
+            tbPath.Margin = new Padding(0, 0, 0, UI.S(10));
+            p.Controls.Add(tbPath);
+
+            Label lUser = Lbl("Benutzername (optional für 'net use'):", 9f, false, UI.Text);
+            lUser.Margin = new Padding(0, 0, 0, UI.S(2));
+            p.Controls.Add(lUser);
+
+            TextBox tbUser = new TextBox();
+            tbUser.Width = UI.S(480);
+            tbUser.Margin = new Padding(0, 0, 0, UI.S(8));
+            p.Controls.Add(tbUser);
+
+            Label lPass = Lbl("Kennwort (optional):", 9f, false, UI.Text);
+            lPass.Margin = new Padding(0, 0, 0, UI.S(2));
+            p.Controls.Add(lPass);
+
+            TextBox tbPass = new TextBox();
+            tbPass.Width = UI.S(480);
+            tbPass.UseSystemPasswordChar = true;
+            tbPass.Margin = new Padding(0, 0, 0, UI.S(10));
+            p.Controls.Add(tbPass);
+
+            CheckBox chkSave = Chk("In Minibench-Daten\\Netzwerk.json dauerhaft festlegen", true);
+            chkSave.Margin = new Padding(0, 0, 0, UI.S(4));
+            Tip(chkSave, "Speichert den NAS-Pfad in der lokalen Konfigurationsdatei Netzwerk.json für zukünftige Starts.");
+            p.Controls.Add(chkSave);
+
+            CheckBox chkNetUse = Chk("Verbindung jetzt herstellen ('net use')", true);
+            chkNetUse.Margin = new Padding(0, 0, 0, UI.S(14));
+            Tip(chkNetUse, "Führt im Hintergrund 'net use' aus, um Netzwerkauthentifizierung herzustellen.");
+            p.Controls.Add(chkNetUse);
+
+            FlowLayoutPanel rowButtons = Row();
+            Button btnOk = UI.Primary("Verbinden & Umschalten");
+            btnOk.Margin = new Padding(0);
+            Tip(btnOk, "Testet Schreibrechte und schaltet den aktiven Speicherort auf das Netzlaufwerk um.");
+
+            Button btnCancel = UI.Secondary("Abbrechen");
+            btnCancel.Margin = new Padding(UI.S(8), 0, 0, 0);
+            btnCancel.Click += delegate { dlg.Close(); };
+            Tip(btnCancel, "Schließt den Dialog ohne Änderungen.");
+
+            btnOk.Click += delegate {
+                string unc = tbPath.Text.Trim();
+                if (String.IsNullOrEmpty(unc)) {
+                    MessageBox.Show(dlg, "Bitte geben Sie einen Netzwerkpfad ein.", "Netzlaufwerk verbinden", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // net use optional ausführen
+                if (chkNetUse.Checked || !String.IsNullOrEmpty(tbUser.Text)) {
+                    try {
+                        ProcessStartInfo psi = new ProcessStartInfo();
+                        psi.FileName = "net.exe";
+                        StringBuilder args = new StringBuilder("use \"").Append(unc).Append("\"");
+                        if (!String.IsNullOrEmpty(tbPass.Text)) args.Append(" \"").Append(tbPass.Text).Append("\"");
+                        if (!String.IsNullOrEmpty(tbUser.Text)) args.Append(" /user:\"").Append(tbUser.Text).Append("\"");
+                        args.Append(chkSave.Checked ? " /persistent:yes" : " /persistent:no");
+                        psi.Arguments = args.ToString();
+                        psi.UseShellExecute = false;
+                        psi.CreateNoWindow = true;
+                        using (Process pNet = Process.Start(psi)) {
+                            pNet.WaitForExit(8000);
+                        }
+                    } catch { }
+                }
+
+                // Schreibprobe durchführen
+                if (!TestWritableDir(unc)) {
+                    MessageBox.Show(dlg, "Auf das Netzlaufwerk '" + unc + "' konnte nicht schreibend zugegriffen werden.\r\n\r\nBitte Zugriffsrechte, Freigabeeinstellungen und Netzwerkverbindung prüfen. Der bisherige Ablageort bleibt aktiv.", "Verbindung fehlgeschlagen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Dauerhaft speichern wenn gewünscht
+                if (chkSave.Checked) {
+                    try {
+                        string localData = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Minibench-Daten");
+                        if (!Directory.Exists(localData) && !String.IsNullOrEmpty(dataDir) && !dataDir.StartsWith(@"\\")) {
+                            localData = dataDir;
+                        }
+                        Directory.CreateDirectory(localData);
+                        string cfgPath = Path.Combine(localData, "Netzwerk.json");
+                        string json = "{\r\n  \"NasPfad\": \"" + unc.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"\r\n}\r\n";
+                        File.WriteAllText(cfgPath, json, new UTF8Encoding(true));
+                    } catch { }
+                }
+
+                // Live umschalten
+                SwitchDataDir(unc);
+                MessageBox.Show(dlg, "Netzlaufwerk erfolgreich verbunden!\r\n\r\nAktiver Ablageort für Berichte und Datenbank:\r\n" + unc, "Netzlaufwerk verbunden", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                dlg.DialogResult = DialogResult.OK;
+                dlg.Close();
+            };
+
+            rowButtons.Controls.Add(btnOk);
+            rowButtons.Controls.Add(btnCancel);
+            p.Controls.Add(rowButtons);
+
+            dlg.Controls.Add(p);
+            dlg.AcceptButton = btnOk;
+            dlg.CancelButton = btnCancel;
+            dlg.ShowDialog(this);
+        }
     }
 }

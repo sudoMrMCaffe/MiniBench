@@ -1,4 +1,4 @@
-// Vergleichsdatenbank und Systemvergleich (Teilklasse DiagGui)
+﻿// Vergleichsdatenbank und Systemvergleich (Teilklasse DiagGui)
 public partial class DiagGui
 {
     class DbItemComparer : System.Collections.IComparer
@@ -185,7 +185,9 @@ public partial class DiagGui
         Tip(rel, "Liest Datenbank und Referenz neu ein.");
         Button open = UI.Secondary("Datenordner"); open.Margin = new Padding(UI.S(8), 0, 0, 0); open.Click += delegate { if (dataDir.Length > 0) OpenShell(dataDir); };
         Tip(open, "Öffnet den Datenordner (Berichte, Datenbank, Tools, Archiv).");
-        topTools.Controls.Add(imp); topTools.Controls.Add(btnDbClean); topTools.Controls.Add(rel); topTools.Controls.Add(open);
+        Button btnNas = UI.Secondary("Netzlaufwerk / NAS ..."); btnNas.Margin = new Padding(UI.S(8), 0, 0, 0); btnNas.Click += delegate { ShowConnectNasDialog(); };
+        Tip(btnNas, "Verbindet ein Netzlaufwerk oder NAS für Berichte und Vergleichsdatenbank.");
+        topTools.Controls.Add(imp); topTools.Controls.Add(btnDbClean); topTools.Controls.Add(rel); topTools.Controls.Add(open); topTools.Controls.Add(btnNas);
         top.Controls.Add(topTools);
 
         FlowLayoutPanel bottom = new FlowLayoutPanel(); bottom.FlowDirection = FlowDirection.TopDown; bottom.WrapContents = false; bottom.AutoSize = true; bottom.BackColor = UI.Panel; bottom.Dock = DockStyle.Bottom;

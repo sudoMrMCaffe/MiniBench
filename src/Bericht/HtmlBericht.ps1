@@ -1,10 +1,59 @@
+﻿function Get-TelemetryTip {
+    param($Sample)
+    $t = [int]$Sample.T
+    $mm = [int][math]::Floor($t / 60); $ss = [int]($t % 60)
+    $lines = @("<div style='font-weight:700;margin-bottom:4px;border-bottom:1px solid var(--line);padding-bottom:2px'>⏱️ {0:00}:{1:00} min ({2} s)</div>" -f $mm, $ss, $t)
+    $cpuT = $(if ($null -ne $Sample.CpuTemp) { $Sample.CpuTemp } elseif ($null -ne $Sample.Temp) { $Sample.Temp } else { $null })
+    if ($null -ne $cpuT) { $lines += ("<div style='color:var(--crit,#ef4444);font-weight:600'>🌡️ CPU: {0:N1} °C</div>" -f [double]$cpuT) }
+    if ($null -ne $Sample.GpuTemp -and [double]$Sample.GpuTemp -gt 0) { $lines += ("<div style='color:#c2410c;font-weight:600'>🎮 GPU: {0:N1} °C</div>" -f [double]$Sample.GpuTemp) }
+    $cpuMhz = $(if ($null -ne $Sample.CpuMHz -and [double]$Sample.CpuMHz -gt 0) { $Sample.CpuMHz } elseif ($null -ne $Sample.MHz -and [double]$Sample.MHz -gt 0) { $Sample.MHz } else { $null })
+    if ($null -ne $cpuMhz) { $lines += ("<div style='color:var(--info,#2563eb);font-weight:600'>⚡ CPU-Takt: {0:N2} GHz</div>" -f ([double]$cpuMhz / 1000.0)) }
+    if ($null -ne $Sample.GpuMHz -and [double]$Sample.GpuMHz -gt 0) { $lines += ("<div style='color:#ea580c'>🎮 GPU-Takt: {0:N0} MHz</div>" -f [double]$Sample.GpuMHz) }
+    if ($null -ne $Sample.CpuW -and [double]$Sample.CpuW -gt 0) { $lines += ("<div>💡 CPU-Paket: {0:N1} W</div>" -f [double]$Sample.CpuW) }
+    if ($null -ne $Sample.GpuW -and [double]$Sample.GpuW -gt 0) { $lines += ("<div>⚡ GPU: {0:N1} W</div>" -f [double]$Sample.GpuW) }
+    if ($null -ne $Sample.GpuLoad -and [double]$Sample.GpuLoad -ge 0) { $lines += ("<div>📊 GPU-Auslastung: {0:N0} %</div>" -f [double]$Sample.GpuLoad) }
+    if ($null -ne $Sample.Fps -and [double]$Sample.Fps -gt 0) { $lines += ("<div>🎬 {0:N1} Bilder/s</div>" -f [double]$Sample.Fps) }
+    if ($null -ne $Sample.Fan -and [double]$Sample.Fan -gt 0) { $lines += ("<div>🌀 Lüfter: {0:N0} U/min</div>" -f [double]$Sample.Fan) }
+    if ($null -ne $Sample.DiskMBs -and [double]$Sample.DiskMBs -gt 0) { $lines += ("<div>💾 Datenträger: {0:N0} MB/s</div>" -f [double]$Sample.DiskMBs) }
+    return ($lines -join '')
+}
+
 # Lasttest im HTML-Bericht: Drosselnachweis und Kurven für Temperatur, Takt, Leistung und Lüfter.
 # Ab v2.7 auch für den Benchmark: eigene Messreihe, Marken am Beginn jedes Abschnitts, ohne Drosselnachweis.
 function New-LoadChartsHtml {
     param($Series = $script:LoadSeries, $Throttle = $script:LoadThrottle, $Abort = $script:LoadAbort, $Limits = $script:LoadLimits, $Marken = $null, $GpuLoad = $script:GpuLoad)
     $S = @($Series)
     $sb = New-Object System.Text.StringBuilder
-    $pts = { param($prop) @($S | Where-Object { $null -ne $_.$prop -and "$($_.$prop)" -ne '' } | ForEach-Object { [pscustomobject]@{ T = $_.T; V = [double]$_.$prop } }) }
+    $tipMap = @{}
+    $calcTip = {
+        param($Sample)
+        $t = [int]$Sample.T
+        $mm = [int][math]::Floor($t / 60); $ss = [int]($t % 60)
+        $lines = @("<div style='font-weight:700;margin-bottom:4px;border-bottom:1px solid var(--line);padding-bottom:2px'>⏱️ {0:00}:{1:00} min ({2} s)</div>" -f $mm, $ss, $t)
+        $cpuT = $(if ($null -ne $Sample.CpuTemp) { $Sample.CpuTemp } elseif ($null -ne $Sample.Temp) { $Sample.Temp } else { $null })
+        if ($null -ne $cpuT) { $lines += ("<div style='color:var(--crit,#ef4444);font-weight:600'>🌡️ CPU: {0:N1} °C</div>" -f [double]$cpuT) }
+        if ($null -ne $Sample.GpuTemp -and [double]$Sample.GpuTemp -gt 0) { $lines += ("<div style='color:#c2410c;font-weight:600'>🎮 GPU: {0:N1} °C</div>" -f [double]$Sample.GpuTemp) }
+        $cpuMhz = $(if ($null -ne $Sample.CpuMHz -and [double]$Sample.CpuMHz -gt 0) { $Sample.CpuMHz } elseif ($null -ne $Sample.MHz -and [double]$Sample.MHz -gt 0) { $Sample.MHz } else { $null })
+        if ($null -ne $cpuMhz) { $lines += ("<div style='color:var(--info,#2563eb);font-weight:600'>⚡ CPU-Takt: {0:N2} GHz</div>" -f ([double]$cpuMhz / 1000.0)) }
+        if ($null -ne $Sample.GpuMHz -and [double]$Sample.GpuMHz -gt 0) { $lines += ("<div style='color:#ea580c'>🎮 GPU-Takt: {0:N0} MHz</div>" -f [double]$Sample.GpuMHz) }
+        if ($null -ne $Sample.CpuW -and [double]$Sample.CpuW -gt 0) { $lines += ("<div>💡 CPU-Paket: {0:N1} W</div>" -f [double]$Sample.CpuW) }
+        if ($null -ne $Sample.GpuW -and [double]$Sample.GpuW -gt 0) { $lines += ("<div>⚡ GPU: {0:N1} W</div>" -f [double]$Sample.GpuW) }
+        if ($null -ne $Sample.GpuLoad -and [double]$Sample.GpuLoad -ge 0) { $lines += ("<div>📊 GPU-Auslastung: {0:N0} %</div>" -f [double]$Sample.GpuLoad) }
+        if ($null -ne $Sample.Fps -and [double]$Sample.Fps -gt 0) { $lines += ("<div>🎬 {0:N1} Bilder/s</div>" -f [double]$Sample.Fps) }
+        if ($null -ne $Sample.Fan -and [double]$Sample.Fan -gt 0) { $lines += ("<div>🌀 Lüfter: {0:N0} U/min</div>" -f [double]$Sample.Fan) }
+        if ($null -ne $Sample.DiskMBs -and [double]$Sample.DiskMBs -gt 0) { $lines += ("<div>💾 Datenträger: {0:N0} MB/s</div>" -f [double]$Sample.DiskMBs) }
+        return ($lines -join '')
+    }
+    foreach ($row in $S) {
+        if ($null -ne $row.T) {
+            $tipMap[[int]$row.T] = if (Get-Command Get-TelemetryTip -ErrorAction SilentlyContinue) { Get-TelemetryTip $row } else { & $calcTip $row }
+        }
+    }
+    $pts = { param($prop) @($S | Where-Object { $null -ne $_.$prop -and "$($_.$prop)" -ne '' } | ForEach-Object {
+        $tInt = [int]$_.T
+        $tTip = $(if ($tipMap.ContainsKey($tInt)) { $tipMap[$tInt] } else { $null })
+        [pscustomobject]@{ T = $_.T; V = [double]$_.$prop; Tip = $tTip }
+    }) }
     $th = $Throttle
     if ($th) {
         $c = switch ($th.Status) { 'keine' { 'ok' } 'thermisch' { 'warn' } 'nicht bewertbar' { 'info' } default { $(if ($th.Stufe -eq 'WARNUNG') { 'warn' } else { 'info' }) } }
@@ -26,7 +75,16 @@ function New-LoadChartsHtml {
     # Temperatur: Sensorwerte, sonst ACPI-Thermalzone (nur wenn veränderlich)
     $ser = @()
     $cpuSens = @($S | Where-Object { $null -ne $_.CpuTemp -and $_.CpuTempQ -ne 'ACPI' })
-    if ($cpuSens.Count -ge 2) { $ser += @{ Name = 'CPU'; Cls = 's1'; Points = @($cpuSens | ForEach-Object { [pscustomobject]@{ T = $_.T; V = [double]$_.CpuTemp } }) } }
+    if ($cpuSens.Count -ge 2) {
+        $ser += @{
+            Name = 'CPU'; Cls = 's1';
+            Points = @($cpuSens | ForEach-Object {
+                $tInt = [int]$_.T
+                $tTip = $(if ($tipMap.ContainsKey($tInt)) { $tipMap[$tInt] } else { $null })
+                [pscustomobject]@{ T = $_.T; V = [double]$_.CpuTemp; Tip = $tTip }
+            })
+        }
+    }
     elseif (@($S | Where-Object { $_.Temp } | ForEach-Object { $_.Temp } | Select-Object -Unique).Count -gt 1) { $ser += @{ Name = 'ACPI-Thermalzone (keine Kerntemperatur)'; Cls = 's1'; Points = (& $pts 'Temp') } }
     $ser += @{ Name = 'GPU'; Cls = 's2'; Points = (& $pts 'GpuTemp') }
     $ser += @{ Name = 'Prozessorgrafik'; Cls = 's5'; Points = (& $pts 'IGpuTemp') }
@@ -109,8 +167,6 @@ function setLevelFilter(lvl, btn) {
     filterBefunde();
 }
 function filterBefunde() {
-    var input = document.getElementById('befundSearch');
-    var q = input ? input.value.toLowerCase().trim() : '';
     var table = document.getElementById('befundeTable');
     if (!table) return;
     var rows = table.querySelectorAll('tbody tr');
@@ -119,10 +175,8 @@ function filterBefunde() {
         var tr = rows[i];
         var lvlCell = tr.querySelector('td[data-level]');
         var lvl = lvlCell ? lvlCell.getAttribute('data-level') : '';
-        var text = tr.textContent.toLowerCase();
         var matchLvl = (currentLevel === 'all' || lvl === currentLevel);
-        var matchQuery = (!q || text.indexOf(q) !== -1);
-        if (matchLvl && matchQuery) {
+        if (matchLvl) {
             tr.style.display = '';
             visible++;
         } else {
@@ -158,23 +212,68 @@ function initBefundCounts() {
     tip.className = 'chart-tooltip';
     tip.style.opacity = '0';
     document.body.appendChild(tip);
+
+    function showTip(html, x, y) {
+        tip.innerHTML = html;
+        tip.style.opacity = '1';
+        var pad = 14;
+        var tw = tip.offsetWidth || 180;
+        var left = x + pad;
+        if (left + tw > window.innerWidth - 10) {
+            left = Math.max(10, x - tw - pad);
+        }
+        tip.style.left = left + 'px';
+        tip.style.top = Math.max(10, y - 32) + 'px';
+    }
+
+    function hideTip() {
+        tip.style.opacity = '0';
+    }
+
     document.addEventListener('mouseover', function(e) {
         var hit = e.target.closest('.hit');
         if (hit && hit.getAttribute('data-tip')) {
-            tip.textContent = hit.getAttribute('data-tip');
-            tip.style.opacity = '1';
+            showTip(hit.getAttribute('data-tip'), e.pageX, e.pageY);
         }
     });
+
     document.addEventListener('mousemove', function(e) {
+        var hit = e.target.closest('.hit');
+        if (hit && hit.getAttribute('data-tip')) {
+            showTip(hit.getAttribute('data-tip'), e.pageX, e.pageY);
+            return;
+        }
+        var svg = e.target.closest('svg.chart.ml');
+        if (svg) {
+            var hits = svg.querySelectorAll('.hit');
+            if (hits.length > 0) {
+                var rect = svg.getBoundingClientRect();
+                var svgX = (e.clientX - rect.left) / rect.width * 960;
+                var bestHit = null;
+                var minDiff = 40;
+                for (var i = 0; i < hits.length; i++) {
+                    var cx = parseFloat(hits[i].getAttribute('cx'));
+                    var diff = Math.abs(cx - svgX);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        bestHit = hits[i];
+                    }
+                }
+                if (bestHit && bestHit.getAttribute('data-tip')) {
+                    showTip(bestHit.getAttribute('data-tip'), e.pageX, e.pageY);
+                    return;
+                }
+            }
+        }
         if (tip.style.opacity === '1') {
-            tip.style.left = (e.pageX + 12) + 'px';
-            tip.style.top = (e.pageY - 28) + 'px';
+            hideTip();
         }
     });
+
     document.addEventListener('mouseout', function(e) {
-        var hit = e.target.closest('.hit');
-        if (hit) {
-            tip.style.opacity = '0';
+        var svg = e.target.closest('svg.chart.ml');
+        if (svg && (!e.relatedTarget || !e.relatedTarget.closest('svg.chart.ml'))) {
+            hideTip();
         }
     });
 })();
@@ -221,7 +320,7 @@ function New-HtmlReport {
 
     [void]$sb.Append('<section class="box" data-section="befunde"><h2>Befunde</h2>')
     if ($Sorted.Count) {
-        [void]$sb.Append('<div class="filter-bar"><input type="text" id="befundSearch" class="search-input" placeholder="Befunde durchsuchen (Stufe, Bereich, Text)..." oninput="filterBefunde()"><div class="filter-chips"><button type="button" class="fchip active" data-level="all" onclick="setLevelFilter(''all'', this)">Alle (<span id="cntAll">0</span>)</button><button type="button" class="fchip chip-crit" data-level="KRITISCH" onclick="setLevelFilter(''KRITISCH'', this)">Kritisch (<span id="cntCrit">0</span>)</button><button type="button" class="fchip chip-warn" data-level="WARNUNG" onclick="setLevelFilter(''WARNUNG'', this)">Warnung (<span id="cntWarn">0</span>)</button><button type="button" class="fchip chip-info" data-level="INFO" onclick="setLevelFilter(''INFO'', this)">Hinweis (<span id="cntInfo">0</span>)</button></div><span id="befundCount" class="filter-count"></span></div>')
+        [void]$sb.Append('<div class="filter-bar"><div class="filter-chips"><button type="button" class="fchip active" data-level="all" onclick="setLevelFilter(''all'', this)">Alle (<span id="cntAll">0</span>)</button><button type="button" class="fchip chip-crit" data-level="KRITISCH" onclick="setLevelFilter(''KRITISCH'', this)">Kritisch (<span id="cntCrit">0</span>)</button><button type="button" class="fchip chip-warn" data-level="WARNUNG" onclick="setLevelFilter(''WARNUNG'', this)">Warnung (<span id="cntWarn">0</span>)</button><button type="button" class="fchip chip-info" data-level="INFO" onclick="setLevelFilter(''INFO'', this)">Hinweis (<span id="cntInfo">0</span>)</button></div><span id="befundCount" class="filter-count"></span></div>')
         [void]$sb.Append('<table id="befundeTable"><thead><tr><th>Stufe</th><th>Bereich</th><th>Befund</th></tr></thead><tbody>')
         foreach ($f in $Sorted) { [void]$sb.Append(('<tr><td data-level="{0}"><span class="badge {1}">{0}</span></td><td>{2}</td><td>{3}</td></tr>' -f $f.Stufe, $cls[$f.Stufe], (ConvertTo-HtmlText $f.Bereich), (ConvertTo-HtmlText $f.Befund))) }
         [void]$sb.Append('</tbody></table>')

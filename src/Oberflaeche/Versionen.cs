@@ -11,6 +11,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.5", "06.10.2026", "Taskleisten-Task-Beenden, Minimal-Preset-Standard, winget-Softwarepakete, NAS-Netzlaufwerke & interaktive Berichtsdiagramme",
+            "Fehlerbehebung & Optimierungs-Presets: Entkopplung der Taskleisten-Gruppierung vom Task-Beenden; TaskbarEndTask als eigenständiger Eintrag mit Vorlagen MSE. Das Preset Minimal wurde auf ein schlankes Basispaket gestrafft und ist die neue Standardvorauswahl beim Start. " +
+            "Erweitertes Fensterlayout: Vergrößerte, responsive Startfenstergröße (1220x740 mit Begrenzung auf 95 % / 92 % des Arbeitsbereichs) für optimalen Überblick ohne Überlauf auf skalierten Displays. " +
+            "Softwarepakete installieren (winget): Neues Werkzeug im Modul Tools zur einfachen Installation populärer Standardprogramme (Chrome, Firefox, Opera, Steam, Discord, Notepad++, OnlyOffice, 7-Zip, VLC) per Mausklick mit Statuserkennung. " +
+            "NAS- & Netzlaufwerk-Integration: Konfigurierbare Netzwerkpfade für Berichte und Vergleichsdatenbank (Netzwerk.json) mit schnellem Verbindungsdialog und robustem, automatischem lokalem Fallback bei Verbindungsverlust. " +
+            "Berichts-Diagramme & Bereinigung: Sensor-Charts im Diagnosebericht mit interaktiven Hover-Tooltips (Zeitstempel, °C, GHz, Watt und Auslastung) sowie Bereinigung der Befunde-Suchleiste zugunsten übersichtlicher Stufen-Filter."),
         new Eintrag("3.4", "06.10.2026", "Modul Tools (Portable Werkzeuge & System-Shortcuts), Leos Empfehlung & interaktiver Hauptbericht",
             "Neues Modul Tools: Eigene Navigationsseite mit portablen Werkzeugen (Revo Uninstaller, MiniTool Partition Wizard, WizTree) inklusive automatischer Erkennung und Administrator-Start sowie System-Shortcuts (Ins BIOS/UEFI neu starten, Datenträgerverwaltung, Geräte-Manager, Zuverlässigkeitsverlauf). " +
             "Erweiterung 'Leos Empfehlung': Neue Optimierung für Windows 11 zum sofortigen Beenden von Tasks per Rechtsklick auf die Taskleiste (TaskbarEndTask) sowie Desktop-Kontextmenü-Shortcut für UEFI-Neustarts. " +

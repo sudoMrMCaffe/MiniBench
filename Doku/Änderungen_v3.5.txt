@@ -1,0 +1,111 @@
+﻿LEOS MINIBENCH 3.5: ÄNDERUNGEN
+============================
+
+Version 3.5 behebt den Fehler beim Taskleisten-Task-Beenden, strafft das Minimal-Optimierungspreset
+und setzt es als Startstandard, erweitert das Fensterlayout für mehr Übersicht, rüstet das Modul
+Tools mit einer winget-Paketinstallation aus (Browser, Steam, Discord, Notepad++, OnlyOffice etc.),
+integriert konfigurierbare NAS-Netzlaufwerke für Berichte mit lokalem Fallback und stattet die
+Berichtsdiagramme mit interaktiven Hover-Tooltips (ohne Befunde-Suchleiste) aus.
+
+1. FEHLERBEHEBUNG & OPTIMIERUNGS-PRESETS
+   * Bereinigung TaskleisteGruppieren:
+     Entfernung der fehlerhaft verknüpften TaskbarEndTask-Registrierungsaktion aus dem Eintrag
+     TaskleisteGruppieren in src/Module/Optimierung/Katalog.psd1. Die Gruppierung steuert nun
+     ausschließlich das Verhalten über TaskbarGlomLevel.
+   * Eigenständiger Eintrag 'TaskbarEndTask':
+     Als separater Optimierungseintrag mit Titel "Taskleiste: Task beenden per Rechtsklick"
+     in der Kategorie 'Bedienung' (Explorer, Taskleiste und Start) definiert.
+     Vorlagen: MSE (Minimal, Standard / Leos Empfehlung, Erweitert), Bedingung: Win11.
+     Aktionen: Setzt TaskbarEndTask = 1 (DWord) in TaskbarDeveloperSettings und Advanced.
+     Gegenbefehl: Setzt beide Werte wieder auf 0 zurück.
+   * Straffung Minimal-Preset & neuer Startstandard:
+     Das Preset 'Minimal' (M) wurde auf ein kompaktes Basispaket gestrafft (TelemetrieMinimal,
+     Fehlerberichte, WerbeId, Speicheroptimierung, TaskbarEndTask). Es verändert keine tiefen
+     Systemdienste oder Apps.
+     BuildOptPage() in DiagGui.cs wählt nun beim Programmstart standardmäßig ApplyOptPreset("M") vor.
+     "Leos Empfehlung" (S) bleibt als umfassendes Standardpaket für weitergehende Optimierungen erhalten.
+
+2. FENSTERGRÖSSE & OBERFLÄCHEN-FEINSCHLIFF
+   * Erweiterte Startabmessungen:
+     Responsive Berechnung mit vergrößerter Startbreite und -höhe:
+     Breite: Math.Min(UI.S(1220), (int)(Screen.FromPoint(Cursor.Position).WorkingArea.Width * 0.95))
+     Höhe: Math.Min(UI.S(740), (int)(Screen.FromPoint(Cursor.Position).WorkingArea.Height * 0.92))
+     MinimumSize: new Size(UI.S(880), UI.S(560)).
+   * Verbesserte Raumaufteilung:
+     Bietet sofort mehr Platz für Tabellen, Kacheln und Vergleiche, ohne auf 1080p-Notebooks mit
+     150 % Windows-Skalierung über die Ränder hinauszulaufen.
+
+3. MODUL 'TOOLS': SOFTWAREPAKETE VIA WINGET
+   * Integrierter Softwarepaket-Installer:
+     Neuer Bereich "Softwarepakete installieren (winget)" auf der Tools-Seite.
+     Prüft beim Laden im Hintergrund via where.exe bzw. Pfadsuche die Verfügbarkeit des Windows
+     Package Managers (winget.exe).
+   * Beliebte Softwareauswahl mit Checkboxen:
+     - Web-Browser: Google Chrome (Google.Chrome), Mozilla Firefox (Mozilla.Firefox), Opera (Opera.Opera)
+     - Gaming & Chat: Steam (Valve.Steam), Discord (Discord.Discord)
+     - Produktivität & Werkzeuge: Notepad++ (Notepad++.Notepad++), ONLYOFFICE Desktop Editors
+       (ONLYOFFICE.DesktopEditors), 7-Zip (7zip.7zip), VLC Media Player (VideoLAN.VLC)
+   * Asynchrone Installation & Rückmeldung:
+     Schaltfläche "Ausgewählte Programme installieren" führt die Installation per Silent-Flag aus
+     (winget install --id <Id> -e --silent --accept-package-agreements --accept-source-agreements).
+     Der Fortschritt wird live in Statusleiste und Protokoll gemeldet. Fehlt winget auf dem System,
+     wird die Schaltfläche mit einem klaren Hinweis deaktiviert.
+
+4. DATENORDNER AUF NAS / NETZLAUFWERK & 1-KLICK-EINBINDUNG
+   * Netzwerkpfad-Unterstützung (Netzwerk.json):
+     Resolve-DataDir in src/Kern/Datenordner.ps1 prüft auf optionale Konfigurationen in Netzwerk.json
+     (NasPfad oder NetzwerkPfad).
+   * Robuster lokaler Fallback:
+     Prüft Schreibrechte mit Test-WritableDir. Ist das Netzlaufwerk nicht erreichbar oder schreibgeschützt,
+     fällt Minibench automatisch und ohne störende Fehlermeldungen auf den lokalen Datenordner zurück.
+   * 1-Klick-Einbindungsdialog im UI:
+     Neuer Dialog "Netzlaufwerk / NAS verbinden" auf den Seiten Tools und Datenbank. Erlaubt die Eingabe
+     eines UNC-Pfads, optionale Anmeldedaten (temporäre Sitzungsverbindung via net use), Speicherung
+     und direktes Live-Umschalten des aktiven Datenverzeichnisses.
+
+5. BERICHT-ANPASSUNG (DIAGNOSEBERICHT.HTML)
+   * Hoverbare Sensor-Diagramme:
+     Die Sensor-Charts (Temperatur, Takt, Leistung, Auslastung) im Hauptbericht verfügen über
+     dieselbe interaktive Hover-Tooltip-Logik wie das Dashboard. Beim Bewegen der Maus über Kurven
+     oder Messpunkte werden Zeitstempel, °C, GHz, Watt und Auslastung direkt am Punkt eingeblendet.
+     Vollständig offlinefähig und 100 % inline ohne externe CDNs oder Bibliotheken.
+   * Befunde-Suchleiste entfernt:
+     Das redundante Freitext-Suchfeld bei den Befunden wurde entfernt, um das Layout übersichtlich
+     und aufgeräumt zu halten. Die praktischen Stufen-Chips (Alle, Kritisch, Warnung, Hinweis)
+     ermöglichen weiterhin ein blitzschnelles Filtern.
+
+GEFUNDEN UND BEHOBEN
+  1. TaskleisteGruppieren Entkopplung: Die unbeabsichtigte Registrierungsaktion TaskbarEndTask
+     wurde aus TaskleisteGruppieren entfernt, sodass die Gruppierung nicht mehr fälschlich den
+     Task-Beenden-Rechtsklick beeinflusst.
+  2. Minimal-Preset Bereinigung: Bisherige Standardeinstellungen im Minimal-Preset wurden auf
+     eine absolut schlanke Datenschutz- und Cache-Basis reduziert.
+  3. Winget-Fehlerbehandlung: Robuste Pfad- und Exitcode-Auswertung für winget.exe ohne Hängen
+     des UI-Threads bei fehlender Netzwerkverbindung.
+  4. NAS-Fallback ohne Blockieren: Schreibtests auf Netzlaufwerken laufen mit kurzem Timeout ab,
+     sodass nicht erreichbare Shares den Anwendungsstart nicht verzögern.
+  5. Chart-Tooltips Multiline: Anpassung der CSS-Klasse .chart-tooltip auf flexible Mehrzeilendarstellung
+     mit Zeilenabständen und automatischer Ausrichtung an Bildschirmrändern.
+
+GRENZEN
+  - winget erfordert Windows 10 Version 1809 (Build 17763) oder neuer mit installiertem App-Installer
+    sowie eine funktionierende Internetverbindung während des Downloads der Installationspakete.
+  - TaskbarEndTask steht exklusiv unter Windows 11 Build 22621 oder neuer zur Verfügung.
+  - Netzlaufwerke über SMB/UNC erfordern passende Netzwerk- und Freigabeberechtigungen.
+
+UMSTIEG
+  1. Bauen.cmd ausführen (baut LeosMinibench.exe und LeosMinibench.ps1 für v3.5 und committet lokal).
+  2. Inhalt des Ordners 'Aktueller Build' auf den USB-Stick kopieren.
+  3. Bisherige Datenbankeinträge, Berichte und Tools bleiben 100 % kompatibel.
+
+ERGEBNIS
+  Alle Pester-Tests bestanden.
+  Preset Minimal ist die neue Standardvorauswahl.
+  winget-Pakete können auf Knopfdruck installiert werden.
+  NAS-Pfade werden mit lokalem Fallback nahtlos unterstützt.
+  Diagnosebericht.html verfügt über interaktive Sensor-Hover-Charts.
+
+QUELLEN
+  - Microsoft Docs: Windows Package Manager (winget) CLI-Spezifikation.
+  - Microsoft Docs: Windows 11 Taskbar Developer Settings.
+  - Microsoft Docs: UNC-Pfad-Spezifikation und SMB-Freigaben.

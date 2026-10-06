@@ -41,7 +41,7 @@
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack'; Name = 'ShowedToastAtLevel'; Wert = 1; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection'; Name = 'LimitEnhancedDiagnosticDataWindowsAnalytics'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'TelemetrieDienste'; Kat = 'Datenschutz'; Titel = 'Telemetriedienste abschalten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'TelemetrieDienste'; Kat = 'Datenschutz'; Titel = 'Telemetriedienste abschalten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Pack Dienste und Registry, Sophia DiagTrackService'
            Text = 'Benutzererfahrung und Telemetrie (DiagTrack), WAP-Push (dmwappushservice) sowie die Diagnosedienste werden beendet und deaktiviert.'
            Hinweis = 'Ohne DiagTrack gibt es keine Xbox-Erfolge mehr.'
@@ -51,7 +51,7 @@
                @{ Art = 'Dienst'; Name = 'diagnosticshub.standardcollector.service'; Start = 'Disabled' }
                @{ Art = 'Dienst'; Name = 'diagsvc'; Start = 'Disabled' }
            ) }
-        @{ Id = 'TelemetrieDiagnoseprotokolle'; Kat = 'Datenschutz'; Titel = 'Diagnoseprotokolle und OneSettings nicht übertragen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
+        @{ Id = 'TelemetrieDiagnoseprotokolle'; Kat = 'Datenschutz'; Titel = 'Diagnoseprotokolle und OneSettings nicht übertragen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
            Quelle = 'O&O U006, U007'
            Text = 'Keine Sammlung von Diagnoseprotokollen und kein Herunterladen von OneSettings-Konfigurationen.'
            Aktionen = @(
@@ -69,7 +69,7 @@
                @{ Art = 'Dienst'; Name = 'WerSvc'; Start = 'Disabled' }
                @{ Art = 'Dienst'; Name = 'wercplsupport'; Start = 'Disabled' }
            ) }
-        @{ Id = 'Feedback'; Kat = 'Datenschutz'; Titel = 'Keine Feedback-Anfragen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'Feedback'; Kat = 'Datenschutz'; Titel = 'Keine Feedback-Anfragen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Sophia FeedbackFrequency, O&O M001, M022'
            Text = 'Windows fragt nie mehr nach Feedback.'
            Aktionen = @(
@@ -83,14 +83,14 @@
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo'; Name = 'Enabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo'; Name = 'DisabledByGroupPolicy'; Wert = 1; Typ = 'DWord' }
            ) }
-        @{ Id = 'MassgeschneiderteErfahrung'; Kat = 'Datenschutz'; Titel = 'Keine Tipps und Werbung aus Diagnosedaten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'MassgeschneiderteErfahrung'; Kat = 'Datenschutz'; Titel = 'Keine Tipps und Werbung aus Diagnosedaten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Sophia TailoredExperiences, O&O U004, U005'
            Text = 'Microsoft nutzt Diagnosedaten nicht für persönliche Tipps, Werbung und Empfehlungen.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Privacy'; Name = 'TailoredExperiencesWithDiagnosticDataEnabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent'; Name = 'DisableTailoredExperiencesWithDiagnosticData'; Wert = 1; Typ = 'DWord' }
            ) }
-        @{ Id = 'Sprachliste'; Kat = 'Datenschutz'; Titel = 'Websites sehen die Sprachliste nicht'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'Sprachliste'; Kat = 'Datenschutz'; Titel = 'Websites sehen die Sprachliste nicht'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Sophia LanguageListAccess, O&O P015'
            Text = 'Websites können über die Sprachliste keine lokal angepassten Inhalte anbieten.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKCU:\Control Panel\International\User Profile'; Name = 'HttpAcceptLanguageOptOut'; Wert = 1; Typ = 'DWord' } ) }
@@ -98,7 +98,7 @@
            Quelle = 'Sophia SigninInfo'
            Text = 'Nach einem Update meldet Windows den Benutzer nicht mehr automatisch an, um die Einrichtung abzuschließen.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\UserARSO\{SID}'; Name = 'OptOut'; Wert = 1; Typ = 'DWord' } ) }
-        @{ Id = 'Handschrift'; Kat = 'Datenschutz'; Titel = 'Handschrift- und Eingabedaten nicht teilen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'Handschrift'; Kat = 'Datenschutz'; Titel = 'Handschrift- und Eingabedaten nicht teilen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'O&O P001, P002, P008, P068'
            Text = 'Keine Weitergabe von Handschriftdaten, Handschrift-Fehlerberichten und Tippinformationen, keine Textvorschläge der Bildschirmtastatur.'
            Aktionen = @(
@@ -107,7 +107,7 @@
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Input\TIPC'; Name = 'Enabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\TabletTip\1.7'; Name = 'EnableTextPrediction'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Inventar'; Kat = 'Datenschutz'; Titel = 'Inventarsammlung und Kompatibilitätstelemetrie aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
+        @{ Id = 'Inventar'; Kat = 'Datenschutz'; Titel = 'Inventarsammlung und Kompatibilitätstelemetrie aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
            Quelle = 'O&O P003, U001, S002, P027'
            Text = 'Kein Inventory Collector, keine Anwendungstelemetrie, keine Schrittaufzeichnung und kein Programm zur Verbesserung der Benutzerfreundlichkeit (CEIP).'
            Aktionen = @(
@@ -120,23 +120,23 @@
            Quelle = 'Pack Registry'
            Text = 'Blendet die Insider-Seite in den Einstellungen aus.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility'; Name = 'HideInsiderPage'; Wert = 1; Typ = 'DWord' } ) }
-        @{ Id = 'Nachrichtensicherung'; Kat = 'Datenschutz'; Titel = 'Textnachrichten nicht in der Cloud sichern'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'Nachrichtensicherung'; Kat = 'Datenschutz'; Titel = 'Textnachrichten nicht in der Cloud sichern'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'O&O P028'
            Text = 'Keine Sicherung von Textnachrichten in die Cloud.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Messaging'; Name = 'AllowMessageSync'; Wert = 0; Typ = 'DWord' } ) }
-        @{ Id = 'BluetoothWerbung'; Kat = 'Datenschutz'; Titel = 'Keine Werbung über Bluetooth'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'BluetoothWerbung'; Kat = 'Datenschutz'; Titel = 'Keine Werbung über Bluetooth'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'O&O P026'
            Text = 'Bluetooth-Geräte dürfen keine Werbung ausstrahlen lassen.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth'; Name = 'AllowAdvertising'; Wert = 0; Typ = 'DWord' } ) }
-        @{ Id = 'MediaPlayerDiagnose'; Kat = 'Datenschutz'; Titel = 'Windows Media Player ohne Nutzungsdaten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'MediaPlayerDiagnose'; Kat = 'Datenschutz'; Titel = 'Windows Media Player ohne Nutzungsdaten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'O&O M024'
            Text = 'Der Windows Media Player sendet keine Nutzungsdaten.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\MediaPlayer\Preferences'; Name = 'UsageTracking'; Wert = 0; Typ = 'DWord' } ) }
-        @{ Id = 'KmsOnline'; Kat = 'Datenschutz'; Titel = 'KMS-Onlineprüfung (AVS) aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
+        @{ Id = 'KmsOnline'; Kat = 'Datenschutz'; Titel = 'KMS-Onlineprüfung (AVS) aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
            Quelle = 'O&O M012'
            Text = 'Windows schickt nach einer KMS-Aktivierung kein Ticket zur Onlineprüfung an Microsoft. Die Aktivierung selbst bleibt unberührt.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform'; Name = 'NoGenTicket'; Wert = 1; Typ = 'DWord' } ) }
-        @{ Id = 'Standort'; Kat = 'Datenschutz'; Titel = 'Standortdienste und Sensoren aus'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'MSE'; Verwaltet = $true
+        @{ Id = 'Standort'; Kat = 'Datenschutz'; Titel = 'Standortdienste und Sensoren aus'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'SE'; Verwaltet = $true
            Quelle = 'O&O L001, L003, L004, L005'
            Text = 'Ortung, Ortung per Skript, Lage- und Ortungssensoren sowie der Geolocation-Dienst (lfsvc) werden abgeschaltet.'
            Hinweis = 'Automatische Zeitzone, Wo ist mein Gerät und Wetter mit Standort funktionieren danach nicht mehr.'
@@ -147,7 +147,7 @@
                @{ Art = 'Dienst'; Name = 'lfsvc'; Start = 'Disabled' }
            ) }
         # ------------------------------------------------------------------ Werbung, Tipps und Vorschläge
-        @{ Id = 'TippsVorschlaege'; Kat = 'Werbung'; Titel = 'Tipps, Tricks und Vorschläge aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'TippsVorschlaege'; Kat = 'Werbung'; Titel = 'Tipps, Tricks und Vorschläge aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Sophia WindowsTips, AppSuggestions, O&O P066, M005, P065, M006, P064'
            Text = 'Keine Tipps beim Arbeiten mit Windows, keine App-Vorschläge im Startmenü und in der Zeitachse.'
            Aktionen = @(
@@ -157,14 +157,14 @@
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SystemPaneSuggestionsEnabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SubscribedContent-353698Enabled'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Willkommen'; Kat = 'Werbung'; Titel = 'Kein Willkommensbildschirm und kein Einrichtungshinweis nach Updates'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'Willkommen'; Kat = 'Werbung'; Titel = 'Kein Willkommensbildschirm und kein Einrichtungshinweis nach Updates'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Sophia WindowsWelcomeExperience, WhatsNewInWindows, O&O P070'
            Text = 'Nach Updates keine Neuigkeiten-Seite und keine Aufforderung, die Einrichtung des Geräts abzuschließen.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SubscribedContent-310093Enabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement'; Name = 'ScoobeSystemSettingEnabled'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'EinstellungenVorschlaege'; Kat = 'Werbung'; Titel = 'Keine vorgeschlagenen Inhalte in den Einstellungen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'EinstellungenVorschlaege'; Kat = 'Werbung'; Titel = 'Keine vorgeschlagenen Inhalte in den Einstellungen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Sophia SettingsSuggestedContent, O&O P067'
            Text = 'Die Einstellungen-App zeigt keine vorgeschlagenen Inhalte mehr.'
            Aktionen = @(
@@ -172,14 +172,14 @@
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SubscribedContent-353694Enabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SubscribedContent-353696Enabled'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'AppsStillInstallieren'; Kat = 'Werbung'; Titel = 'Keine automatisch installierten Vorschlags-Apps'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
+        @{ Id = 'AppsStillInstallieren'; Kat = 'Werbung'; Titel = 'Keine automatisch installierten Vorschlags-Apps'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
            Quelle = 'Sophia AppsSilentInstalling, O&O M004'
            Text = 'Windows installiert keine empfohlenen Store-Apps mehr von selbst (Verbraucherfunktionen aus).'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SilentInstalledAppsEnabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent'; Name = 'DisableWindowsConsumerFeatures'; Wert = 1; Typ = 'DWord' }
            ) }
-        @{ Id = 'Sperrbildschirm'; Kat = 'Werbung'; Titel = 'Sperrbildschirm ohne Spotlight, Tipps und Benachrichtigungen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'Sperrbildschirm'; Kat = 'Werbung'; Titel = 'Sperrbildschirm ohne Spotlight, Tipps und Benachrichtigungen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'O&O K001, K002, K005, M028'
            Text = 'Kein Windows-Blickpunkt, keine Fakten und Tipps auf dem Sperrbildschirm, keine Benachrichtigungen darauf und kein Blickpunkt-Symbol auf dem Desktop.'
            Aktionen = @(
@@ -189,15 +189,15 @@
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings'; Name = 'NOC_GLOBAL_SETTING_ALLOW_TOASTS_ABOVE_LOCK'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel'; Name = '{2cc5ca98-6485-489a-920e-b3e88a6ccce3}'; Wert = 1; Typ = 'DWord' }
            ) }
-        @{ Id = 'Sperrkamera'; Kat = 'Werbung'; Titel = 'Keine Kamera auf dem Sperrbildschirm'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'Sperrkamera'; Kat = 'Werbung'; Titel = 'Keine Kamera auf dem Sperrbildschirm'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'O&O P004'
            Text = 'Die Kamera lässt sich auf dem Sperrbildschirm nicht mehr starten.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization'; Name = 'NoLockScreenCamera'; Wert = 1; Typ = 'DWord' } ) }
-        @{ Id = 'ExplorerWerbung'; Kat = 'Werbung'; Titel = 'Keine OneDrive-Werbung im Explorer'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'ExplorerWerbung'; Kat = 'Werbung'; Titel = 'Keine OneDrive-Werbung im Explorer'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Sophia OneDriveFileExplorerAd, O&O M010'
            Text = 'Der Explorer zeigt keine Hinweise des Synchronisierungsanbieters mehr.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'ShowSyncProviderNotifications'; Wert = 0; Typ = 'DWord' } ) }
-        @{ Id = 'Smartphone'; Kat = 'Werbung'; Titel = 'Smartphone-Link und Vorschläge für Mobilgeräte aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'Smartphone'; Kat = 'Werbung'; Titel = 'Smartphone-Link und Vorschläge für Mobilgeräte aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'O&O D001, D002, D003, D104'
            Text = 'Kein Verbinden mit dem Smartphone und keine Vorschläge dazu.'
            Aktionen = @(
@@ -213,7 +213,7 @@
            Text = 'Kein Hinweis "Neue App kann diesen Dateityp öffnen".'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer'; Name = 'NoNewAppAlert'; Wert = 1; Typ = 'DWord' } ) }
         # ------------------------------------------------------------------ Suche, Cortana, Copilot und KI
-        @{ Id = 'Websuche'; Kat = 'KI'; Titel = 'Keine Websuche (Bing) im Startmenü'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'Websuche'; Kat = 'KI'; Titel = 'Keine Websuche (Bing) im Startmenü'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Sophia BingSearch, O&O C008, C009, C011, M003'
            Text = 'Die Suche im Startmenü und in der Taskleiste durchsucht nur noch den PC, nicht Bing und keine Cloud-Inhalte.'
            Aktionen = @(
@@ -223,14 +223,14 @@
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search'; Name = 'ConnectedSearchUseWeb'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search'; Name = 'AllowCloudSearch'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Suchhighlights'; Kat = 'KI'; Titel = 'Suchhighlights aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'Suchhighlights'; Kat = 'KI'; Titel = 'Suchhighlights aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Sophia SearchHighlights, O&O C015'
            Text = 'Das Suchfeld zeigt keine wechselnden Highlights und Themen des Tages.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\SearchSettings'; Name = 'IsDynamicSearchBoxEnabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search'; Name = 'EnableDynamicContentInWSB'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Cortana'; Kat = 'KI'; Titel = 'Cortana aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'Cortana'; Kat = 'KI'; Titel = 'Cortana aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'O&O C012, C007, C014'
            Text = 'Cortana ist nicht erlaubt, auch nicht über dem Sperrbildschirm, und die Suche nutzt keinen Standort.'
            Aktionen = @(
@@ -238,7 +238,7 @@
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search'; Name = 'AllowCortanaAboveLock'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search'; Name = 'AllowSearchToUseLocation'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Spracherkennung'; Kat = 'KI'; Titel = 'Keine Online-Spracherkennung und Eingabepersonalisierung'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'Spracherkennung'; Kat = 'KI'; Titel = 'Keine Online-Spracherkennung und Eingabepersonalisierung'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'O&O C002, C013, C010, W011'
            Text = 'Keine Online-Spracherkennung, kein Lernen aus Eingaben, keine automatischen Updates der Sprachmodelle.'
            Aktionen = @(
@@ -248,7 +248,7 @@
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy'; Name = 'HasAccepted'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Speech'; Name = 'AllowSpeechModelUpdate'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Copilot'; Kat = 'KI'; Titel = 'Copilot aus und Schaltfläche entfernen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'Copilot'; Kat = 'KI'; Titel = 'Copilot aus und Schaltfläche entfernen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Sophia WindowsAI, O&O C101, C201, C102, C104'
            Text = 'Windows Copilot ist abgeschaltet, die Schaltfläche fehlt in der Taskleiste und Bing Chat ist nicht freigeschaltet.'
            Aktionen = @(
@@ -257,7 +257,7 @@
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'ShowCopilotButton'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\Shell\Copilot\BingChat'; Name = 'IsUserEligible'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Recall'; Kat = 'KI'; Titel = 'Recall und Click to Do aus'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'MSE'
+        @{ Id = 'Recall'; Kat = 'KI'; Titel = 'Recall und Click to Do aus'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'SE'
            Quelle = 'Sophia WindowsAI, O&O C103, C203, C204'
            Text = 'Keine Bildschirmaufnahmen durch Recall, Recall wird nicht bereitgestellt, Click to Do ist aus.'
            Aktionen = @(
@@ -266,7 +266,7 @@
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI'; Name = 'AllowRecallEnablement'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI'; Name = 'DisableClickToDo'; Wert = 1; Typ = 'DWord' }
            ) }
-        @{ Id = 'PaintKI'; Kat = 'KI'; Titel = 'KI-Funktionen in Paint und Editor aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'PaintKI'; Kat = 'KI'; Titel = 'KI-Funktionen in Paint und Editor aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Sophia WindowsAI, O&O C205, C206, C207'
            Text = 'Image Creator, Cocreator und generatives Füllen in Paint sowie die KI-Funktionen im Editor sind abgeschaltet.'
            Aktionen = @(
@@ -276,7 +276,7 @@
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\WindowsNotepad'; Name = 'DisableAIFeatures'; Wert = 1; Typ = 'DWord' }
            ) }
         # ------------------------------------------------------------------ App-Berechtigungen, Verlauf und Synchronisierung
-        @{ Id = 'Aktivitaetsverlauf'; Kat = 'Berechtigung'; Titel = 'Aktivitätsverlauf aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'Aktivitaetsverlauf'; Kat = 'Berechtigung'; Titel = 'Aktivitätsverlauf aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'O&O A001, A002, A003'
            Text = 'Windows zeichnet keine Aktivitäten auf, speichert keinen Verlauf und lädt keinen hoch.'
            Aktionen = @(
@@ -284,7 +284,7 @@
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System'; Name = 'PublishUserActivities'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System'; Name = 'UploadUserActivities'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Zwischenablage'; Kat = 'Berechtigung'; Titel = 'Zwischenablageverlauf und Cloud-Zwischenablage aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'Zwischenablage'; Kat = 'Berechtigung'; Titel = 'Zwischenablageverlauf und Cloud-Zwischenablage aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'O&O A004, A005, A006'
            Text = 'Kein Verlauf mit Win+V und keine Übertragung der Zwischenablage auf andere Geräte.'
            Hinweis = 'Wer den Verlauf der Zwischenablage (Win+V) nutzt, lässt diesen Eintrag weg.'
@@ -293,39 +293,39 @@
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Clipboard'; Name = 'EnableClipboardHistory'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System'; Name = 'AllowCrossDeviceClipboard'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'AppKonto'; Kat = 'Berechtigung'; Titel = 'Apps sehen keine Kontoinformationen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'AppKonto'; Kat = 'Berechtigung'; Titel = 'Apps sehen keine Kontoinformationen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'O&O P107, P036'
            Text = 'Apps dürfen Name, Bild und Kontodaten nicht lesen.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\userAccountInformation'; Name = 'Value'; Wert = 'Deny'; Typ = 'String' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\userAccountInformation'; Name = 'Value'; Wert = 'Deny'; Typ = 'String' }
            ) }
-        @{ Id = 'AppDiagnose'; Kat = 'Berechtigung'; Titel = 'Apps sehen keine Diagnoseinformationen anderer Apps'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'AppDiagnose'; Kat = 'Berechtigung'; Titel = 'Apps sehen keine Diagnoseinformationen anderer Apps'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'O&O P033, P023'
            Text = 'Apps dürfen keine Diagnosedaten anderer Apps lesen.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\appDiagnostics'; Name = 'Value'; Wert = 'Deny'; Typ = 'String' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\appDiagnostics'; Name = 'Value'; Wert = 'Deny'; Typ = 'String' }
            ) }
-        @{ Id = 'AppStandort'; Kat = 'Berechtigung'; Titel = 'Apps dürfen den Standort nicht abfragen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'AppStandort'; Kat = 'Berechtigung'; Titel = 'Apps dürfen den Standort nicht abfragen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'O&O P057'
            Text = 'Gilt für alle Benutzer dieses PCs.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location'; Name = 'Value'; Wert = 'Deny'; Typ = 'String' } ) }
-        @{ Id = 'AppBewegung'; Kat = 'Berechtigung'; Titel = 'Apps sehen keine Bewegungsdaten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'AppBewegung'; Kat = 'Berechtigung'; Titel = 'Apps sehen keine Bewegungsdaten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Pack Registry, O&O P048, P049'
            Text = 'Apps dürfen Bewegungs- und Aktivitätsdaten nicht lesen.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\activity'; Name = 'Value'; Wert = 'Deny'; Typ = 'String' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\activity'; Name = 'Value'; Wert = 'Deny'; Typ = 'String' }
            ) }
-        @{ Id = 'AppStarts'; Kat = 'Berechtigung'; Titel = 'Programmstarts und zuletzt geöffnete Dateien nicht verfolgen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'AppStarts'; Kat = 'Berechtigung'; Titel = 'Programmstarts und zuletzt geöffnete Dateien nicht verfolgen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'O&O P025, M011'
            Text = 'Windows merkt sich keine Programmstarts für das Startmenü und zeigt keine zuletzt geöffneten Elemente in Sprunglisten.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'Start_TrackProgs'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'Start_TrackDocs'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Synchronisierung'; Kat = 'Berechtigung'; Titel = 'Einstellungen nicht mit dem Microsoft-Konto synchronisieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
+        @{ Id = 'Synchronisierung'; Kat = 'Berechtigung'; Titel = 'Einstellungen nicht mit dem Microsoft-Konto synchronisieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
            Quelle = 'O&O Y001 bis Y007'
            Text = 'Keine Synchronisierung von Design, Browser, Kennwörtern, Sprache, Barrierefreiheit und weiteren Einstellungen.'
            Aktionen = @(
@@ -343,7 +343,7 @@
            Text = 'Store-Apps laufen nur noch, wenn sie geöffnet sind.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications'; Name = 'GlobalUserDisabled'; Wert = 1; Typ = 'DWord' } ) }
         # ------------------------------------------------------------------ Dienste und geplante Aufgaben
-        @{ Id = 'DiensteSelten'; Kat = 'Hintergrund'; Titel = 'Selten gebrauchte Dienste deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'DiensteSelten'; Kat = 'Hintergrund'; Titel = 'Selten gebrauchte Dienste deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Pack Dienste'
            Text = 'Fax, Händlerdemo, Kartenverwaltung, Wallet und Zahlungen, räumliche Daten, Mixed Reality, Jugendschutz, Insider, Mobilfunkzeit, SMS-Router, Telefon und Nachrichten werden beendet und deaktiviert.'
            Aktionen = @(
@@ -361,7 +361,7 @@
                @{ Art = 'Dienst'; Name = 'PhoneSvc'; Start = 'Disabled' }
                @{ Art = 'Dienst'; Name = 'MessagingService'; Start = 'Disabled' }
            ) }
-        @{ Id = 'DiensteSync'; Kat = 'Hintergrund'; Titel = 'Synchronisierung von Kontakten, Mails und Kalender deaktivieren'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'MSE'
+        @{ Id = 'DiensteSync'; Kat = 'Hintergrund'; Titel = 'Synchronisierung von Kontakten, Mails und Kalender deaktivieren'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'SE'
            Quelle = 'Pack Dienste'
            Text = 'Die Dienste OneSyncSvc, PimIndexMaintenanceSvc und UnistoreSvc werden deaktiviert.'
            Hinweis = 'Die Apps Mail, Kalender und Kontakte synchronisieren danach nicht mehr; Outlook ist nicht betroffen.'
@@ -370,7 +370,7 @@
                @{ Art = 'Dienst'; Name = 'PimIndexMaintenanceSvc'; Start = 'Disabled' }
                @{ Art = 'Dienst'; Name = 'UnistoreSvc'; Start = 'Disabled' }
            ) }
-        @{ Id = 'DiensteHotspot'; Kat = 'Hintergrund'; Titel = 'Internetverbindungsfreigabe und mobilen Hotspot deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'DiensteHotspot'; Kat = 'Hintergrund'; Titel = 'Internetverbindungsfreigabe und mobilen Hotspot deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Pack Dienste'
            Text = 'Die Dienste SharedAccess und icssvc werden deaktiviert.'
            Hinweis = 'Mobiler Hotspot und Internetfreigabe funktionieren danach nicht mehr; manche VM-Netzwerke nutzen SharedAccess.'
@@ -378,7 +378,7 @@
                @{ Art = 'Dienst'; Name = 'SharedAccess'; Start = 'Disabled' }
                @{ Art = 'Dienst'; Name = 'icssvc'; Start = 'Disabled' }
            ) }
-        @{ Id = 'DiensteSmartcard'; Kat = 'Hintergrund'; Titel = 'Smartcard-Dienste deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
+        @{ Id = 'DiensteSmartcard'; Kat = 'Hintergrund'; Titel = 'Smartcard-Dienste deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
            Quelle = 'Pack Dienste'
            Text = 'Die Dienste SCardSvr und ScDeviceEnum werden deaktiviert.'
            Hinweis = 'Anmeldung mit Smartcard, Dienstausweis oder Kartenleser funktioniert danach nicht mehr.'
@@ -386,17 +386,17 @@
                @{ Art = 'Dienst'; Name = 'SCardSvr'; Start = 'Disabled' }
                @{ Art = 'Dienst'; Name = 'ScDeviceEnum'; Start = 'Disabled' }
            ) }
-        @{ Id = 'DiensteTablet'; Kat = 'Hintergrund'; Titel = 'Dienst für Bildschirmtastatur und Handschrift deaktivieren'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'MSE'; Bedingung = 'Desktop'
+        @{ Id = 'DiensteTablet'; Kat = 'Hintergrund'; Titel = 'Dienst für Bildschirmtastatur und Handschrift deaktivieren'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'SE'; Bedingung = 'Desktop'
            Quelle = 'Pack Dienste'
            Text = 'Der Dienst TabletInputService wird deaktiviert (nur auf Desktop-PCs ohne Touchscreen sinnvoll).'
            Hinweis = 'Auf Notebooks mit Touchscreen oder Stift fehlen danach Bildschirmtastatur, Emoji-Feld und Handschrift.'
            Aktionen = @( @{ Art = 'Dienst'; Name = 'TabletInputService'; Start = 'Disabled' } ) }
-        @{ Id = 'DiensteSicherung'; Kat = 'Hintergrund'; Titel = 'Dienst Windows-Sicherung deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'DiensteSicherung'; Kat = 'Hintergrund'; Titel = 'Dienst Windows-Sicherung deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Pack Dienste'
            Text = 'Der Dienst SDRSVC (Sichern und Wiederherstellen, Windows 7) wird deaktiviert.'
            Hinweis = 'Nur weglassen, wenn dieser PC mit "Sichern und Wiederherstellen (Windows 7)" gesichert wird. Wiederherstellungspunkte sind nicht betroffen.'
            Aktionen = @( @{ Art = 'Dienst'; Name = 'SDRSVC'; Start = 'Disabled' } ) }
-        @{ Id = 'DiensteEdgeUpdate'; Kat = 'Update'; Titel = 'Edge-Updatedienste deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
+        @{ Id = 'DiensteEdgeUpdate'; Kat = 'Update'; Titel = 'Edge-Updatedienste deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
            Quelle = 'Pack Dienste'
            Text = 'Die Dienste edgeupdate, edgeupdatem und MicrosoftEdgeElevationService werden deaktiviert.'
            Hinweis = 'Edge aktualisiert sich danach nur noch über Windows Update oder von Hand. Sicherheitsupdates kommen dadurch später.'
@@ -405,7 +405,7 @@
                @{ Art = 'Dienst'; Name = 'edgeupdatem'; Start = 'Disabled' }
                @{ Art = 'Dienst'; Name = 'MicrosoftEdgeElevationService'; Start = 'Disabled' }
            ) }
-        @{ Id = 'AufgabenTelemetrie'; Kat = 'Hintergrund'; Titel = 'Telemetrie-Aufgaben deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'AufgabenTelemetrie'; Kat = 'Hintergrund'; Titel = 'Telemetrie-Aufgaben deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Pack Aufgaben, Sophia ScheduledTasks'
            Text = 'Kompatibilitätsprüfung (Appraiser, ProgramDataUpdater, StartupAppTask), Programm zur Verbesserung der Benutzerfreundlichkeit, Proxy, USB-Telemetrie, Datenträgerdiagnose und Feedback-Aufgaben (DmClient).'
            Aktionen = @(
@@ -419,21 +419,21 @@
                @{ Art = 'Aufgabe'; Name = 'DmClient' }
                @{ Art = 'Aufgabe'; Name = 'DmClientOnScenarioDownload' }
            ) }
-        @{ Id = 'AufgabenKarten'; Kat = 'Hintergrund'; Titel = 'Aufgaben der Karten-App deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'AufgabenKarten'; Kat = 'Hintergrund'; Titel = 'Aufgaben der Karten-App deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Pack Aufgaben'
            Text = 'MapsToastTask und MapsUpdateTask.'
            Aktionen = @( @{ Art = 'Aufgabe'; Name = 'MapsToastTask' }, @{ Art = 'Aufgabe'; Name = 'MapsUpdateTask' } ) }
-        @{ Id = 'AufgabenJugendschutz'; Kat = 'Hintergrund'; Titel = 'Aufgaben des Jugendschutzes deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'AufgabenJugendschutz'; Kat = 'Hintergrund'; Titel = 'Aufgaben des Jugendschutzes deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Pack Aufgaben'
            Text = 'FamilySafetyMonitor und FamilySafetyRefreshTask.'
            Hinweis = 'Nicht auf PCs mit Microsoft-Family-Jugendschutz.'
            Aktionen = @( @{ Art = 'Aufgabe'; Name = 'FamilySafetyMonitor' }, @{ Art = 'Aufgabe'; Name = 'FamilySafetyRefreshTask' } ) }
-        @{ Id = 'AufgabenXbox'; Kat = 'Hintergrund'; Titel = 'Abgleich der Xbox-Spielstände deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'AufgabenXbox'; Kat = 'Hintergrund'; Titel = 'Abgleich der Xbox-Spielstände deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Pack Aufgaben'
            Text = 'XblGameSaveTask.'
            Hinweis = 'Spiele mit Xbox-Cloudspeicher gleichen ihre Spielstände dann nur noch beim Spielen ab.'
            Aktionen = @( @{ Art = 'Aufgabe'; Name = 'XblGameSaveTask' } ) }
-        @{ Id = 'AufgabenGesicht'; Kat = 'Hintergrund'; Titel = 'Aufräumaufgabe der Gesichtserkennung deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'AufgabenGesicht'; Kat = 'Hintergrund'; Titel = 'Aufräumaufgabe der Gesichtserkennung deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Pack Aufgaben'
            Text = 'FODCleanupTask.'
            Aktionen = @( @{ Art = 'Aufgabe'; Name = 'FODCleanupTask' } ) }
@@ -620,7 +620,7 @@
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer'; Name = 'ShowRecent'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer'; Name = 'ShowFrequent'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'TaskleisteSuche'; Kat = 'Bedienung'; Titel = 'Taskleiste ohne Suchfeld, Aktivitätsansicht und Personen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'TaskleisteSuche'; Kat = 'Bedienung'; Titel = 'Taskleiste ohne Suchfeld, Aktivitätsansicht und Personen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Sophia TaskbarSearch, TaskViewButton, O&O M016, M015'
            Text = 'Suchfeld, Schaltfläche Aktivitätsansicht und Personen verschwinden aus der Taskleiste; die Suche bleibt über die Windows-Taste.'
            Aktionen = @(
@@ -628,26 +628,25 @@
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'ShowTaskViewButton'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\People'; Name = 'PeopleBand'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Widgets'; Kat = 'Bedienung'; Titel = 'Widgets sowie Neuigkeiten und interessante Themen aus'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'MSE'
+        @{ Id = 'Widgets'; Kat = 'Bedienung'; Titel = 'Widgets sowie Neuigkeiten und interessante Themen aus'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'SE'
            Quelle = 'Sophia TaskbarWidgets, NewsInterests, O&O M019'
            Text = 'Kein Widgets-Feld (Windows 11) und keine Neuigkeiten in der Taskleiste (Windows 10).'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Dsh'; Name = 'AllowNewsAndInterests'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Feeds'; Name = 'EnableFeeds'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'JetztBesprechen'; Kat = 'Bedienung'; Titel = 'Schaltfläche Jetzt besprechen ausblenden'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Bedingung = 'Win10'
+        @{ Id = 'JetztBesprechen'; Kat = 'Bedienung'; Titel = 'Schaltfläche Jetzt besprechen ausblenden'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Bedingung = 'Win10'
            Quelle = 'Sophia MeetNow, O&O M017, M018'
            Text = 'Entfernt "Jetzt besprechen" (Skype) aus dem Infobereich.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer'; Name = 'HideSCAMeetNow'; Wert = 1; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer'; Name = 'HideSCAMeetNow'; Wert = 1; Typ = 'DWord' }
            ) }
-        @{ Id = 'TaskleisteGruppieren'; Kat = 'Bedienung'; Titel = 'Taskleiste: immer gruppieren, Task beenden per Rechtsklick'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
-           Quelle = 'Sophia TaskbarCombine, TaskbarEndTask'
-           Text = 'Schaltflächen eines Programms werden zusammengefasst; ein Rechtsklick bietet "Task beenden" (Windows 11).'
+        @{ Id = 'TaskleisteGruppieren'; Kat = 'Bedienung'; Titel = 'Taskleiste: immer gruppieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+           Quelle = 'Sophia TaskbarCombine'
+           Text = 'Schaltflächen eines Programms werden in der Taskleiste immer zusammengefasst (TaskbarGlomLevel 0).'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'TaskbarGlomLevel'; Wert = 0; Typ = 'DWord' }
-               @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings'; Name = 'TaskbarEndTask'; Wert = 1; Typ = 'DWord' }
            ) }
         @{ Id = 'StartmenueAufraeumen'; Kat = 'Bedienung'; Titel = 'Startmenü ohne Empfehlungen und Kontohinweise'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Bedingung = 'Win11'
            Quelle = 'Sophia RecentlyAddedStartApps, MostUsedStartApps, StartRecommendedSection, StartRecommendationsTips, StartAccountNotifications'
@@ -743,12 +742,16 @@
            Quelle = 'Sophia Win32LongPathLimit (Windows 10)'
            Text = 'Programme, die es unterstützen, dürfen lange Pfade nutzen (LongPathsEnabled).'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem'; Name = 'LongPathsEnabled'; Wert = 1; Typ = 'DWord' } ) }
-        @{ Id = 'TaskbarEndTask'; Kat = 'Bedienung'; Titel = 'Taskleiste: Task beenden per Rechtsklick (Windows 11)'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Bedingung = 'Win11'
+        @{ Id = 'TaskbarEndTask'; Kat = 'Bedienung'; Titel = 'Taskleiste: Task beenden per Rechtsklick'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Bedingung = 'Win11'
            Quelle = 'Windows 11 Taskbar Developer Settings'
            Text = 'Ermöglicht das sofortige Beenden von Programmen direkt über das Kontextmenü der Taskleiste ohne Umweg über den Task-Manager.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings'; Name = 'TaskbarEndTask'; Wert = 1; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'TaskbarEndTask'; Wert = 1; Typ = 'DWord' }
+           )
+           Gegenbefehl = @(
+               'Set-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings -Name TaskbarEndTask -Value 0'
+               'Set-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name TaskbarEndTask -Value 0'
            ) }
         @{ Id = 'UefiNeustart'; Kat = 'Bedienung'; Titel = 'Kontextmenü: Ins BIOS/UEFI neu starten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Windows UEFI Schnellstarter'
@@ -786,12 +789,12 @@
            Quelle = 'Sophia WinPrtScrFolder'
            Text = 'Bildschirmfotos landen auf dem Desktop statt unter Bilder\Screenshots.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders'; Name = '{B7BEDE81-DF94-4682-A7D8-57A52620B86F}'; Wert = '%USERPROFILE%\Desktop'; Typ = 'ExpandString' } ) }
-        @{ Id = 'Laufwerksname'; Kat = 'Darstellung'; Titel = 'Systemlaufwerk "Windows" nennen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
+        @{ Id = 'Laufwerksname'; Kat = 'Darstellung'; Titel = 'Systemlaufwerk "Windows" nennen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
            Quelle = 'Pack Indizierung (Label)'
            Text = 'Die Bezeichnung des Systemlaufwerks wird "Windows".'
            Aktionen = @( @{ Art = 'Sonder'; Name = 'Laufwerksname'; Werte = 'Windows' } ) }
         # ------------------------------------------------------------------ Leistung, Spiele und Energie
-        @{ Id = 'Indizierung'; Kat = 'Leistung'; Titel = 'Indizierung aller Laufwerke aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Minuten = 1
+        @{ Id = 'Indizierung'; Kat = 'Leistung'; Titel = 'Indizierung aller Laufwerke aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Minuten = 1
            Quelle = 'Pack Indizierung'
            Text = 'Die Windows-Suche indiziert die Inhalte der Laufwerke nicht mehr; spart Schreibvorgänge und Hintergrundlast.'
            Hinweis = 'Die Suche nach Dateiinhalten und in Outlook wird langsamer. Der Dienst Windows Search bleibt.'
@@ -849,7 +852,7 @@
            Quelle = 'Sophia NetworkAdaptersSavePower'
            Text = 'Windows darf physische Netzwerkadapter nicht mehr abschalten; verhindert Verbindungsabbrüche nach dem Standby.'
            Aktionen = @( @{ Art = 'Sonder'; Name = 'NetzwerkEnergie' } ) }
-        @{ Id = 'Speicheroptimierung'; Kat = 'Leistung'; Titel = 'Speicheroptimierung und Miniaturansichten-Bereinigung an'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'Speicheroptimierung'; Kat = 'Leistung'; Titel = 'Speicheroptimierung und Miniaturansichten-Bereinigung an'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Sophia StorageSense, ThumbnailCacheRemoval'
            Text = 'Windows räumt temporäre Dateien selbst auf, die Datenträgerbereinigung darf den Miniaturansichten-Cache leeren.'
            Aktionen = @(
@@ -876,7 +879,7 @@
            Text = 'Windows startet für Updates neu, sobald es geht (IsExpedited).'
            Hinweis = 'Abweichend vom Pack in keiner Vorlage: Auf Arbeitsplätzen kann das mitten in der Arbeit passieren.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings'; Name = 'IsExpedited'; Wert = 1; Typ = 'DWord' } ) }
-        @{ Id = 'UpdateAufschub'; Kat = 'Update'; Titel = 'Funktionsupdates ein Jahr aufschieben'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
+        @{ Id = 'UpdateAufschub'; Kat = 'Update'; Titel = 'Funktionsupdates ein Jahr aufschieben'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
            Quelle = 'O&O W004'
            Text = 'Neue Windows-Versionen kommen erst 365 Tage nach Erscheinen (nicht in Home); Sicherheitsupdates kommen weiter sofort.'
            Aktionen = @(
@@ -892,14 +895,14 @@
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\EdgeUpdate'; Name = 'CreateDesktopShortcut{0D50BFEC-CD6A-4F9A-964C-C7416E3ACB10}'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\EdgeUpdate'; Name = 'CreateDesktopShortcut{65C35B14-6C1D-4122-AC46-7148CC9D6497}'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'EdgeHintergrund'; Kat = 'Update'; Titel = 'Edge nicht im Hintergrund laden'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
+        @{ Id = 'EdgeHintergrund'; Kat = 'Update'; Titel = 'Edge nicht im Hintergrund laden'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
            Quelle = 'O&O E013, E014 (für den heutigen Edge umgesetzt)'
            Text = 'Kein Start-Boost und kein Weiterlaufen nach dem Schließen. Die übrigen O&O-Einträge für den alten Edge (Legacy) entfallen, weil es ihn nicht mehr gibt.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'; Name = 'StartupBoostEnabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'; Name = 'BackgroundModeEnabled'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'OneDriveRichtlinie'; Kat = 'Update'; Titel = 'OneDrive per Richtlinie abschalten'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'MSE'; Verwaltet = $true
+        @{ Id = 'OneDriveRichtlinie'; Kat = 'Update'; Titel = 'OneDrive per Richtlinie abschalten'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'SE'; Verwaltet = $true
            Quelle = 'O&O O001, O003'
            Text = 'OneDrive darf keine Dateien synchronisieren und vor der Anmeldung nicht ins Netz.'
            Hinweis = 'Wer OneDrive oder OneDrive for Business nutzt, lässt diesen Eintrag weg.'
@@ -922,7 +925,7 @@
            Quelle = 'Sophia NetworkProtection, PUAppsDetection'
            Text = 'Microsoft Defender blockiert Verbindungen zu bekannten Schadseiten und erkennt potenziell unerwünschte Apps (nur wenn Defender der aktive Virenschutz ist).'
            Aktionen = @( @{ Art = 'Sonder'; Name = 'Defender'; Werte = 'EnableNetworkProtection=1;PUAProtection=1' } ) }
-        @{ Id = 'DefenderMeldungen'; Kat = 'Sicherheit'; Titel = 'Defender und MRT senden keine Proben und Befallsdaten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
+        @{ Id = 'DefenderMeldungen'; Kat = 'Sicherheit'; Titel = 'Defender und MRT senden keine Proben und Befallsdaten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
            Quelle = 'O&O S013, S014'
            Text = 'Keine automatische Übermittlung von Dateiproben und keine Befallsberichte des Tools zum Entfernen bösartiger Software.'
            Hinweis = 'Verringert den Cloudschutz für neue Schädlinge etwas.'
@@ -930,15 +933,15 @@
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Spynet'; Name = 'SubmitSamplesConsent'; Wert = 2; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\MRT'; Name = 'DontReportInfectionInformation'; Wert = 1; Typ = 'DWord' }
            ) }
-        @{ Id = 'KennwortAnzeigen'; Kat = 'Sicherheit'; Titel = 'Keine Schaltfläche zum Anzeigen von Kennwörtern'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'KennwortAnzeigen'; Kat = 'Sicherheit'; Titel = 'Keine Schaltfläche zum Anzeigen von Kennwörtern'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'O&O S001'
            Text = 'Kennwortfelder zeigen das Auge zum Aufdecken nicht mehr.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\CredUI'; Name = 'DisablePasswordReveal'; Wert = 1; Typ = 'DWord' } ) }
-        @{ Id = 'Remoteunterstuetzung'; Kat = 'Sicherheit'; Titel = 'Remoteunterstützung nicht zulassen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
+        @{ Id = 'Remoteunterstuetzung'; Kat = 'Sicherheit'; Titel = 'Remoteunterstützung nicht zulassen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
            Quelle = 'O&O M026'
            Text = 'Niemand kann per Einladung zur Remoteunterstützung auf diesen PC zugreifen.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SYSTEM\CurrentControlSet\Control\Remote Assistance'; Name = 'fAllowToGetHelp'; Wert = 0; Typ = 'DWord' } ) }
-        @{ Id = 'Remotedesktop'; Kat = 'Sicherheit'; Titel = 'Remotedesktop-Verbindungen sperren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
+        @{ Id = 'Remotedesktop'; Kat = 'Sicherheit'; Titel = 'Remotedesktop-Verbindungen sperren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
            Quelle = 'O&O M027'
            Text = 'Eingehende Remotedesktop-Verbindungen werden abgelehnt (fDenyTSConnections 1).'
            Hinweis = 'In der IT-Betreuung weglassen, sonst ist der PC nicht mehr per Remotedesktop erreichbar.'

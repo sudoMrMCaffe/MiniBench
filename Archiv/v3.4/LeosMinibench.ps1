@@ -224,7 +224,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenp
 }
 #endregion
 
-$ScriptVersion = '3.5'
+$ScriptVersion = '3.4'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -938,24 +938,6 @@ function Test-WritableDir([string]$Dir) {
     } catch { return $false }
 }
 function Resolve-DataDir {
-    # 1. Optionalen Netzwerk- / NAS-Pfad aus Netzwerk.json prüfen
-    $localCfgDirs = @()
-    if ($PSScriptRoot -and $PSScriptRoot -notlike "$env:TEMP*") { $localCfgDirs += (Join-Path $PSScriptRoot 'Minibench-Daten') }
-    if ($DatenDir) { $localCfgDirs += $DatenDir.TrimEnd('\') }
-    foreach ($lcd in $localCfgDirs) {
-        $netCfg = Join-Path $lcd 'Netzwerk.json'
-        if (Test-Path -LiteralPath $netCfg) {
-            try {
-                $netObj = Get-Content -LiteralPath $netCfg -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
-                $nas = $(if ($netObj.NasPfad) { [string]$netObj.NasPfad } elseif ($netObj.NetzwerkPfad) { [string]$netObj.NetzwerkPfad } else { '' }).Trim().TrimEnd('\')
-                if ($nas -and (Test-WritableDir $nas)) {
-                    return $nas
-                }
-            } catch { }
-        }
-    }
-
-    # 2. Lokale Kandidaten (USB-Stick / Übergabepfad) mit automatischem Fallback
     $cands = @()
     if ($DatenDir) { $cands += $DatenDir.TrimEnd('\') }
     if ($PSScriptRoot -and $PSScriptRoot -notlike "$env:TEMP*") { $cands += (Join-Path $PSScriptRoot 'Minibench-Daten') }
@@ -2438,7 +2420,7 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack'; Name = 'ShowedToastAtLevel'; Wert = 1; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection'; Name = 'LimitEnhancedDiagnosticDataWindowsAnalytics'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'TelemetrieDienste'; Kat = 'Datenschutz'; Titel = 'Telemetriedienste abschalten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'TelemetrieDienste'; Kat = 'Datenschutz'; Titel = 'Telemetriedienste abschalten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Pack Dienste und Registry, Sophia DiagTrackService'
            Text = 'Benutzererfahrung und Telemetrie (DiagTrack), WAP-Push (dmwappushservice) sowie die Diagnosedienste werden beendet und deaktiviert.'
            Hinweis = 'Ohne DiagTrack gibt es keine Xbox-Erfolge mehr.'
@@ -2448,7 +2430,7 @@ $script:OptKatalog = (
                @{ Art = 'Dienst'; Name = 'diagnosticshub.standardcollector.service'; Start = 'Disabled' }
                @{ Art = 'Dienst'; Name = 'diagsvc'; Start = 'Disabled' }
            ) }
-        @{ Id = 'TelemetrieDiagnoseprotokolle'; Kat = 'Datenschutz'; Titel = 'Diagnoseprotokolle und OneSettings nicht übertragen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
+        @{ Id = 'TelemetrieDiagnoseprotokolle'; Kat = 'Datenschutz'; Titel = 'Diagnoseprotokolle und OneSettings nicht übertragen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
            Quelle = 'O&O U006, U007'
            Text = 'Keine Sammlung von Diagnoseprotokollen und kein Herunterladen von OneSettings-Konfigurationen.'
            Aktionen = @(
@@ -2466,7 +2448,7 @@ $script:OptKatalog = (
                @{ Art = 'Dienst'; Name = 'WerSvc'; Start = 'Disabled' }
                @{ Art = 'Dienst'; Name = 'wercplsupport'; Start = 'Disabled' }
            ) }
-        @{ Id = 'Feedback'; Kat = 'Datenschutz'; Titel = 'Keine Feedback-Anfragen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'Feedback'; Kat = 'Datenschutz'; Titel = 'Keine Feedback-Anfragen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Sophia FeedbackFrequency, O&O M001, M022'
            Text = 'Windows fragt nie mehr nach Feedback.'
            Aktionen = @(
@@ -2480,14 +2462,14 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo'; Name = 'Enabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo'; Name = 'DisabledByGroupPolicy'; Wert = 1; Typ = 'DWord' }
            ) }
-        @{ Id = 'MassgeschneiderteErfahrung'; Kat = 'Datenschutz'; Titel = 'Keine Tipps und Werbung aus Diagnosedaten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'MassgeschneiderteErfahrung'; Kat = 'Datenschutz'; Titel = 'Keine Tipps und Werbung aus Diagnosedaten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Sophia TailoredExperiences, O&O U004, U005'
            Text = 'Microsoft nutzt Diagnosedaten nicht für persönliche Tipps, Werbung und Empfehlungen.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Privacy'; Name = 'TailoredExperiencesWithDiagnosticDataEnabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent'; Name = 'DisableTailoredExperiencesWithDiagnosticData'; Wert = 1; Typ = 'DWord' }
            ) }
-        @{ Id = 'Sprachliste'; Kat = 'Datenschutz'; Titel = 'Websites sehen die Sprachliste nicht'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'Sprachliste'; Kat = 'Datenschutz'; Titel = 'Websites sehen die Sprachliste nicht'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Sophia LanguageListAccess, O&O P015'
            Text = 'Websites können über die Sprachliste keine lokal angepassten Inhalte anbieten.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKCU:\Control Panel\International\User Profile'; Name = 'HttpAcceptLanguageOptOut'; Wert = 1; Typ = 'DWord' } ) }
@@ -2495,7 +2477,7 @@ $script:OptKatalog = (
            Quelle = 'Sophia SigninInfo'
            Text = 'Nach einem Update meldet Windows den Benutzer nicht mehr automatisch an, um die Einrichtung abzuschließen.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\UserARSO\{SID}'; Name = 'OptOut'; Wert = 1; Typ = 'DWord' } ) }
-        @{ Id = 'Handschrift'; Kat = 'Datenschutz'; Titel = 'Handschrift- und Eingabedaten nicht teilen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'Handschrift'; Kat = 'Datenschutz'; Titel = 'Handschrift- und Eingabedaten nicht teilen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'O&O P001, P002, P008, P068'
            Text = 'Keine Weitergabe von Handschriftdaten, Handschrift-Fehlerberichten und Tippinformationen, keine Textvorschläge der Bildschirmtastatur.'
            Aktionen = @(
@@ -2504,7 +2486,7 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Input\TIPC'; Name = 'Enabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\TabletTip\1.7'; Name = 'EnableTextPrediction'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Inventar'; Kat = 'Datenschutz'; Titel = 'Inventarsammlung und Kompatibilitätstelemetrie aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
+        @{ Id = 'Inventar'; Kat = 'Datenschutz'; Titel = 'Inventarsammlung und Kompatibilitätstelemetrie aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
            Quelle = 'O&O P003, U001, S002, P027'
            Text = 'Kein Inventory Collector, keine Anwendungstelemetrie, keine Schrittaufzeichnung und kein Programm zur Verbesserung der Benutzerfreundlichkeit (CEIP).'
            Aktionen = @(
@@ -2517,23 +2499,23 @@ $script:OptKatalog = (
            Quelle = 'Pack Registry'
            Text = 'Blendet die Insider-Seite in den Einstellungen aus.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility'; Name = 'HideInsiderPage'; Wert = 1; Typ = 'DWord' } ) }
-        @{ Id = 'Nachrichtensicherung'; Kat = 'Datenschutz'; Titel = 'Textnachrichten nicht in der Cloud sichern'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'Nachrichtensicherung'; Kat = 'Datenschutz'; Titel = 'Textnachrichten nicht in der Cloud sichern'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'O&O P028'
            Text = 'Keine Sicherung von Textnachrichten in die Cloud.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Messaging'; Name = 'AllowMessageSync'; Wert = 0; Typ = 'DWord' } ) }
-        @{ Id = 'BluetoothWerbung'; Kat = 'Datenschutz'; Titel = 'Keine Werbung über Bluetooth'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'BluetoothWerbung'; Kat = 'Datenschutz'; Titel = 'Keine Werbung über Bluetooth'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'O&O P026'
            Text = 'Bluetooth-Geräte dürfen keine Werbung ausstrahlen lassen.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth'; Name = 'AllowAdvertising'; Wert = 0; Typ = 'DWord' } ) }
-        @{ Id = 'MediaPlayerDiagnose'; Kat = 'Datenschutz'; Titel = 'Windows Media Player ohne Nutzungsdaten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'MediaPlayerDiagnose'; Kat = 'Datenschutz'; Titel = 'Windows Media Player ohne Nutzungsdaten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'O&O M024'
            Text = 'Der Windows Media Player sendet keine Nutzungsdaten.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\MediaPlayer\Preferences'; Name = 'UsageTracking'; Wert = 0; Typ = 'DWord' } ) }
-        @{ Id = 'KmsOnline'; Kat = 'Datenschutz'; Titel = 'KMS-Onlineprüfung (AVS) aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
+        @{ Id = 'KmsOnline'; Kat = 'Datenschutz'; Titel = 'KMS-Onlineprüfung (AVS) aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
            Quelle = 'O&O M012'
            Text = 'Windows schickt nach einer KMS-Aktivierung kein Ticket zur Onlineprüfung an Microsoft. Die Aktivierung selbst bleibt unberührt.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform'; Name = 'NoGenTicket'; Wert = 1; Typ = 'DWord' } ) }
-        @{ Id = 'Standort'; Kat = 'Datenschutz'; Titel = 'Standortdienste und Sensoren aus'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'SE'; Verwaltet = $true
+        @{ Id = 'Standort'; Kat = 'Datenschutz'; Titel = 'Standortdienste und Sensoren aus'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'MSE'; Verwaltet = $true
            Quelle = 'O&O L001, L003, L004, L005'
            Text = 'Ortung, Ortung per Skript, Lage- und Ortungssensoren sowie der Geolocation-Dienst (lfsvc) werden abgeschaltet.'
            Hinweis = 'Automatische Zeitzone, Wo ist mein Gerät und Wetter mit Standort funktionieren danach nicht mehr.'
@@ -2544,7 +2526,7 @@ $script:OptKatalog = (
                @{ Art = 'Dienst'; Name = 'lfsvc'; Start = 'Disabled' }
            ) }
         # ------------------------------------------------------------------ Werbung, Tipps und Vorschläge
-        @{ Id = 'TippsVorschlaege'; Kat = 'Werbung'; Titel = 'Tipps, Tricks und Vorschläge aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'TippsVorschlaege'; Kat = 'Werbung'; Titel = 'Tipps, Tricks und Vorschläge aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Sophia WindowsTips, AppSuggestions, O&O P066, M005, P065, M006, P064'
            Text = 'Keine Tipps beim Arbeiten mit Windows, keine App-Vorschläge im Startmenü und in der Zeitachse.'
            Aktionen = @(
@@ -2554,14 +2536,14 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SystemPaneSuggestionsEnabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SubscribedContent-353698Enabled'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Willkommen'; Kat = 'Werbung'; Titel = 'Kein Willkommensbildschirm und kein Einrichtungshinweis nach Updates'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'Willkommen'; Kat = 'Werbung'; Titel = 'Kein Willkommensbildschirm und kein Einrichtungshinweis nach Updates'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Sophia WindowsWelcomeExperience, WhatsNewInWindows, O&O P070'
            Text = 'Nach Updates keine Neuigkeiten-Seite und keine Aufforderung, die Einrichtung des Geräts abzuschließen.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SubscribedContent-310093Enabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement'; Name = 'ScoobeSystemSettingEnabled'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'EinstellungenVorschlaege'; Kat = 'Werbung'; Titel = 'Keine vorgeschlagenen Inhalte in den Einstellungen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'EinstellungenVorschlaege'; Kat = 'Werbung'; Titel = 'Keine vorgeschlagenen Inhalte in den Einstellungen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Sophia SettingsSuggestedContent, O&O P067'
            Text = 'Die Einstellungen-App zeigt keine vorgeschlagenen Inhalte mehr.'
            Aktionen = @(
@@ -2569,14 +2551,14 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SubscribedContent-353694Enabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SubscribedContent-353696Enabled'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'AppsStillInstallieren'; Kat = 'Werbung'; Titel = 'Keine automatisch installierten Vorschlags-Apps'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
+        @{ Id = 'AppsStillInstallieren'; Kat = 'Werbung'; Titel = 'Keine automatisch installierten Vorschlags-Apps'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
            Quelle = 'Sophia AppsSilentInstalling, O&O M004'
            Text = 'Windows installiert keine empfohlenen Store-Apps mehr von selbst (Verbraucherfunktionen aus).'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'; Name = 'SilentInstalledAppsEnabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent'; Name = 'DisableWindowsConsumerFeatures'; Wert = 1; Typ = 'DWord' }
            ) }
-        @{ Id = 'Sperrbildschirm'; Kat = 'Werbung'; Titel = 'Sperrbildschirm ohne Spotlight, Tipps und Benachrichtigungen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'Sperrbildschirm'; Kat = 'Werbung'; Titel = 'Sperrbildschirm ohne Spotlight, Tipps und Benachrichtigungen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'O&O K001, K002, K005, M028'
            Text = 'Kein Windows-Blickpunkt, keine Fakten und Tipps auf dem Sperrbildschirm, keine Benachrichtigungen darauf und kein Blickpunkt-Symbol auf dem Desktop.'
            Aktionen = @(
@@ -2586,15 +2568,15 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings'; Name = 'NOC_GLOBAL_SETTING_ALLOW_TOASTS_ABOVE_LOCK'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel'; Name = '{2cc5ca98-6485-489a-920e-b3e88a6ccce3}'; Wert = 1; Typ = 'DWord' }
            ) }
-        @{ Id = 'Sperrkamera'; Kat = 'Werbung'; Titel = 'Keine Kamera auf dem Sperrbildschirm'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'Sperrkamera'; Kat = 'Werbung'; Titel = 'Keine Kamera auf dem Sperrbildschirm'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'O&O P004'
            Text = 'Die Kamera lässt sich auf dem Sperrbildschirm nicht mehr starten.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization'; Name = 'NoLockScreenCamera'; Wert = 1; Typ = 'DWord' } ) }
-        @{ Id = 'ExplorerWerbung'; Kat = 'Werbung'; Titel = 'Keine OneDrive-Werbung im Explorer'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'ExplorerWerbung'; Kat = 'Werbung'; Titel = 'Keine OneDrive-Werbung im Explorer'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Sophia OneDriveFileExplorerAd, O&O M010'
            Text = 'Der Explorer zeigt keine Hinweise des Synchronisierungsanbieters mehr.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'ShowSyncProviderNotifications'; Wert = 0; Typ = 'DWord' } ) }
-        @{ Id = 'Smartphone'; Kat = 'Werbung'; Titel = 'Smartphone-Link und Vorschläge für Mobilgeräte aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'Smartphone'; Kat = 'Werbung'; Titel = 'Smartphone-Link und Vorschläge für Mobilgeräte aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'O&O D001, D002, D003, D104'
            Text = 'Kein Verbinden mit dem Smartphone und keine Vorschläge dazu.'
            Aktionen = @(
@@ -2610,7 +2592,7 @@ $script:OptKatalog = (
            Text = 'Kein Hinweis "Neue App kann diesen Dateityp öffnen".'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer'; Name = 'NoNewAppAlert'; Wert = 1; Typ = 'DWord' } ) }
         # ------------------------------------------------------------------ Suche, Cortana, Copilot und KI
-        @{ Id = 'Websuche'; Kat = 'KI'; Titel = 'Keine Websuche (Bing) im Startmenü'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'Websuche'; Kat = 'KI'; Titel = 'Keine Websuche (Bing) im Startmenü'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Sophia BingSearch, O&O C008, C009, C011, M003'
            Text = 'Die Suche im Startmenü und in der Taskleiste durchsucht nur noch den PC, nicht Bing und keine Cloud-Inhalte.'
            Aktionen = @(
@@ -2620,14 +2602,14 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search'; Name = 'ConnectedSearchUseWeb'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search'; Name = 'AllowCloudSearch'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Suchhighlights'; Kat = 'KI'; Titel = 'Suchhighlights aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'Suchhighlights'; Kat = 'KI'; Titel = 'Suchhighlights aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Sophia SearchHighlights, O&O C015'
            Text = 'Das Suchfeld zeigt keine wechselnden Highlights und Themen des Tages.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\SearchSettings'; Name = 'IsDynamicSearchBoxEnabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search'; Name = 'EnableDynamicContentInWSB'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Cortana'; Kat = 'KI'; Titel = 'Cortana aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'Cortana'; Kat = 'KI'; Titel = 'Cortana aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'O&O C012, C007, C014'
            Text = 'Cortana ist nicht erlaubt, auch nicht über dem Sperrbildschirm, und die Suche nutzt keinen Standort.'
            Aktionen = @(
@@ -2635,7 +2617,7 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search'; Name = 'AllowCortanaAboveLock'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search'; Name = 'AllowSearchToUseLocation'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Spracherkennung'; Kat = 'KI'; Titel = 'Keine Online-Spracherkennung und Eingabepersonalisierung'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'Spracherkennung'; Kat = 'KI'; Titel = 'Keine Online-Spracherkennung und Eingabepersonalisierung'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'O&O C002, C013, C010, W011'
            Text = 'Keine Online-Spracherkennung, kein Lernen aus Eingaben, keine automatischen Updates der Sprachmodelle.'
            Aktionen = @(
@@ -2645,7 +2627,7 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy'; Name = 'HasAccepted'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Speech'; Name = 'AllowSpeechModelUpdate'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Copilot'; Kat = 'KI'; Titel = 'Copilot aus und Schaltfläche entfernen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'Copilot'; Kat = 'KI'; Titel = 'Copilot aus und Schaltfläche entfernen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Sophia WindowsAI, O&O C101, C201, C102, C104'
            Text = 'Windows Copilot ist abgeschaltet, die Schaltfläche fehlt in der Taskleiste und Bing Chat ist nicht freigeschaltet.'
            Aktionen = @(
@@ -2654,7 +2636,7 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'ShowCopilotButton'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\Shell\Copilot\BingChat'; Name = 'IsUserEligible'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Recall'; Kat = 'KI'; Titel = 'Recall und Click to Do aus'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'SE'
+        @{ Id = 'Recall'; Kat = 'KI'; Titel = 'Recall und Click to Do aus'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'MSE'
            Quelle = 'Sophia WindowsAI, O&O C103, C203, C204'
            Text = 'Keine Bildschirmaufnahmen durch Recall, Recall wird nicht bereitgestellt, Click to Do ist aus.'
            Aktionen = @(
@@ -2663,7 +2645,7 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI'; Name = 'AllowRecallEnablement'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI'; Name = 'DisableClickToDo'; Wert = 1; Typ = 'DWord' }
            ) }
-        @{ Id = 'PaintKI'; Kat = 'KI'; Titel = 'KI-Funktionen in Paint und Editor aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'PaintKI'; Kat = 'KI'; Titel = 'KI-Funktionen in Paint und Editor aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Sophia WindowsAI, O&O C205, C206, C207'
            Text = 'Image Creator, Cocreator und generatives Füllen in Paint sowie die KI-Funktionen im Editor sind abgeschaltet.'
            Aktionen = @(
@@ -2673,7 +2655,7 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\WindowsNotepad'; Name = 'DisableAIFeatures'; Wert = 1; Typ = 'DWord' }
            ) }
         # ------------------------------------------------------------------ App-Berechtigungen, Verlauf und Synchronisierung
-        @{ Id = 'Aktivitaetsverlauf'; Kat = 'Berechtigung'; Titel = 'Aktivitätsverlauf aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'Aktivitaetsverlauf'; Kat = 'Berechtigung'; Titel = 'Aktivitätsverlauf aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'O&O A001, A002, A003'
            Text = 'Windows zeichnet keine Aktivitäten auf, speichert keinen Verlauf und lädt keinen hoch.'
            Aktionen = @(
@@ -2681,7 +2663,7 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System'; Name = 'PublishUserActivities'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System'; Name = 'UploadUserActivities'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Zwischenablage'; Kat = 'Berechtigung'; Titel = 'Zwischenablageverlauf und Cloud-Zwischenablage aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'Zwischenablage'; Kat = 'Berechtigung'; Titel = 'Zwischenablageverlauf und Cloud-Zwischenablage aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'O&O A004, A005, A006'
            Text = 'Kein Verlauf mit Win+V und keine Übertragung der Zwischenablage auf andere Geräte.'
            Hinweis = 'Wer den Verlauf der Zwischenablage (Win+V) nutzt, lässt diesen Eintrag weg.'
@@ -2690,39 +2672,39 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Clipboard'; Name = 'EnableClipboardHistory'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System'; Name = 'AllowCrossDeviceClipboard'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'AppKonto'; Kat = 'Berechtigung'; Titel = 'Apps sehen keine Kontoinformationen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'AppKonto'; Kat = 'Berechtigung'; Titel = 'Apps sehen keine Kontoinformationen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'O&O P107, P036'
            Text = 'Apps dürfen Name, Bild und Kontodaten nicht lesen.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\userAccountInformation'; Name = 'Value'; Wert = 'Deny'; Typ = 'String' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\userAccountInformation'; Name = 'Value'; Wert = 'Deny'; Typ = 'String' }
            ) }
-        @{ Id = 'AppDiagnose'; Kat = 'Berechtigung'; Titel = 'Apps sehen keine Diagnoseinformationen anderer Apps'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'AppDiagnose'; Kat = 'Berechtigung'; Titel = 'Apps sehen keine Diagnoseinformationen anderer Apps'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'O&O P033, P023'
            Text = 'Apps dürfen keine Diagnosedaten anderer Apps lesen.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\appDiagnostics'; Name = 'Value'; Wert = 'Deny'; Typ = 'String' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\appDiagnostics'; Name = 'Value'; Wert = 'Deny'; Typ = 'String' }
            ) }
-        @{ Id = 'AppStandort'; Kat = 'Berechtigung'; Titel = 'Apps dürfen den Standort nicht abfragen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'AppStandort'; Kat = 'Berechtigung'; Titel = 'Apps dürfen den Standort nicht abfragen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'O&O P057'
            Text = 'Gilt für alle Benutzer dieses PCs.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location'; Name = 'Value'; Wert = 'Deny'; Typ = 'String' } ) }
-        @{ Id = 'AppBewegung'; Kat = 'Berechtigung'; Titel = 'Apps sehen keine Bewegungsdaten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'AppBewegung'; Kat = 'Berechtigung'; Titel = 'Apps sehen keine Bewegungsdaten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Pack Registry, O&O P048, P049'
            Text = 'Apps dürfen Bewegungs- und Aktivitätsdaten nicht lesen.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\activity'; Name = 'Value'; Wert = 'Deny'; Typ = 'String' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\activity'; Name = 'Value'; Wert = 'Deny'; Typ = 'String' }
            ) }
-        @{ Id = 'AppStarts'; Kat = 'Berechtigung'; Titel = 'Programmstarts und zuletzt geöffnete Dateien nicht verfolgen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'AppStarts'; Kat = 'Berechtigung'; Titel = 'Programmstarts und zuletzt geöffnete Dateien nicht verfolgen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'O&O P025, M011'
            Text = 'Windows merkt sich keine Programmstarts für das Startmenü und zeigt keine zuletzt geöffneten Elemente in Sprunglisten.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'Start_TrackProgs'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'Start_TrackDocs'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Synchronisierung'; Kat = 'Berechtigung'; Titel = 'Einstellungen nicht mit dem Microsoft-Konto synchronisieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
+        @{ Id = 'Synchronisierung'; Kat = 'Berechtigung'; Titel = 'Einstellungen nicht mit dem Microsoft-Konto synchronisieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
            Quelle = 'O&O Y001 bis Y007'
            Text = 'Keine Synchronisierung von Design, Browser, Kennwörtern, Sprache, Barrierefreiheit und weiteren Einstellungen.'
            Aktionen = @(
@@ -2740,7 +2722,7 @@ $script:OptKatalog = (
            Text = 'Store-Apps laufen nur noch, wenn sie geöffnet sind.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications'; Name = 'GlobalUserDisabled'; Wert = 1; Typ = 'DWord' } ) }
         # ------------------------------------------------------------------ Dienste und geplante Aufgaben
-        @{ Id = 'DiensteSelten'; Kat = 'Hintergrund'; Titel = 'Selten gebrauchte Dienste deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'DiensteSelten'; Kat = 'Hintergrund'; Titel = 'Selten gebrauchte Dienste deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Pack Dienste'
            Text = 'Fax, Händlerdemo, Kartenverwaltung, Wallet und Zahlungen, räumliche Daten, Mixed Reality, Jugendschutz, Insider, Mobilfunkzeit, SMS-Router, Telefon und Nachrichten werden beendet und deaktiviert.'
            Aktionen = @(
@@ -2758,7 +2740,7 @@ $script:OptKatalog = (
                @{ Art = 'Dienst'; Name = 'PhoneSvc'; Start = 'Disabled' }
                @{ Art = 'Dienst'; Name = 'MessagingService'; Start = 'Disabled' }
            ) }
-        @{ Id = 'DiensteSync'; Kat = 'Hintergrund'; Titel = 'Synchronisierung von Kontakten, Mails und Kalender deaktivieren'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'SE'
+        @{ Id = 'DiensteSync'; Kat = 'Hintergrund'; Titel = 'Synchronisierung von Kontakten, Mails und Kalender deaktivieren'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'MSE'
            Quelle = 'Pack Dienste'
            Text = 'Die Dienste OneSyncSvc, PimIndexMaintenanceSvc und UnistoreSvc werden deaktiviert.'
            Hinweis = 'Die Apps Mail, Kalender und Kontakte synchronisieren danach nicht mehr; Outlook ist nicht betroffen.'
@@ -2767,7 +2749,7 @@ $script:OptKatalog = (
                @{ Art = 'Dienst'; Name = 'PimIndexMaintenanceSvc'; Start = 'Disabled' }
                @{ Art = 'Dienst'; Name = 'UnistoreSvc'; Start = 'Disabled' }
            ) }
-        @{ Id = 'DiensteHotspot'; Kat = 'Hintergrund'; Titel = 'Internetverbindungsfreigabe und mobilen Hotspot deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'DiensteHotspot'; Kat = 'Hintergrund'; Titel = 'Internetverbindungsfreigabe und mobilen Hotspot deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Pack Dienste'
            Text = 'Die Dienste SharedAccess und icssvc werden deaktiviert.'
            Hinweis = 'Mobiler Hotspot und Internetfreigabe funktionieren danach nicht mehr; manche VM-Netzwerke nutzen SharedAccess.'
@@ -2775,7 +2757,7 @@ $script:OptKatalog = (
                @{ Art = 'Dienst'; Name = 'SharedAccess'; Start = 'Disabled' }
                @{ Art = 'Dienst'; Name = 'icssvc'; Start = 'Disabled' }
            ) }
-        @{ Id = 'DiensteSmartcard'; Kat = 'Hintergrund'; Titel = 'Smartcard-Dienste deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
+        @{ Id = 'DiensteSmartcard'; Kat = 'Hintergrund'; Titel = 'Smartcard-Dienste deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
            Quelle = 'Pack Dienste'
            Text = 'Die Dienste SCardSvr und ScDeviceEnum werden deaktiviert.'
            Hinweis = 'Anmeldung mit Smartcard, Dienstausweis oder Kartenleser funktioniert danach nicht mehr.'
@@ -2783,17 +2765,17 @@ $script:OptKatalog = (
                @{ Art = 'Dienst'; Name = 'SCardSvr'; Start = 'Disabled' }
                @{ Art = 'Dienst'; Name = 'ScDeviceEnum'; Start = 'Disabled' }
            ) }
-        @{ Id = 'DiensteTablet'; Kat = 'Hintergrund'; Titel = 'Dienst für Bildschirmtastatur und Handschrift deaktivieren'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'SE'; Bedingung = 'Desktop'
+        @{ Id = 'DiensteTablet'; Kat = 'Hintergrund'; Titel = 'Dienst für Bildschirmtastatur und Handschrift deaktivieren'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'MSE'; Bedingung = 'Desktop'
            Quelle = 'Pack Dienste'
            Text = 'Der Dienst TabletInputService wird deaktiviert (nur auf Desktop-PCs ohne Touchscreen sinnvoll).'
            Hinweis = 'Auf Notebooks mit Touchscreen oder Stift fehlen danach Bildschirmtastatur, Emoji-Feld und Handschrift.'
            Aktionen = @( @{ Art = 'Dienst'; Name = 'TabletInputService'; Start = 'Disabled' } ) }
-        @{ Id = 'DiensteSicherung'; Kat = 'Hintergrund'; Titel = 'Dienst Windows-Sicherung deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'DiensteSicherung'; Kat = 'Hintergrund'; Titel = 'Dienst Windows-Sicherung deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Pack Dienste'
            Text = 'Der Dienst SDRSVC (Sichern und Wiederherstellen, Windows 7) wird deaktiviert.'
            Hinweis = 'Nur weglassen, wenn dieser PC mit "Sichern und Wiederherstellen (Windows 7)" gesichert wird. Wiederherstellungspunkte sind nicht betroffen.'
            Aktionen = @( @{ Art = 'Dienst'; Name = 'SDRSVC'; Start = 'Disabled' } ) }
-        @{ Id = 'DiensteEdgeUpdate'; Kat = 'Update'; Titel = 'Edge-Updatedienste deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
+        @{ Id = 'DiensteEdgeUpdate'; Kat = 'Update'; Titel = 'Edge-Updatedienste deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
            Quelle = 'Pack Dienste'
            Text = 'Die Dienste edgeupdate, edgeupdatem und MicrosoftEdgeElevationService werden deaktiviert.'
            Hinweis = 'Edge aktualisiert sich danach nur noch über Windows Update oder von Hand. Sicherheitsupdates kommen dadurch später.'
@@ -2802,7 +2784,7 @@ $script:OptKatalog = (
                @{ Art = 'Dienst'; Name = 'edgeupdatem'; Start = 'Disabled' }
                @{ Art = 'Dienst'; Name = 'MicrosoftEdgeElevationService'; Start = 'Disabled' }
            ) }
-        @{ Id = 'AufgabenTelemetrie'; Kat = 'Hintergrund'; Titel = 'Telemetrie-Aufgaben deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'AufgabenTelemetrie'; Kat = 'Hintergrund'; Titel = 'Telemetrie-Aufgaben deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Pack Aufgaben, Sophia ScheduledTasks'
            Text = 'Kompatibilitätsprüfung (Appraiser, ProgramDataUpdater, StartupAppTask), Programm zur Verbesserung der Benutzerfreundlichkeit, Proxy, USB-Telemetrie, Datenträgerdiagnose und Feedback-Aufgaben (DmClient).'
            Aktionen = @(
@@ -2816,21 +2798,21 @@ $script:OptKatalog = (
                @{ Art = 'Aufgabe'; Name = 'DmClient' }
                @{ Art = 'Aufgabe'; Name = 'DmClientOnScenarioDownload' }
            ) }
-        @{ Id = 'AufgabenKarten'; Kat = 'Hintergrund'; Titel = 'Aufgaben der Karten-App deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'AufgabenKarten'; Kat = 'Hintergrund'; Titel = 'Aufgaben der Karten-App deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Pack Aufgaben'
            Text = 'MapsToastTask und MapsUpdateTask.'
            Aktionen = @( @{ Art = 'Aufgabe'; Name = 'MapsToastTask' }, @{ Art = 'Aufgabe'; Name = 'MapsUpdateTask' } ) }
-        @{ Id = 'AufgabenJugendschutz'; Kat = 'Hintergrund'; Titel = 'Aufgaben des Jugendschutzes deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'AufgabenJugendschutz'; Kat = 'Hintergrund'; Titel = 'Aufgaben des Jugendschutzes deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Pack Aufgaben'
            Text = 'FamilySafetyMonitor und FamilySafetyRefreshTask.'
            Hinweis = 'Nicht auf PCs mit Microsoft-Family-Jugendschutz.'
            Aktionen = @( @{ Art = 'Aufgabe'; Name = 'FamilySafetyMonitor' }, @{ Art = 'Aufgabe'; Name = 'FamilySafetyRefreshTask' } ) }
-        @{ Id = 'AufgabenXbox'; Kat = 'Hintergrund'; Titel = 'Abgleich der Xbox-Spielstände deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'AufgabenXbox'; Kat = 'Hintergrund'; Titel = 'Abgleich der Xbox-Spielstände deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Pack Aufgaben'
            Text = 'XblGameSaveTask.'
            Hinweis = 'Spiele mit Xbox-Cloudspeicher gleichen ihre Spielstände dann nur noch beim Spielen ab.'
            Aktionen = @( @{ Art = 'Aufgabe'; Name = 'XblGameSaveTask' } ) }
-        @{ Id = 'AufgabenGesicht'; Kat = 'Hintergrund'; Titel = 'Aufräumaufgabe der Gesichtserkennung deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'AufgabenGesicht'; Kat = 'Hintergrund'; Titel = 'Aufräumaufgabe der Gesichtserkennung deaktivieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Pack Aufgaben'
            Text = 'FODCleanupTask.'
            Aktionen = @( @{ Art = 'Aufgabe'; Name = 'FODCleanupTask' } ) }
@@ -3017,7 +2999,7 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer'; Name = 'ShowRecent'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer'; Name = 'ShowFrequent'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'TaskleisteSuche'; Kat = 'Bedienung'; Titel = 'Taskleiste ohne Suchfeld, Aktivitätsansicht und Personen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'TaskleisteSuche'; Kat = 'Bedienung'; Titel = 'Taskleiste ohne Suchfeld, Aktivitätsansicht und Personen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'Sophia TaskbarSearch, TaskViewButton, O&O M016, M015'
            Text = 'Suchfeld, Schaltfläche Aktivitätsansicht und Personen verschwinden aus der Taskleiste; die Suche bleibt über die Windows-Taste.'
            Aktionen = @(
@@ -3025,25 +3007,26 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'ShowTaskViewButton'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\People'; Name = 'PeopleBand'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'Widgets'; Kat = 'Bedienung'; Titel = 'Widgets sowie Neuigkeiten und interessante Themen aus'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'SE'
+        @{ Id = 'Widgets'; Kat = 'Bedienung'; Titel = 'Widgets sowie Neuigkeiten und interessante Themen aus'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'MSE'
            Quelle = 'Sophia TaskbarWidgets, NewsInterests, O&O M019'
            Text = 'Kein Widgets-Feld (Windows 11) und keine Neuigkeiten in der Taskleiste (Windows 10).'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Dsh'; Name = 'AllowNewsAndInterests'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Feeds'; Name = 'EnableFeeds'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'JetztBesprechen'; Kat = 'Bedienung'; Titel = 'Schaltfläche Jetzt besprechen ausblenden'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Bedingung = 'Win10'
+        @{ Id = 'JetztBesprechen'; Kat = 'Bedienung'; Titel = 'Schaltfläche Jetzt besprechen ausblenden'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Bedingung = 'Win10'
            Quelle = 'Sophia MeetNow, O&O M017, M018'
            Text = 'Entfernt "Jetzt besprechen" (Skype) aus dem Infobereich.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer'; Name = 'HideSCAMeetNow'; Wert = 1; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer'; Name = 'HideSCAMeetNow'; Wert = 1; Typ = 'DWord' }
            ) }
-        @{ Id = 'TaskleisteGruppieren'; Kat = 'Bedienung'; Titel = 'Taskleiste: immer gruppieren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
-           Quelle = 'Sophia TaskbarCombine'
-           Text = 'Schaltflächen eines Programms werden in der Taskleiste immer zusammengefasst (TaskbarGlomLevel 0).'
+        @{ Id = 'TaskleisteGruppieren'; Kat = 'Bedienung'; Titel = 'Taskleiste: immer gruppieren, Task beenden per Rechtsklick'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+           Quelle = 'Sophia TaskbarCombine, TaskbarEndTask'
+           Text = 'Schaltflächen eines Programms werden zusammengefasst; ein Rechtsklick bietet "Task beenden" (Windows 11).'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'TaskbarGlomLevel'; Wert = 0; Typ = 'DWord' }
+               @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings'; Name = 'TaskbarEndTask'; Wert = 1; Typ = 'DWord' }
            ) }
         @{ Id = 'StartmenueAufraeumen'; Kat = 'Bedienung'; Titel = 'Startmenü ohne Empfehlungen und Kontohinweise'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Bedingung = 'Win11'
            Quelle = 'Sophia RecentlyAddedStartApps, MostUsedStartApps, StartRecommendedSection, StartRecommendationsTips, StartAccountNotifications'
@@ -3139,16 +3122,12 @@ $script:OptKatalog = (
            Quelle = 'Sophia Win32LongPathLimit (Windows 10)'
            Text = 'Programme, die es unterstützen, dürfen lange Pfade nutzen (LongPathsEnabled).'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem'; Name = 'LongPathsEnabled'; Wert = 1; Typ = 'DWord' } ) }
-        @{ Id = 'TaskbarEndTask'; Kat = 'Bedienung'; Titel = 'Taskleiste: Task beenden per Rechtsklick'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Bedingung = 'Win11'
+        @{ Id = 'TaskbarEndTask'; Kat = 'Bedienung'; Titel = 'Taskleiste: Task beenden per Rechtsklick (Windows 11)'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Bedingung = 'Win11'
            Quelle = 'Windows 11 Taskbar Developer Settings'
            Text = 'Ermöglicht das sofortige Beenden von Programmen direkt über das Kontextmenü der Taskleiste ohne Umweg über den Task-Manager.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings'; Name = 'TaskbarEndTask'; Wert = 1; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'TaskbarEndTask'; Wert = 1; Typ = 'DWord' }
-           )
-           Gegenbefehl = @(
-               'Set-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings -Name TaskbarEndTask -Value 0'
-               'Set-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name TaskbarEndTask -Value 0'
            ) }
         @{ Id = 'UefiNeustart'; Kat = 'Bedienung'; Titel = 'Kontextmenü: Ins BIOS/UEFI neu starten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Windows UEFI Schnellstarter'
@@ -3186,12 +3165,12 @@ $script:OptKatalog = (
            Quelle = 'Sophia WinPrtScrFolder'
            Text = 'Bildschirmfotos landen auf dem Desktop statt unter Bilder\Screenshots.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders'; Name = '{B7BEDE81-DF94-4682-A7D8-57A52620B86F}'; Wert = '%USERPROFILE%\Desktop'; Typ = 'ExpandString' } ) }
-        @{ Id = 'Laufwerksname'; Kat = 'Darstellung'; Titel = 'Systemlaufwerk "Windows" nennen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
+        @{ Id = 'Laufwerksname'; Kat = 'Darstellung'; Titel = 'Systemlaufwerk "Windows" nennen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
            Quelle = 'Pack Indizierung (Label)'
            Text = 'Die Bezeichnung des Systemlaufwerks wird "Windows".'
            Aktionen = @( @{ Art = 'Sonder'; Name = 'Laufwerksname'; Werte = 'Windows' } ) }
         # ------------------------------------------------------------------ Leistung, Spiele und Energie
-        @{ Id = 'Indizierung'; Kat = 'Leistung'; Titel = 'Indizierung aller Laufwerke aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Minuten = 1
+        @{ Id = 'Indizierung'; Kat = 'Leistung'; Titel = 'Indizierung aller Laufwerke aus'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Minuten = 1
            Quelle = 'Pack Indizierung'
            Text = 'Die Windows-Suche indiziert die Inhalte der Laufwerke nicht mehr; spart Schreibvorgänge und Hintergrundlast.'
            Hinweis = 'Die Suche nach Dateiinhalten und in Outlook wird langsamer. Der Dienst Windows Search bleibt.'
@@ -3249,7 +3228,7 @@ $script:OptKatalog = (
            Quelle = 'Sophia NetworkAdaptersSavePower'
            Text = 'Windows darf physische Netzwerkadapter nicht mehr abschalten; verhindert Verbindungsabbrüche nach dem Standby.'
            Aktionen = @( @{ Art = 'Sonder'; Name = 'NetzwerkEnergie' } ) }
-        @{ Id = 'Speicheroptimierung'; Kat = 'Leistung'; Titel = 'Speicheroptimierung und Miniaturansichten-Bereinigung an'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
+        @{ Id = 'Speicheroptimierung'; Kat = 'Leistung'; Titel = 'Speicheroptimierung und Miniaturansichten-Bereinigung an'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
            Quelle = 'Sophia StorageSense, ThumbnailCacheRemoval'
            Text = 'Windows räumt temporäre Dateien selbst auf, die Datenträgerbereinigung darf den Miniaturansichten-Cache leeren.'
            Aktionen = @(
@@ -3276,7 +3255,7 @@ $script:OptKatalog = (
            Text = 'Windows startet für Updates neu, sobald es geht (IsExpedited).'
            Hinweis = 'Abweichend vom Pack in keiner Vorlage: Auf Arbeitsplätzen kann das mitten in der Arbeit passieren.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings'; Name = 'IsExpedited'; Wert = 1; Typ = 'DWord' } ) }
-        @{ Id = 'UpdateAufschub'; Kat = 'Update'; Titel = 'Funktionsupdates ein Jahr aufschieben'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
+        @{ Id = 'UpdateAufschub'; Kat = 'Update'; Titel = 'Funktionsupdates ein Jahr aufschieben'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
            Quelle = 'O&O W004'
            Text = 'Neue Windows-Versionen kommen erst 365 Tage nach Erscheinen (nicht in Home); Sicherheitsupdates kommen weiter sofort.'
            Aktionen = @(
@@ -3292,14 +3271,14 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\EdgeUpdate'; Name = 'CreateDesktopShortcut{0D50BFEC-CD6A-4F9A-964C-C7416E3ACB10}'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\EdgeUpdate'; Name = 'CreateDesktopShortcut{65C35B14-6C1D-4122-AC46-7148CC9D6497}'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'EdgeHintergrund'; Kat = 'Update'; Titel = 'Edge nicht im Hintergrund laden'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
+        @{ Id = 'EdgeHintergrund'; Kat = 'Update'; Titel = 'Edge nicht im Hintergrund laden'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
            Quelle = 'O&O E013, E014 (für den heutigen Edge umgesetzt)'
            Text = 'Kein Start-Boost und kein Weiterlaufen nach dem Schließen. Die übrigen O&O-Einträge für den alten Edge (Legacy) entfallen, weil es ihn nicht mehr gibt.'
            Aktionen = @(
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'; Name = 'StartupBoostEnabled'; Wert = 0; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'; Name = 'BackgroundModeEnabled'; Wert = 0; Typ = 'DWord' }
            ) }
-        @{ Id = 'OneDriveRichtlinie'; Kat = 'Update'; Titel = 'OneDrive per Richtlinie abschalten'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'SE'; Verwaltet = $true
+        @{ Id = 'OneDriveRichtlinie'; Kat = 'Update'; Titel = 'OneDrive per Richtlinie abschalten'; Risiko = 'Aendern'; Neustart = 'moeglich'; Vorlagen = 'MSE'; Verwaltet = $true
            Quelle = 'O&O O001, O003'
            Text = 'OneDrive darf keine Dateien synchronisieren und vor der Anmeldung nicht ins Netz.'
            Hinweis = 'Wer OneDrive oder OneDrive for Business nutzt, lässt diesen Eintrag weg.'
@@ -3322,7 +3301,7 @@ $script:OptKatalog = (
            Quelle = 'Sophia NetworkProtection, PUAppsDetection'
            Text = 'Microsoft Defender blockiert Verbindungen zu bekannten Schadseiten und erkennt potenziell unerwünschte Apps (nur wenn Defender der aktive Virenschutz ist).'
            Aktionen = @( @{ Art = 'Sonder'; Name = 'Defender'; Werte = 'EnableNetworkProtection=1;PUAProtection=1' } ) }
-        @{ Id = 'DefenderMeldungen'; Kat = 'Sicherheit'; Titel = 'Defender und MRT senden keine Proben und Befallsdaten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
+        @{ Id = 'DefenderMeldungen'; Kat = 'Sicherheit'; Titel = 'Defender und MRT senden keine Proben und Befallsdaten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
            Quelle = 'O&O S013, S014'
            Text = 'Keine automatische Übermittlung von Dateiproben und keine Befallsberichte des Tools zum Entfernen bösartiger Software.'
            Hinweis = 'Verringert den Cloudschutz für neue Schädlinge etwas.'
@@ -3330,15 +3309,15 @@ $script:OptKatalog = (
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Spynet'; Name = 'SubmitSamplesConsent'; Wert = 2; Typ = 'DWord' }
                @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\MRT'; Name = 'DontReportInfectionInformation'; Wert = 1; Typ = 'DWord' }
            ) }
-        @{ Id = 'KennwortAnzeigen'; Kat = 'Sicherheit'; Titel = 'Keine Schaltfläche zum Anzeigen von Kennwörtern'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+        @{ Id = 'KennwortAnzeigen'; Kat = 'Sicherheit'; Titel = 'Keine Schaltfläche zum Anzeigen von Kennwörtern'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'
            Quelle = 'O&O S001'
            Text = 'Kennwortfelder zeigen das Auge zum Aufdecken nicht mehr.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\CredUI'; Name = 'DisablePasswordReveal'; Wert = 1; Typ = 'DWord' } ) }
-        @{ Id = 'Remoteunterstuetzung'; Kat = 'Sicherheit'; Titel = 'Remoteunterstützung nicht zulassen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
+        @{ Id = 'Remoteunterstuetzung'; Kat = 'Sicherheit'; Titel = 'Remoteunterstützung nicht zulassen'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
            Quelle = 'O&O M026'
            Text = 'Niemand kann per Einladung zur Remoteunterstützung auf diesen PC zugreifen.'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SYSTEM\CurrentControlSet\Control\Remote Assistance'; Name = 'fAllowToGetHelp'; Wert = 0; Typ = 'DWord' } ) }
-        @{ Id = 'Remotedesktop'; Kat = 'Sicherheit'; Titel = 'Remotedesktop-Verbindungen sperren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'; Verwaltet = $true
+        @{ Id = 'Remotedesktop'; Kat = 'Sicherheit'; Titel = 'Remotedesktop-Verbindungen sperren'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Verwaltet = $true
            Quelle = 'O&O M027'
            Text = 'Eingehende Remotedesktop-Verbindungen werden abgelehnt (fDenyTSConnections 1).'
            Hinweis = 'In der IT-Betreuung weglassen, sonst ist der PC nicht mehr per Remotedesktop erreichbar.'
@@ -4421,7 +4400,6 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
-using Thread = System.Threading.Thread;
 using System.Windows.Forms;
 
 // Steuerelemente in DiagGui_Steuerelemente.cs, Modelle in DiagGui_Modelle.cs,
@@ -4700,10 +4678,10 @@ public partial class DiagGui : Form
         BackColor = UI.Bg; ForeColor = UI.Text;
         StartPosition = FormStartPosition.CenterScreen;
         Rectangle workArea = Screen.FromPoint(Cursor.Position).WorkingArea;
-        int startW = Math.Min(UI.S(1220), (int)(workArea.Width * 0.95));
-        int startH = Math.Min(UI.S(740), (int)(workArea.Height * 0.92));
+        int startW = Math.Min(UI.S(1120), (int)(workArea.Width * 0.94));
+        int startH = Math.Min(UI.S(680), (int)(workArea.Height * 0.88));
         ClientSize = new Size(startW, startH);
-        MinimumSize = new Size(UI.S(880), UI.S(560));
+        MinimumSize = new Size(UI.S(860), UI.S(540));
         try { Icon ic = AppSymbol.Get(); if (ic != null) Icon = ic; else Icon = Icon.ExtractAssociatedIcon(psExe); } catch { }
         try { int round = DWMWCP_ROUND; DwmSetWindowAttribute(Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int)); } catch { }
 
@@ -5633,27 +5611,6 @@ public partial class DiagGui : Form
         "Erweitert wie im Optimisation Pack: Leos Empfehlung plus Windows-Funktionen, Zusatzfeatures, vorinstallierte Apps und Darstellung.",
         "Nichts gewählt." };
 
-    static readonly string[] defaultMinimal = new string[] {
-        "TelemetrieMinimal", "Fehlerberichte", "WerbeId", "Speicheroptimierung", "TaskbarEndTask"
-    };
-    HashSet<string> cachedMinimalIds;
-
-    HashSet<string> GetMinimalIds()
-    {
-        if (cachedMinimalIds != null) return cachedMinimalIds;
-        HashSet<string> set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (string id in defaultMinimal) set.Add(id);
-        foreach (OptItem it in optItems)
-        {
-            if (it.Vorlagen != null && it.Vorlagen.IndexOf("M", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                set.Add(it.Id);
-            }
-        }
-        cachedMinimalIds = set;
-        return cachedMinimalIds;
-    }
-
     static readonly string[] defaultLeoEmpfehlung = new string[] {
         "TelemetrieMinimal", "TelemetrieDienste", "TelemetrieDiagnoseprotokolle", "Feedback", "WerbeId",
         "MassgeschneiderteErfahrung", "Sprachliste", "Handschrift", "Inventar", "Insiderseite",
@@ -5799,8 +5756,8 @@ public partial class DiagGui : Form
             Tip(all, "Alle Einträge dieser Kategorie wählen."); Tip(none, "Keinen Eintrag dieser Kategorie wählen.");
         }
         Label lg = Lbl("Ändern: mit Vorher-Wert protokolliert, auf der Seite Änderungen einzeln rücknehmbar.  Eingriff: nicht automatisch umkehrbar (Apps, Zusatzfeatures, Bereinigung, DDU).  verwaltet: berührt Gruppenrichtlinien, auf Domänen-PCs nicht in den Vorlagen.  Benutzereinstellungen gelten für den angemeldeten Benutzer.", 8.75f, false, UI.Muted);
-        // Start-Vorauswahl: ab v3.5 ApplyOptPreset("M") (Minimal), früher ApplyOptPreset("S") (Leos Empfehlung)
-        ApplyOptPreset("M");
+        lg.MaximumSize = new Size(UI.S(820), 0); lg.Margin = new Padding(UI.S(4), UI.S(12), UI.S(4), 0); f.Controls.Add(lg);
+        ApplyOptPreset("S");
         return f;
     }
 
@@ -5808,17 +5765,12 @@ public partial class DiagGui : Form
     {
         int skip = 0;
         HashSet<string> leoIds = key == "S" ? GetLeoEmpfehlungIds() : null;
-        HashSet<string> minIds = key == "M" ? GetMinimalIds() : null;
         foreach (OptItem it in optItems)
         {
             bool on = false;
             if (key == "S")
             {
                 on = (leoIds != null && leoIds.Contains(it.Id)) || (it.Vorlagen != null && it.Vorlagen.Contains("S"));
-            }
-            else if (key == "M")
-            {
-                on = (minIds != null && minIds.Contains(it.Id)) || (it.Vorlagen != null && it.Vorlagen.Contains("M"));
             }
             else if (key.Length > 0)
             {
@@ -8746,9 +8698,7 @@ public partial class DiagGui
         Tip(rel, "Liest Datenbank und Referenz neu ein.");
         Button open = UI.Secondary("Datenordner"); open.Margin = new Padding(UI.S(8), 0, 0, 0); open.Click += delegate { if (dataDir.Length > 0) OpenShell(dataDir); };
         Tip(open, "Öffnet den Datenordner (Berichte, Datenbank, Tools, Archiv).");
-        Button btnNas = UI.Secondary("Netzlaufwerk / NAS ..."); btnNas.Margin = new Padding(UI.S(8), 0, 0, 0); btnNas.Click += delegate { ShowConnectNasDialog(); };
-        Tip(btnNas, "Verbindet ein Netzlaufwerk oder NAS für Berichte und Vergleichsdatenbank.");
-        topTools.Controls.Add(imp); topTools.Controls.Add(btnDbClean); topTools.Controls.Add(rel); topTools.Controls.Add(open); topTools.Controls.Add(btnNas);
+        topTools.Controls.Add(imp); topTools.Controls.Add(btnDbClean); topTools.Controls.Add(rel); topTools.Controls.Add(open);
         top.Controls.Add(topTools);
 
         FlowLayoutPanel bottom = new FlowLayoutPanel(); bottom.FlowDirection = FlowDirection.TopDown; bottom.WrapContents = false; bottom.AutoSize = true; bottom.BackColor = UI.Panel; bottom.Dock = DockStyle.Bottom;
@@ -9124,13 +9074,8 @@ public partial class DiagGui
             try { Directory.CreateDirectory(td); } catch { }
             OpenShell(td);
         };
-        Button btnConnectNas = UI.Secondary("Netzlaufwerk verbinden ...");
-        btnConnectNas.Margin = new Padding(UI.S(8), 0, 0, 0);
-        Tip(btnConnectNas, "Verbindet ein Netzlaufwerk oder NAS für Berichte und Datenbank mit lokalem Fallback.");
-        btnConnectNas.Click += delegate { ShowConnectNasDialog(); };
         topBar.Controls.Add(btnRefreshTools);
         topBar.Controls.Add(btnOpenToolsDir);
-        topBar.Controls.Add(btnConnectNas);
         body.Controls.Add(topBar);
 
         FlowLayoutPanel pnlCards = new FlowLayoutPanel();
@@ -9260,140 +9205,7 @@ public partial class DiagGui
             Tip(cWiz, "WizTree: Speicherfresser blitzschnell aufspüren.");
             pnlCards.Controls.Add(cWiz);
 
-            // 2. Softwarepakete installieren (winget)
-            pnlCards.Controls.Add(Section("Softwarepakete installieren (winget)"));
-            Label lWingetDesc = Lbl("Auswahl populärer Basisprogramme zur automatischen und stillen Installation via Windows-Paket-Manager (winget).", 9f, false, UI.Muted);
-            lWingetDesc.MaximumSize = new Size(UI.S(740), 0);
-            lWingetDesc.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
-            pnlCards.Controls.Add(lWingetDesc);
-
-            Panel pnlWgBox = new Panel();
-            pnlWgBox.Width = cardW;
-            pnlWgBox.BackColor = UI.Panel;
-            pnlWgBox.BorderStyle = BorderStyle.FixedSingle;
-            pnlWgBox.Padding = new Padding(UI.S(12));
-            pnlWgBox.AutoSize = true;
-            pnlWgBox.Margin = new Padding(UI.S(4), 0, 0, UI.S(12));
-
-            FlowLayoutPanel pnlWgInner = new FlowLayoutPanel();
-            pnlWgInner.Dock = DockStyle.Fill;
-            pnlWgInner.AutoSize = true;
-            pnlWgInner.FlowDirection = FlowDirection.TopDown;
-            pnlWgInner.WrapContents = false;
-
-            string wingetPath;
-            bool hasWinget = IsWingetAvailable(out wingetPath);
-
-            // Web-Browser
-            Label lCatBrowser = Lbl("Web-Browser", 9.5f, true, UI.Text);
-            lCatBrowser.Margin = new Padding(0, 0, 0, UI.S(4));
-            pnlWgInner.Controls.Add(lCatBrowser);
-
-            FlowLayoutPanel rowBrowser = Row();
-            rowBrowser.Margin = new Padding(0, 0, 0, UI.S(8));
-            CheckBox chkChrome = Chk("Google Chrome (Google.Chrome)", false);
-            Tip(chkChrome, "Google Chrome Webbrowser via winget (Google.Chrome)");
-            CheckBox chkFirefox = Chk("Mozilla Firefox (Mozilla.Firefox)", false);
-            Tip(chkFirefox, "Mozilla Firefox Webbrowser via winget (Mozilla.Firefox)");
-            CheckBox chkOpera = Chk("Opera (Opera.Opera)", false);
-            Tip(chkOpera, "Opera Webbrowser via winget (Opera.Opera)");
-            rowBrowser.Controls.Add(chkChrome);
-            rowBrowser.Controls.Add(chkFirefox);
-            rowBrowser.Controls.Add(chkOpera);
-            pnlWgInner.Controls.Add(rowBrowser);
-
-            // Gaming & Chat
-            Label lCatGaming = Lbl("Gaming & Chat", 9.5f, true, UI.Text);
-            lCatGaming.Margin = new Padding(0, UI.S(4), 0, UI.S(4));
-            pnlWgInner.Controls.Add(lCatGaming);
-
-            FlowLayoutPanel rowGaming = Row();
-            rowGaming.Margin = new Padding(0, 0, 0, UI.S(8));
-            CheckBox chkSteam = Chk("Steam (Valve.Steam)", false);
-            Tip(chkSteam, "Steam Gaming-Plattform via winget (Valve.Steam)");
-            CheckBox chkDiscord = Chk("Discord (Discord.Discord)", false);
-            Tip(chkDiscord, "Discord Chat- und Sprach-Client via winget (Discord.Discord)");
-            rowGaming.Controls.Add(chkSteam);
-            rowGaming.Controls.Add(chkDiscord);
-            pnlWgInner.Controls.Add(rowGaming);
-
-            // Produktivität & Tools
-            Label lCatProd = Lbl("Produktivität & Tools", 9.5f, true, UI.Text);
-            lCatProd.Margin = new Padding(0, UI.S(4), 0, UI.S(4));
-            pnlWgInner.Controls.Add(lCatProd);
-
-            FlowLayoutPanel rowProd = Row();
-            rowProd.Margin = new Padding(0, 0, 0, UI.S(10));
-            CheckBox chkNpp = Chk("Notepad++ (Notepad++.Notepad++)", false);
-            Tip(chkNpp, "Notepad++ Quelltext-Editor via winget (Notepad++.Notepad++)");
-            CheckBox chkOnlyOffice = Chk("ONLYOFFICE Desktop Editors (ONLYOFFICE.DesktopEditors)", false);
-            Tip(chkOnlyOffice, "ONLYOFFICE Office-Suite via winget (ONLYOFFICE.DesktopEditors)");
-            CheckBox chk7zip = Chk("7-Zip (7zip.7zip)", false);
-            Tip(chk7zip, "7-Zip Packprogramm via winget (7zip.7zip)");
-            CheckBox chkVlc = Chk("VLC Media Player (VideoLAN.VLC)", false);
-            Tip(chkVlc, "VLC Media Player via winget (VideoLAN.VLC)");
-            rowProd.Controls.Add(chkNpp);
-            rowProd.Controls.Add(chkOnlyOffice);
-            rowProd.Controls.Add(chk7zip);
-            rowProd.Controls.Add(chkVlc);
-            pnlWgInner.Controls.Add(rowProd);
-
-            // Aktionen & Status
-            FlowLayoutPanel rowWgActions = Row();
-            rowWgActions.Margin = new Padding(0, UI.S(4), 0, 0);
-
-            LinkLabel lnkWgAll = new LinkLabel(); lnkWgAll.Text = "alle"; lnkWgAll.AutoSize = true;
-            lnkWgAll.Margin = new Padding(0, UI.S(6), UI.S(8), 0); lnkWgAll.LinkColor = UI.Accent;
-            Tip(lnkWgAll, "Alle Softwarepakete auswählen.");
-            LinkLabel lnkWgNone = new LinkLabel(); lnkWgNone.Text = "keine"; lnkWgNone.AutoSize = true;
-            lnkWgNone.Margin = new Padding(0, UI.S(6), UI.S(16), 0); lnkWgNone.LinkColor = UI.Accent;
-            Tip(lnkWgNone, "Alle Softwarepakete abwählen.");
-
-            CheckBox[] allWgBoxes = new CheckBox[] { chkChrome, chkFirefox, chkOpera, chkSteam, chkDiscord, chkNpp, chkOnlyOffice, chk7zip, chkVlc };
-            string[] allWgIds = new string[] { "Google.Chrome", "Mozilla.Firefox", "Opera.Opera", "Valve.Steam", "Discord.Discord", "Notepad++.Notepad++", "ONLYOFFICE.DesktopEditors", "7zip.7zip", "VideoLAN.VLC" };
-            string[] allWgNames = new string[] { "Google Chrome", "Mozilla Firefox", "Opera", "Steam", "Discord", "Notepad++", "ONLYOFFICE Desktop Editors", "7-Zip", "VLC Media Player" };
-
-            lnkWgAll.LinkClicked += delegate { foreach (CheckBox cb in allWgBoxes) cb.Checked = true; };
-            lnkWgNone.LinkClicked += delegate { foreach (CheckBox cb in allWgBoxes) cb.Checked = false; };
-
-            Button btnInstallWg = UI.Primary("Ausgewählte Programme installieren");
-            btnInstallWg.Margin = new Padding(0);
-            Label lblWgStatus = Lbl("", 9f, false, UI.Muted);
-            lblWgStatus.Margin = new Padding(UI.S(12), UI.S(6), 0, 0);
-
-            if (!hasWinget)
-            {
-                btnInstallWg.Enabled = false;
-                lblWgStatus.Text = "winget ist auf diesem System nicht installiert.";
-                lblWgStatus.ForeColor = UI.Warn;
-                Tip(btnInstallWg, "winget ist auf diesem System nicht installiert.");
-            }
-            else
-            {
-                Tip(btnInstallWg, "Führt 'winget install' für alle markierten Programme still im Hintergrund aus.");
-                btnInstallWg.Click += delegate {
-                    List<int> selIndices = new List<int>();
-                    for (int i = 0; i < allWgBoxes.Length; i++) {
-                        if (allWgBoxes[i].Checked) selIndices.Add(i);
-                    }
-                    if (selIndices.Count == 0) {
-                        MessageBox.Show(this, "Bitte wählen Sie mindestens ein Programm zur Installation aus.", "Softwarepakete installieren", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        return;
-                    }
-                    InstallWingetPackagesAsync(wingetPath, selIndices, allWgIds, allWgNames, lblWgStatus, btnInstallWg, allWgBoxes, lnkWgAll, lnkWgNone);
-                };
-            }
-
-            rowWgActions.Controls.Add(lnkWgAll);
-            rowWgActions.Controls.Add(lnkWgNone);
-            rowWgActions.Controls.Add(btnInstallWg);
-            rowWgActions.Controls.Add(lblWgStatus);
-
-            pnlWgInner.Controls.Add(rowWgActions);
-            pnlWgBox.Controls.Add(pnlWgInner);
-            pnlCards.Controls.Add(pnlWgBox);
-
-            // 3. Schnellstarter & Shortcuts
+            // 2. Schnellstarter & Shortcuts
             pnlCards.Controls.Add(Section("Schnellstarter & System-Shortcuts"));
             Label lShortDesc = Lbl("Direkter Aufruf nativer Windows-Verwaltungskonsolen und Neustart in die Firmware.", 9f, false, UI.Muted);
             lShortDesc.MaximumSize = new Size(UI.S(740), 0);
@@ -9623,250 +9435,6 @@ public partial class DiagGui
             }
         }
         return null;
-    }
-
-    public void InstallWingetPackagesAsync(string exeToRun, List<int> selIndices, string[] allWgIds, string[] allWgNames, Label lblWgStatus, Button btnInstallWg, CheckBox[] allWgBoxes, LinkLabel lnkWgAll, LinkLabel lnkWgNone)
-    {
-        btnInstallWg.Enabled = false;
-        foreach (CheckBox cb in allWgBoxes) cb.Enabled = false;
-        lnkWgAll.Enabled = false; lnkWgNone.Enabled = false;
-
-        System.Threading.Thread t = new System.Threading.Thread(delegate() {
-            int okCount = 0;
-            int failCount = 0;
-            int total = selIndices.Count;
-            for (int s = 0; s < total; s++) {
-                int idx = selIndices[s];
-                string pkgId = allWgIds[idx];
-                string pkgName = allWgNames[idx];
-                string statusTxt = String.Format("Installiere ({0} von {1}): {2} ...", s + 1, total, pkgName);
-                try {
-                    this.BeginInvoke(new MethodInvoker(delegate {
-                        lblWgStatus.Text = statusTxt;
-                        lblWgStatus.ForeColor = UI.Accent;
-                    }));
-                } catch { }
-
-                try {
-                    ProcessStartInfo psi = new ProcessStartInfo();
-                    psi.FileName = exeToRun;
-                    psi.Arguments = "install --id " + pkgId + " -e --silent --accept-package-agreements --accept-source-agreements";
-                    psi.UseShellExecute = false;
-                    psi.CreateNoWindow = true;
-                    psi.RedirectStandardOutput = true;
-                    psi.RedirectStandardError = true;
-                    using (Process proc = Process.Start(psi)) {
-                        proc.WaitForExit();
-                        if (proc.ExitCode == 0) okCount++; else failCount++;
-                    }
-                } catch { failCount++; }
-            }
-
-            try {
-                this.BeginInvoke(new MethodInvoker(delegate {
-                    btnInstallWg.Enabled = true;
-                    foreach (CheckBox cb in allWgBoxes) cb.Enabled = true;
-                    lnkWgAll.Enabled = true; lnkWgNone.Enabled = true;
-                    if (failCount == 0) {
-                        lblWgStatus.Text = String.Format("Installation abgeschlossen: {0} Programme erfolgreich installiert.", okCount);
-                        lblWgStatus.ForeColor = UI.Ok;
-                    } else {
-                        lblWgStatus.Text = String.Format("Abgeschlossen: {0} erfolgreich, {1} fehlgeschlagen.", okCount, failCount);
-                        lblWgStatus.ForeColor = UI.Warn;
-                    }
-                }));
-            } catch { }
-        });
-        t.IsBackground = true;
-        t.Start();
-    }
-
-    public static bool IsWingetAvailable(out string wingetPath)
-    {
-        wingetPath = "winget.exe";
-        try
-        {
-            string appDataWinget = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\WindowsApps\winget.exe");
-            if (File.Exists(appDataWinget)) { wingetPath = appDataWinget; return true; }
-            ProcessStartInfo psi = new ProcessStartInfo("where.exe", "winget");
-            psi.UseShellExecute = false;
-            psi.CreateNoWindow = true;
-            psi.RedirectStandardOutput = true;
-            using (Process p = Process.Start(psi))
-            {
-                string o = p.StandardOutput.ReadToEnd();
-                p.WaitForExit();
-                if (p.ExitCode == 0 && !String.IsNullOrEmpty(o))
-                {
-                    string first = o.Split(new char[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)[0].Trim();
-                    if (File.Exists(first)) { wingetPath = first; return true; }
-                    return true;
-                }
-            }
-        }
-        catch { }
-        return false;
-    }
-
-    public static bool TestWritableDir(string dir)
-    {
-        if (String.IsNullOrEmpty(dir)) return false;
-        try
-        {
-            Directory.CreateDirectory(dir);
-            string testFile = Path.Combine(dir, ".schreibtest_" + Process.GetCurrentProcess().Id + ".tmp");
-            File.WriteAllText(testFile, "x", Encoding.UTF8);
-            File.Delete(testFile);
-            return true;
-        }
-        catch { return false; }
-    }
-
-    public void SwitchDataDir(string newDir)
-    {
-        if (String.IsNullOrEmpty(newDir)) return;
-        this.dataDir = newDir.TrimEnd('\\');
-        this.dbDir = Path.Combine(this.dataDir, "Datenbank");
-        this.changeDir = Path.Combine(this.dataDir, "Änderungen");
-        try { Directory.CreateDirectory(this.dataDir); } catch { }
-        try { Directory.CreateDirectory(this.dbDir); } catch { }
-        try { Directory.CreateDirectory(this.changeDir); } catch { }
-        try { ReloadDb(); } catch { }
-    }
-
-    public void ShowConnectNasDialog()
-    {
-        using (Form dlg = new Form())
-        {
-            dlg.Text = "Netzlaufwerk für Berichte & Datenbank verbinden";
-            dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
-            dlg.MaximizeBox = false; dlg.MinimizeBox = false; dlg.ShowInTaskbar = false;
-            dlg.StartPosition = FormStartPosition.CenterParent;
-            dlg.Font = new Font("Segoe UI", 9.5f);
-            dlg.BackColor = UI.Bg; dlg.ForeColor = UI.Text;
-            dlg.ClientSize = new Size(UI.S(520), UI.S(380));
-
-            FlowLayoutPanel p = new FlowLayoutPanel();
-            p.Dock = DockStyle.Fill;
-            p.FlowDirection = FlowDirection.TopDown;
-            p.WrapContents = false;
-            p.Padding = new Padding(UI.S(16));
-
-            Label lInfo = Lbl("Verbindet ein Netzlaufwerk oder NAS für Berichte und Vergleichsdatenbank. Ist das Netzlaufwerk offline oder nicht beschreibbar, schaltet Minibench automatisch auf den lokalen Datenordner zurück.", 9f, false, UI.Muted);
-            lInfo.MaximumSize = new Size(UI.S(480), 0);
-            lInfo.Margin = new Padding(0, 0, 0, UI.S(12));
-            p.Controls.Add(lInfo);
-
-            Label lPath = Lbl("Netzwerkpfad (UNC-Pfad oder Netzlaufwerk):", 9.5f, true, UI.Text);
-            lPath.Margin = new Padding(0, 0, 0, UI.S(4));
-            p.Controls.Add(lPath);
-
-            TextBox tbPath = new TextBox();
-            tbPath.Width = UI.S(480);
-            tbPath.Text = (dataDir != null && dataDir.StartsWith(@"\\")) ? dataDir : @"\\NAS\Freigabe\Minibench-Daten";
-            tbPath.Margin = new Padding(0, 0, 0, UI.S(10));
-            p.Controls.Add(tbPath);
-
-            Label lUser = Lbl("Benutzername (optional für 'net use'):", 9f, false, UI.Text);
-            lUser.Margin = new Padding(0, 0, 0, UI.S(2));
-            p.Controls.Add(lUser);
-
-            TextBox tbUser = new TextBox();
-            tbUser.Width = UI.S(480);
-            tbUser.Margin = new Padding(0, 0, 0, UI.S(8));
-            p.Controls.Add(tbUser);
-
-            Label lPass = Lbl("Kennwort (optional):", 9f, false, UI.Text);
-            lPass.Margin = new Padding(0, 0, 0, UI.S(2));
-            p.Controls.Add(lPass);
-
-            TextBox tbPass = new TextBox();
-            tbPass.Width = UI.S(480);
-            tbPass.UseSystemPasswordChar = true;
-            tbPass.Margin = new Padding(0, 0, 0, UI.S(10));
-            p.Controls.Add(tbPass);
-
-            CheckBox chkSave = Chk("In Minibench-Daten\\Netzwerk.json dauerhaft festlegen", true);
-            chkSave.Margin = new Padding(0, 0, 0, UI.S(4));
-            Tip(chkSave, "Speichert den NAS-Pfad in der lokalen Konfigurationsdatei Netzwerk.json für zukünftige Starts.");
-            p.Controls.Add(chkSave);
-
-            CheckBox chkNetUse = Chk("Verbindung jetzt herstellen ('net use')", true);
-            chkNetUse.Margin = new Padding(0, 0, 0, UI.S(14));
-            Tip(chkNetUse, "Führt im Hintergrund 'net use' aus, um Netzwerkauthentifizierung herzustellen.");
-            p.Controls.Add(chkNetUse);
-
-            FlowLayoutPanel rowButtons = Row();
-            Button btnOk = UI.Primary("Verbinden & Umschalten");
-            btnOk.Margin = new Padding(0);
-            Tip(btnOk, "Testet Schreibrechte und schaltet den aktiven Speicherort auf das Netzlaufwerk um.");
-
-            Button btnCancel = UI.Secondary("Abbrechen");
-            btnCancel.Margin = new Padding(UI.S(8), 0, 0, 0);
-            btnCancel.Click += delegate { dlg.Close(); };
-            Tip(btnCancel, "Schließt den Dialog ohne Änderungen.");
-
-            btnOk.Click += delegate {
-                string unc = tbPath.Text.Trim();
-                if (String.IsNullOrEmpty(unc)) {
-                    MessageBox.Show(dlg, "Bitte geben Sie einen Netzwerkpfad ein.", "Netzlaufwerk verbinden", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                // net use optional ausführen
-                if (chkNetUse.Checked || !String.IsNullOrEmpty(tbUser.Text)) {
-                    try {
-                        ProcessStartInfo psi = new ProcessStartInfo();
-                        psi.FileName = "net.exe";
-                        StringBuilder args = new StringBuilder("use \"").Append(unc).Append("\"");
-                        if (!String.IsNullOrEmpty(tbPass.Text)) args.Append(" \"").Append(tbPass.Text).Append("\"");
-                        if (!String.IsNullOrEmpty(tbUser.Text)) args.Append(" /user:\"").Append(tbUser.Text).Append("\"");
-                        args.Append(chkSave.Checked ? " /persistent:yes" : " /persistent:no");
-                        psi.Arguments = args.ToString();
-                        psi.UseShellExecute = false;
-                        psi.CreateNoWindow = true;
-                        using (Process pNet = Process.Start(psi)) {
-                            pNet.WaitForExit(8000);
-                        }
-                    } catch { }
-                }
-
-                // Schreibprobe durchführen
-                if (!TestWritableDir(unc)) {
-                    MessageBox.Show(dlg, "Auf das Netzlaufwerk '" + unc + "' konnte nicht schreibend zugegriffen werden.\r\n\r\nBitte Zugriffsrechte, Freigabeeinstellungen und Netzwerkverbindung prüfen. Der bisherige Ablageort bleibt aktiv.", "Verbindung fehlgeschlagen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                // Dauerhaft speichern wenn gewünscht
-                if (chkSave.Checked) {
-                    try {
-                        string localData = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Minibench-Daten");
-                        if (!Directory.Exists(localData) && !String.IsNullOrEmpty(dataDir) && !dataDir.StartsWith(@"\\")) {
-                            localData = dataDir;
-                        }
-                        Directory.CreateDirectory(localData);
-                        string cfgPath = Path.Combine(localData, "Netzwerk.json");
-                        string json = "{\r\n  \"NasPfad\": \"" + unc.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"\r\n}\r\n";
-                        File.WriteAllText(cfgPath, json, new UTF8Encoding(true));
-                    } catch { }
-                }
-
-                // Live umschalten
-                SwitchDataDir(unc);
-                MessageBox.Show(dlg, "Netzlaufwerk erfolgreich verbunden!\r\n\r\nAktiver Ablageort für Berichte und Datenbank:\r\n" + unc, "Netzlaufwerk verbunden", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                dlg.DialogResult = DialogResult.OK;
-                dlg.Close();
-            };
-
-            rowButtons.Controls.Add(btnOk);
-            rowButtons.Controls.Add(btnCancel);
-            p.Controls.Add(rowButtons);
-
-            dlg.Controls.Add(p);
-            dlg.AcceptButton = btnOk;
-            dlg.CancelButton = btnCancel;
-            dlg.ShowDialog(this);
-        }
     }
 }
 // Programmsymbol und Startprotokoll der Oberfläche (ab v2.6, Roadmap v2.5)
@@ -10511,12 +10079,6 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
-        new Eintrag("3.5", "06.10.2026", "Taskleisten-Task-Beenden, Minimal-Preset-Standard, winget-Softwarepakete, NAS-Netzlaufwerke & interaktive Berichtsdiagramme",
-            "Fehlerbehebung & Optimierungs-Presets: Entkopplung der Taskleisten-Gruppierung vom Task-Beenden; TaskbarEndTask als eigenständiger Eintrag mit Vorlagen MSE. Das Preset Minimal wurde auf ein schlankes Basispaket gestrafft und ist die neue Standardvorauswahl beim Start. " +
-            "Erweitertes Fensterlayout: Vergrößerte, responsive Startfenstergröße (1220x740 mit Begrenzung auf 95 % / 92 % des Arbeitsbereichs) für optimalen Überblick ohne Überlauf auf skalierten Displays. " +
-            "Softwarepakete installieren (winget): Neues Werkzeug im Modul Tools zur einfachen Installation populärer Standardprogramme (Chrome, Firefox, Opera, Steam, Discord, Notepad++, OnlyOffice, 7-Zip, VLC) per Mausklick mit Statuserkennung. " +
-            "NAS- & Netzlaufwerk-Integration: Konfigurierbare Netzwerkpfade für Berichte und Vergleichsdatenbank (Netzwerk.json) mit schnellem Verbindungsdialog und robustem, automatischem lokalem Fallback bei Verbindungsverlust. " +
-            "Berichts-Diagramme & Bereinigung: Sensor-Charts im Diagnosebericht mit interaktiven Hover-Tooltips (Zeitstempel, °C, GHz, Watt und Auslastung) sowie Bereinigung der Befunde-Suchleiste zugunsten übersichtlicher Stufen-Filter."),
         new Eintrag("3.4", "06.10.2026", "Modul Tools (Portable Werkzeuge & System-Shortcuts), Leos Empfehlung & interaktiver Hauptbericht",
             "Neues Modul Tools: Eigene Navigationsseite mit portablen Werkzeugen (Revo Uninstaller, MiniTool Partition Wizard, WizTree) inklusive automatischer Erkennung und Administrator-Start sowie System-Shortcuts (Ins BIOS/UEFI neu starten, Datenträgerverwaltung, Geräte-Manager, Zuverlässigkeitsverlauf). " +
             "Erweiterung 'Leos Empfehlung': Neue Optimierung für Windows 11 zum sofortigen Beenden von Tasks per Rechtsklick auf die Taskleiste (TaskbarEndTask) sowie Desktop-Kontextmenü-Shortcut für UEFI-Neustarts. " +
@@ -11528,13 +11090,8 @@ function New-MultiLineSvg {
         $stepPts = [math]::Max(1, [int][math]::Ceiling($s.Points.Count / 200))
         for ($i = 0; $i -lt $s.Points.Count; $i += $stepPts) {
             $p = $s.Points[$i]
-            if ($p.Tip) {
-                $tl = $p.Tip
-            } else {
-                $tl = '{0}:{1:00} min  ·  {2}: {3} {4}' -f [int][math]::Floor($p.T / 60), [int]($p.T % 60), $s.Name, ([double]$p.V).ToString($Fmt, [Globalization.CultureInfo]::CurrentCulture), $Unit
-            }
-            $cleanTitle = ($tl -replace '<[^>]+>', ' · ').Trim(' ·')
-            [void]$sb.Append([string]::Format($inv, '<circle class="hit {3}" cx="{0:0.#}" cy="{1:0.#}" r="7" data-tip="{2}"><title>{4}</title></circle>', (& $fx $p.T), (& $fy ([double]$p.V)), (ConvertTo-HtmlText $tl), $s.Cls, (ConvertTo-HtmlText $cleanTitle)))
+            $tl = '{0}:{1:00} min  ·  {2}: {3} {4}' -f [int][math]::Floor($p.T / 60), [int]($p.T % 60), $s.Name, ([double]$p.V).ToString($Fmt, [Globalization.CultureInfo]::CurrentCulture), $Unit
+            [void]$sb.Append([string]::Format($inv, '<circle class="hit {3}" cx="{0:0.#}" cy="{1:0.#}" r="6" data-tip="{2}"><title>{2}</title></circle>', (& $fx $p.T), (& $fy ([double]$p.V)), (ConvertTo-HtmlText $tl), $s.Cls))
         }
     }
     [void]$sb.Append('</svg>')
@@ -12053,7 +11610,7 @@ a.tab-btn{text-decoration:none;display:inline-flex;align-items:center}
 .fchip.chip-warn.active{background:var(--warn);color:#fff;border-color:var(--warn)}
 .fchip.chip-info.active{background:var(--info);color:#fff;border-color:var(--info)}
 .filter-count{font-size:12.5px;color:var(--muted);font-weight:600;white-space:nowrap;margin-left:auto}
-.chart-tooltip{position:absolute;pointer-events:none;z-index:1000;padding:8px 12px;border-radius:8px;font-size:12.5px;font-weight:500;line-height:1.45;background:var(--panel);color:var(--text);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,0.2);transition:opacity .1s ease;min-width:140px;max-width:320px}
+.chart-tooltip{position:absolute;pointer-events:none;z-index:1000;padding:7px 12px;border-radius:6px;font-size:12.5px;font-weight:600;background:var(--panel);color:var(--text);border:1px solid var(--line);box-shadow:0 6px 18px rgba(0,0,0,0.18);transition:opacity .1s ease;white-space:nowrap}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif}
 main{max-width:1200px;margin:0 auto;padding:28px 20px 60px}
@@ -12131,7 +11688,7 @@ th small{font-weight:400;text-transform:none;letter-spacing:0}
 .chart .grid{stroke:var(--line);stroke-width:1}
 .chart .tick{stroke:var(--line)}
 .chart .line{fill:none;stroke:var(--info);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
-.chart .hit{fill:transparent;stroke:transparent;stroke-width:10}
+.chart .hit{fill:transparent}
 .chart .hit:hover{fill:var(--info)}
 .chart .line.s1{stroke:var(--info)} .chart .line.s2{stroke:#c2410c} .chart .line.s3{stroke:#0f766e} .chart .line.s4{stroke:#7c3aed} .chart .line.s5{stroke:#ca8a04;stroke-dasharray:5 3}
 .chart .hit.s2:hover{fill:#c2410c} .chart .hit.s3:hover{fill:#0f766e} .chart .hit.s4:hover{fill:#7c3aed} .chart .hit.s5:hover{fill:#ca8a04}
@@ -14947,62 +14504,13 @@ function Show-BenchDashboard {
     }
     return $f
 }
-function Get-TelemetryTip {
-    param($Sample)
-    $t = [int]$Sample.T
-    $mm = [int][math]::Floor($t / 60); $ss = [int]($t % 60)
-    $lines = @("<div style='font-weight:700;margin-bottom:4px;border-bottom:1px solid var(--line);padding-bottom:2px'>⏱️ {0:00}:{1:00} min ({2} s)</div>" -f $mm, $ss, $t)
-    $cpuT = $(if ($null -ne $Sample.CpuTemp) { $Sample.CpuTemp } elseif ($null -ne $Sample.Temp) { $Sample.Temp } else { $null })
-    if ($null -ne $cpuT) { $lines += ("<div style='color:var(--crit,#ef4444);font-weight:600'>🌡️ CPU: {0:N1} °C</div>" -f [double]$cpuT) }
-    if ($null -ne $Sample.GpuTemp -and [double]$Sample.GpuTemp -gt 0) { $lines += ("<div style='color:#c2410c;font-weight:600'>🎮 GPU: {0:N1} °C</div>" -f [double]$Sample.GpuTemp) }
-    $cpuMhz = $(if ($null -ne $Sample.CpuMHz -and [double]$Sample.CpuMHz -gt 0) { $Sample.CpuMHz } elseif ($null -ne $Sample.MHz -and [double]$Sample.MHz -gt 0) { $Sample.MHz } else { $null })
-    if ($null -ne $cpuMhz) { $lines += ("<div style='color:var(--info,#2563eb);font-weight:600'>⚡ CPU-Takt: {0:N2} GHz</div>" -f ([double]$cpuMhz / 1000.0)) }
-    if ($null -ne $Sample.GpuMHz -and [double]$Sample.GpuMHz -gt 0) { $lines += ("<div style='color:#ea580c'>🎮 GPU-Takt: {0:N0} MHz</div>" -f [double]$Sample.GpuMHz) }
-    if ($null -ne $Sample.CpuW -and [double]$Sample.CpuW -gt 0) { $lines += ("<div>💡 CPU-Paket: {0:N1} W</div>" -f [double]$Sample.CpuW) }
-    if ($null -ne $Sample.GpuW -and [double]$Sample.GpuW -gt 0) { $lines += ("<div>⚡ GPU: {0:N1} W</div>" -f [double]$Sample.GpuW) }
-    if ($null -ne $Sample.GpuLoad -and [double]$Sample.GpuLoad -ge 0) { $lines += ("<div>📊 GPU-Auslastung: {0:N0} %</div>" -f [double]$Sample.GpuLoad) }
-    if ($null -ne $Sample.Fps -and [double]$Sample.Fps -gt 0) { $lines += ("<div>🎬 {0:N1} Bilder/s</div>" -f [double]$Sample.Fps) }
-    if ($null -ne $Sample.Fan -and [double]$Sample.Fan -gt 0) { $lines += ("<div>🌀 Lüfter: {0:N0} U/min</div>" -f [double]$Sample.Fan) }
-    if ($null -ne $Sample.DiskMBs -and [double]$Sample.DiskMBs -gt 0) { $lines += ("<div>💾 Datenträger: {0:N0} MB/s</div>" -f [double]$Sample.DiskMBs) }
-    return ($lines -join '')
-}
-
 # Lasttest im HTML-Bericht: Drosselnachweis und Kurven für Temperatur, Takt, Leistung und Lüfter.
 # Ab v2.7 auch für den Benchmark: eigene Messreihe, Marken am Beginn jedes Abschnitts, ohne Drosselnachweis.
 function New-LoadChartsHtml {
     param($Series = $script:LoadSeries, $Throttle = $script:LoadThrottle, $Abort = $script:LoadAbort, $Limits = $script:LoadLimits, $Marken = $null, $GpuLoad = $script:GpuLoad)
     $S = @($Series)
     $sb = New-Object System.Text.StringBuilder
-    $tipMap = @{}
-    $calcTip = {
-        param($Sample)
-        $t = [int]$Sample.T
-        $mm = [int][math]::Floor($t / 60); $ss = [int]($t % 60)
-        $lines = @("<div style='font-weight:700;margin-bottom:4px;border-bottom:1px solid var(--line);padding-bottom:2px'>⏱️ {0:00}:{1:00} min ({2} s)</div>" -f $mm, $ss, $t)
-        $cpuT = $(if ($null -ne $Sample.CpuTemp) { $Sample.CpuTemp } elseif ($null -ne $Sample.Temp) { $Sample.Temp } else { $null })
-        if ($null -ne $cpuT) { $lines += ("<div style='color:var(--crit,#ef4444);font-weight:600'>🌡️ CPU: {0:N1} °C</div>" -f [double]$cpuT) }
-        if ($null -ne $Sample.GpuTemp -and [double]$Sample.GpuTemp -gt 0) { $lines += ("<div style='color:#c2410c;font-weight:600'>🎮 GPU: {0:N1} °C</div>" -f [double]$Sample.GpuTemp) }
-        $cpuMhz = $(if ($null -ne $Sample.CpuMHz -and [double]$Sample.CpuMHz -gt 0) { $Sample.CpuMHz } elseif ($null -ne $Sample.MHz -and [double]$Sample.MHz -gt 0) { $Sample.MHz } else { $null })
-        if ($null -ne $cpuMhz) { $lines += ("<div style='color:var(--info,#2563eb);font-weight:600'>⚡ CPU-Takt: {0:N2} GHz</div>" -f ([double]$cpuMhz / 1000.0)) }
-        if ($null -ne $Sample.GpuMHz -and [double]$Sample.GpuMHz -gt 0) { $lines += ("<div style='color:#ea580c'>🎮 GPU-Takt: {0:N0} MHz</div>" -f [double]$Sample.GpuMHz) }
-        if ($null -ne $Sample.CpuW -and [double]$Sample.CpuW -gt 0) { $lines += ("<div>💡 CPU-Paket: {0:N1} W</div>" -f [double]$Sample.CpuW) }
-        if ($null -ne $Sample.GpuW -and [double]$Sample.GpuW -gt 0) { $lines += ("<div>⚡ GPU: {0:N1} W</div>" -f [double]$Sample.GpuW) }
-        if ($null -ne $Sample.GpuLoad -and [double]$Sample.GpuLoad -ge 0) { $lines += ("<div>📊 GPU-Auslastung: {0:N0} %</div>" -f [double]$Sample.GpuLoad) }
-        if ($null -ne $Sample.Fps -and [double]$Sample.Fps -gt 0) { $lines += ("<div>🎬 {0:N1} Bilder/s</div>" -f [double]$Sample.Fps) }
-        if ($null -ne $Sample.Fan -and [double]$Sample.Fan -gt 0) { $lines += ("<div>🌀 Lüfter: {0:N0} U/min</div>" -f [double]$Sample.Fan) }
-        if ($null -ne $Sample.DiskMBs -and [double]$Sample.DiskMBs -gt 0) { $lines += ("<div>💾 Datenträger: {0:N0} MB/s</div>" -f [double]$Sample.DiskMBs) }
-        return ($lines -join '')
-    }
-    foreach ($row in $S) {
-        if ($null -ne $row.T) {
-            $tipMap[[int]$row.T] = if (Get-Command Get-TelemetryTip -ErrorAction SilentlyContinue) { Get-TelemetryTip $row } else { & $calcTip $row }
-        }
-    }
-    $pts = { param($prop) @($S | Where-Object { $null -ne $_.$prop -and "$($_.$prop)" -ne '' } | ForEach-Object {
-        $tInt = [int]$_.T
-        $tTip = $(if ($tipMap.ContainsKey($tInt)) { $tipMap[$tInt] } else { $null })
-        [pscustomobject]@{ T = $_.T; V = [double]$_.$prop; Tip = $tTip }
-    }) }
+    $pts = { param($prop) @($S | Where-Object { $null -ne $_.$prop -and "$($_.$prop)" -ne '' } | ForEach-Object { [pscustomobject]@{ T = $_.T; V = [double]$_.$prop } }) }
     $th = $Throttle
     if ($th) {
         $c = switch ($th.Status) { 'keine' { 'ok' } 'thermisch' { 'warn' } 'nicht bewertbar' { 'info' } default { $(if ($th.Stufe -eq 'WARNUNG') { 'warn' } else { 'info' }) } }
@@ -15024,16 +14532,7 @@ function New-LoadChartsHtml {
     # Temperatur: Sensorwerte, sonst ACPI-Thermalzone (nur wenn veränderlich)
     $ser = @()
     $cpuSens = @($S | Where-Object { $null -ne $_.CpuTemp -and $_.CpuTempQ -ne 'ACPI' })
-    if ($cpuSens.Count -ge 2) {
-        $ser += @{
-            Name = 'CPU'; Cls = 's1';
-            Points = @($cpuSens | ForEach-Object {
-                $tInt = [int]$_.T
-                $tTip = $(if ($tipMap.ContainsKey($tInt)) { $tipMap[$tInt] } else { $null })
-                [pscustomobject]@{ T = $_.T; V = [double]$_.CpuTemp; Tip = $tTip }
-            })
-        }
-    }
+    if ($cpuSens.Count -ge 2) { $ser += @{ Name = 'CPU'; Cls = 's1'; Points = @($cpuSens | ForEach-Object { [pscustomobject]@{ T = $_.T; V = [double]$_.CpuTemp } }) } }
     elseif (@($S | Where-Object { $_.Temp } | ForEach-Object { $_.Temp } | Select-Object -Unique).Count -gt 1) { $ser += @{ Name = 'ACPI-Thermalzone (keine Kerntemperatur)'; Cls = 's1'; Points = (& $pts 'Temp') } }
     $ser += @{ Name = 'GPU'; Cls = 's2'; Points = (& $pts 'GpuTemp') }
     $ser += @{ Name = 'Prozessorgrafik'; Cls = 's5'; Points = (& $pts 'IGpuTemp') }
@@ -15116,6 +14615,8 @@ function setLevelFilter(lvl, btn) {
     filterBefunde();
 }
 function filterBefunde() {
+    var input = document.getElementById('befundSearch');
+    var q = input ? input.value.toLowerCase().trim() : '';
     var table = document.getElementById('befundeTable');
     if (!table) return;
     var rows = table.querySelectorAll('tbody tr');
@@ -15124,8 +14625,10 @@ function filterBefunde() {
         var tr = rows[i];
         var lvlCell = tr.querySelector('td[data-level]');
         var lvl = lvlCell ? lvlCell.getAttribute('data-level') : '';
+        var text = tr.textContent.toLowerCase();
         var matchLvl = (currentLevel === 'all' || lvl === currentLevel);
-        if (matchLvl) {
+        var matchQuery = (!q || text.indexOf(q) !== -1);
+        if (matchLvl && matchQuery) {
             tr.style.display = '';
             visible++;
         } else {
@@ -15161,68 +14664,23 @@ function initBefundCounts() {
     tip.className = 'chart-tooltip';
     tip.style.opacity = '0';
     document.body.appendChild(tip);
-
-    function showTip(html, x, y) {
-        tip.innerHTML = html;
-        tip.style.opacity = '1';
-        var pad = 14;
-        var tw = tip.offsetWidth || 180;
-        var left = x + pad;
-        if (left + tw > window.innerWidth - 10) {
-            left = Math.max(10, x - tw - pad);
-        }
-        tip.style.left = left + 'px';
-        tip.style.top = Math.max(10, y - 32) + 'px';
-    }
-
-    function hideTip() {
-        tip.style.opacity = '0';
-    }
-
     document.addEventListener('mouseover', function(e) {
         var hit = e.target.closest('.hit');
         if (hit && hit.getAttribute('data-tip')) {
-            showTip(hit.getAttribute('data-tip'), e.pageX, e.pageY);
+            tip.textContent = hit.getAttribute('data-tip');
+            tip.style.opacity = '1';
         }
     });
-
     document.addEventListener('mousemove', function(e) {
-        var hit = e.target.closest('.hit');
-        if (hit && hit.getAttribute('data-tip')) {
-            showTip(hit.getAttribute('data-tip'), e.pageX, e.pageY);
-            return;
-        }
-        var svg = e.target.closest('svg.chart.ml');
-        if (svg) {
-            var hits = svg.querySelectorAll('.hit');
-            if (hits.length > 0) {
-                var rect = svg.getBoundingClientRect();
-                var svgX = (e.clientX - rect.left) / rect.width * 960;
-                var bestHit = null;
-                var minDiff = 40;
-                for (var i = 0; i < hits.length; i++) {
-                    var cx = parseFloat(hits[i].getAttribute('cx'));
-                    var diff = Math.abs(cx - svgX);
-                    if (diff < minDiff) {
-                        minDiff = diff;
-                        bestHit = hits[i];
-                    }
-                }
-                if (bestHit && bestHit.getAttribute('data-tip')) {
-                    showTip(bestHit.getAttribute('data-tip'), e.pageX, e.pageY);
-                    return;
-                }
-            }
-        }
         if (tip.style.opacity === '1') {
-            hideTip();
+            tip.style.left = (e.pageX + 12) + 'px';
+            tip.style.top = (e.pageY - 28) + 'px';
         }
     });
-
     document.addEventListener('mouseout', function(e) {
-        var svg = e.target.closest('svg.chart.ml');
-        if (svg && (!e.relatedTarget || !e.relatedTarget.closest('svg.chart.ml'))) {
-            hideTip();
+        var hit = e.target.closest('.hit');
+        if (hit) {
+            tip.style.opacity = '0';
         }
     });
 })();
@@ -15269,7 +14727,7 @@ function New-HtmlReport {
 
     [void]$sb.Append('<section class="box" data-section="befunde"><h2>Befunde</h2>')
     if ($Sorted.Count) {
-        [void]$sb.Append('<div class="filter-bar"><div class="filter-chips"><button type="button" class="fchip active" data-level="all" onclick="setLevelFilter(''all'', this)">Alle (<span id="cntAll">0</span>)</button><button type="button" class="fchip chip-crit" data-level="KRITISCH" onclick="setLevelFilter(''KRITISCH'', this)">Kritisch (<span id="cntCrit">0</span>)</button><button type="button" class="fchip chip-warn" data-level="WARNUNG" onclick="setLevelFilter(''WARNUNG'', this)">Warnung (<span id="cntWarn">0</span>)</button><button type="button" class="fchip chip-info" data-level="INFO" onclick="setLevelFilter(''INFO'', this)">Hinweis (<span id="cntInfo">0</span>)</button></div><span id="befundCount" class="filter-count"></span></div>')
+        [void]$sb.Append('<div class="filter-bar"><input type="text" id="befundSearch" class="search-input" placeholder="Befunde durchsuchen (Stufe, Bereich, Text)..." oninput="filterBefunde()"><div class="filter-chips"><button type="button" class="fchip active" data-level="all" onclick="setLevelFilter(''all'', this)">Alle (<span id="cntAll">0</span>)</button><button type="button" class="fchip chip-crit" data-level="KRITISCH" onclick="setLevelFilter(''KRITISCH'', this)">Kritisch (<span id="cntCrit">0</span>)</button><button type="button" class="fchip chip-warn" data-level="WARNUNG" onclick="setLevelFilter(''WARNUNG'', this)">Warnung (<span id="cntWarn">0</span>)</button><button type="button" class="fchip chip-info" data-level="INFO" onclick="setLevelFilter(''INFO'', this)">Hinweis (<span id="cntInfo">0</span>)</button></div><span id="befundCount" class="filter-count"></span></div>')
         [void]$sb.Append('<table id="befundeTable"><thead><tr><th>Stufe</th><th>Bereich</th><th>Befund</th></tr></thead><tbody>')
         foreach ($f in $Sorted) { [void]$sb.Append(('<tr><td data-level="{0}"><span class="badge {1}">{0}</span></td><td>{2}</td><td>{3}</td></tr>' -f $f.Stufe, $cls[$f.Stufe], (ConvertTo-HtmlText $f.Bereich), (ConvertTo-HtmlText $f.Befund))) }
         [void]$sb.Append('</tbody></table>')

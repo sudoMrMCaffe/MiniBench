@@ -192,7 +192,7 @@ Describe 'Version 2.95: Modul Wartung Anpassungen' {
 Describe 'Version 2.95: Gesamtzusammenbau und C#-Kompilierung' {
     It 'Versionsnummer ist 2.95 in Version.ps1 und Versionen.cs' {
         $vPs1 = [IO.File]::ReadAllText((Join-Path $global:V295Src 'Kern/Version.ps1'))
-        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''(2\.95|3\.0|3\.1|3\.2|3\.3|3\.31|3\.32|3\.4)'''
+        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''(2\.95|3\.0|3\.1|3\.2|3\.3|3\.31|3\.32|3\.4|3\.5)'''
         $global:V295Ver | Should -Match 'new Eintrag\("2\.95"'
     }
     It 'Oberfläche lässt sich als Gesamtheit fehlerfrei kompilieren' {
