@@ -743,6 +743,21 @@
            Quelle = 'Sophia Win32LongPathLimit (Windows 10)'
            Text = 'Programme, die es unterstützen, dürfen lange Pfade nutzen (LongPathsEnabled).'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem'; Name = 'LongPathsEnabled'; Wert = 1; Typ = 'DWord' } ) }
+        @{ Id = 'TaskbarEndTask'; Kat = 'Bedienung'; Titel = 'Taskleiste: Task beenden per Rechtsklick (Windows 11)'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Bedingung = 'Win11'
+           Quelle = 'Windows 11 Taskbar Developer Settings'
+           Text = 'Ermöglicht das sofortige Beenden von Programmen direkt über das Kontextmenü der Taskleiste ohne Umweg über den Task-Manager.'
+           Aktionen = @(
+               @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings'; Name = 'TaskbarEndTask'; Wert = 1; Typ = 'DWord' }
+               @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'TaskbarEndTask'; Wert = 1; Typ = 'DWord' }
+           ) }
+        @{ Id = 'UefiNeustart'; Kat = 'Bedienung'; Titel = 'Kontextmenü: Ins BIOS/UEFI neu starten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
+           Quelle = 'Windows UEFI Schnellstarter'
+           Text = 'Fügt dem Desktop-Kontextmenü den Befehl "Ins BIOS/UEFI neu starten" hinzu (shutdown.exe /r /fw /t 0).'
+           Aktionen = @( @{ Art = 'RegKey'; Pfad = 'HKCU:\Software\Classes\DesktopBackground\Shell\UefiRestart'; Werte = @(
+               @{ Name = 'MUIVerb'; Wert = 'Ins BIOS/UEFI neu starten'; Typ = 'String' }
+               @{ Name = 'Icon'; Wert = 'shell32.dll,-221'; Typ = 'String' }
+               @{ Name = 'HasLUAShield'; Wert = ''; Typ = 'String' }
+               @{ Unterschluessel = 'command'; Name = '(default)'; Wert = 'shutdown.exe /r /fw /t 0'; Typ = 'String' } ) } ) }
         # ------------------------------------------------------------------ Darstellung und persönliche Vorlieben
         @{ Id = 'DunklerModus'; Kat = 'Darstellung'; Titel = 'Dunkler Modus für Windows und Apps'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'E'
            Quelle = 'Sophia WindowsColorMode, AppColorMode'

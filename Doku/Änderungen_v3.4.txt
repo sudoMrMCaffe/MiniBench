@@ -1,0 +1,88 @@
+﻿LEOS MINIBENCH 3.4: ÄNDERUNGEN
+============================
+
+Version 3.4 erweitert Leos Minibench um das neue Modul "Tools" mit portablen Werkzeugen und
+System-Shortcuts, baut "Leos Empfehlung" in der Optimierung weiter aus, macht den Hauptbericht
+(Diagnosebericht.html) interaktiv und gleicht das Design von Dashboard und Hauptbericht an die
+kontraststarke Farbwelt von Stil.ps1 an.
+
+1. NEUES MODUL 'TOOLS' IN DER BENUTZEROBERFLÄCHE
+   * Neuer Menüpunkt 'Tools' in der linken Navigation:
+     Direkt unter 'Optimierung' und vor 'Sensoren' eingefügt. Ohne Auswahldialog-Häkchen (HasCheck = false),
+     da es sich um eine eigenständige Werkzeugseite handelt.
+   * Portable Werkzeuge mit automatischer Erkennung:
+     1. Revo Uninstaller Portable: Prüft auf Minibench-Daten\Tools\RevoUninstaller\*.exe sowie
+        auf eine vorhandene Systeminstallation. Bietet 'Starten (Admin)' und Schnellverweis zum
+        Herunterladen oder Ordner öffnen.
+     2. MiniTool Partition Wizard: Prüft auf Minibench-Daten\Tools\PartitionWizard\*.exe sowie
+        auf eine Systeminstallation. Ermöglicht den Direktstart mit Administratorrechten.
+     3. WizTree Portable: Prüft auf Minibench-Daten\Tools\WizTree\*.exe sowie Systeminstallationen.
+        Bietet Direktstart für blitzschnelle Speicherplatzanalysen.
+   * System-Shortcuts & Schnellstarter:
+     1. 'Ins BIOS/UEFI neu starten': Startet das System nach Bestätigung über shutdown.exe /r /fw /t 0
+        direkt in die Firmware. Prüft vorab über native Win32 GetFirmwareType und Registry-Schlüssel
+        auf UEFI-Unterstützung und deaktiviert sich auf Legacy-BIOS-Systemen.
+     2. Native Windows-Konsolen: Schneller Direktstart von Datenträgerverwaltung (diskmgmt.msc),
+        Geräte-Manager (devmgmt.msc) und Zuverlässigkeitsverlauf (perfmon /rel).
+   * Durchgängiges Theming und Tooltips:
+     Vollständige Anpassung an Hell- und Dunkelmodus (UI.IsDark) sowie konsequente Tooltips
+     beim Überfahren aller Bedienelemente.
+
+2. OPTIMIERUNGEN: 'LEOS EMPFEHLUNG' ERWEITERT
+   * Task beenden per Rechtsklick (TaskbarEndTask):
+     Neue Optimierung in der Kategorie 'Bedienung' speziell für Windows 11.
+     Zugeordnet zu den Vorlagen M (Minimal), S (Standard / Leos Empfehlung) und E (Erweitert).
+     Setzt TaskbarEndTask (DWord 1) in HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings
+     und HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced.
+     Erlaubt das sofortige Beenden nicht reagierender Programme direkt über die Taskleiste.
+     Gegenbefehl setzt den Wert auf 0 zurück.
+   * Desktop-Shortcut für UEFI-Neustart (UefiNeustart):
+     Desktop-Kontextmenüeintrag für den direkten Firmware-Neustart in den Vorlagen S und E.
+     Vollständig protokolliert und auf Knopfdruck rückgängig machbar.
+
+3. INTERAKTIVER HAUPTBERICHT (DIAGNOSEBERICHT.HTML) & DESIGNANGLEICHUNG
+   * Schnelle Abschnitt-Navigation:
+     Sticky-Navigationsleiste am oberen Rand zur Umschaltung zwischen Alle Abschnitte,
+     Systemübersicht, Benchmark, Befunde, Hardware und Sensoren.
+   * Live-Suche und Stufen-Filter für Befunde:
+     Filterleiste mit Echtzeit-Suchfeld und anklickbaren Stufen-Chips (Alle, Kritisch, Warnung,
+     Hinweis) inklusive dynamischer Trefferzählung.
+   * Interaktive Sensor-Chart Tooltips:
+     Pure Vanilla JavaScript Hover-Tooltips für Takt-, Temperatur-, Rendertest- und Durchsatz-
+     Diagramme ohne externe Bibliotheken oder Internetverbindung (100 % offline-fähig).
+   * Farb- und Designangleichung:
+     Angleichung der CSS-Farbpaletten von Dashboard.html und Diagnosebericht.html an die
+     kontraststarke Gestaltung aus Stil.ps1 mit satten Badges und klar lesbaren Kontrasten.
+
+GEFUNDEN UND BEHOBEN
+  1. Firmware-Erkennung für UEFI: Win32 GetFirmwareType (FirmwareTypeUefi = 2) mit sicherem
+     Fallback auf HKLM:\System\CurrentControlSet\Control\SecureBoot\State und BCD PEFirmwareType,
+     um ungültige Aufrufe von shutdown.exe /fw auf Legacy-BIOS-Systemen zu verhindern.
+  2. FluentCard mit Sekundäraktion: Erweiterung der FluentCard-Komponente um SecondaryButton,
+     sodass portable Werkzeuge sowohl direkt mit Administratorrechten gestartet werden können
+     als auch Verweise zum Herunterladen oder Ordner öffnen bieten.
+  3. SVG Circle Tooltips in Diagrammen: Ergänzung des Attributs data-tip auf Messpunkt-Kreisen
+     in New-MultiLineSvg und New-LineSvg für verzögerungsfreie Hover-Tooltips.
+  4. Pester-Versionsprüfungen: Anpassung der Versionsüberprüfungen in bestehenden Testsuiten
+     auf Version 3.4.
+
+GRENZEN
+  - TaskbarEndTask erfordert Windows 11 Build 22621 (Moment 4 / 23H2) oder neuer. Auf älteren
+    Windows-Versionen wird die Einstellung übersprungen.
+  - Der direkte Neustart in die UEFI-Firmware erfordert UEFI-Unterstützung und Administratorrechte.
+    Auf Legacy-BIOS-Systemen bleibt die Option inaktiv.
+
+UMSTIEG
+  1. Bauen.cmd ausführen (baut LeosMinibench.exe und LeosMinibench.ps1 für v3.4 und committet lokal).
+  2. Inhalt des Ordners 'Aktueller Build' auf den USB-Stick kopieren.
+  3. Frühere Datenbankeinträge, Berichte und Einstellungen bleiben vollständig kompatibel.
+
+ERGEBNIS
+  Alle Pester-Tests bestanden.
+  Modul Tools steht in der Oberfläche zur Verfügung.
+  Diagnosebericht.html ist vollständig interaktiv und 100 % offline-fähig.
+
+QUELLEN
+  - Microsoft Docs: shutdown.exe Befehlszeilenoptionen (/r /fw).
+  - Microsoft Docs: GetFirmwareType Win32 API.
+  - Microsoft Docs: Windows 11 Taskbar Developer Settings.

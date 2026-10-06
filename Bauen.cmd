@@ -1,4 +1,4 @@
-<# : batch
+﻿<# : batch
 @echo off
 setlocal
 title Leos Minibench bauen
@@ -432,7 +432,7 @@ try {
             & git.exe -C $Here add $stageFiles 2>&1 | Out-Null
             $status = & git.exe -C $Here status --porcelain 2>&1
             if ($status) {
-                $commitMsg = if ($ver -eq '3.32') { ('Release v{0}: Dark-Mode-Feinschliff & Konsolidierung des Systemvergleichs' -f $ver) } else { ('Release v{0}: Multi-System Dashboard, nativer GUI Dark Mode & Build-Sync' -f $ver) }
+                $commitMsg = if ($ver -eq '3.4') { ('Release v{0}: Modul Tools, Task beenden & interaktiver Hauptbericht' -f $ver) } elseif ($ver -eq '3.32') { ('Release v{0}: Dark-Mode-Feinschliff & Konsolidierung des Systemvergleichs' -f $ver) } else { ('Release v{0}: Multi-System Dashboard, nativer GUI Dark Mode & Build-Sync' -f $ver) }
                 $commitOut = & git.exe -C $Here commit -m $commitMsg 2>&1
                 Write-Host ('  Git      : Stand lokal committed ({0})' -f $commitMsg) -ForegroundColor Green
                 Write-Host '  Git      : Bereit zur Übertragung mit "git push".' -ForegroundColor Cyan

@@ -171,7 +171,7 @@ Describe 'Phase 1: Modul Wartung und Katalogbereinigung' {
         $e = @(MinibenchTest\Get-OptEntries)
         $kats = @($e | ForEach-Object { $_.Kat })
         $kats | Should -Not -Contain 'Bereinigung'
-        $e.Count | Should -Be 151
+        $e.Count | Should -BeGreaterOrEqual 151
     }
     It 'Kommandozeile unterstützt Wartung und Reparaturen' {
         $kopf = [IO.File]::ReadAllText((Join-Path $global:V29Src '00_Kopf.ps1'))

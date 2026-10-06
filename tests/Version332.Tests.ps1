@@ -1,4 +1,4 @@
-﻿# Version 3.32: Dark-Mode-Feinschliff (Scrollbars, ComboBox, Header & Kontraste)
+# Version 3.32: Dark-Mode-Feinschliff (Scrollbars, ComboBox, Header & Kontraste)
 # und Konsolidierung des Systemvergleichs.
 
 BeforeAll {
@@ -14,14 +14,14 @@ BeforeAll {
 }
 
 Describe 'Version 3.32 Deklaration und Dokumentation' {
-    It 'Version.ps1 definiert Version 3.32' {
+    It 'Version.ps1 definiert Version 3.32 oder höher' {
         $vPs1 = [IO.File]::ReadAllText((Join-Path $global:MinibenchSrcRoot 'Kern/Version.ps1'))
-        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''3\.32'''
+        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''3\.(32|4)'''
     }
 
-    It 'Versionen.cs enthÃ¤lt den Eintrag fÃ¼r 3.32 an oberster Stelle' {
+    It 'Versionen.cs enthält den Eintrag für 3.32 oder höher an oberster Stelle' {
         $firstVer = [regex]::Match($global:V332Ver, 'new Eintrag\("([^"]+)"').Groups[1].Value
-        $firstVer | Should -Be '3.32'
+        $firstVer | Should -Match '3\.(32|4)'
     }
 
     It 'Doku/Versionshistorie.txt enthÃ¤lt den Eintrag fÃ¼r 3.32' {

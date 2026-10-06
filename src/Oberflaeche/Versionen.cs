@@ -1,4 +1,4 @@
-// Versionshistorie (ab v2.7): Seite Versionen der Oberfläche und Doku\Versionshistorie.txt.
+﻿// Versionshistorie (ab v2.7): Seite Versionen der Oberfläche und Doku\Versionshistorie.txt.
 // Jede neue Version bekommt hier oben einen Eintrag (ein Test prüft, dass es einen für $ScriptVersion gibt).
 // Einzelheiten stehen in Doku\Änderungen_vX.Y.txt. Für 1.0 bis 2.1 gibt es keine Änderungsdateien mehr; die Einträge
 // nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
@@ -11,6 +11,10 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.4", "06.10.2026", "Modul Tools (Portable Werkzeuge & System-Shortcuts), Leos Empfehlung & interaktiver Hauptbericht",
+            "Neues Modul Tools: Eigene Navigationsseite mit portablen Werkzeugen (Revo Uninstaller, MiniTool Partition Wizard, WizTree) inklusive automatischer Erkennung und Administrator-Start sowie System-Shortcuts (Ins BIOS/UEFI neu starten, Datenträgerverwaltung, Geräte-Manager, Zuverlässigkeitsverlauf). " +
+            "Erweiterung 'Leos Empfehlung': Neue Optimierung für Windows 11 zum sofortigen Beenden von Tasks per Rechtsklick auf die Taskleiste (TaskbarEndTask) sowie Desktop-Kontextmenü-Shortcut für UEFI-Neustarts. " +
+            "Interaktiver Diagnosebericht & Designangleichung: Hauptbericht (Diagnosebericht.html) mit dynamischer Abschnitt-Navigation, Live-Suche und Stufen-Filtern für Befunde, schwebenden Tooltips auf Sensor-Messpunkten und einheitlicher kontraststarker Farbwelt auf Basis von Stil.ps1."),
         new Eintrag("3.32", "06.10.2026", "Dark-Mode-Feinschliff (Scrollbars, ComboBox, Header & Kontraste) und Konsolidierung des Systemvergleichs",
             "Dark-Mode-Feinschliff: Native dunkle Win32-Scrollbars für Inhalts- und Navigationsbereiche über SetPreferredAppMode (ForceDark) und SetWindowTheme (DarkMode_Explorer), neue DarkComboBox für nahtlos dunkle Dropdown-Menüs, einheitlich abgedunkelte Tabellenköpfe (Owner-Draw SysHeader32) und kontrastreiche Textdarstellung für deaktivierte Steuerelemente ohne Windows-GDI-Schattendruck. " +
             "Konsolidierung des Systemvergleichs: Das interaktive Multi-System-Dashboard deckt sämtliche Hardware-Gegenüberstellungen, Benchmark-Matrizen und Befundvergleiche ab; die redundante statische Vergleichsfunktion wurde zugunsten eines einheitlichen Workflows abgelöst und die Vergleichsdatenbank aktualisiert."),

@@ -1,9 +1,20 @@
-LEOS MINIBENCH: VERSIONSHISTORIE
+﻿LEOS MINIBENCH: VERSIONSHISTORIE
 ================================
 
 Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab 2.2). Für 1.0 bis 2.1 gibt es
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Verweis Versionshistorie oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
+
+VERSION 3.4    (06.10.2026)  MODUL TOOLS, LEOS EMPFEHLUNG & INTERAKTIVER HAUPTBERICHT
+====================================================================================================
+Neues Modul Tools: Eigene Navigationsseite mit portablen Werkzeugen (Revo Uninstaller, MiniTool
+Partition Wizard, WizTree) inklusive automatischer Erkennung und Administrator-Start sowie
+System-Shortcuts (Ins BIOS/UEFI neu starten, Datenträgerverwaltung, Geräte-Manager, Zuverlässigkeitsverlauf).
+Erweiterung 'Leos Empfehlung': Neue Optimierung für Windows 11 zum sofortigen Beenden von Tasks per
+Rechtsklick auf die Taskleiste (TaskbarEndTask) sowie Desktop-Kontextmenü-Shortcut für UEFI-Neustarts.
+Interaktiver Diagnosebericht & Designangleichung: Hauptbericht (Diagnosebericht.html) mit dynamischer
+Abschnitt-Navigation, Live-Suche und Stufen-Filtern für Befunde, schwebenden Tooltips auf
+Sensor-Messpunkten und einheitlicher kontraststarker Farbwelt auf Basis von Stil.ps1.
 
 VERSION 3.32   (06.10.2026)  DARK-MODE-FEINSCHLIFF & KONSOLIDIERUNG DES SYSTEMVERGLEICHS
 ====================================================================================================

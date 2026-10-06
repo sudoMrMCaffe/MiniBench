@@ -550,7 +550,7 @@ function Export-BenchDashboardData {
     }
 
     $aggData = [ordered]@{
-        Version        = '3.31'
+        Version        = $(if ($script:ScriptVersion) { $script:ScriptVersion } else { '3.4' })
         Generated      = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
         PreselectedIds = @($preselectedIds)
         Systems        = @($systems)
@@ -580,71 +580,71 @@ function Get-BenchDashboardHtmlTemplate {
   <title>Leos Minibench - Benchmark & Diagnose Dashboard</title>
   <style>
     :root {
-      --bg: #F9F9FB;
+      --bg: #F5F6F8;
       --card-bg: #FFFFFF;
-      --card-border: #E5E7EB;
+      --card-border: #E2E5EA;
       --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-      --text: #1C1D1F;
-      --text-muted: #5F6368;
-      --text-subtle: #9AA0A6;
+      --text: #1C2330;
+      --text-muted: #5F6878;
+      --text-subtle: #8A92A0;
       --accent: #0067C0;
       --accent-hover: #005A9E;
       --accent-soft: #EBF3FB;
       --accent-border: #BDD7EE;
-      --ok-bg: #DFF6DD;
-      --ok-text: #107C41;
-      --ok-border: #B7E8B5;
-      --warn-bg: #FFF4CE;
-      --warn-text: #795E00;
-      --warn-border: #FCE100;
-      --crit-bg: #FDE7E9;
-      --crit-text: #D13438;
-      --crit-border: #F8B4B8;
-      --neutral-bg: #F3F4F6;
+      --ok-bg: #E2F5E9;
+      --ok-text: #11703F;
+      --ok-border: #7CD6A0;
+      --warn-bg: #FDF2D8;
+      --warn-text: #9A5B00;
+      --warn-border: #F3C26E;
+      --crit-bg: #FDECEB;
+      --crit-text: #B42318;
+      --crit-border: #FF8F86;
+      --neutral-bg: #F1F3F6;
       --neutral-text: #4B5563;
-      --grid-line: #F0F2F5;
+      --grid-line: #E2E5EA;
       --canvas-bg: #FFFFFF;
       --tooltip-bg: rgba(255, 255, 255, 0.96);
       --tooltip-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-      --curve-temp: #E81123;
-      --curve-temp-fill: rgba(232, 17, 35, 0.08);
-      --curve-mhz: #0078D4;
-      --curve-mhz-fill: rgba(0, 120, 212, 0.06);
-      --curve-gpu: #F7630C;
+      --curve-temp: #B42318;
+      --curve-temp-fill: rgba(180, 35, 24, 0.08);
+      --curve-mhz: #0067C0;
+      --curve-mhz-fill: rgba(0, 103, 192, 0.06);
+      --curve-gpu: #C2410C;
     }
 
     [data-theme="dark"] {
-      --bg: #18191A;
-      --card-bg: #242526;
-      --card-border: #3A3B3C;
+      --bg: #111419;
+      --card-bg: #1A1F27;
+      --card-border: #2B323D;
       --card-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-      --text: #F5F6F7;
-      --text-muted: #9CA3AF;
-      --text-subtle: #707070;
+      --text: #E5E8EE;
+      --text-muted: #98A1B0;
+      --text-subtle: #7A8494;
       --accent: #4CC2FF;
       --accent-hover: #60CDFF;
       --accent-soft: #233446;
       --accent-border: #1E4E79;
-      --ok-bg: #1B3828;
-      --ok-text: #6CCB5F;
-      --ok-border: #2D5E3E;
-      --warn-bg: #3F3316;
-      --warn-text: #FCE100;
-      --warn-border: #6B5620;
-      --crit-bg: #442726;
-      --crit-text: #FF99A4;
-      --crit-border: #733A38;
-      --neutral-bg: #2E2F30;
+      --ok-bg: #14321F;
+      --ok-text: #7CD6A0;
+      --ok-border: #11703F;
+      --warn-bg: #3A2D12;
+      --warn-text: #F3C26E;
+      --warn-border: #9A5B00;
+      --crit-bg: #3B1D1C;
+      --crit-text: #FF8F86;
+      --crit-border: #B42318;
+      --neutral-bg: #252B35;
       --neutral-text: #D1D5DB;
-      --grid-line: #333333;
-      --canvas-bg: #202122;
-      --tooltip-bg: rgba(36, 37, 38, 0.96);
+      --grid-line: #2B323D;
+      --canvas-bg: #1A1F27;
+      --tooltip-bg: rgba(26, 31, 39, 0.96);
       --tooltip-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-      --curve-temp: #FF5A5A;
-      --curve-temp-fill: rgba(255, 90, 90, 0.12);
+      --curve-temp: #FF8F86;
+      --curve-temp-fill: rgba(255, 143, 134, 0.12);
       --curve-mhz: #4CC2FF;
       --curve-mhz-fill: rgba(76, 194, 255, 0.08);
-      --curve-gpu: #FFA057;
+      --curve-gpu: #FB923C;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }

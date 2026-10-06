@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -109,7 +109,7 @@ public partial class DiagGui : Form
     CheckBox chkLCpu, chkLRam, chkLGpu, chkLDisk;
     ComboBox cmbLCpu, cmbLRam, cmbLGpu, cmbLDisk, cmbLRamPct, cmbLDiskDrive, cmbLAbortCpu, cmbLAbortGpu;
     // Sensoren (Live-Seite)
-    NavItem navSens, navDb, navChg;
+    NavItem navSens, navDb, navChg, navTools;
     Process liveProc;
     ConcurrentQueue<string> liveQueue = new ConcurrentQueue<string>();
     Timer liveTimer;
@@ -718,6 +718,7 @@ public partial class DiagGui : Form
         nav.Add(ModNav("Lasttest", "Lasttest", "Komponenten und Dauer wählbar", UI.IcoFlame));
         nav.Add(ModNav("Wartung", "Wartung", "SFC, DISM, Bereinigung und Systempflege", UI.IcoWartung));
         nav.Add(ModNav("Optimierung", "Optimierung", "Windows Optimisation Pack, gruppiert", UI.IcoOpt));
+        navTools = ModNav("Tools", "Tools", "Portable Werkzeuge und Schnellstarter"); navTools.HasCheck = false; nav.Add(navTools);
         navSens = ModNav("Sensoren", "Sensoren live", "Temperatur, Takt, Lüfter, Leistung", UI.IcoSens); navSens.HasCheck = false; nav.Add(navSens);
         navDb = new NavItem("Vergleichsdatenbank", db.Count + " gespeicherte Systeme", UI.IcoDb); navDb.HasCheck = false; Tip(navDb, "Vergleichsdatenbank aller gespeicherten Systeme verwalten und vergleichen."); nav.Add(navDb);
         navChg = new NavItem("Änderungen", "Protokoll und Rückgängig", UI.IcoChg); navChg.HasCheck = false; Tip(navChg, "Änderungsprotokoll und Rückgängigmachung von Systemeinstellungen."); nav.Add(navChg);
@@ -736,7 +737,7 @@ public partial class DiagGui : Form
         contentHost = new Panel(); contentHost.Dock = DockStyle.Fill; contentHost.BackColor = UI.Line; contentHost.Padding = new Padding(1);
         contentHost.Controls.Add(content);
 
-        pages.Add(BuildDiagPage()); pages.Add(BuildBenchPage()); pages.Add(BuildLoadPage()); pages.Add(BuildRepairPage()); pages.Add(BuildOptPage()); pages.Add(BuildSensorPage()); pages.Add(BuildDbPage()); pages.Add(BuildChangePage()); versionPage = pages.Count; pages.Add(BuildVersionPage());
+        pages.Add(BuildDiagPage()); pages.Add(BuildBenchPage()); pages.Add(BuildLoadPage()); pages.Add(BuildRepairPage()); pages.Add(BuildOptPage()); pages.Add(BuildToolsPage()); pages.Add(BuildSensorPage()); pages.Add(BuildDbPage()); pages.Add(BuildChangePage()); versionPage = pages.Count; pages.Add(BuildVersionPage());
         foreach (Control c in pages) { c.Visible = false; content.Controls.Add(c); }
 
         TableLayoutPanel foot = new TableLayoutPanel(); foot.Dock = DockStyle.Bottom; foot.Height = UI.S(72); foot.ColumnCount = 2; foot.BackColor = UI.Bg; foot.Padding = new Padding(0, UI.S(8), 0, 0);
@@ -805,6 +806,7 @@ public partial class DiagGui : Form
             "Lasttest: belastet CPU, RAM, Grafik und Datenträger gleichzeitig mit eigener Dauer, zeichnet Kurven auf und weist Drosselung nach. Hier steckt ab v2.7 auch die Prüfung der CPU-Stabilität.",
             "Wartung: Standardreparaturen wie DISM und SFC sowie Systempflege. Verändert das System; vorher auf Wunsch ein Wiederherstellungspunkt. Jede Maßnahme zeigt ihre Risikostufe.",
             "Optimierung (ab v2.8): das Windows Optimisation Pack nativ, mit Sophia- und O&O-Einstellungen, in Kategorien einzeln wählbar. Ändern ist einzeln rücknehmbar, Eingriffe sichert der Wiederherstellungspunkt ab.",
+            "Tools: Portable Hilfswerkzeuge wie Revo Uninstaller, MiniTool Partition Wizard, WizTree sowie Windows-Schnellstarter.",
             "Sensoren live: Temperatur, Takt, Lüfter, Spannung und Leistung laufend anzeigen und aufzeichnen. Kein Modul für den Start.",
             "Vergleichsdatenbank: alle gespeicherten Läufe, Vergleich mehrerer Systeme ohne neuen Benchmark, Import älterer Ordner und Aufräumen.",
             "Änderungen: was Leos Minibench an einem PC verändert hat, mit Vorher-Wert und Rückgängig." };

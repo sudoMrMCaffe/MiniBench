@@ -1,6 +1,24 @@
-# Changelog - Leos Minibench
+﻿# Changelog - Leos Minibench
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
+
+## v3.4 (06.10.2026)
+
+* **Neues Modul 'Tools' in der Benutzeroberfläche:**
+  * **Navigationspunkt 'Tools':** Neuer Menüpunkt in der linken Navigation direkt unter 'Optimierung' und vor 'Sensoren' mit modernem Fluent-Design (`UI.IcoTools`).
+  * **Portable Werkzeuge:** Integrierte Erkennung und Starter für Revo Uninstaller Portable (`Minibench-Daten\Tools\RevoUninstaller\*.exe`), MiniTool Partition Wizard (`Minibench-Daten\Tools\PartitionWizard\*.exe`) und WizTree Portable (`Minibench-Daten\Tools\WizTree\*.exe`) inklusive Prüfung auf lokale Systeminstallationen, 'Starten (Admin)'-Schaltflächen und Schnell-Links zum Herunterladen bzw. Ordner öffnen.
+  * **System-Shortcuts & Schnellstarter:**
+    * 'Ins BIOS/UEFI neu starten': Führt nach Bestätigung `shutdown.exe /r /fw /t 0` aus; prüft vorab über native Win32 `GetFirmwareType` und Registry auf UEFI-Unterstützung.
+    * Schnellzugriff auf native Windows-Konsolen: Datenträgerverwaltung (`diskmgmt.msc`), Geräte-Manager (`devmgmt.msc`) und Zuverlässigkeitsverlauf (`perfmon /rel`).
+  * **Volle Dark-Mode- und Tooltip-Unterstützung:** Nahtlose optische Integration im Hell- und Dunkelmodus (`UI.IsDark`) sowie konsequente Tooltips (`Tip(...)`) auf allen Steuerelementen.
+* **Optimierungen: 'Leos Empfehlung' erweitert:**
+  * **Task beenden per Rechtsklick (`TaskbarEndTask`):** Neue Optimierung in der Kategorie `Bedienung` für Windows 11 in den Vorlagen M, S (Leos Empfehlung) und E. Ermöglicht das sofortige Beenden hängender Programme direkt über das Kontextmenü der Taskleiste (`HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings` und `HKCU:\...\Advanced`, DWord 1). Vollständig dokumentiert und rückgängig machbar.
+  * **UEFI-Neustart Desktop-Shortcut (`UefiNeustart`):** Desktop-Kontextmenüeintrag für den direkten Neustart in die Firmware in den Vorlagen S und E mit Protokollierung und Wiederherstellungsoption.
+* **Interaktiver Hauptbericht (Diagnosebericht.html) & Designangleichung:**
+  * **Abschnitt-Navigation:** Schnelle Reiter-Leiste am Kopf des Berichts zur gezielten Ansicht von Systemübersicht, Benchmark, Befunden, Hardware oder Sensoren.
+  * **Live-Suche & Stufen-Filter für Befunde:** Sofortiges Durchsuchen von Befunden nach Text und Filtern nach Schweregraden (Kritisch, Warnung, Info) mit dynamischer Trefferzählung.
+  * **Interaktive Sensor-Chart Tooltips:** Pure Vanilla JavaScript Hover-Tooltips für Messpunkte in Takt-, Temperatur-, Rendertest- und Durchsatz-Diagrammen ohne externe Bibliotheken.
+  * **Designangleichung & kräftige Farbwelt:** Synchronisierung der CSS-Farbpaletten von `Dashboard.html` und `Diagnosebericht.html` auf Basis von `Stil.ps1` mit satten Badges, klaren Kontrasten und gestochen scharfer Typografie.
 
 ## v3.32 (06.10.2026)
 

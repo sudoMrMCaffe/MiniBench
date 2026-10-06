@@ -224,7 +224,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenp
 }
 #endregion
 
-$ScriptVersion = '3.4'
+$ScriptVersion = '3.32'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -3122,21 +3122,6 @@ $script:OptKatalog = (
            Quelle = 'Sophia Win32LongPathLimit (Windows 10)'
            Text = 'Programme, die es unterstützen, dürfen lange Pfade nutzen (LongPathsEnabled).'
            Aktionen = @( @{ Art = 'Reg'; Pfad = 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem'; Name = 'LongPathsEnabled'; Wert = 1; Typ = 'DWord' } ) }
-        @{ Id = 'TaskbarEndTask'; Kat = 'Bedienung'; Titel = 'Taskleiste: Task beenden per Rechtsklick (Windows 11)'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'MSE'; Bedingung = 'Win11'
-           Quelle = 'Windows 11 Taskbar Developer Settings'
-           Text = 'Ermöglicht das sofortige Beenden von Programmen direkt über das Kontextmenü der Taskleiste ohne Umweg über den Task-Manager.'
-           Aktionen = @(
-               @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings'; Name = 'TaskbarEndTask'; Wert = 1; Typ = 'DWord' }
-               @{ Art = 'Reg'; Pfad = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Name = 'TaskbarEndTask'; Wert = 1; Typ = 'DWord' }
-           ) }
-        @{ Id = 'UefiNeustart'; Kat = 'Bedienung'; Titel = 'Kontextmenü: Ins BIOS/UEFI neu starten'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'SE'
-           Quelle = 'Windows UEFI Schnellstarter'
-           Text = 'Fügt dem Desktop-Kontextmenü den Befehl "Ins BIOS/UEFI neu starten" hinzu (shutdown.exe /r /fw /t 0).'
-           Aktionen = @( @{ Art = 'RegKey'; Pfad = 'HKCU:\Software\Classes\DesktopBackground\Shell\UefiRestart'; Werte = @(
-               @{ Name = 'MUIVerb'; Wert = 'Ins BIOS/UEFI neu starten'; Typ = 'String' }
-               @{ Name = 'Icon'; Wert = 'shell32.dll,-221'; Typ = 'String' }
-               @{ Name = 'HasLUAShield'; Wert = ''; Typ = 'String' }
-               @{ Unterschluessel = 'command'; Name = '(default)'; Wert = 'shutdown.exe /r /fw /t 0'; Typ = 'String' } ) } ) }
         # ------------------------------------------------------------------ Darstellung und persönliche Vorlieben
         @{ Id = 'DunklerModus'; Kat = 'Darstellung'; Titel = 'Dunkler Modus für Windows und Apps'; Risiko = 'Aendern'; Neustart = 'nie'; Vorlagen = 'E'
            Quelle = 'Sophia WindowsColorMode, AppColorMode'
@@ -4279,7 +4264,7 @@ function New-OptHtml {
     $sb = New-Object System.Text.StringBuilder
     $n = @($log | Where-Object { $_.Ergebnis -in 'angewendet', 'teilweise' }).Count
     $chg = 0; foreach ($x in $log) { $chg += [int]$x.Aenderungen }
-    [void]$sb.Append('<section class="box" data-section="system"><div class="bar"><h2>Optimierung</h2><button onclick="var d=this.closest(''section'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
+    [void]$sb.Append('<section class="box"><div class="bar"><h2>Optimierung</h2><button onclick="var d=this.closest(''section'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
     [void]$sb.Append(('<p class="note">{0} von {1} Einträgen angewendet, {2} Einzeländerungen. Stufe Ändern: auf der Seite Änderungen einzeln rücknehmbar. Eingriff: zurück über den Wiederherstellungspunkt oder den genannten Weg.</p>' -f $n, $log.Count, $chg))
     $rows = @(Get-OptMetricRows $script:OptMetricsBefore $script:OptMetricsAfter)
     if ($rows.Count) {
@@ -4500,7 +4485,7 @@ public partial class DiagGui : Form
     CheckBox chkLCpu, chkLRam, chkLGpu, chkLDisk;
     ComboBox cmbLCpu, cmbLRam, cmbLGpu, cmbLDisk, cmbLRamPct, cmbLDiskDrive, cmbLAbortCpu, cmbLAbortGpu;
     // Sensoren (Live-Seite)
-    NavItem navSens, navDb, navChg, navTools;
+    NavItem navSens, navDb, navChg;
     Process liveProc;
     ConcurrentQueue<string> liveQueue = new ConcurrentQueue<string>();
     Timer liveTimer;
@@ -5109,7 +5094,6 @@ public partial class DiagGui : Form
         nav.Add(ModNav("Lasttest", "Lasttest", "Komponenten und Dauer wählbar", UI.IcoFlame));
         nav.Add(ModNav("Wartung", "Wartung", "SFC, DISM, Bereinigung und Systempflege", UI.IcoWartung));
         nav.Add(ModNav("Optimierung", "Optimierung", "Windows Optimisation Pack, gruppiert", UI.IcoOpt));
-        navTools = ModNav("Tools", "Tools", "Portable Werkzeuge und Schnellstarter"); navTools.HasCheck = false; nav.Add(navTools);
         navSens = ModNav("Sensoren", "Sensoren live", "Temperatur, Takt, Lüfter, Leistung", UI.IcoSens); navSens.HasCheck = false; nav.Add(navSens);
         navDb = new NavItem("Vergleichsdatenbank", db.Count + " gespeicherte Systeme", UI.IcoDb); navDb.HasCheck = false; Tip(navDb, "Vergleichsdatenbank aller gespeicherten Systeme verwalten und vergleichen."); nav.Add(navDb);
         navChg = new NavItem("Änderungen", "Protokoll und Rückgängig", UI.IcoChg); navChg.HasCheck = false; Tip(navChg, "Änderungsprotokoll und Rückgängigmachung von Systemeinstellungen."); nav.Add(navChg);
@@ -5128,7 +5112,7 @@ public partial class DiagGui : Form
         contentHost = new Panel(); contentHost.Dock = DockStyle.Fill; contentHost.BackColor = UI.Line; contentHost.Padding = new Padding(1);
         contentHost.Controls.Add(content);
 
-        pages.Add(BuildDiagPage()); pages.Add(BuildBenchPage()); pages.Add(BuildLoadPage()); pages.Add(BuildRepairPage()); pages.Add(BuildOptPage()); pages.Add(BuildToolsPage()); pages.Add(BuildSensorPage()); pages.Add(BuildDbPage()); pages.Add(BuildChangePage()); versionPage = pages.Count; pages.Add(BuildVersionPage());
+        pages.Add(BuildDiagPage()); pages.Add(BuildBenchPage()); pages.Add(BuildLoadPage()); pages.Add(BuildRepairPage()); pages.Add(BuildOptPage()); pages.Add(BuildSensorPage()); pages.Add(BuildDbPage()); pages.Add(BuildChangePage()); versionPage = pages.Count; pages.Add(BuildVersionPage());
         foreach (Control c in pages) { c.Visible = false; content.Controls.Add(c); }
 
         TableLayoutPanel foot = new TableLayoutPanel(); foot.Dock = DockStyle.Bottom; foot.Height = UI.S(72); foot.ColumnCount = 2; foot.BackColor = UI.Bg; foot.Padding = new Padding(0, UI.S(8), 0, 0);
@@ -5197,7 +5181,6 @@ public partial class DiagGui : Form
             "Lasttest: belastet CPU, RAM, Grafik und Datenträger gleichzeitig mit eigener Dauer, zeichnet Kurven auf und weist Drosselung nach. Hier steckt ab v2.7 auch die Prüfung der CPU-Stabilität.",
             "Wartung: Standardreparaturen wie DISM und SFC sowie Systempflege. Verändert das System; vorher auf Wunsch ein Wiederherstellungspunkt. Jede Maßnahme zeigt ihre Risikostufe.",
             "Optimierung (ab v2.8): das Windows Optimisation Pack nativ, mit Sophia- und O&O-Einstellungen, in Kategorien einzeln wählbar. Ändern ist einzeln rücknehmbar, Eingriffe sichert der Wiederherstellungspunkt ab.",
-            "Tools: Portable Hilfswerkzeuge wie Revo Uninstaller, MiniTool Partition Wizard, WizTree sowie Windows-Schnellstarter.",
             "Sensoren live: Temperatur, Takt, Lüfter, Spannung und Leistung laufend anzeigen und aufzeichnen. Kein Modul für den Start.",
             "Vergleichsdatenbank: alle gespeicherten Läufe, Vergleich mehrerer Systeme ohne neuen Benchmark, Import älterer Ordner und Aufräumen.",
             "Änderungen: was Leos Minibench an einem PC verändert hat, mit Vorher-Wert und Rückgängig." };
@@ -7534,7 +7517,6 @@ public static class UI
     public const string IcoDb = "\uE81E";
     public const string IcoChg = "\uE81C";
     public const string IcoFlame = "\uECAD";
-    public const string IcoTools = "\uE74C";
 
     public static GraphicsPath Round(RectangleF r, float rad)
     {
@@ -7826,30 +7808,7 @@ public class FluentCard : Control
                 Controls.Add(actionButton);
                 LayoutControls();
             }
-            else if (toggle != null && secondaryButton == null)
-            {
-                toggle.Visible = true;
-                LayoutControls();
-            }
-            Invalidate();
-        }
-    }
-
-    Button secondaryButton;
-    public Button SecondaryButton
-    {
-        get { return secondaryButton; }
-        set
-        {
-            if (secondaryButton != null) Controls.Remove(secondaryButton);
-            secondaryButton = value;
-            if (secondaryButton != null)
-            {
-                if (toggle != null) toggle.Visible = false;
-                Controls.Add(secondaryButton);
-                LayoutControls();
-            }
-            else if (toggle != null && actionButton == null)
+            else if (toggle != null)
             {
                 toggle.Visible = true;
                 LayoutControls();
@@ -7866,20 +7825,13 @@ public class FluentCard : Control
 
     void LayoutControls()
     {
-        int curRight = Width - UI.S(16);
-        if (actionButton != null && actionButton.Visible)
+        if (actionButton != null)
         {
-            actionButton.Location = new Point(curRight - actionButton.Width, (Height - actionButton.Height) / 2);
-            curRight -= actionButton.Width + UI.S(8);
+            actionButton.Location = new Point(Width - actionButton.Width - UI.S(16), (Height - actionButton.Height) / 2);
         }
-        if (secondaryButton != null && secondaryButton.Visible)
+        else if (toggle != null)
         {
-            secondaryButton.Location = new Point(curRight - secondaryButton.Width, (Height - secondaryButton.Height) / 2);
-            curRight -= secondaryButton.Width + UI.S(8);
-        }
-        if (toggle != null && toggle.Visible)
-        {
-            toggle.Location = new Point(curRight - toggle.Width, (Height - toggle.Height) / 2);
+            toggle.Location = new Point(Width - toggle.Width - UI.S(16), (Height - toggle.Height) / 2);
         }
     }
 
@@ -7897,7 +7849,7 @@ public class FluentCard : Control
         if (e.Button == MouseButtons.Left)
         {
             Focus();
-            if (actionButton == null && secondaryButton == null && toggle != null && toggle.Visible)
+            if (actionButton == null && toggle != null && toggle.Visible)
             {
                 toggle.Checked = !toggle.Checked;
             }
@@ -7907,7 +7859,7 @@ public class FluentCard : Control
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        if (e.KeyCode == Keys.Space && actionButton == null && secondaryButton == null && toggle != null && toggle.Visible)
+        if (e.KeyCode == Keys.Space && actionButton == null && toggle != null && toggle.Visible)
         {
             toggle.Checked = !toggle.Checked;
             e.Handled = true;
@@ -7943,11 +7895,7 @@ public class FluentCard : Control
             curX += icoSize + UI.S(10);
         }
 
-        int rightBound = Width;
-        if (actionButton != null && actionButton.Visible) rightBound = Math.Min(rightBound, actionButton.Left);
-        if (secondaryButton != null && secondaryButton.Visible) rightBound = Math.Min(rightBound, secondaryButton.Left);
-        if (toggle != null && toggle.Visible) rightBound = Math.Min(rightBound, toggle.Left);
-        rightBound -= UI.S(12);
+        int rightBound = (actionButton != null && actionButton.Visible ? actionButton.Left : (toggle != null && toggle.Visible ? toggle.Left : Width)) - UI.S(12);
         int textW = Math.Max(UI.S(50), rightBound - curX);
 
         using (Font ft = new Font("Segoe UI Semibold", UI.SF(10f)))
@@ -9041,394 +8989,6 @@ public partial class DiagGui
         ReloadDb();
         MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Keine Rückmeldung vom Arbeitsprozess.", "Rückgängig", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
-
-    Control BuildToolsPage()
-    {
-        Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel;
-        FlowLayoutPanel top = Page("Tools", "Portable Werkzeuge und praktische Windows-Schnellstarter für Partitionierung, gründliche Deinstallation, Speicherplatzanalyse und Firmware-Zugriff.", -1);
-        top.Dock = DockStyle.Top; top.AutoSize = true; top.WrapContents = false;
-        top.Padding = new Padding(0, 0, 0, UI.S(10));
-
-        FlowLayoutPanel body = new FlowLayoutPanel();
-        body.Dock = DockStyle.Fill; body.AutoScroll = true;
-        body.FlowDirection = FlowDirection.TopDown; body.WrapContents = false;
-        body.BackColor = UI.Panel;
-        body.Padding = new Padding(UI.S(4), 0, UI.S(16), UI.S(20));
-
-        FlowLayoutPanel topBar = Row(); topBar.Margin = new Padding(UI.S(4), 0, 0, UI.S(10));
-        Button btnRefreshTools = UI.Secondary("Neu scannen");
-        btnRefreshTools.Margin = new Padding(0);
-        Tip(btnRefreshTools, "Prüft erneut auf vorhandene portable Werkzeuge und Systeminstallationen.");
-        Button btnOpenToolsDir = UI.Secondary("Tools-Ordner");
-        btnOpenToolsDir.Margin = new Padding(UI.S(8), 0, 0, 0);
-        Tip(btnOpenToolsDir, "Öffnet den Ordner Minibench-Daten\\Tools im Windows Explorer.");
-        btnOpenToolsDir.Click += delegate {
-            string td = Path.Combine(dataDir, "Tools");
-            try { Directory.CreateDirectory(td); } catch { }
-            OpenShell(td);
-        };
-        topBar.Controls.Add(btnRefreshTools);
-        topBar.Controls.Add(btnOpenToolsDir);
-        body.Controls.Add(topBar);
-
-        FlowLayoutPanel pnlCards = new FlowLayoutPanel();
-        pnlCards.AutoSize = true; pnlCards.FlowDirection = FlowDirection.TopDown; pnlCards.WrapContents = false;
-        pnlCards.BackColor = UI.Panel; pnlCards.Margin = new Padding(0);
-
-        Action populateCards = delegate {
-            pnlCards.SuspendLayout();
-            pnlCards.Controls.Clear();
-
-            // 1. Portable Werkzeuge
-            pnlCards.Controls.Add(Section("Portable Werkzeuge"));
-            Label lToolsDesc = Lbl("Werden portable Versionen im Ordner Minibench-Daten\\Tools abgelegt, nutzt Leos Minibench diese direkt ohne Installation. Alternativ wird eine vorhandene Systeminstallation gestartet.", 9f, false, UI.Muted);
-            lToolsDesc.MaximumSize = new Size(UI.S(740), 0);
-            lToolsDesc.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
-            pnlCards.Controls.Add(lToolsDesc);
-
-            int cardW = UI.S(720); int cardH = UI.S(68);
-
-            // Revo Uninstaller
-            FluentCard cRevo = new FluentCard("Revo Uninstaller", "Gründliche Deinstallation von Programmen inklusive Registry- und Dateiresten.", UI.IcoTools);
-            cRevo.Width = cardW; cRevo.Height = cardH;
-            string[] revoDirect = new string[] {
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"VS Revo Group\Revo Uninstaller\RevoUnin.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"VS Revo Group\Revo Uninstaller\RevoUnin.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"VS Revo Group\Revo Uninstaller Pro\RevoUninPro.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"VS Revo Group\Revo Uninstaller Pro\RevoUninPro.exe")
-            };
-            string revoPath = FindToolPath("RevoUninstaller", new string[] { "RevoUPort.exe", "RevoUnin.exe", "RevoUninPro.exe", "RevoUninstaller_Portable.exe" }, new string[] { "Revo Uninstaller" }, revoDirect);
-            if (!String.IsNullOrEmpty(revoPath))
-            {
-                cRevo.Description = "Bereit: " + (revoPath.IndexOf("Minibench-Daten", StringComparison.OrdinalIgnoreCase) >= 0 ? "Portabel (" + Path.GetFileName(revoPath) + ")" : "Systeminstallation (" + Path.GetFileName(revoPath) + ")");
-                Button bStart = UI.Primary("Starten (Admin)");
-                Tip(bStart, "Startet Revo Uninstaller mit Administratorrechten (" + revoPath + ").");
-                string rp = revoPath; bStart.Click += delegate { StartAdminProcess(rp, ""); };
-                cRevo.ActionButton = bStart;
-                Button bFolder = UI.Secondary("Ordner");
-                Tip(bFolder, "Öffnet den Speicherort von Revo Uninstaller.");
-                bFolder.Click += delegate { OpenSelect(rp); };
-                cRevo.SecondaryButton = bFolder;
-            }
-            else
-            {
-                cRevo.Description = "Nicht gefunden (erwartet in Minibench-Daten\\Tools\\RevoUninstaller oder auf dem System).";
-                Button bDl = UI.Secondary("Herunterladen");
-                Tip(bDl, "Öffnet die Downloadseite von Revo Uninstaller im Standardbrowser.");
-                bDl.Click += delegate { OpenShell("https://www.revouninstaller.com/revo-uninstaller-free-download/"); };
-                cRevo.ActionButton = bDl;
-                Button bDir = UI.Secondary("Ordner öffnen");
-                Tip(bDir, "Erstellt und öffnet den Ordner Minibench-Daten\\Tools\\RevoUninstaller.");
-                bDir.Click += delegate { string d = Path.Combine(dataDir, "Tools\\RevoUninstaller"); try { Directory.CreateDirectory(d); } catch { } OpenShell(d); };
-                cRevo.SecondaryButton = bDir;
-            }
-            Tip(cRevo, "Revo Uninstaller: Software restlos entfernen.");
-            pnlCards.Controls.Add(cRevo);
-
-            // MiniTool Partition Wizard
-            FluentCard cPart = new FluentCard("MiniTool Partition Wizard", "Laufwerke partitionieren, Dateisysteme konvertieren und Datenträger verwalten.", UI.IcoDisk);
-            cPart.Width = cardW; cPart.Height = cardH;
-            string[] partDirect = new string[] {
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"MiniTool Partition Wizard 12\partitionwizard.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"MiniTool Partition Wizard 12\partitionwizard.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"MiniTool Partition Wizard\partitionwizard.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"MiniTool Partition Wizard\partitionwizard.exe")
-            };
-            string partPath = FindToolPath("PartitionWizard", new string[] { "partitionwizard.exe", "PartitionWizard.exe", "MiniToolPartitionWizard.exe" }, new string[] { "Partition Wizard", "MiniTool Partition Wizard" }, partDirect);
-            if (!String.IsNullOrEmpty(partPath))
-            {
-                cPart.Description = "Bereit: " + (partPath.IndexOf("Minibench-Daten", StringComparison.OrdinalIgnoreCase) >= 0 ? "Portabel (" + Path.GetFileName(partPath) + ")" : "Systeminstallation (" + Path.GetFileName(partPath) + ")");
-                Button bStart = UI.Primary("Starten (Admin)");
-                Tip(bStart, "Startet MiniTool Partition Wizard mit Administratorrechten (" + partPath + ").");
-                string pp = partPath; bStart.Click += delegate { StartAdminProcess(pp, ""); };
-                cPart.ActionButton = bStart;
-                Button bFolder = UI.Secondary("Ordner");
-                Tip(bFolder, "Öffnet den Speicherort von MiniTool Partition Wizard.");
-                bFolder.Click += delegate { OpenSelect(pp); };
-                cPart.SecondaryButton = bFolder;
-            }
-            else
-            {
-                cPart.Description = "Nicht gefunden (erwartet in Minibench-Daten\\Tools\\PartitionWizard oder auf dem System).";
-                Button bDl = UI.Secondary("Herunterladen");
-                Tip(bDl, "Öffnet die Downloadseite von MiniTool Partition Wizard im Standardbrowser.");
-                bDl.Click += delegate { OpenShell("https://www.partitionwizard.com/free-partition-manager.html"); };
-                cPart.ActionButton = bDl;
-                Button bDir = UI.Secondary("Ordner öffnen");
-                Tip(bDir, "Erstellt und öffnet den Ordner Minibench-Daten\\Tools\\PartitionWizard.");
-                bDir.Click += delegate { string d = Path.Combine(dataDir, "Tools\\PartitionWizard"); try { Directory.CreateDirectory(d); } catch { } OpenShell(d); };
-                cPart.SecondaryButton = bDir;
-            }
-            Tip(cPart, "MiniTool Partition Wizard: Leistungsfähige Datenträger- und Partitionsverwaltung.");
-            pnlCards.Controls.Add(cPart);
-
-            // WizTree
-            FluentCard cWiz = new FluentCard("WizTree Portable", "Ultraschneller Festplatten-Speicherplatzanalysator (MFT-Direktleser).", UI.IcoDisk);
-            cWiz.Width = cardW; cWiz.Height = cardH;
-            string[] wizDirect = new string[] {
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"WizTree\WizTree64.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"WizTree\WizTree.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"WizTree\WizTree.exe")
-            };
-            string wizPath = FindToolPath("WizTree", new string[] { "WizTree64.exe", "WizTree.exe" }, new string[] { "WizTree" }, wizDirect);
-            if (!String.IsNullOrEmpty(wizPath))
-            {
-                cWiz.Description = "Bereit: " + (wizPath.IndexOf("Minibench-Daten", StringComparison.OrdinalIgnoreCase) >= 0 ? "Portabel (" + Path.GetFileName(wizPath) + ")" : "Systeminstallation (" + Path.GetFileName(wizPath) + ")");
-                Button bStart = UI.Primary("Starten (Admin)");
-                Tip(bStart, "Startet WizTree mit Administratorrechten (" + wizPath + ").");
-                string wp = wizPath; bStart.Click += delegate { StartAdminProcess(wp, ""); };
-                cWiz.ActionButton = bStart;
-                Button bFolder = UI.Secondary("Ordner");
-                Tip(bFolder, "Öffnet den Speicherort von WizTree.");
-                bFolder.Click += delegate { OpenSelect(wp); };
-                cWiz.SecondaryButton = bFolder;
-            }
-            else
-            {
-                cWiz.Description = "Nicht gefunden (erwartet in Minibench-Daten\\Tools\\WizTree oder auf dem System).";
-                Button bDl = UI.Secondary("Herunterladen");
-                Tip(bDl, "Öffnet die Downloadseite von WizTree im Standardbrowser.");
-                bDl.Click += delegate { OpenShell("https://diskanalyzer.com/download"); };
-                cWiz.ActionButton = bDl;
-                Button bDir = UI.Secondary("Ordner öffnen");
-                Tip(bDir, "Erstellt und öffnet den Ordner Minibench-Daten\\Tools\\WizTree.");
-                bDir.Click += delegate { string d = Path.Combine(dataDir, "Tools\\WizTree"); try { Directory.CreateDirectory(d); } catch { } OpenShell(d); };
-                cWiz.SecondaryButton = bDir;
-            }
-            Tip(cWiz, "WizTree: Speicherfresser blitzschnell aufspüren.");
-            pnlCards.Controls.Add(cWiz);
-
-            // 2. Schnellstarter & Shortcuts
-            pnlCards.Controls.Add(Section("Schnellstarter & System-Shortcuts"));
-            Label lShortDesc = Lbl("Direkter Aufruf nativer Windows-Verwaltungskonsolen und Neustart in die Firmware.", 9f, false, UI.Muted);
-            lShortDesc.MaximumSize = new Size(UI.S(740), 0);
-            lShortDesc.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
-            pnlCards.Controls.Add(lShortDesc);
-
-            // BIOS/UEFI Neustart
-            FluentCard cUefi = new FluentCard("Ins BIOS/UEFI neu starten", "Startet den Computer sofort neu und öffnet automatisch das UEFI/BIOS-Setup (shutdown /r /fw /t 0).", "\uE777");
-            cUefi.Width = cardW; cUefi.Height = cardH;
-            Button bUefi = UI.Secondary("Neu starten");
-            Tip(bUefi, "Prüft auf UEFI-Unterstützung und führt nach Bestätigung 'shutdown.exe /r /fw /t 0' aus.");
-            bUefi.Click += delegate {
-                if (!IsUefiFirmware())
-                {
-                    MessageBox.Show(this, "Dieser Computer verwendet ein klassisches BIOS oder meldet keine Unterstützung für den direkten Neustart in die UEFI-Firmware.", "BIOS/UEFI-Neustart", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-                if (MessageBox.Show(this, "Möchten Sie den Computer jetzt sofort neu starten und direkt die UEFI/BIOS-Firmware-Einstellungen öffnen?\r\n\r\nBitte sichern Sie vorher alle geöffneten Dokumente und Arbeiten!", "Ins BIOS/UEFI neu starten", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                {
-                    StartAdminProcess("shutdown.exe", "/r /fw /t 0");
-                }
-            };
-            cUefi.ActionButton = bUefi;
-            Tip(cUefi, "Startet das System neu und leitet direkt in das UEFI-Setup weiter.");
-            pnlCards.Controls.Add(cUefi);
-
-            // Datenträgerverwaltung
-            FluentCard cDisk = new FluentCard("Datenträgerverwaltung", "Windows-Konsole zur Partitionierung und Volume-Verwaltung (diskmgmt.msc).", UI.IcoDisk);
-            cDisk.Width = cardW; cDisk.Height = cardH;
-            Button bDisk = UI.Secondary("Öffnen");
-            Tip(bDisk, "Öffnet die Windows-Datenträgerverwaltung (diskmgmt.msc).");
-            bDisk.Click += delegate { StartAdminProcess("diskmgmt.msc", ""); };
-            cDisk.ActionButton = bDisk;
-            Tip(cDisk, "Datenträgerverwaltung: Partitionen anlegen, verkleinern und Buchstaben zuweisen.");
-            pnlCards.Controls.Add(cDisk);
-
-            // Geräte-Manager
-            FluentCard cDev = new FluentCard("Geräte-Manager", "Windows-Geräte-Manager zur Überprüfung von Hardware, Treibern und Ressourcen (devmgmt.msc).", UI.IcoCpu);
-            cDev.Width = cardW; cDev.Height = cardH;
-            Button bDev = UI.Secondary("Öffnen");
-            Tip(bDev, "Öffnet den Windows-Geräte-Manager (devmgmt.msc).");
-            bDev.Click += delegate { StartAdminProcess("devmgmt.msc", ""); };
-            cDev.ActionButton = bDev;
-            Tip(cDev, "Geräte-Manager: Hardwarekomponenten und Treiberstatus untersuchen.");
-            pnlCards.Controls.Add(cDev);
-
-            // Zuverlässigkeitsverlauf
-            FluentCard cRel = new FluentCard("Zuverlässigkeitsverlauf", "Windows-Zuverlässigkeitsüberwachung für Abstürze, Warnungen und Fehler (perfmon /rel).", UI.IcoDiag);
-            cRel.Width = cardW; cRel.Height = cardH;
-            Button bRel = UI.Secondary("Öffnen");
-            Tip(bRel, "Öffnet die Windows-Zuverlässigkeitsüberwachung (perfmon.exe /rel).");
-            bRel.Click += delegate { StartAdminProcess("perfmon.exe", "/rel"); };
-            cRel.ActionButton = bRel;
-            Tip(cRel, "Zuverlässigkeitsverlauf: Stabilitätsindex und Ereignisse im Zeitverlauf einsehen.");
-            pnlCards.Controls.Add(cRel);
-
-            pnlCards.ResumeLayout(true);
-        };
-
-        btnRefreshTools.Click += delegate { populateCards(); };
-        populateCards();
-
-        body.Controls.Add(pnlCards);
-        f.Controls.Add(body);
-        f.Controls.Add(top);
-        top.SendToBack();
-        return f;
-    }
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    static extern bool GetFirmwareType(out int firmwareType);
-
-    public static bool IsUefiFirmware()
-    {
-        try
-        {
-            int fw = 0;
-            if (GetFirmwareType(out fw))
-            {
-                if (fw == 2) return true;
-                if (fw == 1) return false;
-            }
-        }
-        catch { }
-        try
-        {
-            using (Microsoft.Win32.RegistryKey rk = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\SecureBoot\State"))
-            {
-                if (rk != null) return true;
-            }
-        }
-        catch { }
-        try
-        {
-            using (Microsoft.Win32.RegistryKey rk = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control"))
-            {
-                if (rk != null)
-                {
-                    object v = rk.GetValue("PEFirmwareType");
-                    if (v != null && Convert.ToInt32(v) == 2) return true;
-                }
-            }
-        }
-        catch { }
-        return false;
-    }
-
-    static void StartAdminProcess(string path, string args)
-    {
-        try
-        {
-            ProcessStartInfo psi = new ProcessStartInfo();
-            psi.FileName = path;
-            if (!String.IsNullOrEmpty(args)) psi.Arguments = args;
-            psi.UseShellExecute = true;
-            psi.Verb = "runas";
-            Process.Start(psi);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show("Das Programm konnte nicht gestartet werden:\r\n\r\n" + ex.Message, "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        }
-    }
-
-    public string FindToolPath(string subDir, string[] exeNames, string[] registryNames, string[] directPaths)
-    {
-        // 1. Portable im Minibench-Daten Ordner suchen
-        if (!String.IsNullOrEmpty(dataDir))
-        {
-            string tdir = Path.Combine(dataDir, "Tools\\" + subDir);
-            if (Directory.Exists(tdir))
-            {
-                if (exeNames != null)
-                {
-                    foreach (string en in exeNames)
-                    {
-                        string p = Path.Combine(tdir, en);
-                        if (File.Exists(p)) return p;
-                    }
-                }
-                try
-                {
-                    string[] files = Directory.GetFiles(tdir, "*.exe");
-                    if (files.Length > 0) return files[0];
-                }
-                catch { }
-            }
-        }
-
-        // 2. Bekannte Installationspfade direkt prüfen
-        if (directPaths != null)
-        {
-            foreach (string dp in directPaths)
-            {
-                try { if (File.Exists(dp)) return dp; } catch { }
-            }
-        }
-
-        // 3. Registry Uninstall-Schlüssel durchsuchen
-        if (registryNames != null && registryNames.Length > 0)
-        {
-            string[] ukeys = new string[] {
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
-                @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
-            };
-            Microsoft.Win32.RegistryKey[] roots = new Microsoft.Win32.RegistryKey[] {
-                Microsoft.Win32.Registry.LocalMachine,
-                Microsoft.Win32.Registry.CurrentUser
-            };
-            foreach (Microsoft.Win32.RegistryKey root in roots)
-            {
-                foreach (string uk in ukeys)
-                {
-                    try
-                    {
-                        using (Microsoft.Win32.RegistryKey key = root.OpenSubKey(uk))
-                        {
-                            if (key == null) continue;
-                            foreach (string subName in key.GetSubKeyNames())
-                            {
-                                try
-                                {
-                                    using (Microsoft.Win32.RegistryKey sub = key.OpenSubKey(subName))
-                                    {
-                                        if (sub == null) continue;
-                                        string disp = Convert.ToString(sub.GetValue("DisplayName"));
-                                        if (String.IsNullOrEmpty(disp)) continue;
-                                        foreach (string rn in registryNames)
-                                        {
-                                            if (disp.IndexOf(rn, StringComparison.OrdinalIgnoreCase) >= 0)
-                                            {
-                                                string icon = Convert.ToString(sub.GetValue("DisplayIcon"));
-                                                if (!String.IsNullOrEmpty(icon))
-                                                {
-                                                    string clean = icon.Trim('"', ' ');
-                                                    if (clean.IndexOf(',') > 0) clean = clean.Substring(0, clean.IndexOf(',')).Trim();
-                                                    if (File.Exists(clean) && clean.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) return clean;
-                                                }
-                                                string loc = Convert.ToString(sub.GetValue("InstallLocation"));
-                                                if (!String.IsNullOrEmpty(loc))
-                                                {
-                                                    string cleanLoc = loc.Trim('"', ' ');
-                                                    if (Directory.Exists(cleanLoc))
-                                                    {
-                                                        if (exeNames != null)
-                                                        {
-                                                            foreach (string en in exeNames)
-                                                            {
-                                                                string p = Path.Combine(cleanLoc, en);
-                                                                if (File.Exists(p)) return p;
-                                                            }
-                                                        }
-                                                        string[] ef = Directory.GetFiles(cleanLoc, "*.exe");
-                                                        if (ef.Length > 0) return ef[0];
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                catch { }
-                            }
-                        }
-                    }
-                    catch { }
-                }
-            }
-        }
-        return null;
-    }
 }
 // Programmsymbol und Startprotokoll der Oberfläche (ab v2.6, Roadmap v2.5)
 //
@@ -10072,10 +9632,6 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
-        new Eintrag("3.4", "06.10.2026", "Modul Tools (Portable Werkzeuge & System-Shortcuts), Leos Empfehlung & interaktiver Hauptbericht",
-            "Neues Modul Tools: Eigene Navigationsseite mit portablen Werkzeugen (Revo Uninstaller, MiniTool Partition Wizard, WizTree) inklusive automatischer Erkennung und Administrator-Start sowie System-Shortcuts (Ins BIOS/UEFI neu starten, Datenträgerverwaltung, Geräte-Manager, Zuverlässigkeitsverlauf). " +
-            "Erweiterung 'Leos Empfehlung': Neue Optimierung für Windows 11 zum sofortigen Beenden von Tasks per Rechtsklick auf die Taskleiste (TaskbarEndTask) sowie Desktop-Kontextmenü-Shortcut für UEFI-Neustarts. " +
-            "Interaktiver Diagnosebericht & Designangleichung: Hauptbericht (Diagnosebericht.html) mit dynamischer Abschnitt-Navigation, Live-Suche und Stufen-Filtern für Befunde, schwebenden Tooltips auf Sensor-Messpunkten und einheitlicher kontraststarker Farbwelt auf Basis von Stil.ps1."),
         new Eintrag("3.32", "06.10.2026", "Dark-Mode-Feinschliff (Scrollbars, ComboBox, Header & Kontraste) und Konsolidierung des Systemvergleichs",
             "Dark-Mode-Feinschliff: Native dunkle Win32-Scrollbars für Inhalts- und Navigationsbereiche über SetPreferredAppMode (ForceDark) und SetWindowTheme (DarkMode_Explorer), neue DarkComboBox für nahtlos dunkle Dropdown-Menüs, einheitlich abgedunkelte Tabellenköpfe (Owner-Draw SysHeader32) und kontrastreiche Textdarstellung für deaktivierte Steuerelemente ohne Windows-GDI-Schattendruck. " +
             "Konsolidierung des Systemvergleichs: Das interaktive Multi-System-Dashboard deckt sämtliche Hardware-Gegenüberstellungen, Benchmark-Matrizen und Befundvergleiche ab; die redundante statische Vergleichsfunktion wurde zugunsten eines einheitlichen Workflows abgelöst und die Vergleichsdatenbank aktualisiert."),
@@ -11017,7 +10573,7 @@ function New-LineSvg($Points, [string]$Unit) {
     for ($i = 0; $i -lt $pts.Count; $i += $stepPts) {
         $p = $pts[$i]
         $tl = '{0}:{1:00} min  ·  {2:N0} {3}' -f [int][math]::Floor($p.T / 60), [int]($p.T % 60), $p.V, $Unit
-        [void]$sb.Append([string]::Format($inv, '<circle class="hit" cx="{0:0.#}" cy="{1:0.#}" r="6" data-tip="{2}"><title>{2}</title></circle>', (& $fx $p.T), (& $fy $p.V), (ConvertTo-HtmlText $tl)))
+        [void]$sb.Append([string]::Format($inv, '<circle class="hit" cx="{0:0.#}" cy="{1:0.#}" r="6"><title>{2}</title></circle>', (& $fx $p.T), (& $fy $p.V), $tl))
     }
     [void]$sb.Append('</svg>')
     return $sb.ToString()
@@ -11084,7 +10640,7 @@ function New-MultiLineSvg {
         for ($i = 0; $i -lt $s.Points.Count; $i += $stepPts) {
             $p = $s.Points[$i]
             $tl = '{0}:{1:00} min  ·  {2}: {3} {4}' -f [int][math]::Floor($p.T / 60), [int]($p.T % 60), $s.Name, ([double]$p.V).ToString($Fmt, [Globalization.CultureInfo]::CurrentCulture), $Unit
-            [void]$sb.Append([string]::Format($inv, '<circle class="hit {3}" cx="{0:0.#}" cy="{1:0.#}" r="6" data-tip="{2}"><title>{2}</title></circle>', (& $fx $p.T), (& $fy ([double]$p.V)), (ConvertTo-HtmlText $tl), $s.Cls))
+            [void]$sb.Append([string]::Format($inv, '<circle class="hit {3}" cx="{0:0.#}" cy="{1:0.#}" r="6"><title>{2}</title></circle>', (& $fx $p.T), (& $fy ([double]$p.V)), (ConvertTo-HtmlText $tl), $s.Cls))
         }
     }
     [void]$sb.Append('</svg>')
@@ -11580,27 +11136,9 @@ function Start-DiagnoseParallel([string]$Phase) {
 function Get-ReportCss {
     return @'
 :root{--bg:#f5f6f8;--panel:#fff;--text:#1c2330;--muted:#5f6878;--line:#e2e5ea;--code:#f1f3f6;
---accent:#0067c0;--accent-hover:#005a9e;--accent-soft:#ebf3fb;--accent-border:#bdd7ee;
 --crit:#b42318;--crit-bg:#fdeceb;--warn:#9a5b00;--warn-bg:#fdf2d8;--info:#1f5bc4;--info-bg:#e7efff;--ok:#11703f;--ok-bg:#e2f5e9;--skip:#667085;--skip-bg:#eceef2}
 @media (prefers-color-scheme:dark){:root{--bg:#111419;--panel:#1a1f27;--text:#e5e8ee;--muted:#98a1b0;--line:#2b323d;--code:#141820;
---accent:#4cc2ff;--accent-hover:#60cdff;--accent-soft:#233446;--accent-border:#1e4e79;
 --crit:#ff8f86;--crit-bg:#3b1d1c;--warn:#f3c26e;--warn-bg:#3a2d12;--info:#94b6ff;--info-bg:#1b2944;--ok:#7cd6a0;--ok-bg:#14321f;--skip:#a3abb8;--skip-bg:#252b35}}
-.report-nav{position:sticky;top:0;z-index:100;background:var(--bg);padding:10px 0;margin-bottom:18px;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.tab-btn{font:inherit;font-size:13.5px;font-weight:600;padding:7px 16px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer;transition:all .15s ease}
-.tab-btn:hover{border-color:var(--muted);background:var(--code)}
-.tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 6px rgba(0,103,192,0.25)}
-.filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--code);border-radius:10px;border:1px solid var(--line)}
-.search-input{flex:1;min-width:220px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:inherit;font-size:13.5px;outline:none}
-.search-input:focus{border-color:var(--accent)}
-.filter-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.fchip{font:inherit;font-size:12px;font-weight:650;padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--muted);cursor:pointer;transition:all .12s ease;text-transform:uppercase}
-.fchip:hover{border-color:var(--text);color:var(--text)}
-.fchip.active{background:var(--text);color:var(--bg);border-color:var(--text)}
-.fchip.chip-crit.active{background:var(--crit);color:#fff;border-color:var(--crit)}
-.fchip.chip-warn.active{background:var(--warn);color:#fff;border-color:var(--warn)}
-.fchip.chip-info.active{background:var(--info);color:#fff;border-color:var(--info)}
-.filter-count{font-size:12.5px;color:var(--muted);font-weight:600;white-space:nowrap;margin-left:auto}
-.chart-tooltip{position:absolute;pointer-events:none;z-index:1000;padding:7px 12px;border-radius:6px;font-size:12.5px;font-weight:600;background:var(--panel);color:var(--text);border:1px solid var(--line);box-shadow:0 6px 18px rgba(0,0,0,0.18);transition:opacity .1s ease;white-space:nowrap}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif}
 main{max-width:1200px;margin:0 auto;padding:28px 20px 60px}
@@ -12679,7 +12217,7 @@ function Export-BenchDashboardData {
     }
 
     $aggData = [ordered]@{
-        Version        = $(if ($script:ScriptVersion) { $script:ScriptVersion } else { '3.4' })
+        Version        = '3.31'
         Generated      = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
         PreselectedIds = @($preselectedIds)
         Systems        = @($systems)
@@ -12709,71 +12247,71 @@ function Get-BenchDashboardHtmlTemplate {
   <title>Leos Minibench - Benchmark & Diagnose Dashboard</title>
   <style>
     :root {
-      --bg: #F5F6F8;
+      --bg: #F9F9FB;
       --card-bg: #FFFFFF;
-      --card-border: #E2E5EA;
+      --card-border: #E5E7EB;
       --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-      --text: #1C2330;
-      --text-muted: #5F6878;
-      --text-subtle: #8A92A0;
+      --text: #1C1D1F;
+      --text-muted: #5F6368;
+      --text-subtle: #9AA0A6;
       --accent: #0067C0;
       --accent-hover: #005A9E;
       --accent-soft: #EBF3FB;
       --accent-border: #BDD7EE;
-      --ok-bg: #E2F5E9;
-      --ok-text: #11703F;
-      --ok-border: #7CD6A0;
-      --warn-bg: #FDF2D8;
-      --warn-text: #9A5B00;
-      --warn-border: #F3C26E;
-      --crit-bg: #FDECEB;
-      --crit-text: #B42318;
-      --crit-border: #FF8F86;
-      --neutral-bg: #F1F3F6;
+      --ok-bg: #DFF6DD;
+      --ok-text: #107C41;
+      --ok-border: #B7E8B5;
+      --warn-bg: #FFF4CE;
+      --warn-text: #795E00;
+      --warn-border: #FCE100;
+      --crit-bg: #FDE7E9;
+      --crit-text: #D13438;
+      --crit-border: #F8B4B8;
+      --neutral-bg: #F3F4F6;
       --neutral-text: #4B5563;
-      --grid-line: #E2E5EA;
+      --grid-line: #F0F2F5;
       --canvas-bg: #FFFFFF;
       --tooltip-bg: rgba(255, 255, 255, 0.96);
       --tooltip-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-      --curve-temp: #B42318;
-      --curve-temp-fill: rgba(180, 35, 24, 0.08);
-      --curve-mhz: #0067C0;
-      --curve-mhz-fill: rgba(0, 103, 192, 0.06);
-      --curve-gpu: #C2410C;
+      --curve-temp: #E81123;
+      --curve-temp-fill: rgba(232, 17, 35, 0.08);
+      --curve-mhz: #0078D4;
+      --curve-mhz-fill: rgba(0, 120, 212, 0.06);
+      --curve-gpu: #F7630C;
     }
 
     [data-theme="dark"] {
-      --bg: #111419;
-      --card-bg: #1A1F27;
-      --card-border: #2B323D;
+      --bg: #18191A;
+      --card-bg: #242526;
+      --card-border: #3A3B3C;
       --card-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-      --text: #E5E8EE;
-      --text-muted: #98A1B0;
-      --text-subtle: #7A8494;
+      --text: #F5F6F7;
+      --text-muted: #9CA3AF;
+      --text-subtle: #707070;
       --accent: #4CC2FF;
       --accent-hover: #60CDFF;
       --accent-soft: #233446;
       --accent-border: #1E4E79;
-      --ok-bg: #14321F;
-      --ok-text: #7CD6A0;
-      --ok-border: #11703F;
-      --warn-bg: #3A2D12;
-      --warn-text: #F3C26E;
-      --warn-border: #9A5B00;
-      --crit-bg: #3B1D1C;
-      --crit-text: #FF8F86;
-      --crit-border: #B42318;
-      --neutral-bg: #252B35;
+      --ok-bg: #1B3828;
+      --ok-text: #6CCB5F;
+      --ok-border: #2D5E3E;
+      --warn-bg: #3F3316;
+      --warn-text: #FCE100;
+      --warn-border: #6B5620;
+      --crit-bg: #442726;
+      --crit-text: #FF99A4;
+      --crit-border: #733A38;
+      --neutral-bg: #2E2F30;
       --neutral-text: #D1D5DB;
-      --grid-line: #2B323D;
-      --canvas-bg: #1A1F27;
-      --tooltip-bg: rgba(26, 31, 39, 0.96);
+      --grid-line: #333333;
+      --canvas-bg: #202122;
+      --tooltip-bg: rgba(36, 37, 38, 0.96);
       --tooltip-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-      --curve-temp: #FF8F86;
-      --curve-temp-fill: rgba(255, 143, 134, 0.12);
+      --curve-temp: #FF5A5A;
+      --curve-temp-fill: rgba(255, 90, 90, 0.12);
       --curve-mhz: #4CC2FF;
       --curve-mhz-fill: rgba(76, 194, 255, 0.08);
-      --curve-gpu: #FB923C;
+      --curve-gpu: #FFA057;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -14524,7 +14062,7 @@ function New-LoadChartsHtml {
 # Akku: Kennzahlen und Kapazitätsverlauf (volle Ladekapazität über die Zeit, Designkapazität als Bezugslinie)
 function New-BatteryHtml {
     $sb = New-Object System.Text.StringBuilder
-    [void]$sb.Append('<section class="box" data-section="hardware"><h2>Akku</h2>')
+    [void]$sb.Append('<section class="box"><h2>Akku</h2>')
     foreach ($b in @($script:BatteryInfo)) {
         $wear = $b.VerschleissProzent
         $c = $(if ($null -eq $wear) { 'info' } elseif ($wear -ge 50) { 'warn' } elseif ($wear -ge 30) { 'info' } else { 'ok' })
@@ -14546,111 +14084,6 @@ function New-BatteryHtml {
     return $sb.ToString()
 }
 
-function Get-ReportJs {
-    return @'
-<script>
-function switchSection(sec, btn) {
-    var tabs = document.querySelectorAll('.tab-btn');
-    for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
-    if (btn) btn.classList.add('active');
-    var sections = document.querySelectorAll('main > section');
-    for (var i = 0; i < sections.length; i++) {
-        var s = sections[i];
-        var ds = s.getAttribute('data-section');
-        if (!ds || sec === 'all' || ds === sec) {
-            s.style.display = '';
-        } else {
-            s.style.display = 'none';
-        }
-    }
-}
-var currentLevel = 'all';
-function setLevelFilter(lvl, btn) {
-    currentLevel = lvl;
-    var chips = document.querySelectorAll('.fchip');
-    for (var i = 0; i < chips.length; i++) chips[i].classList.remove('active');
-    if (btn) btn.classList.add('active');
-    filterBefunde();
-}
-function filterBefunde() {
-    var input = document.getElementById('befundSearch');
-    var q = input ? input.value.toLowerCase().trim() : '';
-    var table = document.getElementById('befundeTable');
-    if (!table) return;
-    var rows = table.querySelectorAll('tbody tr');
-    var visible = 0;
-    for (var i = 0; i < rows.length; i++) {
-        var tr = rows[i];
-        var lvlCell = tr.querySelector('td[data-level]');
-        var lvl = lvlCell ? lvlCell.getAttribute('data-level') : '';
-        var text = tr.textContent.toLowerCase();
-        var matchLvl = (currentLevel === 'all' || lvl === currentLevel);
-        var matchQuery = (!q || text.indexOf(q) !== -1);
-        if (matchLvl && matchQuery) {
-            tr.style.display = '';
-            visible++;
-        } else {
-            tr.style.display = 'none';
-        }
-    }
-    var countEl = document.getElementById('befundCount');
-    if (countEl) {
-        countEl.textContent = visible + ' von ' + rows.length + ' Befunden';
-    }
-}
-function initBefundCounts() {
-    var table = document.getElementById('befundeTable');
-    if (!table) return;
-    var rows = table.querySelectorAll('tbody tr');
-    var total = rows.length;
-    var crit = 0, warn = 0, info = 0;
-    for (var i = 0; i < rows.length; i++) {
-        var lvlCell = rows[i].querySelector('td[data-level]');
-        var lvl = lvlCell ? lvlCell.getAttribute('data-level') : '';
-        if (lvl === 'KRITISCH') crit++;
-        else if (lvl === 'WARNUNG') warn++;
-        else if (lvl === 'INFO') info++;
-    }
-    var elAll = document.getElementById('cntAll'); if (elAll) elAll.textContent = total;
-    var elCrit = document.getElementById('cntCrit'); if (elCrit) elCrit.textContent = crit;
-    var elWarn = document.getElementById('cntWarn'); if (elWarn) elWarn.textContent = warn;
-    var elInfo = document.getElementById('cntInfo'); if (elInfo) elInfo.textContent = info;
-    var countEl = document.getElementById('befundCount'); if (countEl) countEl.textContent = total + ' Befunde';
-}
-(function() {
-    var tip = document.createElement('div');
-    tip.className = 'chart-tooltip';
-    tip.style.opacity = '0';
-    document.body.appendChild(tip);
-    document.addEventListener('mouseover', function(e) {
-        var hit = e.target.closest('.hit');
-        if (hit && hit.getAttribute('data-tip')) {
-            tip.textContent = hit.getAttribute('data-tip');
-            tip.style.opacity = '1';
-        }
-    });
-    document.addEventListener('mousemove', function(e) {
-        if (tip.style.opacity === '1') {
-            tip.style.left = (e.pageX + 12) + 'px';
-            tip.style.top = (e.pageY - 28) + 'px';
-        }
-    });
-    document.addEventListener('mouseout', function(e) {
-        var hit = e.target.closest('.hit');
-        if (hit) {
-            tip.style.opacity = '0';
-        }
-    });
-})();
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initBefundCounts);
-} else {
-    initBefundCounts();
-}
-</script>
-'@
-}
-
 function New-HtmlReport {
     param([string]$Path, $Sorted, [int]$NK, [int]$NW, [int]$NI, [datetime]$Start, [datetime]$End)
     $cls = @{ KRITISCH = 'crit'; WARNUNG = 'warn'; INFO = 'info'; OK = 'ok'; FEHLER = 'crit'; 'ÜBERSPRUNGEN' = 'skip'; REPARIERT = 'ok'; NEUSTART = 'info' }
@@ -14663,7 +14096,6 @@ function New-HtmlReport {
     [void]$sb.Append(('<title>Leos Minibench {0}</title><style>{1}</style></head><body><main>' -f (ConvertTo-HtmlText $env:COMPUTERNAME), $css))
     [void]$sb.Append(('<header><div><h1>Leos Minibench <span>{0}</span></h1><p class="meta">{1:dd.MM.yyyy HH:mm} bis {2:HH:mm} Uhr &middot; Dauer {3:hh\:mm\:ss} &middot; Modus {4} &middot; Risikostufe {8} &middot; Version {5}</p></div><div class="verdict {6}">{7}</div></header>' -f `
         (ConvertTo-HtmlText $env:COMPUTERNAME), $Start, $End, ($End - $Start), (ConvertTo-HtmlText $modus), $ScriptVersion, $vc, $vt, (Get-RiskLabel (Get-RunRisk))))
-    [void]$sb.Append('<nav class="report-nav"><button type="button" class="tab-btn active" onclick="switchSection(''all'', this)">Alle Abschnitte</button><button type="button" class="tab-btn" onclick="switchSection(''system'', this)">Systemübersicht</button><button type="button" class="tab-btn" onclick="switchSection(''benchmark'', this)">Benchmark</button><button type="button" class="tab-btn" onclick="switchSection(''befunde'', this)">Befunde</button><button type="button" class="tab-btn" onclick="switchSection(''hardware'', this)">Hardware</button><button type="button" class="tab-btn" onclick="switchSection(''sensoren'', this)">Sensoren</button></nav>')
     $stCard = ''
     if ($script:Stability) { $stCard = ('<div class="card st {0}"><b>{1}</b><span>Zuverlässigkeit von 10 ({2})</span></div>' -f $script:Stability.Klasse, ('{0:N1}' -f $script:Stability.Index), (ConvertTo-HtmlText $script:Stability.Stufe)) }
     $benchCard = ''
@@ -14671,28 +14103,27 @@ function New-HtmlReport {
     if ($null -ne $overall -and [double]$overall -gt 0) {
         $benchCard = ('<div class="card bench"><b>{0} %</b><span>Gesamtleistung (Referenz)</span></div>' -f [math]::Round([double]$overall))
     }
-    [void]$sb.Append(('<section class="cards" data-section="system"><div class="card crit"><b>{0}</b><span>kritisch</span></div><div class="card warn"><b>{1}</b><span>Warnungen</span></div><div class="card info"><b>{2}</b><span>Hinweise</span></div>{3}{4}</section>' -f $NK, $NW, $NI, $stCard, $benchCard))
-    if ($script:Stability -and $script:Stability.Erklaerung) { [void]$sb.Append(('<section class="box stab {0}" data-section="system"><h2>Zuverlässigkeit {1:N1} von 10</h2><p>{2}</p></section>' -f $script:Stability.Klasse, $script:Stability.Index, (ConvertTo-HtmlText $script:Stability.Erklaerung))) }
+    [void]$sb.Append(('<section class="cards"><div class="card crit"><b>{0}</b><span>kritisch</span></div><div class="card warn"><b>{1}</b><span>Warnungen</span></div><div class="card info"><b>{2}</b><span>Hinweise</span></div>{3}{4}</section>' -f $NK, $NW, $NI, $stCard, $benchCard))
+    if ($script:Stability -and $script:Stability.Erklaerung) { [void]$sb.Append(('<section class="box stab {0}"><h2>Zuverlässigkeit {1:N1} von 10</h2><p>{2}</p></section>' -f $script:Stability.Klasse, $script:Stability.Index, (ConvertTo-HtmlText $script:Stability.Erklaerung))) }
 
     if ($script:Facts.Count) {
-        [void]$sb.Append('<section class="box" data-section="hardware"><h2>System</h2><dl>')
+        [void]$sb.Append('<section class="box"><h2>System</h2><dl>')
         foreach ($k in $script:Facts.Keys) { [void]$sb.Append(('<dt>{0}</dt><dd>{1}</dd>' -f (ConvertTo-HtmlText $k), ((ConvertTo-HtmlText ([string]$script:Facts[$k])) -replace "`r?`n", '<br>'))) }
         [void]$sb.Append('</dl></section>')
     }
 
     if (@($script:BatteryInfo).Count) { [void]$sb.Append((New-BatteryHtml)) }
 
-    [void]$sb.Append('<section class="box" data-section="befunde"><h2>Befunde</h2>')
+    [void]$sb.Append('<section class="box"><h2>Befunde</h2>')
     if ($Sorted.Count) {
-        [void]$sb.Append('<div class="filter-bar"><input type="text" id="befundSearch" class="search-input" placeholder="Befunde durchsuchen (Stufe, Bereich, Text)..." oninput="filterBefunde()"><div class="filter-chips"><button type="button" class="fchip active" data-level="all" onclick="setLevelFilter(''all'', this)">Alle (<span id="cntAll">0</span>)</button><button type="button" class="fchip chip-crit" data-level="KRITISCH" onclick="setLevelFilter(''KRITISCH'', this)">Kritisch (<span id="cntCrit">0</span>)</button><button type="button" class="fchip chip-warn" data-level="WARNUNG" onclick="setLevelFilter(''WARNUNG'', this)">Warnung (<span id="cntWarn">0</span>)</button><button type="button" class="fchip chip-info" data-level="INFO" onclick="setLevelFilter(''INFO'', this)">Hinweis (<span id="cntInfo">0</span>)</button></div><span id="befundCount" class="filter-count"></span></div>')
-        [void]$sb.Append('<table id="befundeTable"><thead><tr><th>Stufe</th><th>Bereich</th><th>Befund</th></tr></thead><tbody>')
-        foreach ($f in $Sorted) { [void]$sb.Append(('<tr><td data-level="{0}"><span class="badge {1}">{0}</span></td><td>{2}</td><td>{3}</td></tr>' -f $f.Stufe, $cls[$f.Stufe], (ConvertTo-HtmlText $f.Bereich), (ConvertTo-HtmlText $f.Befund))) }
+        [void]$sb.Append('<table><thead><tr><th>Stufe</th><th>Bereich</th><th>Befund</th></tr></thead><tbody>')
+        foreach ($f in $Sorted) { [void]$sb.Append(('<tr><td><span class="badge {0}">{1}</span></td><td>{2}</td><td>{3}</td></tr>' -f $cls[$f.Stufe], $f.Stufe, (ConvertTo-HtmlText $f.Bereich), (ConvertTo-HtmlText $f.Befund))) }
         [void]$sb.Append('</tbody></table>')
     } else { [void]$sb.Append('<p class="empty">Keine Auffälligkeiten gefunden.</p>') }
     [void]$sb.Append('</section>')
 
     if ($script:TestResults.Count) {
-        [void]$sb.Append('<section class="box" data-section="befunde"><h2>Tests</h2><table><thead><tr><th>Test</th><th>Ergebnis</th><th>Details</th></tr></thead><tbody>')
+        [void]$sb.Append('<section class="box"><h2>Tests</h2><table><thead><tr><th>Test</th><th>Ergebnis</th><th>Details</th></tr></thead><tbody>')
         foreach ($t in $script:TestResults) {
             $c = $cls[[string]$t.Ergebnis]; if (-not $c) { $c = 'info' }
             [void]$sb.Append(('<tr><td>{0}</td><td><span class="badge {1}">{2}</span></td><td>{3}</td></tr>' -f (ConvertTo-HtmlText $t.Test), $c, (ConvertTo-HtmlText $t.Ergebnis), (ConvertTo-HtmlText $t.Details)))
@@ -14701,7 +14132,7 @@ function New-HtmlReport {
     }
 
     if (@($script:Minidumps).Count) {
-        [void]$sb.Append('<section class="box" data-section="hardware"><h2>Absturzabbilder (Crash Dumps)</h2><div class="tw"><table><thead><tr><th>Zeitpunkt</th><th>Datei</th><th>Stoppcode / Fehler</th><th>Parameter</th><th>Empfehlung</th></tr></thead><tbody>')
+        [void]$sb.Append('<section class="box"><h2>Absturzabbilder (Crash Dumps)</h2><div class="tw"><table><thead><tr><th>Zeitpunkt</th><th>Datei</th><th>Stoppcode / Fehler</th><th>Parameter</th><th>Empfehlung</th></tr></thead><tbody>')
         foreach ($d in @($script:Minidumps)) {
             $params = @($d.Parameter1, $d.Parameter2, $d.Parameter3, $d.Parameter4 | Where-Object { $_ -and $_ -ne '0x0' }) -join ', '
             [void]$sb.Append(('<tr><td class="num">{0:dd.MM.yyyy HH:mm}</td><td><code>{1}</code></td><td><b>{2}</b><br><small class="muted">{3}</small></td><td class="num"><small>{4}</small></td><td>{5}</td></tr>' -f
@@ -14722,7 +14153,7 @@ function New-HtmlReport {
         $refDat = ''; try { if ($script:Ref.Datum) { $refDat = ' vom ' + [datetime]::ParseExact([string]$script:Ref.Datum, 'yyyy-MM-dd', $script:Inv).ToString('dd.MM.yyyy') } } catch { $refDat = ' vom ' + $script:Ref.Datum }
         $refNote = $(if ($script:RefSavedNow -and -not (Test-HasReference)) { ' Dieser Lauf wurde als Referenz gespeichert; ab dem nächsten Lauf ist dieser PC 100 %.' }
             elseif ($script:RefSavedNow) { ' Referenz 100 % = {0}{1}; dieser Lauf wurde als neue Referenz gespeichert und gilt ab dem nächsten Lauf.' -f $script:Ref.Name, $refDat } elseif (Test-HasReference) { ' Referenz 100 % = {0}{1}, Laufwerke im Vergleich zur gleichen Klasse.' -f $script:Ref.Name, $refDat } else { ' Keine Referenz festgelegt (Haken "Dieses System als Referenz festlegen" im Benchmark).' })
-        [void]$sb.Append('<section class="box" data-section="benchmark"><div class="bar"><h2>Leistung (Benchmark)</h2><button onclick="var d=this.closest(''section'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
+        [void]$sb.Append('<section class="box"><div class="bar"><h2>Leistung (Benchmark)</h2><button onclick="var d=this.closest(''section'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
         [void]$sb.Append((New-ProfileCards))
         [void]$sb.Append((New-BenchOverview))
         [void]$sb.Append(('<p class="note">Kacheln: Ergebnis je Bereich in Prozent der Referenz (Strich = 100 %).{0} Im Gesamtbild werden Prozessor und Grafik höher gewichtet; bei der Grafik zählt die gemessene FPS-Renderleistung dreifach gegenüber Durchsatzwerten. Index 100 in den Tabellen entspricht dem typischen Wert der Hardwareklasse. Vergleich bezieht sich auf frühere Läufe auf diesem PC, grün besser, orange mindestens 10 % schlechter.</p>' -f (ConvertTo-HtmlText $refNote)))
@@ -14776,7 +14207,7 @@ function New-HtmlReport {
     }
     if ($script:CmpRows.Count) {
         $cn = [string[]](@('Dieser PC') + @($script:CmpSystems | ForEach-Object { $_.Computer }))
-        [void]$sb.Append('<section class="box" data-section="benchmark"><h2>Vergleich mit bereits geprüften Systemen</h2><p class="note">')
+        [void]$sb.Append('<section class="box"><h2>Vergleich mit bereits geprüften Systemen</h2><p class="note">')
         for ($k = 0; $k -lt $cn.Count; $k++) { [void]$sb.Append(('<i class="sw c{0}"></i>{1}{2}&nbsp;&nbsp; ' -f $k, (ConvertTo-HtmlText $cn[$k]), $(if ($k) { ' (' + (ConvertTo-HtmlText $script:CmpSystems[$k - 1].Datum) + ')' } else { '' }))) }
         [void]$sb.Append('<br>Längerer Balken = besser. Prozent: Abstand des anderen Systems zu diesem PC, grün = das andere System ist besser. Platz: Rang dieses PCs unter allen Systemen der Datenbank.</p>')
         $lastG = ''
@@ -14789,7 +14220,7 @@ function New-HtmlReport {
     }
     # ab v2.7: Sensoren während des Benchmarks (Tabelle je Abschnitt und Kurven wie im Lasttest)
     if (@($script:BenchSensorRows).Count) {
-        [void]$sb.Append('<section class="box" data-section="sensoren"><h2>Sensoren während des Benchmarks</h2>')
+        [void]$sb.Append('<section class="box"><h2>Sensoren während des Benchmarks</h2>')
         [void]$sb.Append(('<p class="note">{0}. Messpunkte in den Wartepausen der Messungen, höchstens alle 2 Sekunden.</p>' -f (ConvertTo-HtmlText (Get-SensorSourceText))))
         $tab = @(Format-BenchSensorTable $script:BenchSensorRows)
         if ($tab.Count) {
@@ -14812,7 +14243,7 @@ function New-HtmlReport {
         [void]$sb.Append('</section>')
     }
     if ($script:LoadSeries.Count -ge 2 -or $script:LoadParts.Count) {
-        [void]$sb.Append('<section class="box" data-section="sensoren"><h2>Lasttest</h2>')
+        [void]$sb.Append('<section class="box"><h2>Lasttest</h2>')
         [void]$sb.Append(('<p class="note">{0}</p>' -f (ConvertTo-HtmlText $script:LoadSummary)))
         if ($script:LoadParts.Count) {
             [void]$sb.Append('<table><thead><tr><th>Komponente</th><th>Dauer</th><th>Ergebnis</th><th>Details</th></tr></thead><tbody>')
@@ -14832,7 +14263,7 @@ function New-HtmlReport {
     $text = $script:Report.ToString()
     $ms = [regex]::Matches($text, '(?m)^={100}\r?\n  (.+?)\r?\n={100}\r?$')
     if ($ms.Count) {
-        [void]$sb.Append('<section class="box" data-section="system"><div class="bar"><h2>Details</h2><button onclick="var d=this.closest(''section'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
+        [void]$sb.Append('<section class="box"><div class="bar"><h2>Details</h2><button onclick="var d=this.closest(''section'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
         for ($i = 0; $i -lt $ms.Count; $i++) {
             $bs = $ms[$i].Index + $ms[$i].Length
             $be = $(if ($i + 1 -lt $ms.Count) { $ms[$i + 1].Index } else { $text.Length })
@@ -14843,11 +14274,10 @@ function New-HtmlReport {
     }
 
     if ($script:Timings.Count) {
-        [void]$sb.Append('<section class="box" data-section="system"><h2>Zeitbedarf</h2><table><thead><tr><th>Abschnitt</th><th>Dauer</th></tr></thead><tbody>')
+        [void]$sb.Append('<section class="box"><h2>Zeitbedarf</h2><table><thead><tr><th>Abschnitt</th><th>Dauer</th></tr></thead><tbody>')
         foreach ($t in $script:Timings) { [void]$sb.Append(('<tr><td>{0}</td><td>{1}</td></tr>' -f (ConvertTo-HtmlText $t.Abschnitt), $t.Dauer)) }
         [void]$sb.Append('</tbody></table></section>')
     }
-    [void]$sb.Append((Get-ReportJs))
     [void]$sb.Append(('<footer>Ausgabeordner: {0} &middot; Protokolle und Rohdaten liegen in Anhang.zip. Für eine erweiterte Auswertung die Datei {1} in ein KI-Modell hochladen: Sie enthält Auftrag, Bericht und Rohdaten.{2}</footer></main></body></html>' -f (ConvertTo-HtmlText $OutputDir), (ConvertTo-HtmlText $kiLeaf), $(if ($script:DbSaved) { ' &middot; Datenbankeintrag: ' + (ConvertTo-HtmlText $script:DbSaved) } else { '' })))
     [IO.File]::WriteAllText($Path, $sb.ToString(), (New-Object Text.UTF8Encoding($true)))
 }

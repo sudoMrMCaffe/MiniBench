@@ -1,4 +1,4 @@
-# Lasttest im HTML-Bericht: Drosselnachweis und Kurven für Temperatur, Takt, Leistung und Lüfter.
+﻿# Lasttest im HTML-Bericht: Drosselnachweis und Kurven für Temperatur, Takt, Leistung und Lüfter.
 # Ab v2.7 auch für den Benchmark: eigene Messreihe, Marken am Beginn jedes Abschnitts, ohne Drosselnachweis.
 function New-LoadChartsHtml {
     param($Series = $script:LoadSeries, $Throttle = $script:LoadThrottle, $Abort = $script:LoadAbort, $Limits = $script:LoadLimits, $Marken = $null, $GpuLoad = $script:GpuLoad)
@@ -60,7 +60,7 @@ function New-LoadChartsHtml {
 # Akku: Kennzahlen und Kapazitätsverlauf (volle Ladekapazität über die Zeit, Designkapazität als Bezugslinie)
 function New-BatteryHtml {
     $sb = New-Object System.Text.StringBuilder
-    [void]$sb.Append('<section class="box"><h2>Akku</h2>')
+    [void]$sb.Append('<section class="box" data-section="hardware"><h2>Akku</h2>')
     foreach ($b in @($script:BatteryInfo)) {
         $wear = $b.VerschleissProzent
         $c = $(if ($null -eq $wear) { 'info' } elseif ($wear -ge 50) { 'warn' } elseif ($wear -ge 30) { 'info' } else { 'ok' })
@@ -82,6 +82,111 @@ function New-BatteryHtml {
     return $sb.ToString()
 }
 
+function Get-ReportJs {
+    return @'
+<script>
+function switchSection(sec, btn) {
+    var tabs = document.querySelectorAll('.tab-btn');
+    for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+    if (btn) btn.classList.add('active');
+    var sections = document.querySelectorAll('main > section');
+    for (var i = 0; i < sections.length; i++) {
+        var s = sections[i];
+        var ds = s.getAttribute('data-section');
+        if (!ds || sec === 'all' || ds === sec) {
+            s.style.display = '';
+        } else {
+            s.style.display = 'none';
+        }
+    }
+}
+var currentLevel = 'all';
+function setLevelFilter(lvl, btn) {
+    currentLevel = lvl;
+    var chips = document.querySelectorAll('.fchip');
+    for (var i = 0; i < chips.length; i++) chips[i].classList.remove('active');
+    if (btn) btn.classList.add('active');
+    filterBefunde();
+}
+function filterBefunde() {
+    var input = document.getElementById('befundSearch');
+    var q = input ? input.value.toLowerCase().trim() : '';
+    var table = document.getElementById('befundeTable');
+    if (!table) return;
+    var rows = table.querySelectorAll('tbody tr');
+    var visible = 0;
+    for (var i = 0; i < rows.length; i++) {
+        var tr = rows[i];
+        var lvlCell = tr.querySelector('td[data-level]');
+        var lvl = lvlCell ? lvlCell.getAttribute('data-level') : '';
+        var text = tr.textContent.toLowerCase();
+        var matchLvl = (currentLevel === 'all' || lvl === currentLevel);
+        var matchQuery = (!q || text.indexOf(q) !== -1);
+        if (matchLvl && matchQuery) {
+            tr.style.display = '';
+            visible++;
+        } else {
+            tr.style.display = 'none';
+        }
+    }
+    var countEl = document.getElementById('befundCount');
+    if (countEl) {
+        countEl.textContent = visible + ' von ' + rows.length + ' Befunden';
+    }
+}
+function initBefundCounts() {
+    var table = document.getElementById('befundeTable');
+    if (!table) return;
+    var rows = table.querySelectorAll('tbody tr');
+    var total = rows.length;
+    var crit = 0, warn = 0, info = 0;
+    for (var i = 0; i < rows.length; i++) {
+        var lvlCell = rows[i].querySelector('td[data-level]');
+        var lvl = lvlCell ? lvlCell.getAttribute('data-level') : '';
+        if (lvl === 'KRITISCH') crit++;
+        else if (lvl === 'WARNUNG') warn++;
+        else if (lvl === 'INFO') info++;
+    }
+    var elAll = document.getElementById('cntAll'); if (elAll) elAll.textContent = total;
+    var elCrit = document.getElementById('cntCrit'); if (elCrit) elCrit.textContent = crit;
+    var elWarn = document.getElementById('cntWarn'); if (elWarn) elWarn.textContent = warn;
+    var elInfo = document.getElementById('cntInfo'); if (elInfo) elInfo.textContent = info;
+    var countEl = document.getElementById('befundCount'); if (countEl) countEl.textContent = total + ' Befunde';
+}
+(function() {
+    var tip = document.createElement('div');
+    tip.className = 'chart-tooltip';
+    tip.style.opacity = '0';
+    document.body.appendChild(tip);
+    document.addEventListener('mouseover', function(e) {
+        var hit = e.target.closest('.hit');
+        if (hit && hit.getAttribute('data-tip')) {
+            tip.textContent = hit.getAttribute('data-tip');
+            tip.style.opacity = '1';
+        }
+    });
+    document.addEventListener('mousemove', function(e) {
+        if (tip.style.opacity === '1') {
+            tip.style.left = (e.pageX + 12) + 'px';
+            tip.style.top = (e.pageY - 28) + 'px';
+        }
+    });
+    document.addEventListener('mouseout', function(e) {
+        var hit = e.target.closest('.hit');
+        if (hit) {
+            tip.style.opacity = '0';
+        }
+    });
+})();
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initBefundCounts);
+} else {
+    initBefundCounts();
+}
+</script>
+'@
+}
+
 function New-HtmlReport {
     param([string]$Path, $Sorted, [int]$NK, [int]$NW, [int]$NI, [datetime]$Start, [datetime]$End)
     $cls = @{ KRITISCH = 'crit'; WARNUNG = 'warn'; INFO = 'info'; OK = 'ok'; FEHLER = 'crit'; 'ÜBERSPRUNGEN' = 'skip'; REPARIERT = 'ok'; NEUSTART = 'info' }
@@ -94,6 +199,7 @@ function New-HtmlReport {
     [void]$sb.Append(('<title>Leos Minibench {0}</title><style>{1}</style></head><body><main>' -f (ConvertTo-HtmlText $env:COMPUTERNAME), $css))
     [void]$sb.Append(('<header><div><h1>Leos Minibench <span>{0}</span></h1><p class="meta">{1:dd.MM.yyyy HH:mm} bis {2:HH:mm} Uhr &middot; Dauer {3:hh\:mm\:ss} &middot; Modus {4} &middot; Risikostufe {8} &middot; Version {5}</p></div><div class="verdict {6}">{7}</div></header>' -f `
         (ConvertTo-HtmlText $env:COMPUTERNAME), $Start, $End, ($End - $Start), (ConvertTo-HtmlText $modus), $ScriptVersion, $vc, $vt, (Get-RiskLabel (Get-RunRisk))))
+    [void]$sb.Append('<nav class="report-nav"><button type="button" class="tab-btn active" onclick="switchSection(''all'', this)">Alle Abschnitte</button><button type="button" class="tab-btn" onclick="switchSection(''system'', this)">Systemübersicht</button><button type="button" class="tab-btn" onclick="switchSection(''benchmark'', this)">Benchmark</button><button type="button" class="tab-btn" onclick="switchSection(''befunde'', this)">Befunde</button><button type="button" class="tab-btn" onclick="switchSection(''hardware'', this)">Hardware</button><button type="button" class="tab-btn" onclick="switchSection(''sensoren'', this)">Sensoren</button></nav>')
     $stCard = ''
     if ($script:Stability) { $stCard = ('<div class="card st {0}"><b>{1}</b><span>Zuverlässigkeit von 10 ({2})</span></div>' -f $script:Stability.Klasse, ('{0:N1}' -f $script:Stability.Index), (ConvertTo-HtmlText $script:Stability.Stufe)) }
     $benchCard = ''
@@ -101,27 +207,28 @@ function New-HtmlReport {
     if ($null -ne $overall -and [double]$overall -gt 0) {
         $benchCard = ('<div class="card bench"><b>{0} %</b><span>Gesamtleistung (Referenz)</span></div>' -f [math]::Round([double]$overall))
     }
-    [void]$sb.Append(('<section class="cards"><div class="card crit"><b>{0}</b><span>kritisch</span></div><div class="card warn"><b>{1}</b><span>Warnungen</span></div><div class="card info"><b>{2}</b><span>Hinweise</span></div>{3}{4}</section>' -f $NK, $NW, $NI, $stCard, $benchCard))
-    if ($script:Stability -and $script:Stability.Erklaerung) { [void]$sb.Append(('<section class="box stab {0}"><h2>Zuverlässigkeit {1:N1} von 10</h2><p>{2}</p></section>' -f $script:Stability.Klasse, $script:Stability.Index, (ConvertTo-HtmlText $script:Stability.Erklaerung))) }
+    [void]$sb.Append(('<section class="cards" data-section="system"><div class="card crit"><b>{0}</b><span>kritisch</span></div><div class="card warn"><b>{1}</b><span>Warnungen</span></div><div class="card info"><b>{2}</b><span>Hinweise</span></div>{3}{4}</section>' -f $NK, $NW, $NI, $stCard, $benchCard))
+    if ($script:Stability -and $script:Stability.Erklaerung) { [void]$sb.Append(('<section class="box stab {0}" data-section="system"><h2>Zuverlässigkeit {1:N1} von 10</h2><p>{2}</p></section>' -f $script:Stability.Klasse, $script:Stability.Index, (ConvertTo-HtmlText $script:Stability.Erklaerung))) }
 
     if ($script:Facts.Count) {
-        [void]$sb.Append('<section class="box"><h2>System</h2><dl>')
+        [void]$sb.Append('<section class="box" data-section="hardware"><h2>System</h2><dl>')
         foreach ($k in $script:Facts.Keys) { [void]$sb.Append(('<dt>{0}</dt><dd>{1}</dd>' -f (ConvertTo-HtmlText $k), ((ConvertTo-HtmlText ([string]$script:Facts[$k])) -replace "`r?`n", '<br>'))) }
         [void]$sb.Append('</dl></section>')
     }
 
     if (@($script:BatteryInfo).Count) { [void]$sb.Append((New-BatteryHtml)) }
 
-    [void]$sb.Append('<section class="box"><h2>Befunde</h2>')
+    [void]$sb.Append('<section class="box" data-section="befunde"><h2>Befunde</h2>')
     if ($Sorted.Count) {
-        [void]$sb.Append('<table><thead><tr><th>Stufe</th><th>Bereich</th><th>Befund</th></tr></thead><tbody>')
-        foreach ($f in $Sorted) { [void]$sb.Append(('<tr><td><span class="badge {0}">{1}</span></td><td>{2}</td><td>{3}</td></tr>' -f $cls[$f.Stufe], $f.Stufe, (ConvertTo-HtmlText $f.Bereich), (ConvertTo-HtmlText $f.Befund))) }
+        [void]$sb.Append('<div class="filter-bar"><input type="text" id="befundSearch" class="search-input" placeholder="Befunde durchsuchen (Stufe, Bereich, Text)..." oninput="filterBefunde()"><div class="filter-chips"><button type="button" class="fchip active" data-level="all" onclick="setLevelFilter(''all'', this)">Alle (<span id="cntAll">0</span>)</button><button type="button" class="fchip chip-crit" data-level="KRITISCH" onclick="setLevelFilter(''KRITISCH'', this)">Kritisch (<span id="cntCrit">0</span>)</button><button type="button" class="fchip chip-warn" data-level="WARNUNG" onclick="setLevelFilter(''WARNUNG'', this)">Warnung (<span id="cntWarn">0</span>)</button><button type="button" class="fchip chip-info" data-level="INFO" onclick="setLevelFilter(''INFO'', this)">Hinweis (<span id="cntInfo">0</span>)</button></div><span id="befundCount" class="filter-count"></span></div>')
+        [void]$sb.Append('<table id="befundeTable"><thead><tr><th>Stufe</th><th>Bereich</th><th>Befund</th></tr></thead><tbody>')
+        foreach ($f in $Sorted) { [void]$sb.Append(('<tr><td data-level="{0}"><span class="badge {1}">{0}</span></td><td>{2}</td><td>{3}</td></tr>' -f $f.Stufe, $cls[$f.Stufe], (ConvertTo-HtmlText $f.Bereich), (ConvertTo-HtmlText $f.Befund))) }
         [void]$sb.Append('</tbody></table>')
     } else { [void]$sb.Append('<p class="empty">Keine Auffälligkeiten gefunden.</p>') }
     [void]$sb.Append('</section>')
 
     if ($script:TestResults.Count) {
-        [void]$sb.Append('<section class="box"><h2>Tests</h2><table><thead><tr><th>Test</th><th>Ergebnis</th><th>Details</th></tr></thead><tbody>')
+        [void]$sb.Append('<section class="box" data-section="befunde"><h2>Tests</h2><table><thead><tr><th>Test</th><th>Ergebnis</th><th>Details</th></tr></thead><tbody>')
         foreach ($t in $script:TestResults) {
             $c = $cls[[string]$t.Ergebnis]; if (-not $c) { $c = 'info' }
             [void]$sb.Append(('<tr><td>{0}</td><td><span class="badge {1}">{2}</span></td><td>{3}</td></tr>' -f (ConvertTo-HtmlText $t.Test), $c, (ConvertTo-HtmlText $t.Ergebnis), (ConvertTo-HtmlText $t.Details)))
@@ -130,7 +237,7 @@ function New-HtmlReport {
     }
 
     if (@($script:Minidumps).Count) {
-        [void]$sb.Append('<section class="box"><h2>Absturzabbilder (Crash Dumps)</h2><div class="tw"><table><thead><tr><th>Zeitpunkt</th><th>Datei</th><th>Stoppcode / Fehler</th><th>Parameter</th><th>Empfehlung</th></tr></thead><tbody>')
+        [void]$sb.Append('<section class="box" data-section="hardware"><h2>Absturzabbilder (Crash Dumps)</h2><div class="tw"><table><thead><tr><th>Zeitpunkt</th><th>Datei</th><th>Stoppcode / Fehler</th><th>Parameter</th><th>Empfehlung</th></tr></thead><tbody>')
         foreach ($d in @($script:Minidumps)) {
             $params = @($d.Parameter1, $d.Parameter2, $d.Parameter3, $d.Parameter4 | Where-Object { $_ -and $_ -ne '0x0' }) -join ', '
             [void]$sb.Append(('<tr><td class="num">{0:dd.MM.yyyy HH:mm}</td><td><code>{1}</code></td><td><b>{2}</b><br><small class="muted">{3}</small></td><td class="num"><small>{4}</small></td><td>{5}</td></tr>' -f
@@ -151,7 +258,7 @@ function New-HtmlReport {
         $refDat = ''; try { if ($script:Ref.Datum) { $refDat = ' vom ' + [datetime]::ParseExact([string]$script:Ref.Datum, 'yyyy-MM-dd', $script:Inv).ToString('dd.MM.yyyy') } } catch { $refDat = ' vom ' + $script:Ref.Datum }
         $refNote = $(if ($script:RefSavedNow -and -not (Test-HasReference)) { ' Dieser Lauf wurde als Referenz gespeichert; ab dem nächsten Lauf ist dieser PC 100 %.' }
             elseif ($script:RefSavedNow) { ' Referenz 100 % = {0}{1}; dieser Lauf wurde als neue Referenz gespeichert und gilt ab dem nächsten Lauf.' -f $script:Ref.Name, $refDat } elseif (Test-HasReference) { ' Referenz 100 % = {0}{1}, Laufwerke im Vergleich zur gleichen Klasse.' -f $script:Ref.Name, $refDat } else { ' Keine Referenz festgelegt (Haken "Dieses System als Referenz festlegen" im Benchmark).' })
-        [void]$sb.Append('<section class="box"><div class="bar"><h2>Leistung (Benchmark)</h2><button onclick="var d=this.closest(''section'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
+        [void]$sb.Append('<section class="box" data-section="benchmark"><div class="bar"><h2>Leistung (Benchmark)</h2><button onclick="var d=this.closest(''section'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
         [void]$sb.Append((New-ProfileCards))
         [void]$sb.Append((New-BenchOverview))
         [void]$sb.Append(('<p class="note">Kacheln: Ergebnis je Bereich in Prozent der Referenz (Strich = 100 %).{0} Im Gesamtbild werden Prozessor und Grafik höher gewichtet; bei der Grafik zählt die gemessene FPS-Renderleistung dreifach gegenüber Durchsatzwerten. Index 100 in den Tabellen entspricht dem typischen Wert der Hardwareklasse. Vergleich bezieht sich auf frühere Läufe auf diesem PC, grün besser, orange mindestens 10 % schlechter.</p>' -f (ConvertTo-HtmlText $refNote)))
@@ -205,7 +312,7 @@ function New-HtmlReport {
     }
     if ($script:CmpRows.Count) {
         $cn = [string[]](@('Dieser PC') + @($script:CmpSystems | ForEach-Object { $_.Computer }))
-        [void]$sb.Append('<section class="box"><h2>Vergleich mit bereits geprüften Systemen</h2><p class="note">')
+        [void]$sb.Append('<section class="box" data-section="benchmark"><h2>Vergleich mit bereits geprüften Systemen</h2><p class="note">')
         for ($k = 0; $k -lt $cn.Count; $k++) { [void]$sb.Append(('<i class="sw c{0}"></i>{1}{2}&nbsp;&nbsp; ' -f $k, (ConvertTo-HtmlText $cn[$k]), $(if ($k) { ' (' + (ConvertTo-HtmlText $script:CmpSystems[$k - 1].Datum) + ')' } else { '' }))) }
         [void]$sb.Append('<br>Längerer Balken = besser. Prozent: Abstand des anderen Systems zu diesem PC, grün = das andere System ist besser. Platz: Rang dieses PCs unter allen Systemen der Datenbank.</p>')
         $lastG = ''
@@ -218,7 +325,7 @@ function New-HtmlReport {
     }
     # ab v2.7: Sensoren während des Benchmarks (Tabelle je Abschnitt und Kurven wie im Lasttest)
     if (@($script:BenchSensorRows).Count) {
-        [void]$sb.Append('<section class="box"><h2>Sensoren während des Benchmarks</h2>')
+        [void]$sb.Append('<section class="box" data-section="sensoren"><h2>Sensoren während des Benchmarks</h2>')
         [void]$sb.Append(('<p class="note">{0}. Messpunkte in den Wartepausen der Messungen, höchstens alle 2 Sekunden.</p>' -f (ConvertTo-HtmlText (Get-SensorSourceText))))
         $tab = @(Format-BenchSensorTable $script:BenchSensorRows)
         if ($tab.Count) {
@@ -241,7 +348,7 @@ function New-HtmlReport {
         [void]$sb.Append('</section>')
     }
     if ($script:LoadSeries.Count -ge 2 -or $script:LoadParts.Count) {
-        [void]$sb.Append('<section class="box"><h2>Lasttest</h2>')
+        [void]$sb.Append('<section class="box" data-section="sensoren"><h2>Lasttest</h2>')
         [void]$sb.Append(('<p class="note">{0}</p>' -f (ConvertTo-HtmlText $script:LoadSummary)))
         if ($script:LoadParts.Count) {
             [void]$sb.Append('<table><thead><tr><th>Komponente</th><th>Dauer</th><th>Ergebnis</th><th>Details</th></tr></thead><tbody>')
@@ -261,7 +368,7 @@ function New-HtmlReport {
     $text = $script:Report.ToString()
     $ms = [regex]::Matches($text, '(?m)^={100}\r?\n  (.+?)\r?\n={100}\r?$')
     if ($ms.Count) {
-        [void]$sb.Append('<section class="box"><div class="bar"><h2>Details</h2><button onclick="var d=this.closest(''section'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
+        [void]$sb.Append('<section class="box" data-section="system"><div class="bar"><h2>Details</h2><button onclick="var d=this.closest(''section'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
         for ($i = 0; $i -lt $ms.Count; $i++) {
             $bs = $ms[$i].Index + $ms[$i].Length
             $be = $(if ($i + 1 -lt $ms.Count) { $ms[$i + 1].Index } else { $text.Length })
@@ -272,10 +379,11 @@ function New-HtmlReport {
     }
 
     if ($script:Timings.Count) {
-        [void]$sb.Append('<section class="box"><h2>Zeitbedarf</h2><table><thead><tr><th>Abschnitt</th><th>Dauer</th></tr></thead><tbody>')
+        [void]$sb.Append('<section class="box" data-section="system"><h2>Zeitbedarf</h2><table><thead><tr><th>Abschnitt</th><th>Dauer</th></tr></thead><tbody>')
         foreach ($t in $script:Timings) { [void]$sb.Append(('<tr><td>{0}</td><td>{1}</td></tr>' -f (ConvertTo-HtmlText $t.Abschnitt), $t.Dauer)) }
         [void]$sb.Append('</tbody></table></section>')
     }
+    [void]$sb.Append((Get-ReportJs))
     [void]$sb.Append(('<footer>Ausgabeordner: {0} &middot; Protokolle und Rohdaten liegen in Anhang.zip. Für eine erweiterte Auswertung die Datei {1} in ein KI-Modell hochladen: Sie enthält Auftrag, Bericht und Rohdaten.{2}</footer></main></body></html>' -f (ConvertTo-HtmlText $OutputDir), (ConvertTo-HtmlText $kiLeaf), $(if ($script:DbSaved) { ' &middot; Datenbankeintrag: ' + (ConvertTo-HtmlText $script:DbSaved) } else { '' })))
     [IO.File]::WriteAllText($Path, $sb.ToString(), (New-Object Text.UTF8Encoding($true)))
 }

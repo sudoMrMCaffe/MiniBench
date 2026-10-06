@@ -851,7 +851,7 @@ function New-OptHtml {
     $sb = New-Object System.Text.StringBuilder
     $n = @($log | Where-Object { $_.Ergebnis -in 'angewendet', 'teilweise' }).Count
     $chg = 0; foreach ($x in $log) { $chg += [int]$x.Aenderungen }
-    [void]$sb.Append('<section class="box"><div class="bar"><h2>Optimierung</h2><button onclick="var d=this.closest(''section'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
+    [void]$sb.Append('<section class="box" data-section="system"><div class="bar"><h2>Optimierung</h2><button onclick="var d=this.closest(''section'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
     [void]$sb.Append(('<p class="note">{0} von {1} Einträgen angewendet, {2} Einzeländerungen. Stufe Ändern: auf der Seite Änderungen einzeln rücknehmbar. Eingriff: zurück über den Wiederherstellungspunkt oder den genannten Weg.</p>' -f $n, $log.Count, $chg))
     $rows = @(Get-OptMetricRows $script:OptMetricsBefore $script:OptMetricsAfter)
     if ($rows.Count) {

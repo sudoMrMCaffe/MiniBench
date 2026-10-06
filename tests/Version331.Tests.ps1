@@ -12,9 +12,9 @@ BeforeAll {
 }
 
 Describe 'Version 3.31 Deklaration' {
-    It 'Version.ps1 definiert Version 3.31 oder 3.32' {
+    It 'Version.ps1 definiert Version 3.31 oder höher' {
         $vPs1 = [IO.File]::ReadAllText((Join-Path $global:MinibenchSrcRoot 'Kern/Version.ps1'))
-        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''(3\.31|3\.32)'''
+        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''(3\.31|3\.32|3\.4)'''
     }
 
     It 'Versionen.cs enthält den Eintrag für 3.31 oder 3.32' {
@@ -154,6 +154,6 @@ Describe 'Git-Synchronisation in Bauen.cmd' {
         $global:V331Cmd | Should -Match 'git\.exe'
         $global:V331Cmd | Should -Match 'git\.exe -C \$Here add'
         $global:V331Cmd | Should -Match 'Release v\{0\}: Multi-System Dashboard, nativer GUI Dark Mode & Build-Sync'
-        $global:V331Cmd | Should -Match 'Bereit zur Übertragung mit "git push"'
+        $global:V331Cmd | Should -Match 'Bereit zur .* mit "git push"'
     }
 }

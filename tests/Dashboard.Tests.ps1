@@ -14,7 +14,7 @@ Describe 'Dashboard: Datenintegration & Export-BenchDashboardData' {
     It 'Export-BenchDashboardData aggregiert Referenzen und Systemdaten' {
         $data = Export-BenchDashboardData -IncludeReferences
         $data | Should -Not -BeNullOrEmpty
-        $data.Version | Should -Match '^3\.(3|31)$'
+        $data.Version | Should -Match '^3\.(3|31|32|4)$'
         $data.References | Should -Not -BeNullOrEmpty
         $data.References.Count | Should -BeGreaterOrEqual 5
     }
@@ -82,10 +82,10 @@ Describe 'Dashboard: Datenintegration & Export-BenchDashboardData' {
         $tmpJson = Join-Path ([IO.Path]::GetTempPath()) ('mb_dash_' + [guid]::NewGuid().ToString('N') + '.json')
         try {
             $jsonStr = Export-BenchDashboardData -IncludeReferences -AsJson -OutputPath $tmpJson
-            $jsonStr | Should -Match '"Version":\s*"3\.(3|31)"'
+            $jsonStr | Should -Match '"Version":\s*"3\.(3|31|32|4)"'
             Test-Path -LiteralPath $tmpJson | Should -BeTrue
             $readBack = [IO.File]::ReadAllText($tmpJson, [Text.Encoding]::UTF8) | ConvertFrom-Json
-            $readBack.Version | Should -Match '^3\.(3|31)$'
+            $readBack.Version | Should -Match '^3\.(3|31|32|4)$'
         } finally {
             Remove-Item -LiteralPath $tmpJson -Force -ErrorAction SilentlyContinue
         }
@@ -130,8 +130,8 @@ Describe 'Dashboard: HTML-Generierung, Theming & 100 % Offline-Fähigkeit' {
             $content = [IO.File]::ReadAllText($tmpHtml, [Text.Encoding]::UTF8)
             $content | Should -Match 'data-theme="dark"'
             $content | Should -Match '--accent:\s*#0067C0'
-            $content | Should -Match '--bg:\s*#F9F9FB'
-            $content | Should -Match '--bg:\s*(#202020|#18191A)'
+            $content | Should -Match '--bg:\s*(#F9F9FB|#F5F6F8)'
+            $content | Should -Match '--bg:\s*(#202020|#18191A|#111419)'
             $content | Should -Match 'localStorage\.setItem\(''minibench_theme'''
             $content | Should -Match 'class="toggle-switch"'
         } finally {

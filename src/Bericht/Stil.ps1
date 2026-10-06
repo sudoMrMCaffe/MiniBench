@@ -1,9 +1,27 @@
 ﻿function Get-ReportCss {
     return @'
 :root{--bg:#f5f6f8;--panel:#fff;--text:#1c2330;--muted:#5f6878;--line:#e2e5ea;--code:#f1f3f6;
+--accent:#0067c0;--accent-hover:#005a9e;--accent-soft:#ebf3fb;--accent-border:#bdd7ee;
 --crit:#b42318;--crit-bg:#fdeceb;--warn:#9a5b00;--warn-bg:#fdf2d8;--info:#1f5bc4;--info-bg:#e7efff;--ok:#11703f;--ok-bg:#e2f5e9;--skip:#667085;--skip-bg:#eceef2}
 @media (prefers-color-scheme:dark){:root{--bg:#111419;--panel:#1a1f27;--text:#e5e8ee;--muted:#98a1b0;--line:#2b323d;--code:#141820;
+--accent:#4cc2ff;--accent-hover:#60cdff;--accent-soft:#233446;--accent-border:#1e4e79;
 --crit:#ff8f86;--crit-bg:#3b1d1c;--warn:#f3c26e;--warn-bg:#3a2d12;--info:#94b6ff;--info-bg:#1b2944;--ok:#7cd6a0;--ok-bg:#14321f;--skip:#a3abb8;--skip-bg:#252b35}}
+.report-nav{position:sticky;top:0;z-index:100;background:var(--bg);padding:10px 0;margin-bottom:18px;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tab-btn{font:inherit;font-size:13.5px;font-weight:600;padding:7px 16px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer;transition:all .15s ease}
+.tab-btn:hover{border-color:var(--muted);background:var(--code)}
+.tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 6px rgba(0,103,192,0.25)}
+.filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--code);border-radius:10px;border:1px solid var(--line)}
+.search-input{flex:1;min-width:220px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:inherit;font-size:13.5px;outline:none}
+.search-input:focus{border-color:var(--accent)}
+.filter-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.fchip{font:inherit;font-size:12px;font-weight:650;padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--muted);cursor:pointer;transition:all .12s ease;text-transform:uppercase}
+.fchip:hover{border-color:var(--text);color:var(--text)}
+.fchip.active{background:var(--text);color:var(--bg);border-color:var(--text)}
+.fchip.chip-crit.active{background:var(--crit);color:#fff;border-color:var(--crit)}
+.fchip.chip-warn.active{background:var(--warn);color:#fff;border-color:var(--warn)}
+.fchip.chip-info.active{background:var(--info);color:#fff;border-color:var(--info)}
+.filter-count{font-size:12.5px;color:var(--muted);font-weight:600;white-space:nowrap;margin-left:auto}
+.chart-tooltip{position:absolute;pointer-events:none;z-index:1000;padding:7px 12px;border-radius:6px;font-size:12.5px;font-weight:600;background:var(--panel);color:var(--text);border:1px solid var(--line);box-shadow:0 6px 18px rgba(0,0,0,0.18);transition:opacity .1s ease;white-space:nowrap}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif}
 main{max-width:1200px;margin:0 auto;padding:28px 20px 60px}

@@ -1,4 +1,4 @@
-// Grafische Oberflaeche: Steuerelemente
+﻿// Grafische Oberflaeche: Steuerelemente
 public static class UI
 {
     public static bool IsDark { get; set; }
@@ -142,6 +142,7 @@ public static class UI
     public const string IcoDb = "\uE81E";
     public const string IcoChg = "\uE81C";
     public const string IcoFlame = "\uECAD";
+    public const string IcoTools = "\uE74C";
 
     public static GraphicsPath Round(RectangleF r, float rad)
     {
@@ -433,7 +434,30 @@ public class FluentCard : Control
                 Controls.Add(actionButton);
                 LayoutControls();
             }
-            else if (toggle != null)
+            else if (toggle != null && secondaryButton == null)
+            {
+                toggle.Visible = true;
+                LayoutControls();
+            }
+            Invalidate();
+        }
+    }
+
+    Button secondaryButton;
+    public Button SecondaryButton
+    {
+        get { return secondaryButton; }
+        set
+        {
+            if (secondaryButton != null) Controls.Remove(secondaryButton);
+            secondaryButton = value;
+            if (secondaryButton != null)
+            {
+                if (toggle != null) toggle.Visible = false;
+                Controls.Add(secondaryButton);
+                LayoutControls();
+            }
+            else if (toggle != null && actionButton == null)
             {
                 toggle.Visible = true;
                 LayoutControls();
@@ -450,13 +474,20 @@ public class FluentCard : Control
 
     void LayoutControls()
     {
-        if (actionButton != null)
+        int curRight = Width - UI.S(16);
+        if (actionButton != null && actionButton.Visible)
         {
-            actionButton.Location = new Point(Width - actionButton.Width - UI.S(16), (Height - actionButton.Height) / 2);
+            actionButton.Location = new Point(curRight - actionButton.Width, (Height - actionButton.Height) / 2);
+            curRight -= actionButton.Width + UI.S(8);
         }
-        else if (toggle != null)
+        if (secondaryButton != null && secondaryButton.Visible)
         {
-            toggle.Location = new Point(Width - toggle.Width - UI.S(16), (Height - toggle.Height) / 2);
+            secondaryButton.Location = new Point(curRight - secondaryButton.Width, (Height - secondaryButton.Height) / 2);
+            curRight -= secondaryButton.Width + UI.S(8);
+        }
+        if (toggle != null && toggle.Visible)
+        {
+            toggle.Location = new Point(curRight - toggle.Width, (Height - toggle.Height) / 2);
         }
     }
 
@@ -474,7 +505,7 @@ public class FluentCard : Control
         if (e.Button == MouseButtons.Left)
         {
             Focus();
-            if (actionButton == null && toggle != null && toggle.Visible)
+            if (actionButton == null && secondaryButton == null && toggle != null && toggle.Visible)
             {
                 toggle.Checked = !toggle.Checked;
             }
@@ -484,7 +515,7 @@ public class FluentCard : Control
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        if (e.KeyCode == Keys.Space && actionButton == null && toggle != null && toggle.Visible)
+        if (e.KeyCode == Keys.Space && actionButton == null && secondaryButton == null && toggle != null && toggle.Visible)
         {
             toggle.Checked = !toggle.Checked;
             e.Handled = true;
@@ -520,7 +551,11 @@ public class FluentCard : Control
             curX += icoSize + UI.S(10);
         }
 
-        int rightBound = (actionButton != null && actionButton.Visible ? actionButton.Left : (toggle != null && toggle.Visible ? toggle.Left : Width)) - UI.S(12);
+        int rightBound = Width;
+        if (actionButton != null && actionButton.Visible) rightBound = Math.Min(rightBound, actionButton.Left);
+        if (secondaryButton != null && secondaryButton.Visible) rightBound = Math.Min(rightBound, secondaryButton.Left);
+        if (toggle != null && toggle.Visible) rightBound = Math.Min(rightBound, toggle.Left);
+        rightBound -= UI.S(12);
         int textW = Math.Max(UI.S(50), rightBound - curX);
 
         using (Font ft = new Font("Segoe UI Semibold", UI.SF(10f)))
