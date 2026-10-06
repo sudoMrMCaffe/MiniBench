@@ -2,7 +2,7 @@
 
 <img src="src/Oberflaeche/Symbol.png" alt="Minibench Symbol" width="96" />
 
-# Leos Minibench
+# Minibench
 
 **Portable Diagnose-, Benchmark-, Stresstest-, Reparatur- und Optimierungs-Suite für Windows 10 & 11.**
 
