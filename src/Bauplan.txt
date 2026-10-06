@@ -1,4 +1,4 @@
-# Reihenfolge der Quelltextteile für LeosMinibench.ps1 (Bauen.cmd fügt sie in dieser Reihenfolge zusammen).
+﻿# Reihenfolge der Quelltextteile für LeosMinibench.ps1 (Bauen.cmd fügt sie in dieser Reihenfolge zusammen).
 # Zeilen mit #>> EINBINDEN in einem Teil werden durch die genannte Datei ersetzt (Oberfläche und Testroutinen in C#).
 
 00_Kopf.ps1
@@ -23,6 +23,7 @@ Kern\Berichtshilfen.ps1
 Kern\Parallel.ps1
 Bericht\Stil.ps1
 Bericht\Bausteine_Systemvergleich.ps1
+Bericht\Bausteine_Dashboard.ps1
 Bericht\HtmlBericht.ps1
 Kern\Checkpoints_Absturzanalyse.ps1
 Kern\Testroutinen.ps1

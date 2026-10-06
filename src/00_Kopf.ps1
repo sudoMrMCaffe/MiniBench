@@ -98,6 +98,8 @@ param(
     [string]$ImportOrdner,
     [string]$Vergleich,
     [string]$Rueckgaengig,
+    [switch]$Dashboard,
+    [string]$DashboardExport,
     # Auswertung von Minibench-Daten\Laufzeit\Start.log ausgeben (Startzeit je Phase, Stick und Festplatte getrennt)
     [switch]$StartAuswertung,
     # Datenpflege (ab v2.7): Lasttests vor v2.67 (nicht vergleichbar), unvollständige und kurze Läufe ins Archiv

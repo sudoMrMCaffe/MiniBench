@@ -1,6 +1,23 @@
-﻿# Changelog - Leos Minibench
+# Changelog - Leos Minibench
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
+
+## v3.3 (06.10.2026)
+
+* **Interaktives Benchmark- & Diagnose-Dashboard:**
+  * Vollständig offline-fähiges HTML5-Dashboard (`Dashboard.html`) mit reinem Vanilla-JS und modularem CSS ohne externe CDN-Abhängigkeiten.
+  * Neue PowerShell-Integrationsfunktionen in `src/Bericht/Bausteine_Dashboard.ps1`: `Export-BenchDashboardData` (aggregiert Datenbankläufe, Systemmetadaten, Benchmark-Keys, Disk-Werte und Telemetrie), `Get-BenchDashboardHtmlTemplate`, `New-BenchDashboardHtml` und `Export-BenchDashboardHtml`.
+  * Integration in GUI und CLI: Schaltfläche *Dashboard* mit Tooltip auf der Vergleichsseite in `DiagGui_Vergleich.cs` sowie CLI-Parameter `-Dashboard` und `-DashboardExport <Pfad>`.
+* **Dual-Axis Telemetrie-Visualisierung (Pure Canvas):**
+  * Hochpräziser interaktiver 2-Achsen-Canvas-Chart für Takt (GHz/MHz) und CPU-Temperatur (°C) über den Lasttest-Zeitverlauf.
+  * Automatische Extraktion und Dekomprimierung von `Lasttest-Verlauf.csv` aus den Berichts-Anhängen (`Anhang.zip`).
+  * Visuelle Warnbalken und Markierungen bei thermischer oder leistungsbezogener Prozessordrosselung (Thermal / Power Throttling) sowie TjMax-Referenzlinie.
+  * Flüssige Hover-Fadenkreuze und Tooltip-Karten an der Cursor-Position mit exakten Sensor- und Taktratenwerten.
+* **Fluent 2 / Wintoys-UI & Systemvergleich:**
+  * Designkonforme Umsetzung im Fluent 2-Design: Karten mit dezentem 1px-Rahmen (`#E5E7EB`), sanften Rundungen (8–10 px) und Windows 11-Akzentblau (`#0067C0`).
+  * Responsiver Theme-Switch (Dark Mode `#202020` / Light Mode `#F9F9FB`) mit `localStorage`-Persistierung.
+  * Interaktive Systemauswahl: Beliebiges Zielsystem aus der lokalen Datenbank gegen alle 5 integrierten Referenzsysteme (Desktop High-End, Desktop Mittelklasse, Mini-PC, Notebook Standard, Workstation Mobil).
+  * Prominente Score-Kacheln für Gaming, Büro/Desktop und Workstation sowie Komponenten-Pillen mit farblicher Trendbewertung (Grün bei Zuwachs, Rot bei Abfall).
 
 ## v3.2 (06.10.2026)
 

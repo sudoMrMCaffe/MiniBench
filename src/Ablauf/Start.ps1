@@ -15,6 +15,21 @@ if ($Vergleich) {
     exit 0
 }
 
+# Interaktives Dashboard generieren oder öffnen (wird von der Oberfläche oder über die Befehlszeile aufgerufen)
+if ($Dashboard -or $DashboardExport) {
+    $df = ''
+    try {
+        $outPath = $(if ($DashboardExport) { $DashboardExport } else { '' })
+        $df = Export-BenchDashboardHtml -OutputPath $outPath
+    } catch {
+        Write-Host ('Dashboard-Erstellung fehlgeschlagen: {0}' -f $_.Exception.Message)
+    }
+    if (-not $df -or -not (Test-Path -LiteralPath $df)) { exit 1 }
+    Send-GuiEvent 'RESULT' $df
+    if (-not $EventMode -and -not $DashboardExport) { Invoke-Item -LiteralPath $df }
+    exit 0
+}
+
 # Änderungen aus dem Änderungsprotokoll zurücknehmen (Seite Änderungen der Oberfläche): -Rueckgaengig "Datei*Id;Datei*Id"
 if ($Rueckgaengig) {
     $u = Invoke-ChangeUndo $Rueckgaengig

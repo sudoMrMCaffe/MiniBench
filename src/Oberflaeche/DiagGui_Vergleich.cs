@@ -177,6 +177,9 @@ public partial class DiagGui
         FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(10), 0, 0);
         btnCompare = UI.Primary("Vergleichen"); btnCompare.Margin = new Padding(0); btnCompare.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnCompare.Font = new Font("Segoe UI Semibold", 9.75f);
         btnCompare.Click += delegate { CompareSelected(); };
+        Button btnDashboard = UI.Secondary("Dashboard"); btnDashboard.Margin = new Padding(UI.S(8), 0, 0, 0);
+        btnDashboard.Click += delegate { OpenDashboard(); };
+        Tip(btnDashboard, "Öffnet das interaktive Benchmark- und Diagnose-Dashboard mit Referenzvergleich und Lasttest-Telemetrie im Browser.");
         btnRename = UI.Secondary("Name ändern ..."); btnRename.Margin = new Padding(UI.S(8), 0, 0, 0);
         btnRename.Click += delegate { RenameSelectedEntry(); };
         btnRename.Enabled = false;
@@ -190,7 +193,7 @@ public partial class DiagGui
         Tip(imp, "Übernimmt Benchmark-Werte aus Ausgabeordnern früherer Läufe in die Datenbank (auch von PC-Diagnose).");
         Tip(rel, "Liest Datenbank und Referenz neu ein.");
         Tip(open, "Öffnet den Datenordner (Berichte, Datenbank, Tools, Archiv).");
-        b.Controls.Add(btnCompare); b.Controls.Add(btnRename); b.Controls.Add(imp); b.Controls.Add(btnDelete); b.Controls.Add(rel); b.Controls.Add(btnDbClean); b.Controls.Add(open); bottom.Controls.Add(b);
+        b.Controls.Add(btnCompare); b.Controls.Add(btnDashboard); b.Controls.Add(btnRename); b.Controls.Add(imp); b.Controls.Add(btnDelete); b.Controls.Add(rel); b.Controls.Add(btnDbClean); b.Controls.Add(open); bottom.Controls.Add(b);
         lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
         lblDbClean.Margin = new Padding(UI.S(4), UI.S(8), UI.S(4), 0); bottom.Controls.Add(lblDbClean);
         bottom.Resize += delegate { lblDbClean.MaximumSize = new Size(Math.Max(UI.S(200), bottom.ClientSize.Width - UI.S(10)), 0); };
@@ -293,6 +296,22 @@ public partial class DiagGui
         Cursor = Cursors.Default;
         if (html.Length > 0 && File.Exists(html)) OpenShell(html);
         else MessageBox.Show(this, "Der Vergleich konnte nicht erstellt werden.\r\n\r\n" + String.Join("\r\n", lines.ToArray()), "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+    }
+
+    void OpenDashboard()
+    {
+        Cursor = Cursors.WaitCursor;
+        List<string> lines = new List<string>(); string res = "";
+        try { res = RunHelper("-Dashboard", out lines); }
+        catch (Exception ex) { lines.Add("Dashboard-Aufruf fehlgeschlagen: " + ex.Message); }
+        Cursor = Cursors.Default;
+        if (res.Length > 0 && File.Exists(res)) OpenShell(res);
+        else
+        {
+            string dashPath = System.IO.Path.Combine(dataDir, "Berichte\\Dashboard.html");
+            if (File.Exists(dashPath)) OpenShell(dashPath);
+            else MessageBox.Show(this, "Das Dashboard konnte nicht geöffnet werden.\r\n\r\n" + String.Join("\r\n", lines.ToArray()), "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
     }
 
     void DeleteSelected()

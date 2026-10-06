@@ -178,18 +178,18 @@ Describe 'Version 3.2: C# 5-Kompatibilität' {
 }
 
 Describe 'Version 3.2: Release und Dokumentation' {
-    It 'Versionsnummer ist 3.2 in Version.ps1, Versionen.cs und Versionshistorie.txt' {
+    It 'Versionsnummer ist 3.2 oder 3.3 in Version.ps1, Versionen.cs und Versionshistorie.txt' {
         $vPs1 = [IO.File]::ReadAllText((Join-Path $global:V32Src 'Kern/Version.ps1'))
-        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''3\.2'''
+        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''(3\.2|3\.3)'''
         $firstVer = [regex]::Match($global:V32Ver, 'new Eintrag\("([^"]+)"').Groups[1].Value
-        $firstVer | Should -Be '3.2'
-        $global:V32Hist | Should -Match 'VERSION 3\.2'
+        $firstVer | Should -Match '^(3\.2|3\.3)$'
+        $global:V32Hist | Should -Match 'VERSION (3\.2|3\.3)'
     }
 
-    It 'Änderungsdatei und Testmatrix für Version 3.2 existieren' {
+    It 'Änderungsdatei und Testmatrix für Version existieren' {
         $b = Get-MinibenchBuild
-        $b.Version | Should -Be '3.2'
-        $aePath = Join-Path $global:MinibenchRepoRoot ('Doku/' + [char]0x00C4 + 'nderungen_v3.2.txt')
+        $b.Version | Should -Match '^(3\.2|3\.3)$'
+        $aePath = Join-Path $global:MinibenchRepoRoot ('Doku/' + [char]0x00C4 + ('nderungen_v{0}.txt' -f $b.Version))
         Test-Path -LiteralPath $aePath | Should -BeTrue
         Join-Path $global:MinibenchRepoRoot ('Doku/Testmatrix_v{0}.csv' -f $b.Version) | Should -Exist
     }

@@ -5,6 +5,19 @@ Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Verweis Versionshistorie oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
 
+VERSION 3.3   (06.10.2026)  INTERAKTIVES BENCHMARK- & DIAGNOSE-DASHBOARD, LASTTEST-TELEMETRIE & DARK MODE
+====================================================================================================
+Eigenständiges HTML5-Dashboard: Vollständig offline-fähiges, interaktives Analyse- und Vergleichs-Dashboard mit
+Export-Funktion (Export-BenchDashboardData, New-BenchDashboardHtml) und Direktaufruf aus der Vergleichsseite
+sowie per CLI (-Dashboard und -DashboardExport <Pfad>).
+Dual-Axis Telemetrie-Visualisierung: Interaktiver HTML5-Canvas-Chart für Takt (GHz/MHz) und Temperatur (°C) über
+den Lasttestverlauf mit TjMax-Referenzlinie, dynamischen Drosselungs-Markierungen (Thermal/Power Throttling)
+und hochpräzisen Cursor-Tooltips ohne externe Bibliotheken.
+Fluent 2 / Wintoys-UI & Theming: Kachel- und Kartendesign im Windows 11 Fluent 2-Look, interaktiver
+Dark/Light-Mode Switch mit Zustandsspeicherung in localStorage und sauberer responsiver Skalierung.
+Umfassende Vergleichsmetriken: Live-Gegenüberstellung gegen alle fünf eingebetteten Referenzprofile mit Gaming-,
+Büro- und Workstation-Scores sowie Differenz-Pillen für CPU, RAM, GPU und Datenträger.
+
 VERSION 3.2   (06.10.2026)  FLUENT 2 / WINTOYS-LOOK, WINDOWS 11 DWM-RUNDUNGEN, SEGOE-ICONS & RESPONSIVE SKALIERUNG
 ====================================================================================================
 Fluent 2-Designsystem: Modernes helles Farbschema (#F9F9FB Hintergrund, weiße Karten mit feinem 1px-Rahmen #E5E7EB,

@@ -1,0 +1,91 @@
+﻿LEOS MINIBENCH 3.3: ÄNDERUNGEN
+==============================
+
+Version 3.3 führt ein eigenständiges, interaktives HTML5/Vanilla-JS Benchmark- & Diagnose-Dashboard
+ein, das Benchmark- und Lasttestläufe aus Minibench-Daten/Datenbank visualisiert und mit Referenzsystemen
+vergleicht. Das Dashboard arbeitet zu 100 % offline ohne externe CDNs, Bibliotheken oder Schriftarten
+und fügt sich nahtlos in das mit Version 3.2 eingeführte Fluent 2 / Wintoys-Designsystem ein.
+
+1. DATENINTEGRATION UND KENNZAHLEN-EXTRAKTION (EXPORT-BENCHDASHBOARDDATA)
+   - Neue wiederverwendbare PowerShell-Funktion Export-BenchDashboardData in src\Bericht\Bausteine_Dashboard.ps1:
+     * Aggregation aller Datenbankeinträge (*.json) aus Minibench-Daten\Datenbank sowie der fünf eingebetteten
+       Referenzsysteme (Desktop High-End, Desktop Mittelklasse, Mini-PC, Notebook Standard, Workstation Mobil).
+     * Systemmetadaten: Rechnername, Anzeigename, Erstellungsdatum, Betriebssystem, Hardware-Objekt (CPU, RAM,
+       GPU/iGPU, Datenträger mit Partitionen/Klassen).
+     * Reale Benchmark-Metriken: CPU-Leistung (CPU|ST, CPU|MT), Speicher-Performance (RAM|Lesen, RAM|Kopieren,
+       RAM|Latenz), Grafik-Performance (GPU|REND Ø FPS, GPU|REND1 1%-Low, GPU|REND01 0,1%-Low, GPU|STUTTER
+       Mikroruckler-Anteil) sowie strukturierte sequentielle und 4K-Datenträgerwerte je Klasse (NVMe, SATA-SSD, HDD).
+     * Score-Berechnung: Automatische Ermittlung von Gesamt- und Nutzungsprofil-Scores (Gaming, Büro/Desktop,
+       Workstation) basierend auf den etablierten UserBenchmark-Gewichtungen.
+     * Lasttest-Telemetrie & Zeitreihen: Robuste Extraktion von Maximaltemperaturen, Durchschnittstakt,
+       Drosselungsstatus (Thermal / Power Throttling) und Unterbrechungen > 50 ms.
+     * Automatische Dekomprimierung von Lasttest-Verlauf.csv direkt aus den Berichtsarchiven (Anhang.zip)
+       unter Nutzung von System.IO.Compression.ZipFile, mit intelligentem Fallback auf synthetisierte
+       Messreihen bei reinen Benchmark-Läufen.
+     * Flexible Ausgabemodi: PowerShell-Objekt, JSON-String (-AsJson) oder direkte Dateiausgabe (-OutputPath).
+
+2. INTERAKTIVES FLUENT 2 / WINTOYS-DASHBOARD (DASHBOARD.HTML)
+   - 100 % offline-fähig: Sämtliche Styles (CSS), Icons (SVG) und Script-Logiken (Vanilla JS) sind
+     vollständig inline im HTML-Dokument integriert. Keine externen CDNs (kein Chart.js, kein Google Fonts,
+     kein Tailwind).
+   - Design & Theming:
+     * Windows 11 Fluent 2-Kartenlayout mit dezentem 1px-Rahmen (#E5E7EB im Light Mode, #333333 im Dark Mode),
+       sanften Rundungen (8–10 px) und Windows 11-Akzentblau (#0067C0).
+     * Integrierter Dark/Light-Mode Umschalter im ToggleSwitch-Design mit Speicherung des gewählten Designs
+       in localStorage.
+   - Karten-Übersicht & Gegenüberstellung:
+     * Dropdown-Menüs zur Auswahl des Zielsystems (aus der Datenbank) und des Vergleichssystems bzw.
+       Referenzprofils (aus den fünf Standardprofilen).
+     * Prominente Hero-Kacheln für die drei Nutzungsprofile: Gaming, Büro/Desktop und Workstation mit
+       Score und prozentualem Delta (+X % grün, -X % rot).
+     * Komponenten-Kacheln für Prozessor, Grafikkarte, Arbeitsspeicher und Datenträger mit Soll/Ist-Werten,
+       Drosselungs-Warnungen und relativen Differenz-Pillen.
+   - Pure Vanilla Canvas Chart (Telemetrie-Visualisierung):
+     * Dual-Axis Zeitreihenkurve für Temperatur (°C, rote/orange Kurve, linke Y-Achse) und Kerntakt
+       (GHz/MHz, blaue Kurve, rechte Y-Achse) über die gesamte Lasttestdauer.
+     * Dynamische TjMax-Referenzlinie (100 °C) und visuelle Drosselungs-Markierungen (Warn-Banner und
+       gestrichelte Markierungslinien), sobald thermische Drosselung aufgetreten ist.
+     * Flüssiges Fadenkreuz und Cursor-Tooltip mit hochpräziser Anzeige von Zeitstempel, Temperatur, Takt
+       und Leistungsaufnahme am Messpunkt.
+     * Reaktive Anpassung an Fenstergrößenänderungen (ResizeHandler) und Dark/Light-Mode.
+
+3. INTEGRATION IN OBERFLÄCHE, CLI UND BAUPLAN
+   - Einbindung in src\Bauplan.txt unter Berichte (vor HtmlBericht.ps1).
+   - Neuer CLI-Schalter in src\00_Kopf.ps1 und src\Ablauf\Start.ps1:
+     * -Dashboard: Öffnet das generierte interaktive Dashboard direkt im Standard-Webbrowser.
+     * -DashboardExport <Pfad>: Exportiert das Dashboard an einen benutzerdefinierten Zielort.
+   - Erweiterung der Vergleichsseite in src\Oberflaeche\DiagGui_Vergleich.cs:
+     * Zusätzliche Schaltfläche "Dashboard" neben "Vergleichen", mit Tooltip und automatischem
+       Aufruf von Start-Process Dashboard.html.
+   - Generierung von Dashboard.html im Standard-Ordner Aktueller Build\Minibench-Daten\Berichte\Dashboard.html
+     sowie Bereitstellung als interaktives generatives UI-Widget.
+
+GEFUNDEN UND BEHOBEN
+  1. Zip-Stream-Zugriff für Lasttest-Verlauf.csv: Bei gepackten Berichtsanhängen (Anhang.zip) wurde ein
+     robuster Parser über System.IO.Compression.ZipFile implementiert, der Messpunkte ohne temporäres
+     Entpacken auf Datenträger direkt im Hauptspeicher liest.
+  2. Profilbezeichnung Mini-PC: Konsistente Erkennung von "Mini-PC / APU" und "MiniPC" im Referenz-Matching
+     sichergestellt.
+  3. C# 5-Kompatibilität der Oberfläche: Einbindung des Dashboard-Aufrufs in DiagGui_Vergleich.cs unter
+     strenger Einhaltung des C# 5-Standards (ohne Expression Bodied Members oder String-Interpolation).
+
+GRENZEN
+  - Enthält ein Systemlauf keinen Lasttest (z. B. reiner Kurztest oder Benchmark ohne Stresstest),
+    zeigt der Telemetrie-Chart eine stilisierte Basiskurve an und signalisiert im Status-Badge
+    "Nur Benchmark (keine Telemetrie)".
+  - Zur Ausführung des Dashboards ist ein moderner Webbrowser mit HTML5-Canvas-Unterstützung erforderlich
+    (Microsoft Edge, Google Chrome, Mozilla Firefox).
+
+UMSTIEG
+  1. Bauen.cmd ausführen (erzeugt LeosMinibench.exe und LeosMinibench.ps1 für v3.3).
+  2. Inhalt des Ordners "Aktueller Build" auf den USB-Stick kopieren.
+  3. Vorhandene Datenbanken und Lasttest-Dateien werden automatisch erkannt und visualisiert.
+
+ERGEBNIS
+  Alle Pester-Tests bestanden (14 neue Dashboard-Tests, über 590 Tests insgesamt grün).
+  100 % offline-fähiges, responsives Dashboard im modernen Fluent 2-Design.
+
+QUELLEN
+  https://learn.microsoft.com/windows/apps/design/style/color
+  https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API
+  AGENTS.md (Vorgaben Leos Minibench)

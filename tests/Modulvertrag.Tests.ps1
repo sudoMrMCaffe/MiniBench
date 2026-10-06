@@ -16,7 +16,7 @@ BeforeAll {
     }
     function ConvertTo-SortedJson($o) { (ConvertTo-Sorted $o) | ConvertTo-Json -Depth 8 -Compress }
     # Allgemeine Parameter, die zu keinem Modul gehören
-    $general = @('Module', 'KiOhneAnonymisierung', 'DatenDir', 'OutputDir', 'ImportOrdner', 'Vergleich', 'Rueckgaengig', 'EventMode', 'WerkzeugeBehalten', 'GpuAufloesung', 'GpuAnzeige', 'GpuAuswahl', 'StartAuswertung', 'Datenpflege', 'ArchivDir')
+    $general = @('Module', 'KiOhneAnonymisierung', 'DatenDir', 'OutputDir', 'ImportOrdner', 'Vergleich', 'Rueckgaengig', 'EventMode', 'WerkzeugeBehalten', 'GpuAufloesung', 'GpuAnzeige', 'GpuAuswahl', 'StartAuswertung', 'Datenpflege', 'ArchivDir', 'Dashboard', 'DashboardExport')
 }
 
 Describe 'Verträge im Skript' {

@@ -11,6 +11,11 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.3", "06.10.2026", "Interaktives Benchmark- & Diagnose-Dashboard, Lasttest-Telemetrie-Visualisierung, Fluent 2-Design und Dark Mode",
+            "Eigenständiges HTML5-Dashboard: Vollständig offline-fähiges, interaktives Analyse- und Vergleichs-Dashboard mit Export-Funktion (Export-BenchDashboardData, New-BenchDashboardHtml) und Direktaufruf aus der Vergleichsseite sowie per CLI (-Dashboard). " +
+            "Dual-Axis Telemetrie-Visualisierung: Interaktiver HTML5-Canvas-Chart für Takt (GHz/MHz) und Temperatur (°C) über den Lasttestverlauf mit TjMax-Referenzlinie, dynamischen Drosselungs-Markierungen (Thermal/Power Throttling) und Cursor-Tooltips. " +
+            "Fluent 2 / Wintoys-UI & Theming: Kachel- und Kartendesign im Windows 11 Fluent 2-Look, interaktiver Dark/Light-Mode Switch mit Zustandsspeicherung in localStorage. " +
+            "Umfassende Vergleichsmetriken: Live-Gegenüberstellung gegen alle fünf eingebetteten Referenzprofile mit Gaming-, Büro- und Workstation-Scores sowie Differenz-Pillen für CPU, RAM, GPU und Datenträger."),
         new Eintrag("3.2", "06.10.2026", "Fluent 2 / Wintoys-Look, Windows 11 DWM-Rundungen, Segoe-Icons und responsive Notebook-Skalierung",
             "Fluent 2-Designsystem: Modernes helles Farbschema (#F9F9FB Hintergrund, weiße Karten mit feinem 1px-Rahmen #E5E7EB, Windows 11-Akzentblau #0067C0 und pastellfarbene Status-Badges). " +
             "Moderne Steuerelemente: Eigener ToggleSwitch im Windows 11-Pillendesign mit animiertem Schieber und barrierefreiem Fokus; FluentCard-Komponente für modulare Optionen mit Segoe-Icons und integrierten Schaltern. " +

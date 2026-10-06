@@ -1,7 +1,7 @@
 ﻿#region ---------- Administratorrechte ----------
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-# Vergleich, Import und Datenpflege arbeiten nur im Datenordner und brauchen keine Administratorrechte
-if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenpflege) {
+# Vergleich, Import, Dashboard und Datenpflege arbeiten nur im Datenordner und brauchen keine Administratorrechte
+if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenpflege -and -not $Dashboard -and -not $DashboardExport) {
     if (-not $PSCommandPath) { return }
     # Netzlaufwerke sind im Administratorkontext nicht verbunden: Skript und Datenordner als UNC-Pfad weitergeben
     function ConvertTo-Unc([string]$Path) {
