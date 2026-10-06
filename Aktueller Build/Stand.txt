@@ -1,12 +1,12 @@
-﻿LEOS MINIBENCH: AKTUELLER BUILD
+LEOS MINIBENCH: AKTUELLER BUILD
 ===============================
 Version   : 3.3 (Dateiversion 3.30.0.0)
-Gebaut    : 06.10.2026 15:49 auf WIN11VM
-Tests     : nicht ausgeführt (Bauen.cmd ohnetests)
+Gebaut    : 06.10.2026 16:03 auf WIN11VM
+Tests     : 612 bestanden, 0 fehlgeschlagen
 Quelltext : 42 Teile aus src, 22,877 Zeilen
 
 Dateien (SHA-256 zur Kontrolle auf dem Stick: Get-FileHash <Datei>)
-  LeosMinibench.exe         1,638 KB  0b10d1b4c1cdd8f93bfcd62fb05490969c3ae4367e0e0f063ebcbb164a278909
+  LeosMinibench.exe         1,638 KB  0530f82cb135d071837c22ab3255a9010901f52f7d92bacb311e3bc97c9208c2
   LeosMinibench.ps1         1,565 KB  d579cce6d82d0c630df80edf4cfe8689072fc7d3d0c8070c6556180b44f8c50d
   LeosMinibench.cmd             1 KB  2238c6583cfb33fb714e6e74a5d251d0c451f9ec950230a04e2046b48d29529a
 

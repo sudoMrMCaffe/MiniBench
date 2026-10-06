@@ -45,6 +45,7 @@
 * **Autarke Single-File-EXE:** Baut per `csc.exe` in eine eigenständige `LeosMinibench.exe` mit integriertem Startfenster und UAC-Rechteerhöhung (Fallback über `.cmd` oder `.ps1`).
 * **Sicher & Reversibel:** Jede Systemänderung wird protokolliert und kann selektiv zurückgenommen werden. Automatischer Systemwiederherstellungspunkt vor tiefen Eingriffen.
 * **KI-Diagnosedatei:** Erzeugt neben HTML-/TXT-Berichten eine anonymisierte `KI-Datei.txt` mit System-Prompt für Ursachen- und Reparaturanalysen in LLMs (Gemini, Claude, ChatGPT).
+* **Interaktives HTML5-Dashboard:** 100 % offline-fähiges Fluent 2-Dashboard zur visuellen Gegenüberstellung von Benchmark-Ergebnissen gegen Referenzprofile mit nativer 2-Achsen Canvas-Telemetriekurve (Temperatur & Taktung) und Drosselungsanzeige.
 
 ---
 
@@ -55,7 +56,7 @@
 * **Lasttest:** Isolierte CPU- und RAM-Last ohne GC-Einfluss, GPU-Rendertest, thermischer Drosselnachweis und konfigurierbare Abbruchschwellen (°C).
 * **Wartung & Reparatur:** SFC, DISM, Netzwerk-Reset, Windows Update Reset, Bereinigung von Caches/Komponentenspeicher und DDU-Treiberbereinigung.
 * **Optimierung:** 163 native Windows-Einstellungen in 14 Kategorien, inklusive Preset *Leos Empfehlung* und Einzel-Rollback.
-* **Sensoren Live & Vergleich:** Echtzeit-Monitoring von Temperatur, Takt, Lüfter und Leistung; historische Vergleichsdatenbank mit sortierbaren Spalten und editierbaren Systemnamen.
+* **Sensoren Live & Vergleich:** Echtzeit-Monitoring von Temperatur, Takt, Lüfter und Leistung; historische Vergleichsdatenbank mit aufgeräumter Toolbar und editierbaren Systemnamen; interaktives Offline-Dashboard für Systemvergleiche und Lasttest-Telemetrie.
 
 ---
 
@@ -63,12 +64,13 @@
 
 Das Werkzeug erzeugt nach jedem Lauf detaillierte, interaktive HTML-Berichte mit SVG-Diagrammen:
 
+* 📊 **[Beispiel-Dashboard (HTML)](Doku/Beispiele/Beispiel_Dashboard.html)** – Interaktives Benchmark- & Diagnose-Dashboard mit Systemvergleich gegen 5 Referenzprofile, Dual-Axis Lasttest-Telemetrie und Fluent 2 Dark/Light Mode.
 * 📈 **[Beispiel-Systemvergleich (HTML)](Doku/Beispiele/Beispiel_Systemvergleich.html)** – Interaktiver Gegenüberstellungsbericht mehrerer Rechner aus der Datenbank.
 
 ---
 
 ## Für Entwickler
 
-* **Tests ausführen:** `Testen.cmd` (über 500 Pester-Tests für Modulverträge, Risikostufen und AST-Syntax).
+* **Tests ausführen:** `Testen.cmd` (über 610 Pester-Tests für Modulverträge, Risikostufen, Dashboard-Logik und AST-Syntax).
 * **Programm bauen:** `Bauen.cmd` (Syntaxprüfung, Testlauf, EXE-Kompilierung und automatische Archivierung nach `Aktueller Build/`).
 * **Vorgaben:** Quellcode-Änderungen nur in `src/`, UTF-8 mit BOM + CRLF, Modulverträge in `Vertrag.psd1` einhalten (Details in [AGENTS.md](AGENTS.md)).

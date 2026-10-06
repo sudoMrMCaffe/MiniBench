@@ -68,6 +68,18 @@ GEFUNDEN UND BEHOBEN
      sichergestellt.
   3. C# 5-Kompatibilität der Oberfläche: Einbindung des Dashboard-Aufrufs in DiagGui_Vergleich.cs unter
      strenger Einhaltung des C# 5-Standards (ohne Expression Bodied Members oder String-Interpolation).
+  4. System-ID-Kollision im Dashboard-Export behoben: In Export-BenchDashboardData hatte die Variable
+     $id = $j.Sensoren.Leerlauf versehentlich den äußeren System-Schlüssel überschrieben, wodurch
+     System-IDs im Browser nicht als String aufgelöst werden konnten. Variable auf $idleSens umbenannt
+     und JS-Abgleich typensicher als String-Vergleich gehärtet.
+  5. CLI-Guards für Dashboard-Export: Parameter -Dashboard und -DashboardExport von Elevation (UAC) und
+     WinForms-Initialisierung in Adminrechte.ps1 und Oberflaeche.ps1 ausgenommen.
+  6. NavItem-Untertitel-Clipping behoben: Zweizeilige Beschriftungen aus den NavItem-Buttons entfernt und
+     in Hover-Tooltips ausgelagert; einheitliche Fluent 2-Höhe von 40 px zur Vermeidung von Textüberlauf
+     bei hoher DPI-Skalierung (150 % / 200 %).
+  7. Vergleichsdatenbank-Toolbar aufgeräumt: Import- und Wartungsbefehle in eine obere Werkzeugleiste
+     unter dem Pfad verlegt; untere Leiste auf 4 Hauptschaltflächen fokussiert und Zeilenaktionen über
+     ein Kontextmenü per Rechtsklick zugänglich gemacht.
 
 GRENZEN
   - Enthält ein Systemlauf keinen Lasttest (z. B. reiner Kurztest oder Benchmark ohne Stresstest),
@@ -82,7 +94,7 @@ UMSTIEG
   3. Vorhandene Datenbanken und Lasttest-Dateien werden automatisch erkannt und visualisiert.
 
 ERGEBNIS
-  Alle Pester-Tests bestanden (14 neue Dashboard-Tests, über 590 Tests insgesamt grün).
+  Alle Pester-Tests bestanden (32 neue Dashboard-Tests, 611 Tests insgesamt grün).
   100 % offline-fähiges, responsives Dashboard im modernen Fluent 2-Design.
 
 QUELLEN

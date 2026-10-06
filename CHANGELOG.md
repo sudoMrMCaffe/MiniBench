@@ -1,4 +1,4 @@
-# Changelog - Leos Minibench
+﻿# Changelog - Leos Minibench
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
 
@@ -18,6 +18,11 @@ Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festge
   * Responsiver Theme-Switch (Dark Mode `#202020` / Light Mode `#F9F9FB`) mit `localStorage`-Persistierung.
   * Interaktive Systemauswahl: Beliebiges Zielsystem aus der lokalen Datenbank gegen alle 5 integrierten Referenzsysteme (Desktop High-End, Desktop Mittelklasse, Mini-PC, Notebook Standard, Workstation Mobil).
   * Prominente Score-Kacheln für Gaming, Büro/Desktop und Workstation sowie Komponenten-Pillen mit farblicher Trendbewertung (Grün bei Zuwachs, Rot bei Abfall).
+* **UI-Bereinigung & Barrierefreiheit (Navigation & Vergleichsseite):**
+  * Aufgeräumte Vergleichsdatenbank: Wartungs- und Importwerkzeuge in eine obere Werkzeugleiste (`topTools`) direkt unter dem Datenbankpfad verlegt.
+  * Fokussierte Haupt-Aktionsleiste am unteren Fensterrand mit 4 Kernaktionen (*Vergleichen*, *Dashboard*, *Name ändern ...*, *Entfernen*) sowie nativem Rechtsklick-Kontextmenü für alle Zeilenaktionen.
+  * Navigationsleiste ohne Untertitel-Clipping: Kurzbeschreibungen von den NavItem-Buttons entfernt, um Textabschneiden bei hohen Display-Skalierungen (150 % / 200 %) zu verhindern; Standard-Fluent-Höhe von `UI.S(40)` mit zentrierten Segoe-Icons und Checkboxen; vollständige Modulbeschreibungen weiterhin als Hover-Tooltips verfügbar.
+  * Fehlerbehebung Systemvergleich im Dashboard: Beseitigung einer Namenskollision bei `$idleSens` in `Export-BenchDashboardData`, strikte Typisierung von System-IDs und defensiver String-ID-Abgleich im Frontend-JavaScript.
 
 ## v3.2 (06.10.2026)
 

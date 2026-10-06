@@ -1,0 +1,1628 @@
+﻿<!DOCTYPE html>
+<html lang="de" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leos Minibench - Benchmark & Diagnose Dashboard</title>
+  <style>
+    :root {
+      --bg: #F9F9FB;
+      --card-bg: #FFFFFF;
+      --card-border: #E5E7EB;
+      --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      --text: #1C1D1F;
+      --text-muted: #5F6368;
+      --text-subtle: #9AA0A6;
+      --accent: #0067C0;
+      --accent-hover: #005A9E;
+      --accent-soft: #EBF3FB;
+      --accent-border: #BDD7EE;
+      --ok-bg: #DFF6DD;
+      --ok-text: #107C41;
+      --ok-border: #B7E8B5;
+      --warn-bg: #FFF4CE;
+      --warn-text: #795E00;
+      --warn-border: #FCE100;
+      --crit-bg: #FDE7E9;
+      --crit-text: #D13438;
+      --crit-border: #F8B4B8;
+      --neutral-bg: #F3F4F6;
+      --neutral-text: #4B5563;
+      --grid-line: #F0F2F5;
+      --canvas-bg: #FFFFFF;
+      --tooltip-bg: rgba(255, 255, 255, 0.96);
+      --tooltip-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      --curve-temp: #E81123;
+      --curve-temp-fill: rgba(232, 17, 35, 0.08);
+      --curve-mhz: #0078D4;
+      --curve-mhz-fill: rgba(0, 120, 212, 0.06);
+      --curve-gpu: #F7630C;
+    }
+
+    [data-theme="dark"] {
+      --bg: #202020;
+      --card-bg: #2B2B2B;
+      --card-border: #383838;
+      --card-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+      --text: #FFFFFF;
+      --text-muted: #A0A0A0;
+      --text-subtle: #707070;
+      --accent: #4CC2FF;
+      --accent-hover: #60CDFF;
+      --accent-soft: #233446;
+      --accent-border: #1E4E79;
+      --ok-bg: #1B3828;
+      --ok-text: #6CCB5F;
+      --ok-border: #2D5E3E;
+      --warn-bg: #3F3316;
+      --warn-text: #FCE100;
+      --warn-border: #6B5620;
+      --crit-bg: #442726;
+      --crit-text: #FF99A4;
+      --crit-border: #733A38;
+      --neutral-bg: #333333;
+      --neutral-text: #D1D5DB;
+      --grid-line: #333333;
+      --canvas-bg: #262626;
+      --tooltip-bg: rgba(43, 43, 43, 0.96);
+      --tooltip-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      --curve-temp: #FF5A5A;
+      --curve-temp-fill: rgba(255, 90, 90, 0.12);
+      --curve-mhz: #4CC2FF;
+      --curve-mhz-fill: rgba(76, 194, 255, 0.08);
+      --curve-gpu: #FFA057;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 20px;
+      transition: background-color 0.2s ease, color 0.2s ease;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* HEADER & APP BAR */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: var(--card-shadow);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #0078D4, #004F8A);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 20px;
+      font-weight: 700;
+      box-shadow: 0 4px 10px rgba(0, 103, 192, 0.3);
+    }
+    .brand-titles h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge-ver {
+      font-size: 0.75rem;
+      background: var(--accent-soft);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      border: 1px solid var(--accent-border);
+    }
+    .brand-titles p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* TOGGLE SWITCH */
+    .theme-switch-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 22px;
+      background-color: var(--neutral-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      cursor: pointer;
+      outline: none;
+      transition: background-color 0.2s, border-color 0.2s;
+      padding: 0;
+    }
+    .toggle-switch[aria-checked="true"] {
+      background-color: var(--accent);
+      border-color: var(--accent);
+    }
+    .toggle-thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background-color: #FFFFFF;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+      transition: transform 0.2s ease;
+    }
+    .toggle-switch[aria-checked="true"] .toggle-thumb {
+      transform: translateX(22px);
+    }
+
+    /* SELECTOR BAR */
+    .selector-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .selector-group {
+      flex: 1;
+      min-width: 260px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .selector-group label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .select-wrapper {
+      position: relative;
+    }
+    select {
+      width: 100%;
+      padding: 9px 36px 9px 12px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      appearance: none;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+    .select-arrow {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+    .btn-swap {
+      align-self: flex-end;
+      padding: 9px 14px;
+      background: var(--neutral-bg);
+      color: var(--text);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.15s;
+      margin-bottom: 1px;
+    }
+    .btn-swap:hover {
+      background: var(--accent-soft);
+      border-color: var(--accent-border);
+      color: var(--accent);
+    }
+
+    /* SPECS BANNER */
+    .specs-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: var(--card-shadow);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 800px) {
+      .specs-card { grid-template-columns: 1fr; }
+    }
+    .spec-column {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .spec-header {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 6px;
+    }
+    .spec-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .spec-item {
+      background: var(--bg);
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--card-border);
+    }
+    .spec-item-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .spec-item-val {
+      font-size: 0.82rem;
+      color: var(--text);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* HERO PROFILES GRID */
+    .profiles-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 900px) {
+      .profiles-grid { grid-template-columns: 1fr; }
+    }
+    .profile-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+    .profile-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: var(--accent);
+      opacity: 0.8;
+    }
+    .profile-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .profile-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+    .score-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .score-big {
+      font-size: 2.2rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+    .score-big small {
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-left: 2px;
+    }
+
+    /* PILL BADGE */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .pill.ok { background: var(--ok-bg); color: var(--ok-text); border: 1px solid var(--ok-border); }
+    .pill.warn { background: var(--warn-bg); color: var(--warn-text); border: 1px solid var(--warn-border); }
+    .pill.crit { background: var(--crit-bg); color: var(--crit-text); border: 1px solid var(--crit-border); }
+    .pill.neutral { background: var(--neutral-bg); color: var(--neutral-text); border: 1px solid var(--card-border); }
+
+    .ratio-bar-wrap {
+      width: 100%;
+      height: 8px;
+      background: var(--neutral-bg);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 4px 0;
+      display: flex;
+    }
+    .ratio-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+    .profile-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* COMPONENT GRID */
+    .components-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 900px) {
+      .components-grid { grid-template-columns: 1fr; }
+    }
+    .comp-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .comp-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 8px;
+    }
+    .comp-title {
+      font-size: 1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .comp-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .metric-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .metric-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+    .metric-name {
+      color: var(--text);
+      font-weight: 500;
+    }
+    .metric-vals {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .metric-curr {
+      font-weight: 600;
+      color: var(--text);
+    }
+    .metric-ref {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    .metric-bar-wrap {
+      width: 100%;
+      height: 6px;
+      background: var(--neutral-bg);
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+    }
+    .metric-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    /* TELEMETRY & LASTTEST SECTION */
+    .telemetry-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .telemetry-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .telemetry-stats-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .stat-badge {
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      padding: 8px 12px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 110px;
+    }
+    .stat-badge-lbl {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .stat-badge-val {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* THROTTLE BANNER */
+    .throttle-banner {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 500;
+    }
+    .throttle-banner.thermisch {
+      background: var(--crit-bg);
+      color: var(--crit-text);
+      border: 1px solid var(--crit-border);
+    }
+    .throttle-banner.leistung {
+      background: var(--warn-bg);
+      color: var(--warn-text);
+      border: 1px solid var(--warn-border);
+    }
+    .throttle-banner.ok {
+      background: var(--ok-bg);
+      color: var(--ok-text);
+      border: 1px solid var(--ok-border);
+    }
+
+    /* CHART CONTAINER */
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 320px;
+      background: var(--canvas-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+    .chart-legend {
+      display: flex;
+      gap: 16px;
+      justify-content: flex-end;
+      align-items: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      padding-top: 4px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+    }
+
+    /* FLOATING TOOLTIP */
+    .chart-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: var(--tooltip-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.8rem;
+      color: var(--text);
+      box-shadow: var(--tooltip-shadow);
+      backdrop-filter: blur(8px);
+      display: none;
+      z-index: 10;
+      white-space: nowrap;
+    }
+
+    /* FOOTER */
+    footer {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      padding: 12px 0 20px 0;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">⚡</div>
+      <div class="brand-titles">
+        <h1>Leos Minibench <span class="badge-ver">v3.3</span></h1>
+        <p>Interaktives Benchmark- & Diagnose-Dashboard</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="theme-switch-container">
+        <span>Dark Mode</span>
+        <button id="themeToggle" class="toggle-switch" role="switch" aria-checked="false" title="Zwischen Hell- und Dunkelmodus umschalten">
+          <div class="toggle-thumb"></div>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- SYSTEM SELECTOR -->
+  <section class="selector-card">
+    <div class="selector-group">
+      <label for="targetSelect">Zielsystem (aus Datenbank / Lauf)</label>
+      <div class="select-wrapper">
+        <select id="targetSelect"></select>
+        <span class="select-arrow">▼</span>
+      </div>
+    </div>
+
+    <button id="swapBtn" class="btn-swap" title="Ziel- und Vergleichssystem tauschen">⇄</button>
+
+    <div class="selector-group">
+      <label for="refSelect">Vergleichssystem / Referenzprofil</label>
+      <div class="select-wrapper">
+        <select id="refSelect"></select>
+        <span class="select-arrow">▼</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- SPECS OVERVIEW -->
+  <section class="specs-card">
+    <div class="spec-column">
+      <div class="spec-header">
+        <span>ZIELSYSTEM</span>
+        <span id="targetDate">-</span>
+      </div>
+      <div class="spec-name" id="targetName">-</div>
+      <div class="spec-grid">
+        <div class="spec-item"><div class="spec-item-label">PROZESSOR</div><div class="spec-item-val" id="targetCpu">-</div></div>
+        <div class="spec-item"><div class="spec-item-label">GRAFIK</div><div class="spec-item-val" id="targetGpu">-</div></div>
+        <div class="spec-item"><div class="spec-item-label">SPEICHER</div><div class="spec-item-val" id="targetRam">-</div></div>
+        <div class="spec-item"><div class="spec-item-label">DATENTRÄGER</div><div class="spec-item-val" id="targetDisk">-</div></div>
+      </div>
+    </div>
+
+    <div class="spec-column">
+      <div class="spec-header">
+        <span>VERGLEICHSSYSTEM</span>
+        <span id="refDate">-</span>
+      </div>
+      <div class="spec-name" id="refName">-</div>
+      <div class="spec-grid">
+        <div class="spec-item"><div class="spec-item-label">PROZESSOR</div><div class="spec-item-val" id="refCpu">-</div></div>
+        <div class="spec-item"><div class="spec-item-label">GRAFIK</div><div class="spec-item-val" id="refGpu">-</div></div>
+        <div class="spec-item"><div class="spec-item-label">SPEICHER</div><div class="spec-item-val" id="refRam">-</div></div>
+        <div class="spec-item"><div class="spec-item-label">DATENTRÄGER</div><div class="spec-item-val" id="refDisk">-</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HERO PROFILES GRID (GAMING, DESKTOP, WORKSTATION) -->
+  <section class="profiles-grid">
+    <!-- GAMING -->
+    <div class="profile-card">
+      <div class="profile-header">
+        <div class="profile-title">🎮 Gaming</div>
+        <div id="gamePill" class="pill neutral">±0.0 %</div>
+      </div>
+      <div class="score-row">
+        <div class="score-big" id="gameScore">0<small> %</small></div>
+        <div class="profile-meta" id="gameRating">Bewertung</div>
+      </div>
+      <div class="ratio-bar-wrap">
+        <div class="ratio-bar-fill" id="gameBar" style="width: 50%;"></div>
+      </div>
+      <div class="profile-meta">
+        <span id="gameTargetVal">Ziel: -</span>
+        <span id="gameRefVal">Ref: -</span>
+      </div>
+    </div>
+
+    <!-- BÜRO / DESKTOP -->
+    <div class="profile-card">
+      <div class="profile-header">
+        <div class="profile-title">💼 Büro / Desktop</div>
+        <div id="deskPill" class="pill neutral">±0.0 %</div>
+      </div>
+      <div class="score-row">
+        <div class="score-big" id="deskScore">0<small> %</small></div>
+        <div class="profile-meta" id="deskRating">Bewertung</div>
+      </div>
+      <div class="ratio-bar-wrap">
+        <div class="ratio-bar-fill" id="deskBar" style="width: 50%;"></div>
+      </div>
+      <div class="profile-meta">
+        <span id="deskTargetVal">Ziel: -</span>
+        <span id="deskRefVal">Ref: -</span>
+      </div>
+    </div>
+
+    <!-- WORKSTATION -->
+    <div class="profile-card">
+      <div class="profile-header">
+        <div class="profile-title">⚙️ Workstation</div>
+        <div id="workPill" class="pill neutral">±0.0 %</div>
+      </div>
+      <div class="score-row">
+        <div class="score-big" id="workScore">0<small> %</small></div>
+        <div class="profile-meta" id="workRating">Bewertung</div>
+      </div>
+      <div class="ratio-bar-wrap">
+        <div class="ratio-bar-fill" id="workBar" style="width: 50%;"></div>
+      </div>
+      <div class="profile-meta">
+        <span id="workTargetVal">Ziel: -</span>
+        <span id="workRefVal">Ref: -</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- HARDWARE COMPONENT DETAILS -->
+  <section class="components-grid">
+    <!-- CPU -->
+    <div class="comp-card">
+      <div class="comp-header">
+        <div class="comp-title">🖥️ Prozessor (CPU)</div>
+        <div class="comp-sub" id="cpuOverallSub">Single- & Multi-Thread</div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Single-Thread (ST)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="cpuStVal">-</span>
+            <span class="metric-ref" id="cpuStRef">-</span>
+            <span class="pill neutral" id="cpuStPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="cpuStBar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Multi-Thread (MT)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="cpuMtVal">-</span>
+            <span class="metric-ref" id="cpuMtRef">-</span>
+            <span class="pill neutral" id="cpuMtPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="cpuMtBar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GPU -->
+    <div class="comp-card">
+      <div class="comp-header">
+        <div class="comp-title">🎮 Grafik (GPU)</div>
+        <div class="comp-sub" id="gpuOverallSub">Rendertest & Frametimes</div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Renderleistung (Ø FPS)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="gpuRendVal">-</span>
+            <span class="metric-ref" id="gpuRendRef">-</span>
+            <span class="pill neutral" id="gpuRendPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="gpuRendBar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">1 %-Low FPS</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="gpuRend1Val">-</span>
+            <span class="metric-ref" id="gpuRend1Ref">-</span>
+            <span class="pill neutral" id="gpuRend1Pill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="gpuRend1Bar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">0,1 %-Low FPS</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="gpuRend01Val">-</span>
+            <span class="metric-ref" id="gpuRend01Ref">-</span>
+            <span class="pill neutral" id="gpuRend01Pill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="gpuRend01Bar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Mikroruckler (% > 50 ms)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="gpuStutterVal">-</span>
+            <span class="metric-ref" id="gpuStutterRef">-</span>
+            <span class="pill neutral" id="gpuStutterPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="gpuStutterBar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RAM -->
+    <div class="comp-card">
+      <div class="comp-header">
+        <div class="comp-title">🧠 Arbeitsspeicher (RAM)</div>
+        <div class="comp-sub" id="ramOverallSub">Durchsatz & Zugriffszeit</div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Lesen (GB/s)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="ramReadVal">-</span>
+            <span class="metric-ref" id="ramReadRef">-</span>
+            <span class="pill neutral" id="ramReadPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="ramReadBar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Kopieren (GB/s)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="ramCopyVal">-</span>
+            <span class="metric-ref" id="ramCopyRef">-</span>
+            <span class="pill neutral" id="ramCopyPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="ramCopyBar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Latenz (ns, niedriger ist besser)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="ramLatVal">-</span>
+            <span class="metric-ref" id="ramLatRef">-</span>
+            <span class="pill neutral" id="ramLatPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="ramLatBar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DISK -->
+    <div class="comp-card">
+      <div class="comp-header">
+        <div class="comp-title">💾 Datenträger (Storage)</div>
+        <div class="comp-sub" id="diskOverallSub">Sequentiell & 4K-Zufall</div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Sequentiell Lesen (MB/s)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="diskSrVal">-</span>
+            <span class="metric-ref" id="diskSrRef">-</span>
+            <span class="pill neutral" id="diskSrPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="diskSrBar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">Sequentiell Schreiben (MB/s)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="diskSwVal">-</span>
+            <span class="metric-ref" id="diskSwRef">-</span>
+            <span class="pill neutral" id="diskSwPill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="diskSwBar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">4K Zufall QD1 (IOPS)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="diskR1Val">-</span>
+            <span class="metric-ref" id="diskR1Ref">-</span>
+            <span class="pill neutral" id="diskR1Pill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="diskR1Bar"></div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="metric-top">
+          <span class="metric-name">4K Zufall 8 Threads (IOPS)</span>
+          <div class="metric-vals">
+            <span class="metric-curr" id="diskR8Val">-</span>
+            <span class="metric-ref" id="diskR8Ref">-</span>
+            <span class="pill neutral" id="diskR8Pill">±0 %</span>
+          </div>
+        </div>
+        <div class="metric-bar-wrap">
+          <div class="metric-bar-fill" id="diskR8Bar"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TELEMETRIE & LASTTEST -->
+  <section class="telemetry-card">
+    <div class="telemetry-header">
+      <div>
+        <h2 style="font-size: 1.15rem; font-weight: 600;">🔥 Lasttest-Telemetrie & Sensorverlauf</h2>
+        <p style="font-size: 0.82rem; color: var(--text-muted);">Zeitreihen für Temperatur (°C) und Kerntakt (GHz/MHz) über die Belastungsdauer</p>
+      </div>
+
+      <div class="telemetry-stats-bar">
+        <div class="stat-badge">
+          <div class="stat-badge-lbl">CPU MAX</div>
+          <div class="stat-badge-val" id="statCpuTemp">-</div>
+        </div>
+        <div class="stat-badge">
+          <div class="stat-badge-lbl">GPU MAX</div>
+          <div class="stat-badge-val" id="statGpuTemp">-</div>
+        </div>
+        <div class="stat-badge">
+          <div class="stat-badge-lbl">Ø TAKT</div>
+          <div class="stat-badge-val" id="statCpuClock">-</div>
+        </div>
+        <div class="stat-badge">
+          <div class="stat-badge-lbl">DROSSELUNG</div>
+          <div class="stat-badge-val" id="statThrottle">-</div>
+        </div>
+        <div class="stat-badge">
+          <div class="stat-badge-lbl">>50 MS PAUSEN</div>
+          <div class="stat-badge-val" id="statPauses">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- THROTTLE WARNING BANNER -->
+    <div id="throttleBanner" class="throttle-banner ok">
+      <span id="throttleIcon">✔️</span>
+      <span id="throttleText">Keine thermische Drosselung festgestellt. Takt und Kühlung stabil.</span>
+    </div>
+
+    <!-- CANVAS TELEMETRY CHART -->
+    <div class="chart-container" id="chartWrapper">
+      <canvas id="telemetryCanvas"></canvas>
+      <div id="chartTooltip" class="chart-tooltip"></div>
+    </div>
+
+    <div class="chart-legend">
+      <div class="legend-item"><div class="legend-color" style="background: var(--curve-temp);"></div><span>CPU Temperatur (°C)</span></div>
+      <div class="legend-item"><div class="legend-color" style="background: var(--curve-mhz);"></div><span>CPU Takt (GHz)</span></div>
+      <div class="legend-item" id="gpuLegendItem" style="display: none;"><div class="legend-color" style="background: var(--curve-gpu);"></div><span>GPU Temperatur (°C)</span></div>
+      <div class="legend-item"><div class="legend-color" style="background: #E81123; border: 1px dashed #E81123; height: 2px;"></div><span>TjMax Grenze</span></div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    Leos Minibench v3.3 &middot; Fluent 2 Benchmark- &amp; Diagnose-Dashboard &middot; 100 % Offline &middot; UTF-8
+  </footer>
+
+</div>
+
+<script>
+/* __DASHBOARD_DATA__ */
+window.MINIBENCH_DASHBOARD_DATA = {"Version":"3.3","Generated":"2026-10-06 15:51:33","Systems":[{"Id":"DESKTOP-LAPLHT1_202610032034","Computer":"DESKTOP-LAPLHT1","DisplayName":"DESKTOP-LAPLHT1 (FX-4100 Quad-Core, 8 GB RAM-667, Radeon HD 6570)","Datum":"2026-10-03 20:34","IsReference":false,"OS":"Microsoft Windows 11 Pro 25H2 (Build 26200.8037)","Hardware":{"CPU":"AMD FX-4100 Quad-Core","RAM":"8 GB RAM-667","GPU":"Radeon HD 6570","Datentraeger":"ADATA SSD S510 120GB (111,8 GB, SATA, Healthy); WDC WD10EZEX-00BN5A0 (931,5 GB, SATA, Healthy); USB SanDisk 3.2Gen1 (57,3 GB, USB, Healthy)","Mainboard":"ASUSTeK Computer INC. M5A78L-M/USB3"},"Scores":{"Overall":1804,"Gaming":811,"Desktop":1647,"Workstation":2714},"Metrics":{"CPU_ST":1230,"CPU_MT":4526,"RAM_Lesen":14.4,"RAM_Kopieren":5,"RAM_Latenz":81.7,"GPU_REND":3.6,"GPU_REND1":3.4,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"ADATA SSD S510 120GB (C:)","Klasse":"SATA-SSD","SR":186,"SW":104,"R1":4063,"R8":16891,"W1":9353},"Disks":[{"Model":"ADATA SSD S510 120GB (C:)","Klasse":"SATA-SSD","SR":186,"SW":104,"R1":4063,"R8":16891,"W1":9353},{"Model":"WDC WD10EZEX-00BN5A0 (E:)","Klasse":"Festplatte","SR":129,"SW":173,"R1":172,"R8":390,"W1":432}],"DisksByClass":{"SATA-SSD":{"Model":"ADATA SSD S510 120GB (C:)","Klasse":"SATA-SSD","SR":186,"SW":104,"R1":4063,"R8":16891,"W1":9353},"Festplatte":{"Model":"WDC WD10EZEX-00BN5A0 (E:)","Klasse":"Festplatte","SR":129,"SW":173,"R1":172,"R8":390,"W1":432}}},"Telemetry":{"CpuTempMax":null,"CpuTempLeerlauf":null,"TjMax":null,"GpuTempMax":56.5,"CpuMHzAvg":4183,"CpuMHzMax":null,"Drosselung":"keine","TaktAbfall":0.1,"Unterbrechungen":"CPU-Last: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 0/0/0); RAM-Last: 1 über 50 ms, längste 537 ms, zusammen 0,5 s (Speicherbereinigungen Gen 0/1/2: 4/4/4); Arbeitsprozess: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 171/3/0)","UnterbrechungenUeber50ms":true,"Series":[{"T":0,"Temp":42,"MHz":4350,"GpuTemp":53.1,"CpuW":20,"Fps":3.6},{"T":4,"Temp":50.5,"MHz":4308,"GpuTemp":53.1,"CpuW":20,"Fps":3.6},{"T":8,"Temp":59,"MHz":4267,"GpuTemp":53.1,"CpuW":20,"Fps":3.6},{"T":12,"Temp":67.5,"MHz":4225,"GpuTemp":53.1,"CpuW":20,"Fps":3.6},{"T":16,"Temp":74.2,"MHz":4182,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":20,"Temp":73.2,"MHz":4164,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":24,"Temp":72.2,"MHz":4158,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":28,"Temp":76.3,"MHz":4190,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":32,"Temp":76,"MHz":4177,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":36,"Temp":75.7,"MHz":4165,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":40,"Temp":75.6,"MHz":4166,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":44,"Temp":75.8,"MHz":4179,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":48,"Temp":76.1,"MHz":4191,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":52,"Temp":76.3,"MHz":4192,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":56,"Temp":76.4,"MHz":4181,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":60,"Temp":76.2,"MHz":4167,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":64,"Temp":75.9,"MHz":4164,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":68,"Temp":75.7,"MHz":4175,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":72,"Temp":75.6,"MHz":4189,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":76,"Temp":75.8,"MHz":4194,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":80,"Temp":76.1,"MHz":4185,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":84,"Temp":76.4,"MHz":4171,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":88,"Temp":76.4,"MHz":4164,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":92,"Temp":76.2,"MHz":4171,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":96,"Temp":75.9,"MHz":4185,"GpuTemp":53.1,"CpuW":65,"Fps":3.6},{"T":100,"Temp":72.3,"MHz":2719,"GpuTemp":53.1,"CpuW":20,"Fps":3.6},{"T":104,"Temp":68.6,"MHz":2719,"GpuTemp":53.1,"CpuW":20,"Fps":3.6},{"T":108,"Temp":65,"MHz":2719,"GpuTemp":53.1,"CpuW":20,"Fps":3.6},{"T":112,"Temp":61.3,"MHz":2719,"GpuTemp":53.1,"CpuW":20,"Fps":3.6},{"T":116,"Temp":57.6,"MHz":2719,"GpuTemp":53.1,"CpuW":20,"Fps":3.6},{"T":120,"Temp":53.9,"MHz":2719,"GpuTemp":53.1,"CpuW":20,"Fps":3.6}],"ThrottleEvents":[]},"RawValues":{"GPU|REND1":3.4,"RAM|Lesen":14.4,"CPU|MT":4526,"WINSAT|DISK":7.65,"GPU|AMD Radeon HD 6570|RPKT":336,"DISK|SATA-SSD|SW":104,"CPU|AMD FX(tm)-4100 Quad-Core Processor|AES":499,"DISK|HDD|SR":129,"WINSAT|RAM":8.7,"RAM|Kopieren":5,"CPU|SHA":159,"GPU|REND":3.6,"CPU|AMD FX(tm)-4100 Quad-Core Processor|SHA":159,"GPU|DWM":430,"DISK|SATA-SSD|R8":16891,"DISK|SATA-SSD|R1":4063,"RAM|8GB|667|Lesen":14.4,"DISK|HDD|W1":432,"DISK|HDD|R8":390,"DISK|02216114500400003096|ADATA SSD S510 120GB|SW":104,"CPU|AES":499,"DISK|02216114500400003096|ADATA SSD S510 120GB|SR":186,"DISK|WD-WCC3F0YALHRU|WDC WD10EZEX-00BN5A0|R1":172,"CPU|AMD FX(tm)-4100 Quad-Core Processor|MT":4526,"WINSAT|CPU":8.7,"DISK|WD-WCC3F0YALHRU|WDC WD10EZEX-00BN5A0|W1":432,"DISK|HDD|SW":173,"GPU|RPKT":336,"DISK|HDD|R1":172,"GPU|VMB":7.3,"RAM|Latenz":81.7,"RAM|8GB|667|Kopieren":5,"DISK|02216114500400003096|ADATA SSD S510 120GB|R1":4063,"CPU|AMD FX(tm)-4100 Quad-Core Processor|DEFL":45,"DISK|WD-WCC3F0YALHRU|WDC WD10EZEX-00BN5A0|SW":173,"CPU|ST":1230,"GPU|AMD Radeon HD 6570|REND|1280x720":3.6,"GPU|AMD Radeon HD 6570|REND1|1280x720":3.4,"DISK|SATA-SSD|W1":9353,"GPU|AMD Radeon HD 6570|VMB":7.3,"DISK|WD-WCC3F0YALHRU|WDC WD10EZEX-00BN5A0|R8":390,"RAM|8GB|667|Schreiben":7.8,"CPU|AMD FX(tm)-4100 Quad-Core Processor|ST":1230,"RAM|Schreiben":7.8,"DISK|02216114500400003096|ADATA SSD S510 120GB|W1":9353,"DISK|SATA-SSD|SR":186,"CPU|DEFL":45,"GPU|AMD Radeon HD 6570|DWM":430,"WINSAT|GFX":6.4,"RAM|8GB|667|Latenz":81.7,"DISK|02216114500400003096|ADATA SSD S510 120GB|R8":16891,"DISK|WD-WCC3F0YALHRU|WDC WD10EZEX-00BN5A0|SR":129}},{"Id":"DESKTOP-2KDA9KP_202610051847","Computer":"DESKTOP-2KDA9KP","DisplayName":"DESKTOP-2KDA9KP (Core i5-8365U, 24 GB DDR4-2400, UHD Graphics 620)","Datum":"2026-10-05 18:47","IsReference":false,"OS":"Microsoft Windows 11 Pro 25H2 (Build 26200.9457)","Hardware":{"CPU":"Intel Core i5-8365U","RAM":"24 GB DDR4-2400","GPU":"UHD Graphics 620","Datentraeger":"SAMSUNG MZVLB512HBJQ-000L7 (476,9 GB, NVMe, Healthy)","Mainboard":"Dell Inc. 0M4J82"},"Scores":{"Overall":3603,"Gaming":1608,"Desktop":6454,"Workstation":8021},"Metrics":{"CPU_ST":2165,"CPU_MT":14133,"RAM_Lesen":26.4,"RAM_Kopieren":9.7,"RAM_Latenz":128.7,"GPU_REND":4.8,"GPU_REND1":0,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"SAMSUNG MZVLB512HBJQ-000L7 (C:)","Klasse":"NVMe PCIe 3.0 x4","SR":3482,"SW":2534,"R1":15053,"R8":112245,"W1":32901},"Disks":[{"Model":"SAMSUNG MZVLB512HBJQ-000L7 (C:)","Klasse":"NVMe PCIe 3.0 x4","SR":3482,"SW":2534,"R1":15053,"R8":112245,"W1":32901}],"DisksByClass":{"NVMe PCIe 3.0 x4":{"Model":"SAMSUNG MZVLB512HBJQ-000L7 (C:)","Klasse":"NVMe PCIe 3.0 x4","SR":3482,"SW":2534,"R1":15053,"R8":112245,"W1":32901}}},"Telemetry":{"CpuTempMax":97,"CpuTempLeerlauf":78,"TjMax":100,"GpuTempMax":null,"CpuMHzAvg":2393,"CpuMHzMax":null,"Drosselung":"Firmware","TaktAbfall":21.6,"Unterbrechungen":"CPU-Last: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 0/0/0); Arbeitsprozess: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 454/5/0)","UnterbrechungenUeber50ms":false,"Series":[{"T":0,"Temp":88,"MHz":2208,"GpuTemp":null,"CpuW":6.9,"Fps":null},{"T":3,"Temp":88,"MHz":2295,"GpuTemp":null,"CpuW":23.6,"Fps":null},{"T":6,"Temp":92,"MHz":2140,"GpuTemp":null,"CpuW":27.4,"Fps":4.8},{"T":9,"Temp":95,"MHz":2074,"GpuTemp":null,"CpuW":27.2,"Fps":5.1},{"T":12,"Temp":97,"MHz":2202,"GpuTemp":null,"CpuW":28.6,"Fps":4.7},{"T":15,"Temp":94,"MHz":1724,"GpuTemp":null,"CpuW":24.1,"Fps":4.7},{"T":18,"Temp":92,"MHz":1092,"GpuTemp":null,"CpuW":17.8,"Fps":4.3},{"T":21,"Temp":91,"MHz":1092,"GpuTemp":null,"CpuW":18.1,"Fps":4.4},{"T":25,"Temp":91,"MHz":1092,"GpuTemp":null,"CpuW":18,"Fps":4.3},{"T":28,"Temp":91,"MHz":1092,"GpuTemp":null,"CpuW":18.3,"Fps":4.4},{"T":31,"Temp":90,"MHz":1092,"GpuTemp":null,"CpuW":17.8,"Fps":4.4},{"T":34,"Temp":89,"MHz":1092,"GpuTemp":null,"CpuW":17.9,"Fps":4.7},{"T":37,"Temp":90,"MHz":1095,"GpuTemp":null,"CpuW":17.9,"Fps":3.4},{"T":41,"Temp":90,"MHz":1092,"GpuTemp":null,"CpuW":17.9,"Fps":4.4},{"T":44,"Temp":89,"MHz":1092,"GpuTemp":null,"CpuW":17.9,"Fps":4.7},{"T":47,"Temp":89,"MHz":1092,"GpuTemp":null,"CpuW":17.7,"Fps":4.1},{"T":50,"Temp":89,"MHz":1092,"GpuTemp":null,"CpuW":17.7,"Fps":4.6},{"T":54,"Temp":89,"MHz":1092,"GpuTemp":null,"CpuW":17,"Fps":4.1},{"T":57,"Temp":87,"MHz":1092,"GpuTemp":null,"CpuW":16.9,"Fps":4.4},{"T":60,"Temp":88,"MHz":1092,"GpuTemp":null,"CpuW":16.9,"Fps":4.4},{"T":63,"Temp":88,"MHz":1092,"GpuTemp":null,"CpuW":16.9,"Fps":4.3},{"T":66,"Temp":87,"MHz":1092,"GpuTemp":null,"CpuW":16.9,"Fps":3.4},{"T":70,"Temp":86,"MHz":1092,"GpuTemp":null,"CpuW":16.5,"Fps":4.3},{"T":73,"Temp":87,"MHz":1092,"GpuTemp":null,"CpuW":16.5,"Fps":4.4},{"T":76,"Temp":87,"MHz":1092,"GpuTemp":null,"CpuW":16.4,"Fps":4.1},{"T":79,"Temp":87,"MHz":1092,"GpuTemp":null,"CpuW":16.5,"Fps":4.4},{"T":82,"Temp":87,"MHz":1092,"GpuTemp":null,"CpuW":16.4,"Fps":4.4},{"T":86,"Temp":86,"MHz":1092,"GpuTemp":null,"CpuW":16.5,"Fps":4.4},{"T":89,"Temp":87,"MHz":1092,"GpuTemp":null,"CpuW":16.5,"Fps":4.1},{"T":92,"Temp":88,"MHz":1092,"GpuTemp":null,"CpuW":16.5,"Fps":4.3},{"T":95,"Temp":87,"MHz":1092,"GpuTemp":null,"CpuW":16.4,"Fps":4.4},{"T":98,"Temp":87,"MHz":1104,"GpuTemp":null,"CpuW":16.4,"Fps":3.1},{"T":102,"Temp":87,"MHz":1095,"GpuTemp":null,"CpuW":16.2,"Fps":4.4},{"T":105,"Temp":86,"MHz":1092,"GpuTemp":null,"CpuW":16.2,"Fps":4},{"T":108,"Temp":86,"MHz":1050,"GpuTemp":null,"CpuW":15.5,"Fps":4.3},{"T":111,"Temp":86,"MHz":1066,"GpuTemp":null,"CpuW":15.4,"Fps":4.1},{"T":115,"Temp":86,"MHz":1077,"GpuTemp":null,"CpuW":15.4,"Fps":4.4},{"T":118,"Temp":86,"MHz":1081,"GpuTemp":null,"CpuW":15.5,"Fps":4.1},{"T":122,"Temp":82,"MHz":1074,"GpuTemp":null,"CpuW":14.7,"Fps":null},{"T":125,"Temp":77,"MHz":1242,"GpuTemp":null,"CpuW":2.2,"Fps":null},{"T":128,"Temp":73,"MHz":1290,"GpuTemp":null,"CpuW":2,"Fps":null},{"T":131,"Temp":72,"MHz":1295,"GpuTemp":null,"CpuW":2.1,"Fps":null},{"T":134,"Temp":72,"MHz":1337,"GpuTemp":null,"CpuW":2,"Fps":null},{"T":136,"Temp":67,"MHz":1257,"GpuTemp":null,"CpuW":1.9,"Fps":null},{"T":139,"Temp":69,"MHz":1345,"GpuTemp":null,"CpuW":2.1,"Fps":null},{"T":142,"Temp":65,"MHz":1257,"GpuTemp":null,"CpuW":2,"Fps":null},{"T":145,"Temp":65,"MHz":1303,"GpuTemp":null,"CpuW":1.9,"Fps":null},{"T":148,"Temp":63,"MHz":1304,"GpuTemp":null,"CpuW":2,"Fps":null},{"T":150,"Temp":62,"MHz":1355,"GpuTemp":null,"CpuW":1.9,"Fps":null}],"ThrottleEvents":[{"T":28,"Label":"Drosselung (Firmware, -22 %)","Type":"Firmware"}]},"RawValues":{"GPU|Intel(R) UHD Graphics 620|REND|1280x720":4.8,"RAM|Lesen":26.4,"CPU|MT":14133,"GPU|Intel(R) UHD Graphics 620|REND1|1280x720":0,"GPU|Intel(R) UHD Graphics 620|DWM":409,"RAM|Kopieren":9.7,"GPU|REND":4.8,"GPU|DWM":409,"GPU|Intel(R) UHD Graphics 620|REND01|1280x720":0,"RAM|24GB|2400|Lesen":26.4,"DISK|NVMe3|R8":112245,"DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|SW":2534,"DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|W1":32901,"CPU|AES":1010,"DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|R1":15053,"RAM|24GB|2400|Schreiben":12.8,"DISK|NVMe3|W1":32901,"GPU|RPKT":442,"CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|AES":1010,"GPU|VMB":6.9,"GPU|Intel(R) UHD Graphics 620|VMB":6.9,"RAM|24GB|2400|Latenz":128.7,"CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|MT":14133,"DISK|NVMe3|R1":15053,"DISK|NVMe3|SW":2534,"CPU|ST":2165,"DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|R8":112245,"GPU|Intel(R) UHD Graphics 620|RPKT":442,"DISK|NVMe3|SR":3482,"RAM|24GB|2400|Kopieren":9.7,"RAM|Latenz":128.7,"DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|SR":3482,"CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|ST":2165,"GPU|Intel(R) UHD Graphics 620|STUTTER":0,"RAM|Schreiben":12.8,"CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|SHA":425,"CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|DEFL":112,"CPU|SHA":425,"CPU|DEFL":112}},{"Id":"DESKTOP-F9HRMRR_202610041407","Computer":"DESKTOP-F9HRMRR","DisplayName":"DESKTOP-F9HRMRR (Ryzen 5 5600, 32 GB DDR4-2133, Radeon RX 570 Series)","Datum":"2026-10-04 14:07","IsReference":false,"OS":"Microsoft Windows 11 Pro 25H2 (Build 26200.9457)","Hardware":{"CPU":"AMD Ryzen 5 5600","RAM":"32 GB DDR4-2133","GPU":"Radeon RX 570 Series","Datentraeger":"ST2000DX001-1CM164 (1,82 TB, SATA, Healthy); ST4000DM004-2CV104 (3,64 TB, SATA, Healthy); Samsung SSD 980 1TB (931,5 GB, NVMe, Healthy); USB SanDisk 3.2Gen1 (57,3 GB, USB, Healthy)","Mainboard":"Micro-Star International Co., Ltd B450 GAMING PLUS (MS-7B86)"},"Scores":{"Overall":12111,"Gaming":6082,"Desktop":8993,"Workstation":14844},"Metrics":{"CPU_ST":2731,"CPU_MT":30319,"RAM_Lesen":27.5,"RAM_Kopieren":11.5,"RAM_Latenz":113.2,"GPU_REND":45.4,"GPU_REND1":42.8,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"Samsung SSD 980 1TB (C:)","Klasse":"NVMe PCIe 3.0 x4","SR":3095,"SW":2591,"R1":14329,"R8":108045,"W1":35518},"Disks":[{"Model":"ST2000DX001-1CM164 (I:)","Klasse":"Festplatte","SR":110,"SW":128,"R1":106,"R8":172,"W1":1339},{"Model":"ST4000DM004-2CV104 (D:)","Klasse":"Festplatte","SR":114,"SW":118,"R1":103,"R8":185,"W1":1485},{"Model":"Samsung SSD 980 1TB (C:)","Klasse":"NVMe PCIe 3.0 x4","SR":3095,"SW":2591,"R1":14329,"R8":108045,"W1":35518}],"DisksByClass":{"Festplatte":{"Model":"ST4000DM004-2CV104 (D:)","Klasse":"Festplatte","SR":114,"SW":118,"R1":103,"R8":185,"W1":1485},"NVMe PCIe 3.0 x4":{"Model":"Samsung SSD 980 1TB (C:)","Klasse":"NVMe PCIe 3.0 x4","SR":3095,"SW":2591,"R1":14329,"R8":108045,"W1":35518}}},"Telemetry":{"CpuTempMax":73.5,"CpuTempLeerlauf":42.6,"TjMax":null,"GpuTempMax":71,"CpuMHzAvg":4336,"CpuMHzMax":4450,"Drosselung":"keine","TaktAbfall":0.6,"Unterbrechungen":"CPU-Last: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 0/0/0); RAM-Last: 1 über 50 ms, längste 362 ms, zusammen 0,4 s (Speicherbereinigungen Gen 0/1/2: 5/5/5); Arbeitsprozess: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 167/4/0)","UnterbrechungenUeber50ms":true,"Series":[{"T":0,"Temp":43.5,"MHz":4294,"GpuTemp":49,"CpuW":34.4,"Fps":null},{"T":3,"Temp":58.6,"MHz":4443,"GpuTemp":59,"CpuW":73.6,"Fps":null},{"T":6,"Temp":62.4,"MHz":4434,"GpuTemp":60,"CpuW":76.9,"Fps":44.5},{"T":9,"Temp":64.1,"MHz":4428,"GpuTemp":61,"CpuW":77.1,"Fps":46},{"T":12,"Temp":64.8,"MHz":4420,"GpuTemp":62,"CpuW":77.3,"Fps":45.2},{"T":15,"Temp":65.5,"MHz":4420,"GpuTemp":63,"CpuW":77.5,"Fps":45.9},{"T":17,"Temp":65.6,"MHz":4411,"GpuTemp":64,"CpuW":77.5,"Fps":45},{"T":20,"Temp":66.5,"MHz":4424,"GpuTemp":64,"CpuW":77.3,"Fps":46},{"T":23,"Temp":67.1,"MHz":4425,"GpuTemp":65,"CpuW":77.2,"Fps":45.2},{"T":26,"Temp":67.3,"MHz":4411,"GpuTemp":65,"CpuW":77.6,"Fps":46.3},{"T":29,"Temp":67.9,"MHz":4414,"GpuTemp":66,"CpuW":77.6,"Fps":44.9},{"T":32,"Temp":68.4,"MHz":4406,"GpuTemp":66,"CpuW":77.6,"Fps":46.2},{"T":35,"Temp":68.5,"MHz":4413,"GpuTemp":66,"CpuW":77.5,"Fps":43.7},{"T":37,"Temp":68.4,"MHz":4403,"GpuTemp":66,"CpuW":77.6,"Fps":46.3},{"T":40,"Temp":68.6,"MHz":4410,"GpuTemp":67,"CpuW":77.5,"Fps":44.6},{"T":43,"Temp":68.8,"MHz":4403,"GpuTemp":67,"CpuW":77.6,"Fps":46.4},{"T":46,"Temp":69.9,"MHz":4404,"GpuTemp":67,"CpuW":77.7,"Fps":44.4},{"T":49,"Temp":69.8,"MHz":4393,"GpuTemp":67,"CpuW":77.7,"Fps":46.2},{"T":52,"Temp":69.8,"MHz":4410,"GpuTemp":67,"CpuW":77.6,"Fps":44.8},{"T":55,"Temp":69.6,"MHz":4405,"GpuTemp":67,"CpuW":77.6,"Fps":46.2},{"T":57,"Temp":70.1,"MHz":4401,"GpuTemp":68,"CpuW":77.7,"Fps":44.8},{"T":60,"Temp":70.3,"MHz":4394,"GpuTemp":68,"CpuW":77.8,"Fps":46},{"T":63,"Temp":70,"MHz":4381,"GpuTemp":68,"CpuW":77.8,"Fps":44.8},{"T":66,"Temp":70.4,"MHz":4402,"GpuTemp":68,"CpuW":77.7,"Fps":44.5},{"T":69,"Temp":71,"MHz":4400,"GpuTemp":68,"CpuW":77.8,"Fps":44.9},{"T":72,"Temp":71,"MHz":4403,"GpuTemp":68,"CpuW":77.6,"Fps":45.2},{"T":75,"Temp":71.1,"MHz":4392,"GpuTemp":69,"CpuW":77.8,"Fps":45.5},{"T":77,"Temp":71.8,"MHz":4399,"GpuTemp":69,"CpuW":77.7,"Fps":45.3},{"T":80,"Temp":71.8,"MHz":4391,"GpuTemp":69,"CpuW":77.8,"Fps":45.3},{"T":83,"Temp":71.6,"MHz":4410,"GpuTemp":69,"CpuW":77.7,"Fps":45.5},{"T":86,"Temp":71.5,"MHz":4400,"GpuTemp":69,"CpuW":77.7,"Fps":45.6},{"T":89,"Temp":72.1,"MHz":4398,"GpuTemp":69,"CpuW":77.8,"Fps":45.1},{"T":92,"Temp":72.1,"MHz":4394,"GpuTemp":69,"CpuW":77.8,"Fps":45.7},{"T":95,"Temp":71.6,"MHz":4377,"GpuTemp":70,"CpuW":77.8,"Fps":43.7},{"T":97,"Temp":72,"MHz":4395,"GpuTemp":70,"CpuW":77.8,"Fps":45.9},{"T":100,"Temp":72.1,"MHz":4397,"GpuTemp":70,"CpuW":77.7,"Fps":44.8},{"T":103,"Temp":72.1,"MHz":4399,"GpuTemp":70,"CpuW":77.6,"Fps":45.8},{"T":106,"Temp":72.5,"MHz":4392,"GpuTemp":70,"CpuW":77.8,"Fps":44.7},{"T":109,"Temp":73,"MHz":4386,"GpuTemp":70,"CpuW":77.8,"Fps":46.3},{"T":112,"Temp":72.6,"MHz":4387,"GpuTemp":71,"CpuW":77.8,"Fps":44.6},{"T":115,"Temp":73,"MHz":4391,"GpuTemp":70,"CpuW":77.8,"Fps":46},{"T":117,"Temp":73,"MHz":4388,"GpuTemp":70,"CpuW":77.8,"Fps":44.7},{"T":120,"Temp":73.5,"MHz":4391,"GpuTemp":71,"CpuW":77.8,"Fps":null},{"T":124,"Temp":67.9,"MHz":4390,"GpuTemp":61,"CpuW":40.4,"Fps":null},{"T":126,"Temp":64.3,"MHz":4296,"GpuTemp":59,"CpuW":36.5,"Fps":null},{"T":129,"Temp":62,"MHz":4335,"GpuTemp":58,"CpuW":37.4,"Fps":null},{"T":132,"Temp":59.8,"MHz":4316,"GpuTemp":57,"CpuW":37,"Fps":null},{"T":135,"Temp":56.8,"MHz":4208,"GpuTemp":56,"CpuW":32.9,"Fps":null},{"T":137,"Temp":53.9,"MHz":4154,"GpuTemp":55,"CpuW":29.8,"Fps":null},{"T":140,"Temp":52.4,"MHz":4223,"GpuTemp":54,"CpuW":33,"Fps":null},{"T":143,"Temp":50.4,"MHz":4067,"GpuTemp":53,"CpuW":29.6,"Fps":null},{"T":146,"Temp":49.1,"MHz":4106,"GpuTemp":52,"CpuW":29.5,"Fps":null},{"T":148,"Temp":48.1,"MHz":4009,"GpuTemp":51,"CpuW":29.7,"Fps":null},{"T":151,"Temp":47.4,"MHz":4072,"GpuTemp":51,"CpuW":30,"Fps":null},{"T":154,"Temp":46.6,"MHz":4051,"GpuTemp":50,"CpuW":29.1,"Fps":null}],"ThrottleEvents":[]},"RawValues":{"GPU|REND1":42.8,"CPU|AMD Ryzen 5 5600 6-Core Processor|SHA":2192,"RAM|Lesen":27.5,"CPU|MT":30319,"DISK|Z1E7D75M|ST2000DX001-1CM164|SW":128,"DISK|ZFN03R4F|ST4000DM004-2CV104|R8":185,"CPU|AMD Ryzen 5 5600 6-Core Processor|MT":30319,"GPU|Radeon RX 570 Series|DWM":4339,"DISK|HDD|SR":112,"GPU|VMB":73.7,"DISK|ZFN03R4F|ST4000DM004-2CV104|SW":118,"RAM|Kopieren":11.5,"GPU|REND":45.4,"GPU|DWM":4339,"DISK|HDD|SW":123,"DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|SR":3095,"DISK|NVMe3|R8":108045,"DISK|Z1E7D75M|ST2000DX001-1CM164|R1":106,"DISK|HDD|W1":1412,"DISK|HDD|R8":178,"WINSAT|DISK":8.8,"DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|SW":2591,"CPU|AES":1160,"DISK|Z1E7D75M|ST2000DX001-1CM164|R8":172,"DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|R8":108045,"CPU|AMD Ryzen 5 5600 6-Core Processor|ST":2731,"DISK|ZFN03R4F|ST4000DM004-2CV104|W1":1485,"DISK|ZFN03R4F|ST4000DM004-2CV104|R1":103,"DISK|NVMe3|W1":35518,"WINSAT|RAM":9.3,"DISK|ZFN03R4F|ST4000DM004-2CV104|SR":114,"GPU|RPKT":4189,"CPU|AMD Ryzen 5 5600 6-Core Processor|DEFL":244,"DISK|HDD|R1":104,"DISK|Z1E7D75M|ST2000DX001-1CM164|SR":110,"GPU|Radeon RX 570 Series|RPKT":4189,"CPU|AMD Ryzen 5 5600 6-Core Processor|AES":1160,"WINSAT|CPU":9.3,"DISK|NVMe3|R1":14329,"GPU|Radeon RX 570 Series|REND1|1280x720":42.8,"DISK|NVMe3|SW":2591,"DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|W1":35518,"CPU|ST":2731,"GPU|Radeon RX 570 Series|REND|1280x720":45.4,"DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|R1":14329,"RAM|32GB|2133|Schreiben":13.4,"RAM|32GB|2133|Latenz":113.2,"DISK|NVMe3|SR":3095,"GPU|Radeon RX 570 Series|VMB":73.7,"RAM|Latenz":113.2,"RAM|Schreiben":13.4,"DISK|Z1E7D75M|ST2000DX001-1CM164|W1":1339,"CPU|SHA":2192,"CPU|DEFL":244,"WINSAT|GFX":8.7,"RAM|32GB|2133|Lesen":27.5,"RAM|32GB|2133|Kopieren":11.5}},{"Id":"DESKTOP-TVCU9DD_202610041049","Computer":"DESKTOP-TVCU9DD","DisplayName":"DESKTOP-TVCU9DD (Ryzen 7 H 255 w/ Radeon 780M Graphics, 32 GB DDR5-5600, Radeon 780M Graphics)","Datum":"2026-10-04 10:49","IsReference":false,"OS":"Microsoft Windows 11 Home 25H2 (Build 26200.8737)","Hardware":{"CPU":"AMD Ryzen 7 H 255 w/ Radeon 780M Graphics","RAM":"32 GB DDR5-5600","GPU":"Radeon 780M Graphics","Datentraeger":"PC801 NVMe SK hynix 1TB (953,9 GB, NVMe, Healthy); SAMSUNG MZVLB1T0HALR-000L7 (953,9 GB, NVMe, Healthy); USB SanDisk 3.2Gen1 (57,3 GB, USB, Healthy)","Mainboard":"GMKtec GMKtec"},"Scores":{"Overall":16907,"Gaming":7182,"Desktop":12211,"Workstation":22678},"Metrics":{"CPU_ST":2928,"CPU_MT":46553,"RAM_Lesen":58.2,"RAM_Kopieren":17.4,"RAM_Latenz":112,"GPU_REND":46.8,"GPU_REND1":42.3,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"PC801 NVMe SK hynix 1TB (C:)","Klasse":"NVMe PCIe 4.0 x4","SR":4295,"SW":1140,"R1":4519,"R8":34279,"W1":54294},"Disks":[{"Model":"PC801 NVMe SK hynix 1TB (C:)","Klasse":"NVMe PCIe 4.0 x4","SR":4295,"SW":1140,"R1":4519,"R8":34279,"W1":54294}],"DisksByClass":{"NVMe PCIe 4.0 x4":{"Model":"PC801 NVMe SK hynix 1TB (C:)","Klasse":"NVMe PCIe 4.0 x4","SR":4295,"SW":1140,"R1":4519,"R8":34279,"W1":54294}}},"Telemetry":{"CpuTempMax":68.3,"CpuTempLeerlauf":55,"TjMax":null,"GpuTempMax":62,"CpuMHzAvg":2907,"CpuMHzMax":4866,"Drosselung":"keine","TaktAbfall":0.8,"Unterbrechungen":"CPU-Last: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 0/0/0); RAM-Last: 1 über 50 ms, längste 157 ms, zusammen 0,2 s (Speicherbereinigungen Gen 0/1/2: 5/5/5); Arbeitsprozess: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 298/9/0)","UnterbrechungenUeber50ms":true,"Series":[{"T":0,"Temp":55.3,"MHz":2682,"GpuTemp":49,"CpuW":12.4,"Fps":null},{"T":3,"Temp":57.3,"MHz":3700,"GpuTemp":51,"CpuW":53.9,"Fps":null},{"T":6,"Temp":57.6,"MHz":3661,"GpuTemp":52,"CpuW":54,"Fps":39.4},{"T":9,"Temp":58,"MHz":3651,"GpuTemp":52,"CpuW":54,"Fps":41},{"T":11,"Temp":58.8,"MHz":3671,"GpuTemp":52,"CpuW":54,"Fps":40.1},{"T":14,"Temp":59.3,"MHz":3654,"GpuTemp":53,"CpuW":54,"Fps":41.1},{"T":17,"Temp":60,"MHz":3656,"GpuTemp":54,"CpuW":54,"Fps":40.1},{"T":20,"Temp":60.5,"MHz":3658,"GpuTemp":54,"CpuW":54,"Fps":41},{"T":23,"Temp":61,"MHz":3650,"GpuTemp":55,"CpuW":54,"Fps":39.9},{"T":25,"Temp":61.8,"MHz":3657,"GpuTemp":55,"CpuW":54,"Fps":41.9},{"T":28,"Temp":62.1,"MHz":3636,"GpuTemp":56,"CpuW":54,"Fps":40.3},{"T":31,"Temp":62.4,"MHz":3643,"GpuTemp":56,"CpuW":54,"Fps":41.5},{"T":34,"Temp":62.8,"MHz":3650,"GpuTemp":56,"CpuW":54,"Fps":39.2},{"T":37,"Temp":63.1,"MHz":3630,"GpuTemp":57,"CpuW":54,"Fps":41.3},{"T":40,"Temp":63.5,"MHz":3634,"GpuTemp":57,"CpuW":54,"Fps":40.6},{"T":42,"Temp":63.6,"MHz":3631,"GpuTemp":58,"CpuW":54,"Fps":40.9},{"T":45,"Temp":63.9,"MHz":3632,"GpuTemp":58,"CpuW":54,"Fps":40.6},{"T":48,"Temp":64.1,"MHz":3651,"GpuTemp":58,"CpuW":54,"Fps":41},{"T":51,"Temp":64.4,"MHz":3640,"GpuTemp":58,"CpuW":54,"Fps":41.1},{"T":54,"Temp":64.4,"MHz":3630,"GpuTemp":59,"CpuW":54,"Fps":40.4},{"T":57,"Temp":64.8,"MHz":3644,"GpuTemp":59,"CpuW":54,"Fps":41.1},{"T":59,"Temp":64.9,"MHz":3630,"GpuTemp":59,"CpuW":54,"Fps":40.6},{"T":62,"Temp":65.1,"MHz":3640,"GpuTemp":59,"CpuW":54,"Fps":41.4},{"T":65,"Temp":65.5,"MHz":3643,"GpuTemp":59,"CpuW":54,"Fps":39.3},{"T":68,"Temp":65.5,"MHz":3624,"GpuTemp":60,"CpuW":54,"Fps":41.4},{"T":71,"Temp":65.8,"MHz":3646,"GpuTemp":60,"CpuW":54,"Fps":40.6},{"T":73,"Temp":65.9,"MHz":3634,"GpuTemp":60,"CpuW":54,"Fps":41.6},{"T":76,"Temp":66,"MHz":3625,"GpuTemp":60,"CpuW":54,"Fps":40.4},{"T":79,"Temp":66.3,"MHz":3628,"GpuTemp":60,"CpuW":54,"Fps":41.5},{"T":82,"Temp":66.4,"MHz":3626,"GpuTemp":60,"CpuW":54,"Fps":40.3},{"T":85,"Temp":66.5,"MHz":3629,"GpuTemp":60,"CpuW":54,"Fps":41.4},{"T":87,"Temp":66.6,"MHz":3620,"GpuTemp":60,"CpuW":54,"Fps":40.3},{"T":90,"Temp":66.6,"MHz":3619,"GpuTemp":60,"CpuW":54,"Fps":41.3},{"T":93,"Temp":67.1,"MHz":3637,"GpuTemp":61,"CpuW":54,"Fps":40.5},{"T":96,"Temp":67.3,"MHz":3642,"GpuTemp":61,"CpuW":54,"Fps":39.9},{"T":99,"Temp":67.3,"MHz":3614,"GpuTemp":61,"CpuW":54,"Fps":40.4},{"T":101,"Temp":67.3,"MHz":3623,"GpuTemp":61,"CpuW":54,"Fps":40.5},{"T":104,"Temp":67.4,"MHz":3626,"GpuTemp":61,"CpuW":54,"Fps":41.1},{"T":107,"Temp":67.6,"MHz":3639,"GpuTemp":61,"CpuW":54,"Fps":40.9},{"T":110,"Temp":67.8,"MHz":3632,"GpuTemp":61,"CpuW":54,"Fps":41.1},{"T":113,"Temp":67.9,"MHz":3616,"GpuTemp":61,"CpuW":54,"Fps":40.4},{"T":116,"Temp":68,"MHz":3634,"GpuTemp":61,"CpuW":54,"Fps":41},{"T":119,"Temp":68.1,"MHz":3629,"GpuTemp":62,"CpuW":54,"Fps":40.6},{"T":122,"Temp":68.3,"MHz":3634,"GpuTemp":62,"CpuW":54,"Fps":null},{"T":125,"Temp":66.3,"MHz":1771,"GpuTemp":60,"CpuW":13.3,"Fps":null},{"T":127,"Temp":62.3,"MHz":1410,"GpuTemp":59,"CpuW":5.6,"Fps":null},{"T":130,"Temp":60,"MHz":1449,"GpuTemp":57,"CpuW":5.5,"Fps":null},{"T":133,"Temp":58.5,"MHz":1347,"GpuTemp":56,"CpuW":5.3,"Fps":null},{"T":135,"Temp":57.3,"MHz":1433,"GpuTemp":55,"CpuW":5.3,"Fps":null},{"T":138,"Temp":56.9,"MHz":1583,"GpuTemp":54,"CpuW":6.1,"Fps":null},{"T":141,"Temp":55.6,"MHz":1365,"GpuTemp":54,"CpuW":5.2,"Fps":null},{"T":143,"Temp":54.9,"MHz":1469,"GpuTemp":53,"CpuW":5.3,"Fps":null},{"T":146,"Temp":54.3,"MHz":1473,"GpuTemp":52,"CpuW":5.5,"Fps":null},{"T":149,"Temp":53.4,"MHz":1388,"GpuTemp":51,"CpuW":5.2,"Fps":null},{"T":151,"Temp":52.8,"MHz":1372,"GpuTemp":51,"CpuW":5.3,"Fps":null},{"T":154,"Temp":52.4,"MHz":1381,"GpuTemp":50,"CpuW":5.2,"Fps":null}],"ThrottleEvents":[]},"RawValues":{"DISK|NVMe4|SW":1140,"RAM|Lesen":58.2,"CPU|MT":46553,"DISK|NVMe4|R8":34279,"DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|SW":1140,"CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|MT":46553,"CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|DEFL":345,"CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|ST":2928,"RAM|32GB|5600|Latenz":112,"GPU|AMD Radeon 780M Graphics|DWM":1670,"DISK|NVMe4|SR":4295,"DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|W1":54294,"RAM|Kopieren":17.4,"GPU|REND":46.8,"GPU|REND1":42.3,"RAM|32GB|5600|Lesen":58.2,"CPU|AES":1362,"GPU|AMD Radeon 780M Graphics|REND1|1280x720":42.3,"WINSAT|RAM":9.4,"WINSAT|DISK":8.45,"GPU|RPKT":4313,"GPU|VMB":28.4,"DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|R8":34279,"WINSAT|CPU":9.4,"GPU|DWM":1670,"CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|AES":1362,"CPU|ST":2928,"DISK|NVMe4|R1":4519,"RAM|32GB|5600|Kopieren":17.4,"RAM|Latenz":112,"WINSAT|GFX":8.2,"RAM|32GB|5600|Schreiben":25.4,"CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|SHA":2409,"DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|R1":4519,"DISK|NVMe4|W1":54294,"GPU|AMD Radeon 780M Graphics|VMB":28.4,"CPU|SHA":2409,"CPU|DEFL":345,"DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|SR":4295,"GPU|AMD Radeon 780M Graphics|RPKT":4313,"RAM|Schreiben":25.4,"GPU|AMD Radeon 780M Graphics|REND|1280x720":46.8}},{"Id":"GILA-SNAPDRAGON_202610041311","Computer":"GILA-SNAPDRAGON","DisplayName":"GILA-SNAPDRAGON (Snapdragon X Elite - X1E78100 - Qualcomm Oryon CPU, 16 GB LPDDR5-8448, Qualcomm(R) Adreno(TM) X1-85 GPU)","Datum":"2026-10-04 13:11","IsReference":false,"OS":"Microsoft Windows 11 Pro 25H2 (Build 26200.9457)","Hardware":{"CPU":"Snapdragon X Elite - X1E78100 - Qualcomm Oryon CPU","RAM":"16 GB LPDDR5-8448","GPU":"Qualcomm(R) Adreno(TM) X1-85 GPU","Datentraeger":"KXG80ZNV1T02 KIOXIA (953,9 GB, NVMe, Healthy); SanDisk Ultra Fit (233,3 GB, USB, Healthy)","Mainboard":"HP 8CBE"},"Scores":{"Overall":14077,"Gaming":5554,"Desktop":11130,"Workstation":21435},"Metrics":{"CPU_ST":1973,"CPU_MT":32621,"RAM_Lesen":103.4,"RAM_Kopieren":21.1,"RAM_Latenz":200,"GPU_REND":31.7,"GPU_REND1":27.5,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"KXG80ZNV1T02 KIOXIA (C:)","Klasse":"NVMe PCIe 4.0 x4","SR":4659,"SW":3732,"R1":11840,"R8":109193,"W1":31915},"Disks":[{"Model":"KXG80ZNV1T02 KIOXIA (C:)","Klasse":"NVMe PCIe 4.0 x4","SR":4659,"SW":3732,"R1":11840,"R8":109193,"W1":31915}],"DisksByClass":{"NVMe PCIe 4.0 x4":{"Model":"KXG80ZNV1T02 KIOXIA (C:)","Klasse":"NVMe PCIe 4.0 x4","SR":4659,"SW":3732,"R1":11840,"R8":109193,"W1":31915}}},"Telemetry":{"CpuTempMax":null,"CpuTempLeerlauf":45.4,"TjMax":null,"GpuTempMax":null,"CpuMHzAvg":1354,"CpuMHzMax":null,"Drosselung":"Firmware","TaktAbfall":51.5,"Unterbrechungen":"CPU-Last: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 0/0/0); RAM-Last: 1 über 50 ms, längste 743 ms, zusammen 0,7 s (Speicherbereinigungen Gen 0/1/2: 4/4/4); Arbeitsprozess: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 170/3/0)","UnterbrechungenUeber50ms":true,"Series":[{"T":0,"Temp":57.2,"MHz":2176,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":4,"Temp":64.9,"MHz":1186,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":7,"Temp":66.9,"MHz":580,"GpuTemp":null,"CpuW":null,"Fps":32.1},{"T":10,"Temp":66.5,"MHz":457,"GpuTemp":null,"CpuW":null,"Fps":32},{"T":13,"Temp":66.9,"MHz":387,"GpuTemp":null,"CpuW":null,"Fps":32.1},{"T":16,"Temp":67.2,"MHz":332,"GpuTemp":null,"CpuW":null,"Fps":32},{"T":19,"Temp":67.6,"MHz":202,"GpuTemp":null,"CpuW":null,"Fps":32.1},{"T":23,"Temp":67.6,"MHz":149,"GpuTemp":null,"CpuW":null,"Fps":31.6},{"T":26,"Temp":67.2,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":32.2},{"T":30,"Temp":67.6,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":32.1},{"T":34,"Temp":67.6,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":31},{"T":37,"Temp":68,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":31.9},{"T":41,"Temp":68,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":31.5},{"T":44,"Temp":68.8,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":32.5},{"T":48,"Temp":68.4,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":31.8},{"T":51,"Temp":68,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":32.2},{"T":55,"Temp":68.4,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":32},{"T":58,"Temp":69.2,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":31.7},{"T":62,"Temp":68.4,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":32.2},{"T":66,"Temp":68.8,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":30.8},{"T":69,"Temp":68,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":32.3},{"T":73,"Temp":68.4,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":32},{"T":76,"Temp":68.4,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":31.7},{"T":80,"Temp":68.8,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":32},{"T":83,"Temp":68.8,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":32.1},{"T":87,"Temp":68.4,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":32.1},{"T":90,"Temp":68.8,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":32.3},{"T":94,"Temp":68.8,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":30.5},{"T":97,"Temp":68.8,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":32},{"T":101,"Temp":68.4,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":32.1},{"T":104,"Temp":69.2,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":31.9},{"T":108,"Temp":68.8,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":32.5},{"T":111,"Temp":68.8,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":31.4},{"T":115,"Temp":68.8,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":32.3},{"T":119,"Temp":69.2,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":31.9},{"T":122,"Temp":60.1,"MHz":148,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":126,"Temp":55.1,"MHz":284,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":129,"Temp":58.2,"MHz":1112,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":132,"Temp":51.1,"MHz":341,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":136,"Temp":49.1,"MHz":249,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":139,"Temp":48.1,"MHz":287,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":142,"Temp":47.1,"MHz":199,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":145,"Temp":46.1,"MHz":209,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":148,"Temp":45.1,"MHz":256,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":151,"Temp":45.1,"MHz":256,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":154,"Temp":44.1,"MHz":215,"GpuTemp":null,"CpuW":null,"Fps":null}],"ThrottleEvents":[{"T":28,"Label":"Drosselung (Firmware, -52 %)","Type":"Firmware"}]},"RawValues":{"GPU|REND1":27.5,"DISK|NVMe4|SW":3732,"RAM|Lesen":103.4,"CPU|MT":32621,"DISK|NVMe4|R8":109193,"CPU|Snapdragon(R) X Elite - X1E78100 - Qualcomm(R) Oryon(TM) CPU|ST":1973,"RAM|16GB|8448|Lesen":103.4,"DISK|0000_0000_0000_0000_8CE3_8E10_021A_9543.|KXG80ZNV1T02 KIOXIA|SW":3732,"DISK|NVMe4|SR":4659,"DISK|0000_0000_0000_0000_8CE3_8E10_021A_9543.|KXG80ZNV1T02 KIOXIA|R8":109193,"RAM|Kopieren":21.1,"GPU|REND":31.7,"CPU|Snapdragon(R) X Elite - X1E78100 - Qualcomm(R) Oryon(TM) CPU|DEFL":264,"CPU|Snapdragon(R) X Elite - X1E78100 - Qualcomm(R) Oryon(TM) CPU|AES":1632,"CPU|AES":1632,"RAM|16GB|8448|Kopieren":21.1,"GPU|Qualcomm(R) Adreno(TM) X1-85 GPU|REND1|1280x720":27.5,"CPU|Snapdragon(R) X Elite - X1E78100 - Qualcomm(R) Oryon(TM) CPU|SHA":2416,"GPU|RPKT":2921,"GPU|VMB":64.3,"GPU|Qualcomm(R) Adreno(TM) X1-85 GPU|REND|1280x720":31.7,"GPU|Qualcomm(R) Adreno(TM) X1-85 GPU|VMB":64.3,"GPU|DWM":3789,"GPU|Qualcomm(R) Adreno(TM) X1-85 GPU|RPKT":2921,"RAM|16GB|8448|Latenz":200,"CPU|ST":1973,"DISK|NVMe4|R1":11840,"DISK|0000_0000_0000_0000_8CE3_8E10_021A_9543.|KXG80ZNV1T02 KIOXIA|R1":11840,"RAM|16GB|8448|Schreiben":34.4,"DISK|0000_0000_0000_0000_8CE3_8E10_021A_9543.|KXG80ZNV1T02 KIOXIA|SR":4659,"GPU|Qualcomm(R) Adreno(TM) X1-85 GPU|DWM":3789,"RAM|Latenz":200,"RAM|Schreiben":34.4,"DISK|NVMe4|W1":31915,"CPU|SHA":2416,"CPU|DEFL":264,"DISK|0000_0000_0000_0000_8CE3_8E10_021A_9543.|KXG80ZNV1T02 KIOXIA|W1":31915,"CPU|Snapdragon(R) X Elite - X1E78100 - Qualcomm(R) Oryon(TM) CPU|MT":32621}},{"Id":"GILA-SNAPDRAGON_202610041443","Computer":"GILA-SNAPDRAGON","DisplayName":"GILA-SNAPDRAGON (Snapdragon X Elite - X1E78100 - Qualcomm Oryon CPU, 16 GB LPDDR5-8448, Qualcomm(R) Adreno(TM) X1-85 GPU)","Datum":"2026-10-04 14:43","IsReference":false,"OS":"Microsoft Windows 11 Pro 25H2 (Build 26200.9457)","Hardware":{"CPU":"Snapdragon X Elite - X1E78100 - Qualcomm Oryon CPU","RAM":"16 GB LPDDR5-8448","GPU":"Qualcomm(R) Adreno(TM) X1-85 GPU","Datentraeger":"KXG80ZNV1T02 KIOXIA (953,9 GB, NVMe, Healthy); USB SanDisk 3.2Gen1 (57,3 GB, USB, Healthy)","Mainboard":"HP 8CBE"},"Scores":{"Overall":0,"Gaming":0,"Desktop":0,"Workstation":0},"Metrics":{"CPU_ST":0,"CPU_MT":0,"RAM_Lesen":0,"RAM_Kopieren":0,"RAM_Latenz":0,"GPU_REND":0,"GPU_REND1":0,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"Datenträger","Klasse":"SSD","SR":0,"SW":0,"R1":0,"R8":0,"W1":0},"Disks":[],"DisksByClass":{}},"Telemetry":{"CpuTempMax":null,"CpuTempLeerlauf":42.2,"TjMax":null,"GpuTempMax":null,"CpuMHzAvg":1304,"CpuMHzMax":null,"Drosselung":"keine","TaktAbfall":0,"Unterbrechungen":"keine über 50 ms","UnterbrechungenUeber50ms":false,"Series":[{"T":0,"Temp":42.2,"MHz":1356,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":4,"Temp":50.7,"MHz":1343,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":8,"Temp":59.1,"MHz":1330,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":12,"Temp":67.6,"MHz":1317,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":16,"Temp":74.2,"MHz":1303,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":20,"Temp":73.2,"MHz":1285,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":24,"Temp":72.2,"MHz":1279,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":28,"Temp":71.4,"MHz":1288,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":32,"Temp":71.2,"MHz":1307,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":36,"Temp":71.6,"MHz":1324,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":40,"Temp":72.5,"MHz":1329,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":44,"Temp":73.5,"MHz":1319,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":48,"Temp":74.4,"MHz":1300,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":52,"Temp":74.8,"MHz":1283,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":56,"Temp":74.5,"MHz":1280,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":60,"Temp":73.7,"MHz":1291,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":64,"Temp":72.6,"MHz":1310,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":68,"Temp":71.7,"MHz":1325,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":72,"Temp":71.2,"MHz":1328,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":76,"Temp":71.3,"MHz":1316,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":80,"Temp":72,"MHz":1297,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":84,"Temp":73,"MHz":1282,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":88,"Temp":74,"MHz":1280,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":92,"Temp":74.7,"MHz":1293,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":96,"Temp":74.7,"MHz":1313,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":100,"Temp":72.3,"MHz":848,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":104,"Temp":68.7,"MHz":848,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":108,"Temp":65,"MHz":848,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":112,"Temp":61.4,"MHz":848,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":116,"Temp":57.7,"MHz":848,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":120,"Temp":54,"MHz":848,"GpuTemp":null,"CpuW":20,"Fps":null}],"ThrottleEvents":[]},"RawValues":{}},{"Id":"HPALEX_202610041216","Computer":"HPALEX","DisplayName":"HPALEX (Core i5-8250U, 8 GB DDR4-2400, GeForce MX150)","Datum":"2026-10-04 12:16","IsReference":false,"OS":"Microsoft Windows 11 Home 25H2 (Build 26200.9457)","Hardware":{"CPU":"Intel Core i5-8250U","RAM":"8 GB DDR4-2400","GPU":"GeForce MX150","Datentraeger":"ST1000LM049-2GH172 (931,5 GB, SATA, Healthy); SK hynix PC401 HFS256GD9TNG-62A0A (238,5 GB, NVMe, Healthy); USB SanDisk 3.2Gen1 (57,3 GB, USB, Healthy)","Mainboard":"HP 8484"},"Scores":{"Overall":5455,"Gaming":2151,"Desktop":2943,"Workstation":6363},"Metrics":{"CPU_ST":2064,"CPU_MT":15394,"RAM_Lesen":23.4,"RAM_Kopieren":7.8,"RAM_Latenz":88.1,"GPU_REND":13.2,"GPU_REND1":0,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"SK hynix PC401 HFS256GD9TNG-62A0A (C:)","Klasse":"NVMe PCIe 3.0 x4","SR":225,"SW":51,"R1":1285,"R8":64349,"W1":11070},"Disks":[{"Model":"ST1000LM049-2GH172 (D:)","Klasse":"Festplatte","SR":131,"SW":140,"R1":105,"R8":189,"W1":146},{"Model":"SK hynix PC401 HFS256GD9TNG-62A0A (C:)","Klasse":"NVMe PCIe 3.0 x4","SR":225,"SW":51,"R1":1285,"R8":64349,"W1":11070}],"DisksByClass":{"Festplatte":{"Model":"ST1000LM049-2GH172 (D:)","Klasse":"Festplatte","SR":131,"SW":140,"R1":105,"R8":189,"W1":146},"NVMe PCIe 3.0 x4":{"Model":"SK hynix PC401 HFS256GD9TNG-62A0A (C:)","Klasse":"NVMe PCIe 3.0 x4","SR":225,"SW":51,"R1":1285,"R8":64349,"W1":11070}}},"Telemetry":{"CpuTempMax":null,"CpuTempLeerlauf":69.1,"TjMax":null,"GpuTempMax":79,"CpuMHzAvg":2646,"CpuMHzMax":null,"Drosselung":"keine","TaktAbfall":-1.5,"Unterbrechungen":"CPU-Last: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 0/0/0); RAM-Last: 1 über 50 ms, längste 125 ms, zusammen 0,1 s (Speicherbereinigungen Gen 0/1/2: 3/3/3); Arbeitsprozess: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 247/2/0)","UnterbrechungenUeber50ms":true,"Series":[{"T":0,"Temp":67.1,"MHz":3015,"GpuTemp":48,"CpuW":11.3,"Fps":null},{"T":3,"Temp":66.1,"MHz":1860,"GpuTemp":57,"CpuW":21.4,"Fps":null},{"T":6,"Temp":63.1,"MHz":1345,"GpuTemp":60,"CpuW":13.9,"Fps":12.8},{"T":10,"Temp":61.1,"MHz":920,"GpuTemp":62,"CpuW":12.7,"Fps":13.4},{"T":13,"Temp":60.1,"MHz":978,"GpuTemp":63,"CpuW":14.7,"Fps":13.1},{"T":16,"Temp":60.1,"MHz":978,"GpuTemp":64,"CpuW":14.8,"Fps":13.2},{"T":19,"Temp":63.1,"MHz":978,"GpuTemp":65,"CpuW":14.8,"Fps":13.1},{"T":22,"Temp":65.1,"MHz":978,"GpuTemp":66,"CpuW":14.9,"Fps":13.2},{"T":25,"Temp":66.1,"MHz":978,"GpuTemp":67,"CpuW":14.9,"Fps":13.1},{"T":29,"Temp":66.1,"MHz":978,"GpuTemp":68,"CpuW":14.9,"Fps":13},{"T":32,"Temp":67.1,"MHz":978,"GpuTemp":69,"CpuW":14.9,"Fps":13.1},{"T":35,"Temp":68.1,"MHz":978,"GpuTemp":70,"CpuW":14.9,"Fps":12},{"T":38,"Temp":68.1,"MHz":1025,"GpuTemp":70,"CpuW":14.9,"Fps":13.1},{"T":41,"Temp":69.1,"MHz":978,"GpuTemp":71,"CpuW":14.9,"Fps":12.7},{"T":45,"Temp":70.1,"MHz":978,"GpuTemp":72,"CpuW":14.9,"Fps":13},{"T":48,"Temp":70.1,"MHz":978,"GpuTemp":72,"CpuW":15,"Fps":13},{"T":51,"Temp":71.1,"MHz":978,"GpuTemp":73,"CpuW":14.9,"Fps":13},{"T":55,"Temp":72.1,"MHz":978,"GpuTemp":74,"CpuW":14.9,"Fps":12.8},{"T":58,"Temp":72.1,"MHz":978,"GpuTemp":74,"CpuW":14.9,"Fps":13},{"T":61,"Temp":73.1,"MHz":978,"GpuTemp":75,"CpuW":14.9,"Fps":13.3},{"T":64,"Temp":74.1,"MHz":978,"GpuTemp":75,"CpuW":15,"Fps":12.8},{"T":67,"Temp":74.1,"MHz":978,"GpuTemp":75,"CpuW":14.9,"Fps":12.2},{"T":71,"Temp":75.1,"MHz":1037,"GpuTemp":76,"CpuW":15,"Fps":12.7},{"T":74,"Temp":76.1,"MHz":978,"GpuTemp":76,"CpuW":14.9,"Fps":12.9},{"T":79,"Temp":76.1,"MHz":978,"GpuTemp":77,"CpuW":15,"Fps":13.1},{"T":83,"Temp":77.1,"MHz":978,"GpuTemp":77,"CpuW":14.9,"Fps":12.7},{"T":86,"Temp":77.1,"MHz":978,"GpuTemp":77,"CpuW":15,"Fps":12.8},{"T":89,"Temp":78.1,"MHz":978,"GpuTemp":78,"CpuW":14.9,"Fps":13},{"T":92,"Temp":78.1,"MHz":978,"GpuTemp":78,"CpuW":15,"Fps":12.9},{"T":95,"Temp":79.1,"MHz":978,"GpuTemp":78,"CpuW":14.9,"Fps":11.8},{"T":99,"Temp":79.1,"MHz":978,"GpuTemp":78,"CpuW":14.9,"Fps":13.1},{"T":102,"Temp":79.1,"MHz":1024,"GpuTemp":78,"CpuW":15,"Fps":12.7},{"T":105,"Temp":80.1,"MHz":978,"GpuTemp":79,"CpuW":14.9,"Fps":13.1},{"T":108,"Temp":80.1,"MHz":978,"GpuTemp":79,"CpuW":15,"Fps":12.7},{"T":111,"Temp":80.1,"MHz":978,"GpuTemp":79,"CpuW":14.9,"Fps":13.1},{"T":114,"Temp":81.1,"MHz":978,"GpuTemp":79,"CpuW":14.9,"Fps":12.9},{"T":118,"Temp":81.1,"MHz":978,"GpuTemp":79,"CpuW":14.9,"Fps":12.7},{"T":121,"Temp":81.1,"MHz":978,"GpuTemp":78,"CpuW":15,"Fps":null},{"T":124,"Temp":81.1,"MHz":1274,"GpuTemp":71,"CpuW":7.6,"Fps":null},{"T":127,"Temp":81.1,"MHz":2838,"GpuTemp":70,"CpuW":17.9,"Fps":null},{"T":130,"Temp":80.1,"MHz":2989,"GpuTemp":68,"CpuW":11.8,"Fps":null},{"T":132,"Temp":79.1,"MHz":2902,"GpuTemp":68,"CpuW":16,"Fps":null},{"T":135,"Temp":78.1,"MHz":3016,"GpuTemp":66,"CpuW":13.2,"Fps":null},{"T":138,"Temp":77.1,"MHz":3008,"GpuTemp":65,"CpuW":8.6,"Fps":null},{"T":141,"Temp":77.1,"MHz":2993,"GpuTemp":64,"CpuW":13.6,"Fps":null},{"T":143,"Temp":79.1,"MHz":3018,"GpuTemp":63,"CpuW":13.8,"Fps":null},{"T":146,"Temp":79.1,"MHz":3020,"GpuTemp":63,"CpuW":13.5,"Fps":null},{"T":149,"Temp":79.1,"MHz":3020,"GpuTemp":62,"CpuW":13.2,"Fps":null},{"T":152,"Temp":79.1,"MHz":2993,"GpuTemp":61,"CpuW":13.5,"Fps":null}],"ThrottleEvents":[]},"RawValues":{"GPU|Intel(R) UHD Graphics 620|REND|1280x720":3.8,"RAM|Lesen":23.4,"CPU|MT":15394,"DISK|WGS1KTLX|ST1000LM049-2GH172|R8":189,"GPU|Intel(R) UHD Graphics 620|REND1|1280x720":0,"CPU|Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz|DEFL":105,"GPU|Intel(R) UHD Graphics 620|DWM":483,"RAM|8GB|2400|Lesen":23.4,"DISK|HDD|SR":131,"GPU|VMB":8.2,"RAM|Kopieren":7.8,"GPU|REND":13.2,"CPU|Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz|ST":2064,"GPU|NVIDIA GeForce MX150|REND1|1280x720":0,"GPU|DWM":483,"GPU|NVIDIA GeForce MX150|RPKT":1212,"DISK|HDD|SW":140,"DISK|ACE4_2E81_7013_A2D3.|SK hynix PC401 HFS256GD9TNG-62A0A|SW":51,"DISK|NVMe3|R8":64349,"DISK|HDD|W1":146,"DISK|HDD|R8":189,"WINSAT|DISK":7.55,"DISK|WGS1KTLX|ST1000LM049-2GH172|W1":146,"CPU|AES":909,"DISK|ACE4_2E81_7013_A2D3.|SK hynix PC401 HFS256GD9TNG-62A0A|W1":11070,"DISK|WGS1KTLX|ST1000LM049-2GH172|SR":131,"DISK|WGS1KTLX|ST1000LM049-2GH172|R1":105,"DISK|ACE4_2E81_7013_A2D3.|SK hynix PC401 HFS256GD9TNG-62A0A|R8":64349,"DISK|NVMe3|W1":11070,"WINSAT|RAM":8.9,"DISK|ACE4_2E81_7013_A2D3.|SK hynix PC401 HFS256GD9TNG-62A0A|R1":1285,"GPU|RPKT":1212,"DISK|HDD|R1":105,"GPU|Intel(R) UHD Graphics 620|VMB":8.2,"CPU|Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz|MT":15394,"GPU|NVIDIA GeForce MX150|REND|1280x720":13.2,"RAM|8GB|2400|Latenz":88.1,"WINSAT|CPU":8.9,"CPU|Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz|AES":909,"RAM|8GB|2400|Kopieren":7.8,"DISK|NVMe3|R1":1285,"DISK|NVMe3|SW":51,"CPU|ST":2064,"GPU|Intel(R) UHD Graphics 620|RPKT":346,"DISK|NVMe3|SR":225,"RAM|8GB|2400|Schreiben":9.7,"RAM|Latenz":88.1,"RAM|Schreiben":9.7,"DISK|ACE4_2E81_7013_A2D3.|SK hynix PC401 HFS256GD9TNG-62A0A|SR":225,"CPU|SHA":373,"CPU|DEFL":105,"CPU|Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz|SHA":373,"WINSAT|GFX":6.7,"DISK|WGS1KTLX|ST1000LM049-2GH172|SW":140}},{"Id":"HPALEX_202610041307","Computer":"HPALEX","DisplayName":"HPALEX ()","Datum":"2026-10-04 13:07","IsReference":false,"OS":"","Hardware":{"CPU":"","RAM":"","GPU":"","Datentraeger":"","Mainboard":""},"Scores":{"Overall":0,"Gaming":0,"Desktop":0,"Workstation":0},"Metrics":{"CPU_ST":0,"CPU_MT":0,"RAM_Lesen":0,"RAM_Kopieren":0,"RAM_Latenz":0,"GPU_REND":0,"GPU_REND1":0,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"Datenträger","Klasse":"SSD","SR":0,"SW":0,"R1":0,"R8":0,"W1":0},"Disks":[],"DisksByClass":{}},"Telemetry":{"CpuTempMax":null,"CpuTempLeerlauf":null,"TjMax":null,"GpuTempMax":null,"CpuMHzAvg":null,"CpuMHzMax":null,"Drosselung":"keine","TaktAbfall":0,"Unterbrechungen":"keine über 50 ms","UnterbrechungenUeber50ms":false,"Series":[{"T":0,"Temp":42,"MHz":4004,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":4,"Temp":50.5,"MHz":3966,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":8,"Temp":59,"MHz":3927,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":12,"Temp":67.5,"MHz":3888,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":16,"Temp":74.2,"MHz":3849,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":20,"Temp":73.2,"MHz":3831,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":24,"Temp":72.2,"MHz":3825,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":28,"Temp":71.4,"MHz":3834,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":32,"Temp":71.2,"MHz":3853,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":36,"Temp":71.6,"MHz":3870,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":40,"Temp":72.5,"MHz":3875,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":44,"Temp":73.5,"MHz":3865,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":48,"Temp":74.4,"MHz":3846,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":52,"Temp":74.8,"MHz":3829,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":56,"Temp":74.5,"MHz":3826,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":60,"Temp":73.7,"MHz":3837,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":64,"Temp":72.6,"MHz":3856,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":68,"Temp":71.7,"MHz":3871,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":72,"Temp":71.2,"MHz":3874,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":76,"Temp":71.3,"MHz":3862,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":80,"Temp":72,"MHz":3843,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":84,"Temp":73,"MHz":3828,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":88,"Temp":74,"MHz":3826,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":92,"Temp":74.7,"MHz":3839,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":96,"Temp":74.7,"MHz":3859,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":100,"Temp":72.3,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":104,"Temp":68.6,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":108,"Temp":65,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":112,"Temp":61.3,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":116,"Temp":57.6,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":120,"Temp":53.9,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":null}],"ThrottleEvents":[]},"RawValues":{}},{"Id":"HUAWEI-GILA_202610041252","Computer":"HUAWEI-GILA","DisplayName":"HUAWEI-GILA (Core i5-8250U, 8 GB LPDDR3-2133, GeForce MX150)","Datum":"2026-10-04 12:52","IsReference":false,"OS":"Microsoft Windows 11 Home 25H2 (Build 26200.8037)","Hardware":{"CPU":"Intel Core i5-8250U","RAM":"8 GB LPDDR3-2133","GPU":"GeForce MX150","Datentraeger":"LITEON CA3-8D256 (238,5 GB, NVMe, Healthy); SanDisk Ultra Fit (233,3 GB, USB, Healthy)","Mainboard":"HUAWEI MACH-WX9-PCB"},"Scores":{"Overall":4886,"Gaming":2271,"Desktop":6166,"Workstation":8635},"Metrics":{"CPU_ST":2039,"CPU_MT":15672,"RAM_Lesen":24.6,"RAM_Kopieren":8.1,"RAM_Latenz":198.5,"GPU_REND":9.6,"GPU_REND1":8.4,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"LITEON CA3-8D256 (C:)","Klasse":"NVMe PCIe 3.0 x4","SR":2636,"SW":199,"R1":3554,"R8":32807,"W1":10707},"Disks":[{"Model":"LITEON CA3-8D256 (C:)","Klasse":"NVMe PCIe 3.0 x4","SR":2636,"SW":199,"R1":3554,"R8":32807,"W1":10707}],"DisksByClass":{"NVMe PCIe 3.0 x4":{"Model":"LITEON CA3-8D256 (C:)","Klasse":"NVMe PCIe 3.0 x4","SR":2636,"SW":199,"R1":3554,"R8":32807,"W1":10707}}},"Telemetry":{"CpuTempMax":78,"CpuTempLeerlauf":64,"TjMax":100,"GpuTempMax":74,"CpuMHzAvg":2315,"CpuMHzMax":null,"Drosselung":"Leistungsgrenze","TaktAbfall":46.1,"Unterbrechungen":"CPU-Last: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 0/0/0); RAM-Last: 1 über 50 ms, längste 374 ms, zusammen 0,4 s (Speicherbereinigungen Gen 0/1/2: 3/3/3); Arbeitsprozess: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 286/6/0)","UnterbrechungenUeber50ms":true,"Series":[{"T":1,"Temp":66,"MHz":1678,"GpuTemp":69,"CpuW":7.7,"Fps":null},{"T":5,"Temp":73,"MHz":1799,"GpuTemp":65,"CpuW":10.3,"Fps":null},{"T":8,"Temp":75,"MHz":1229,"GpuTemp":67,"CpuW":20.1,"Fps":null},{"T":12,"Temp":77,"MHz":1290,"GpuTemp":69,"CpuW":21,"Fps":9.6},{"T":15,"Temp":77,"MHz":1440,"GpuTemp":70,"CpuW":21.6,"Fps":9.7},{"T":18,"Temp":78,"MHz":1968,"GpuTemp":71,"CpuW":26.3,"Fps":9.6},{"T":21,"Temp":73,"MHz":1564,"GpuTemp":72,"CpuW":20.5,"Fps":9.5},{"T":25,"Temp":73,"MHz":978,"GpuTemp":72,"CpuW":14.3,"Fps":9.5},{"T":28,"Temp":75,"MHz":1021,"GpuTemp":73,"CpuW":15.7,"Fps":9.7},{"T":31,"Temp":74,"MHz":1012,"GpuTemp":73,"CpuW":16.1,"Fps":9.4},{"T":34,"Temp":75,"MHz":991,"GpuTemp":73,"CpuW":15.9,"Fps":9.1},{"T":37,"Temp":76,"MHz":978,"GpuTemp":73,"CpuW":15.9,"Fps":9.2},{"T":41,"Temp":76,"MHz":985,"GpuTemp":74,"CpuW":15.3,"Fps":8.4},{"T":44,"Temp":76,"MHz":978,"GpuTemp":73,"CpuW":15.2,"Fps":8.8},{"T":47,"Temp":76,"MHz":978,"GpuTemp":73,"CpuW":15,"Fps":8.5},{"T":51,"Temp":76,"MHz":978,"GpuTemp":73,"CpuW":14.9,"Fps":8.6},{"T":54,"Temp":76,"MHz":978,"GpuTemp":73,"CpuW":14.6,"Fps":8.6},{"T":57,"Temp":76,"MHz":978,"GpuTemp":74,"CpuW":14.2,"Fps":8.1},{"T":61,"Temp":76,"MHz":957,"GpuTemp":74,"CpuW":14.1,"Fps":8.7},{"T":64,"Temp":75,"MHz":930,"GpuTemp":74,"CpuW":13.9,"Fps":8.4},{"T":67,"Temp":76,"MHz":889,"GpuTemp":74,"CpuW":13.7,"Fps":8.6},{"T":71,"Temp":76,"MHz":889,"GpuTemp":74,"CpuW":13.4,"Fps":7.7},{"T":74,"Temp":75,"MHz":902,"GpuTemp":74,"CpuW":13.3,"Fps":8.4},{"T":77,"Temp":75,"MHz":889,"GpuTemp":74,"CpuW":12.8,"Fps":8.6},{"T":81,"Temp":76,"MHz":889,"GpuTemp":74,"CpuW":12.5,"Fps":8.2},{"T":84,"Temp":75,"MHz":889,"GpuTemp":74,"CpuW":12.3,"Fps":8.6},{"T":87,"Temp":75,"MHz":889,"GpuTemp":74,"CpuW":12.1,"Fps":8.4},{"T":91,"Temp":75,"MHz":837,"GpuTemp":74,"CpuW":11.7,"Fps":7.9},{"T":94,"Temp":75,"MHz":800,"GpuTemp":73,"CpuW":11.6,"Fps":8.1},{"T":98,"Temp":75,"MHz":800,"GpuTemp":73,"CpuW":11.6,"Fps":7.8},{"T":101,"Temp":74,"MHz":800,"GpuTemp":73,"CpuW":10.9,"Fps":7},{"T":105,"Temp":74,"MHz":809,"GpuTemp":73,"CpuW":10.8,"Fps":7.7},{"T":108,"Temp":74,"MHz":800,"GpuTemp":73,"CpuW":10.6,"Fps":8.1},{"T":112,"Temp":74,"MHz":757,"GpuTemp":73,"CpuW":10.4,"Fps":7.8},{"T":115,"Temp":74,"MHz":711,"GpuTemp":73,"CpuW":10.1,"Fps":7.9},{"T":119,"Temp":73,"MHz":711,"GpuTemp":72,"CpuW":10,"Fps":8.2},{"T":122,"Temp":73,"MHz":711,"GpuTemp":72,"CpuW":9.7,"Fps":null},{"T":126,"Temp":76,"MHz":1043,"GpuTemp":72,"CpuW":10.6,"Fps":null},{"T":129,"Temp":70,"MHz":1652,"GpuTemp":72,"CpuW":4.8,"Fps":null},{"T":132,"Temp":73,"MHz":1769,"GpuTemp":72,"CpuW":6.9,"Fps":null},{"T":135,"Temp":85,"MHz":2123,"GpuTemp":72,"CpuW":8.2,"Fps":null},{"T":138,"Temp":72,"MHz":2224,"GpuTemp":66,"CpuW":9.6,"Fps":null},{"T":141,"Temp":82,"MHz":2417,"GpuTemp":66,"CpuW":12.4,"Fps":null},{"T":144,"Temp":75,"MHz":2787,"GpuTemp":66,"CpuW":19.2,"Fps":null},{"T":147,"Temp":73,"MHz":1889,"GpuTemp":66,"CpuW":9.9,"Fps":null},{"T":150,"Temp":71,"MHz":1863,"GpuTemp":66,"CpuW":9.5,"Fps":null},{"T":153,"Temp":71,"MHz":1912,"GpuTemp":66,"CpuW":9.8,"Fps":null},{"T":156,"Temp":71,"MHz":1942,"GpuTemp":66,"CpuW":10.1,"Fps":null}],"ThrottleEvents":[{"T":28,"Label":"Drosselung (Leistungsgrenze, -46 %)","Type":"Leistungsgrenze"}]},"RawValues":{"DISK|0023_0356_5009_E23F.|LITEON CA3-8D256|R8":32807,"GPU|Intel(R) UHD Graphics 620|REND|1280x720":4.2,"DISK|0023_0356_5009_E23F.|LITEON CA3-8D256|SW":199,"RAM|Lesen":24.6,"CPU|MT":15672,"DISK|0023_0356_5009_E23F.|LITEON CA3-8D256|R1":3554,"GPU|NVIDIA GeForce MX150|RPKT":885,"GPU|Intel(R) UHD Graphics 620|REND1|1280x720":0,"CPU|Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz|DEFL":114,"RAM|Kopieren":8.1,"GPU|REND":9.6,"CPU|Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz|ST":2039,"GPU|NVIDIA GeForce MX150|REND1|1280x720":8.4,"GPU|REND1":8.4,"RAM|8GB|2133|Kopieren":8.1,"DISK|NVMe3|R8":32807,"CPU|AES":900,"DISK|NVMe3|W1":10707,"WINSAT|RAM":8.9,"WINSAT|DISK":7.35,"GPU|RPKT":885,"GPU|VMB":5.5,"GPU|Intel(R) UHD Graphics 620|VMB":5.5,"CPU|Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz|MT":15672,"GPU|NVIDIA GeForce MX150|REND|1280x720":9.6,"GPU|Intel(R) UHD Graphics 620|DWM":322,"RAM|8GB|2133|Latenz":198.5,"CPU|Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz|AES":900,"GPU|DWM":322,"DISK|NVMe3|R1":3554,"DISK|NVMe3|SW":199,"RAM|8GB|2133|Schreiben":12.6,"CPU|ST":2039,"GPU|Intel(R) UHD Graphics 620|RPKT":382,"DISK|NVMe3|SR":2636,"DISK|0023_0356_5009_E23F.|LITEON CA3-8D256|SR":2636,"RAM|Latenz":198.5,"DISK|0023_0356_5009_E23F.|LITEON CA3-8D256|W1":10707,"RAM|Schreiben":12.6,"WINSAT|CPU":8.9,"CPU|SHA":377,"CPU|DEFL":114,"CPU|Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz|SHA":377,"WINSAT|GFX":6.3,"RAM|8GB|2133|Lesen":24.6}},{"Id":"DESKTOP-2KDA9KP_202610032130","Computer":"DESKTOP-2KDA9KP","DisplayName":"DESKTOP-2KDA9KP (Core i5-8365U, 24 GB DDR4-2400, UHD Graphics 620)","Datum":"2026-10-03 21:30","IsReference":false,"OS":"Microsoft Windows 11 Pro 25H2 (Build 26200.9457)","Hardware":{"CPU":"Intel Core i5-8365U","RAM":"24 GB DDR4-2400","GPU":"UHD Graphics 620","Datentraeger":"SAMSUNG MZVLB512HBJQ-000L7 (476,9 GB, NVMe, Healthy); USB SanDisk 3.2Gen1 (57,3 GB, USB, Healthy)","Mainboard":"Dell Inc. 0M4J82"},"Scores":{"Overall":3716,"Gaming":1621,"Desktop":6539,"Workstation":8304},"Metrics":{"CPU_ST":2133,"CPU_MT":14744,"RAM_Lesen":28.3,"RAM_Kopieren":9.9,"RAM_Latenz":134.4,"GPU_REND":4.8,"GPU_REND1":4.7,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"SAMSUNG MZVLB512HBJQ-000L7 (C:)","Klasse":"NVMe PCIe 3.0 x4","SR":3487,"SW":2424,"R1":15440,"R8":112473,"W1":22297},"Disks":[{"Model":"SAMSUNG MZVLB512HBJQ-000L7 (C:)","Klasse":"NVMe PCIe 3.0 x4","SR":3487,"SW":2424,"R1":15440,"R8":112473,"W1":22297}],"DisksByClass":{"NVMe PCIe 3.0 x4":{"Model":"SAMSUNG MZVLB512HBJQ-000L7 (C:)","Klasse":"NVMe PCIe 3.0 x4","SR":3487,"SW":2424,"R1":15440,"R8":112473,"W1":22297}}},"Telemetry":{"CpuTempMax":null,"CpuTempLeerlauf":25.1,"TjMax":null,"GpuTempMax":null,"CpuMHzAvg":2249,"CpuMHzMax":null,"Drosselung":"Leistungsgrenze","TaktAbfall":33.1,"Unterbrechungen":"CPU-Last: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 0/0/0); RAM-Last: 1 über 50 ms, längste 1.027 ms, zusammen 1,0 s (Speicherbereinigungen Gen 0/1/2: 5/5/5); Arbeitsprozess: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 195/3/0)","UnterbrechungenUeber50ms":true,"Series":[{"T":0,"Temp":25.1,"MHz":2339,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":4,"Temp":37.8,"MHz":2316,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":8,"Temp":50.6,"MHz":2294,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":12,"Temp":63.3,"MHz":2271,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":16,"Temp":74.2,"MHz":2248,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":20,"Temp":73.2,"MHz":2230,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":24,"Temp":72.2,"MHz":2224,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":28,"Temp":76.3,"MHz":1516,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":32,"Temp":76,"MHz":1502,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":36,"Temp":75.7,"MHz":1491,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":40,"Temp":75.6,"MHz":1492,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":44,"Temp":75.8,"MHz":1505,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":48,"Temp":76.1,"MHz":1517,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":52,"Temp":76.3,"MHz":1518,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":56,"Temp":76.4,"MHz":1507,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":60,"Temp":76.2,"MHz":1493,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":64,"Temp":75.9,"MHz":1490,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":68,"Temp":75.7,"MHz":1500,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":72,"Temp":75.6,"MHz":1514,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":76,"Temp":75.8,"MHz":1519,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":80,"Temp":76.1,"MHz":1511,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":84,"Temp":76.4,"MHz":1496,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":88,"Temp":76.4,"MHz":1490,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":92,"Temp":76.2,"MHz":1497,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":96,"Temp":75.9,"MHz":1511,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":100,"Temp":70.5,"MHz":1462,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":104,"Temp":65,"MHz":1462,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":108,"Temp":59.5,"MHz":1462,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":112,"Temp":53.9,"MHz":1462,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":116,"Temp":48.4,"MHz":1462,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":120,"Temp":42.9,"MHz":1462,"GpuTemp":null,"CpuW":20,"Fps":4.8}],"ThrottleEvents":[{"T":28,"Label":"Drosselung (Leistungsgrenze, -33 %)","Type":"Leistungsgrenze"}]},"RawValues":{"GPU|Intel(R) UHD Graphics 620|REND|1280x720":4.8,"RAM|Lesen":28.3,"CPU|MT":14744,"GPU|Intel(R) UHD Graphics 620|REND1|1280x720":4.7,"GPU|Intel(R) UHD Graphics 620|DWM":383,"RAM|Kopieren":9.9,"GPU|REND":4.8,"GPU|REND1":4.7,"RAM|24GB|2400|Lesen":28.3,"DISK|NVMe3|R8":112473,"DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|SW":2424,"DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|W1":22297,"CPU|AES":1031,"DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|R1":15440,"RAM|24GB|2400|Schreiben":13.4,"DISK|NVMe3|W1":22297,"WINSAT|RAM":8.9,"WINSAT|DISK":9.05,"GPU|RPKT":442,"CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|AES":1031,"GPU|VMB":6.5,"GPU|Intel(R) UHD Graphics 620|VMB":6.5,"RAM|24GB|2400|Latenz":134.4,"WINSAT|CPU":8.9,"CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|MT":14744,"GPU|DWM":383,"DISK|NVMe3|R1":15440,"DISK|NVMe3|SW":2424,"CPU|ST":2133,"DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|R8":112473,"GPU|Intel(R) UHD Graphics 620|RPKT":442,"DISK|NVMe3|SR":3487,"RAM|24GB|2400|Kopieren":9.9,"RAM|Latenz":134.4,"DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|SR":3487,"CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|ST":2133,"RAM|Schreiben":13.4,"CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|SHA":437,"CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|DEFL":118,"CPU|SHA":437,"CPU|DEFL":118,"WINSAT|GFX":6.2}},{"Id":"TORRENT_202610032110","Computer":"TORRENT","DisplayName":"TORRENT (Ryzen 5 7600X, 32 GB DDR5-6000, Radeon RX 6800)","Datum":"2026-10-03 21:10","IsReference":false,"OS":"Microsoft Windows 11 Pro 25H2 (Build 26200.9457)","Hardware":{"CPU":"AMD Ryzen 5 7600X","RAM":"32 GB DDR5-6000","GPU":"Radeon RX 6800","Datentraeger":"SanDisk SDSSDH3 1T02 (953,9 GB, SATA, Healthy); Samsung SSD 860 EVO 1TB (931,5 GB, SATA, Healthy); SAMSUNG MZVL21T0HCLR-00B00 (953,9 GB, NVMe, Healthy); Lexar SSD NM620 1TB (953,9 GB, NVMe, Healthy); WDS100T3X0C-00SJG0 (931,5 GB, NVMe, Healthy); USB SanDisk 3.2Gen1 (57,3 GB, USB, Healthy)","Mainboard":"Gigabyte Technology Co., Ltd. B650 GAMING X AX"},"Scores":{"Overall":24209,"Gaming":13197,"Desktop":15049,"Workstation":26188},"Metrics":{"CPU_ST":3092,"CPU_MT":38883,"RAM_Lesen":61.9,"RAM_Kopieren":24.1,"RAM_Latenz":80.6,"GPU_REND":133.3,"GPU_REND1":121,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"SAMSUNG MZVL21T0HCLR-00B00 (C:)","Klasse":"NVMe PCIe 4.0 x4","SR":6551,"SW":2779,"R1":14178,"R8":119846,"W1":52665},"Disks":[{"Model":"SanDisk SDSSDH3 1T02 (D:)","Klasse":"SATA-SSD","SR":554,"SW":514,"R1":10433,"R8":70639,"W1":29362},{"Model":"Samsung SSD 860 EVO 1TB (E:)","Klasse":"SATA-SSD","SR":563,"SW":533,"R1":12241,"R8":75637,"W1":30117},{"Model":"SAMSUNG MZVL21T0HCLR-00B00 (C:)","Klasse":"NVMe PCIe 4.0 x4","SR":6551,"SW":2779,"R1":14178,"R8":119846,"W1":52665},{"Model":"Lexar SSD NM620 1TB (F:)","Klasse":"NVMe PCIe 3.0 x4","SR":2805,"SW":2908,"R1":16504,"R8":124476,"W1":48673},{"Model":"WDS100T3X0C-00SJG0 (G:)","Klasse":"NVMe PCIe 3.0 x4","SR":3422,"SW":2912,"R1":11676,"R8":93685,"W1":67914}],"DisksByClass":{"SATA-SSD":{"Model":"Samsung SSD 860 EVO 1TB (E:)","Klasse":"SATA-SSD","SR":563,"SW":533,"R1":12241,"R8":75637,"W1":30117},"NVMe PCIe 4.0 x4":{"Model":"SAMSUNG MZVL21T0HCLR-00B00 (C:)","Klasse":"NVMe PCIe 4.0 x4","SR":6551,"SW":2779,"R1":14178,"R8":119846,"W1":52665},"NVMe PCIe 3.0 x4":{"Model":"WDS100T3X0C-00SJG0 (G:)","Klasse":"NVMe PCIe 3.0 x4","SR":3422,"SW":2912,"R1":11676,"R8":93685,"W1":67914}}},"Telemetry":{"CpuTempMax":75.9,"CpuTempLeerlauf":52.6,"TjMax":null,"GpuTempMax":65,"CpuMHzAvg":5186,"CpuMHzMax":5440,"Drosselung":"keine","TaktAbfall":0.3,"Unterbrechungen":"CPU-Last: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 0/0/0); RAM-Last: 1 über 50 ms, längste 181 ms, zusammen 0,2 s (Speicherbereinigungen Gen 0/1/2: 5/5/5); Arbeitsprozess: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 189/5/0)","UnterbrechungenUeber50ms":true,"Series":[{"T":0,"Temp":52.6,"MHz":5393,"GpuTemp":61.1,"CpuW":20,"Fps":133.3},{"T":4,"Temp":58.4,"MHz":5342,"GpuTemp":61.1,"CpuW":20,"Fps":133.3},{"T":8,"Temp":64.2,"MHz":5290,"GpuTemp":61.1,"CpuW":20,"Fps":133.3},{"T":12,"Temp":70.1,"MHz":5238,"GpuTemp":61.1,"CpuW":20,"Fps":133.3},{"T":16,"Temp":74.1,"MHz":5185,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":20,"Temp":73.1,"MHz":5167,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":24,"Temp":72.1,"MHz":5161,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":28,"Temp":76.2,"MHz":5182,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":32,"Temp":75.9,"MHz":5168,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":36,"Temp":75.6,"MHz":5157,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":40,"Temp":75.5,"MHz":5158,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":44,"Temp":75.7,"MHz":5171,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":48,"Temp":76,"MHz":5183,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":52,"Temp":76.2,"MHz":5184,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":56,"Temp":76.3,"MHz":5172,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":60,"Temp":76.1,"MHz":5159,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":64,"Temp":75.8,"MHz":5156,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":68,"Temp":75.6,"MHz":5166,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":72,"Temp":75.5,"MHz":5180,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":76,"Temp":75.7,"MHz":5185,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":80,"Temp":76,"MHz":5177,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":84,"Temp":76.3,"MHz":5162,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":88,"Temp":76.3,"MHz":5155,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":92,"Temp":76.1,"MHz":5162,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":96,"Temp":75.8,"MHz":5177,"GpuTemp":61.1,"CpuW":65,"Fps":133.3},{"T":100,"Temp":73.4,"MHz":3371,"GpuTemp":61.1,"CpuW":20,"Fps":133.3},{"T":104,"Temp":70.9,"MHz":3371,"GpuTemp":61.1,"CpuW":20,"Fps":133.3},{"T":108,"Temp":68.3,"MHz":3371,"GpuTemp":61.1,"CpuW":20,"Fps":133.3},{"T":112,"Temp":65.8,"MHz":3371,"GpuTemp":61.1,"CpuW":20,"Fps":133.3},{"T":116,"Temp":63.3,"MHz":3371,"GpuTemp":61.1,"CpuW":20,"Fps":133.3},{"T":120,"Temp":60.8,"MHz":3371,"GpuTemp":61.1,"CpuW":20,"Fps":133.3}],"ThrottleEvents":[]},"RawValues":{"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|W1":52665,"WINSAT|GFX":9.9,"CPU|SHA":2535,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|R8":93685,"GPU|AMD Radeon RX 6800|RPKT":12285,"RAM|Schreiben":31.3,"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|SR":6551,"DISK|NVMe3|R1":14090,"DISK|NVMe4|W1":52665,"CPU|AMD Ryzen 5 7600X 6-Core Processor|SHA":2535,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|R8":75637,"DISK|NVMe3|SW":2910,"RAM|Lesen":61.9,"DISK|SATA-SSD|W1":29740,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|SW":533,"DISK|203791800341|SanDisk SDSSDH3 1T02|R1":10433,"DISK|NVMe3|R8":109080,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|W1":67914,"DISK|203791800341|SanDisk SDSSDH3 1T02|SW":514,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|W1":30117,"CPU|AES":1429,"DISK|SATA-SSD|SR":558,"GPU|AMD Radeon RX 6800|REND1|1280x720":121,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|W1":48673,"RAM|32GB|6000|Latenz":80.6,"DISK|NVMe4|SR":6551,"CPU|AMD Ryzen 5 7600X 6-Core Processor|DEFL":296,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|R8":124476,"CPU|ST":3092,"RAM|32GB|6000|Schreiben":31.3,"RAM|32GB|6000|Kopieren":24.1,"DISK|SATA-SSD|SW":524,"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|SW":2779,"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|R1":14178,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|SW":2912,"DISK|203791800341|SanDisk SDSSDH3 1T02|W1":29362,"WINSAT|RAM":9.3,"GPU|AMD Radeon RX 6800|DWM":17440,"GPU|RPKT":12285,"RAM|Kopieren":24.1,"CPU|AMD Ryzen 5 7600X 6-Core Processor|MT":38883,"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|R8":119846,"RAM|Latenz":80.6,"GPU|AMD Radeon RX 6800|REND|1280x720":133.3,"DISK|SATA-SSD|R1":11337,"GPU|REND1":121,"CPU|AMD Ryzen 5 7600X 6-Core Processor|AES":1429,"WINSAT|DISK":9.35,"DISK|SATA-SSD|R8":73138,"RAM|32GB|6000|Lesen":61.9,"WINSAT|CPU":9.3,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|R1":16504,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|R1":11676,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|SR":563,"GPU|AMD Radeon RX 6800|VMB":296.1,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|R1":12241,"GPU|DWM":17440,"GPU|REND":133.3,"CPU|DEFL":296,"DISK|203791800341|SanDisk SDSSDH3 1T02|R8":70639,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|SW":2908,"DISK|NVMe4|SW":2779,"DISK|203791800341|SanDisk SDSSDH3 1T02|SR":554,"DISK|NVMe3|SR":3114,"CPU|MT":38883,"GPU|VMB":296.1,"DISK|NVMe4|R8":119846,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|SR":2805,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|SR":3422,"CPU|AMD Ryzen 5 7600X 6-Core Processor|ST":3092,"DISK|NVMe4|R1":14178,"DISK|NVMe3|W1":58294}},{"Id":"TORRENT_202610031802","Computer":"TORRENT","DisplayName":"TORRENT (Ryzen 5 7600X, 32 GB DDR5-6000, Radeon RX 6800)","Datum":"2026-10-03 18:02","IsReference":false,"OS":"Microsoft Windows 11 Pro 25H2 (Build 26200.9457)","Hardware":{"CPU":"AMD Ryzen 5 7600X","RAM":"32 GB DDR5-6000","GPU":"Radeon RX 6800","Datentraeger":"SanDisk SDSSDH3 1T02 (953,9 GB, SATA, Healthy); Samsung SSD 860 EVO 1TB (931,5 GB, SATA, Healthy); SAMSUNG MZVL21T0HCLR-00B00 (953,9 GB, NVMe, Healthy); Lexar SSD NM620 1TB (953,9 GB, NVMe, Healthy); WDS100T3X0C-00SJG0 (931,5 GB, NVMe, Healthy)","Mainboard":"Gigabyte Technology Co., Ltd. B650 GAMING X AX"},"Scores":{"Overall":24174,"Gaming":13191,"Desktop":15078,"Workstation":26187},"Metrics":{"CPU_ST":3101,"CPU_MT":38830,"RAM_Lesen":61.9,"RAM_Kopieren":23.8,"RAM_Latenz":80.6,"GPU_REND":133,"GPU_REND1":118.9,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"SAMSUNG MZVL21T0HCLR-00B00 (C:)","Klasse":"NVMe PCIe 4.0 x4","SR":6581,"SW":4684,"R1":18164,"R8":158166,"W1":52314},"Disks":[{"Model":"SanDisk SDSSDH3 1T02 (D:)","Klasse":"SATA-SSD","SR":523,"SW":508,"R1":9169,"R8":46621,"W1":25952},{"Model":"Samsung SSD 860 EVO 1TB (E:)","Klasse":"SATA-SSD","SR":564,"SW":533,"R1":12319,"R8":75889,"W1":29174},{"Model":"SAMSUNG MZVL21T0HCLR-00B00 (C:)","Klasse":"NVMe PCIe 4.0 x4","SR":6581,"SW":4684,"R1":18164,"R8":158166,"W1":52314},{"Model":"Lexar SSD NM620 1TB (F:)","Klasse":"NVMe PCIe 3.0 x4","SR":2820,"SW":3049,"R1":16581,"R8":125179,"W1":46513},{"Model":"WDS100T3X0C-00SJG0 (G:)","Klasse":"NVMe PCIe 3.0 x4","SR":3420,"SW":2796,"R1":11882,"R8":93934,"W1":67406}],"DisksByClass":{"SATA-SSD":{"Model":"Samsung SSD 860 EVO 1TB (E:)","Klasse":"SATA-SSD","SR":564,"SW":533,"R1":12319,"R8":75889,"W1":29174},"NVMe PCIe 4.0 x4":{"Model":"SAMSUNG MZVL21T0HCLR-00B00 (C:)","Klasse":"NVMe PCIe 4.0 x4","SR":6581,"SW":4684,"R1":18164,"R8":158166,"W1":52314},"NVMe PCIe 3.0 x4":{"Model":"WDS100T3X0C-00SJG0 (G:)","Klasse":"NVMe PCIe 3.0 x4","SR":3420,"SW":2796,"R1":11882,"R8":93934,"W1":67406}}},"Telemetry":{"CpuTempMax":null,"CpuTempLeerlauf":16.9,"TjMax":null,"GpuTempMax":null,"CpuMHzAvg":5178,"CpuMHzMax":null,"Drosselung":"keine","TaktAbfall":0.3,"Unterbrechungen":"CPU-Last: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 0/0/0); RAM-Last: 1 über 50 ms, längste 157 ms, zusammen 0,2 s (Speicherbereinigungen Gen 0/1/2: 5/5/5); Arbeitsprozess: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 60/5/0)","UnterbrechungenUeber50ms":true,"Series":[{"T":0,"Temp":16.9,"MHz":5018,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":3,"Temp":16.9,"MHz":5189,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":5,"Temp":16.9,"MHz":5141,"GpuTemp":null,"CpuW":null,"Fps":133},{"T":8,"Temp":16.9,"MHz":5127,"GpuTemp":null,"CpuW":null,"Fps":140.3},{"T":11,"Temp":16.9,"MHz":5137,"GpuTemp":null,"CpuW":null,"Fps":135.3},{"T":13,"Temp":16.9,"MHz":5140,"GpuTemp":null,"CpuW":null,"Fps":139.1},{"T":16,"Temp":16.9,"MHz":5145,"GpuTemp":null,"CpuW":null,"Fps":135.7},{"T":18,"Temp":16.9,"MHz":5132,"GpuTemp":null,"CpuW":null,"Fps":136.9},{"T":21,"Temp":16.9,"MHz":5135,"GpuTemp":null,"CpuW":null,"Fps":138},{"T":23,"Temp":16.9,"MHz":5152,"GpuTemp":null,"CpuW":null,"Fps":136.1},{"T":26,"Temp":16.9,"MHz":5141,"GpuTemp":null,"CpuW":null,"Fps":140},{"T":29,"Temp":16.9,"MHz":5155,"GpuTemp":null,"CpuW":null,"Fps":135.6},{"T":32,"Temp":16.9,"MHz":5139,"GpuTemp":null,"CpuW":null,"Fps":139.6},{"T":35,"Temp":16.9,"MHz":5140,"GpuTemp":null,"CpuW":null,"Fps":134.6},{"T":37,"Temp":16.9,"MHz":5135,"GpuTemp":null,"CpuW":null,"Fps":140.2},{"T":40,"Temp":16.9,"MHz":5138,"GpuTemp":null,"CpuW":null,"Fps":135.1},{"T":43,"Temp":16.9,"MHz":5134,"GpuTemp":null,"CpuW":null,"Fps":139.1},{"T":45,"Temp":16.9,"MHz":5133,"GpuTemp":null,"CpuW":null,"Fps":135.8},{"T":48,"Temp":16.9,"MHz":5124,"GpuTemp":null,"CpuW":null,"Fps":136.6},{"T":50,"Temp":16.9,"MHz":5123,"GpuTemp":null,"CpuW":null,"Fps":138.7},{"T":53,"Temp":16.9,"MHz":5135,"GpuTemp":null,"CpuW":null,"Fps":136.1},{"T":56,"Temp":16.9,"MHz":5140,"GpuTemp":null,"CpuW":null,"Fps":140.4},{"T":58,"Temp":16.9,"MHz":5151,"GpuTemp":null,"CpuW":null,"Fps":135.6},{"T":61,"Temp":16.9,"MHz":5127,"GpuTemp":null,"CpuW":null,"Fps":137.1},{"T":64,"Temp":16.9,"MHz":5139,"GpuTemp":null,"CpuW":null,"Fps":134.6},{"T":67,"Temp":16.9,"MHz":5128,"GpuTemp":null,"CpuW":null,"Fps":139.9},{"T":69,"Temp":16.9,"MHz":5129,"GpuTemp":null,"CpuW":null,"Fps":135.2},{"T":72,"Temp":16.9,"MHz":5112,"GpuTemp":null,"CpuW":null,"Fps":138},{"T":75,"Temp":16.9,"MHz":5145,"GpuTemp":null,"CpuW":null,"Fps":136.7},{"T":77,"Temp":16.9,"MHz":5126,"GpuTemp":null,"CpuW":null,"Fps":136.3},{"T":80,"Temp":16.9,"MHz":5130,"GpuTemp":null,"CpuW":null,"Fps":139.4},{"T":82,"Temp":16.9,"MHz":5119,"GpuTemp":null,"CpuW":null,"Fps":136},{"T":85,"Temp":16.9,"MHz":5121,"GpuTemp":null,"CpuW":null,"Fps":140.5},{"T":87,"Temp":16.9,"MHz":5124,"GpuTemp":null,"CpuW":null,"Fps":135.6},{"T":90,"Temp":16.9,"MHz":5121,"GpuTemp":null,"CpuW":null,"Fps":139.1},{"T":93,"Temp":16.9,"MHz":5116,"GpuTemp":null,"CpuW":null,"Fps":136.2},{"T":96,"Temp":16.9,"MHz":5123,"GpuTemp":null,"CpuW":null,"Fps":138.3},{"T":99,"Temp":16.9,"MHz":5124,"GpuTemp":null,"CpuW":null,"Fps":134.5},{"T":101,"Temp":16.9,"MHz":5128,"GpuTemp":null,"CpuW":null,"Fps":137.5},{"T":104,"Temp":16.9,"MHz":5112,"GpuTemp":null,"CpuW":null,"Fps":137.4},{"T":107,"Temp":16.9,"MHz":5125,"GpuTemp":null,"CpuW":null,"Fps":135.6},{"T":109,"Temp":16.9,"MHz":5128,"GpuTemp":null,"CpuW":null,"Fps":138.2},{"T":116,"Temp":16.9,"MHz":5126,"GpuTemp":null,"CpuW":null,"Fps":135.7},{"T":119,"Temp":16.9,"MHz":5121,"GpuTemp":null,"CpuW":null,"Fps":136.5},{"T":122,"Temp":16.9,"MHz":5114,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":125,"Temp":16.9,"MHz":5042,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":128,"Temp":16.9,"MHz":4654,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":130,"Temp":16.9,"MHz":4364,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":133,"Temp":16.9,"MHz":4307,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":135,"Temp":16.9,"MHz":4384,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":138,"Temp":16.9,"MHz":4314,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":140,"Temp":16.9,"MHz":4381,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":143,"Temp":16.9,"MHz":4332,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":145,"Temp":16.9,"MHz":4358,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":148,"Temp":16.9,"MHz":4391,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":150,"Temp":16.9,"MHz":4334,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":153,"Temp":16.9,"MHz":4378,"GpuTemp":null,"CpuW":null,"Fps":null}],"ThrottleEvents":[]},"RawValues":{"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|W1":52314,"WINSAT|GFX":9.9,"CPU|SHA":2535,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|R8":93934,"GPU|AMD Radeon RX 6800|RPKT":12253,"RAM|Schreiben":31.3,"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|SR":6581,"DISK|NVMe3|R1":14232,"DISK|NVMe4|W1":52314,"CPU|AMD Ryzen 5 7600X 6-Core Processor|SHA":2535,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|R8":75889,"DISK|NVMe3|SW":2922,"RAM|Lesen":61.9,"DISK|SATA-SSD|W1":27563,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|SW":533,"DISK|203791800341|SanDisk SDSSDH3 1T02|R1":9169,"DISK|NVMe3|R8":109556,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|W1":67406,"DISK|203791800341|SanDisk SDSSDH3 1T02|SW":508,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|W1":29174,"CPU|AES":1440,"DISK|SATA-SSD|SR":544,"GPU|AMD Radeon RX 6800|REND1|1280x720":118.9,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|W1":46513,"RAM|32GB|6000|Latenz":80.6,"DISK|NVMe4|SR":6581,"CPU|AMD Ryzen 5 7600X 6-Core Processor|DEFL":298,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|R8":125179,"CPU|ST":3101,"RAM|32GB|6000|Schreiben":31.3,"RAM|32GB|6000|Kopieren":23.8,"DISK|SATA-SSD|SW":520,"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|SW":4684,"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|R1":18164,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|SW":2796,"DISK|203791800341|SanDisk SDSSDH3 1T02|W1":25952,"WINSAT|RAM":9.3,"GPU|AMD Radeon RX 6800|DWM":17318,"GPU|RPKT":12253,"RAM|Kopieren":23.8,"CPU|AMD Ryzen 5 7600X 6-Core Processor|MT":38830,"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|R8":158166,"RAM|Latenz":80.6,"GPU|AMD Radeon RX 6800|REND|1280x720":133,"DISK|SATA-SSD|R1":10744,"GPU|REND1":118.9,"CPU|AMD Ryzen 5 7600X 6-Core Processor|AES":1440,"WINSAT|DISK":9.3,"DISK|SATA-SSD|R8":61255,"RAM|32GB|6000|Lesen":61.9,"WINSAT|CPU":9.3,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|R1":16581,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|R1":11882,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|SR":564,"GPU|AMD Radeon RX 6800|VMB":294.1,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|R1":12319,"GPU|DWM":17318,"GPU|REND":133,"CPU|DEFL":298,"DISK|203791800341|SanDisk SDSSDH3 1T02|R8":46621,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|SW":3049,"DISK|NVMe4|SW":4684,"DISK|203791800341|SanDisk SDSSDH3 1T02|SR":523,"DISK|NVMe3|SR":3120,"CPU|MT":38830,"GPU|VMB":294.1,"DISK|NVMe4|R8":158166,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|SR":2820,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|SR":3420,"CPU|AMD Ryzen 5 7600X 6-Core Processor|ST":3101,"DISK|NVMe4|R1":18164,"DISK|NVMe3|W1":56960}},{"Id":"TORRENT_202610032352","Computer":"TORRENT","DisplayName":"TORRENT ()","Datum":"2026-10-03 23:52","IsReference":false,"OS":"","Hardware":{"CPU":"","RAM":"","GPU":"","Datentraeger":"","Mainboard":""},"Scores":{"Overall":0,"Gaming":0,"Desktop":0,"Workstation":0},"Metrics":{"CPU_ST":0,"CPU_MT":0,"RAM_Lesen":0,"RAM_Kopieren":0,"RAM_Latenz":0,"GPU_REND":0,"GPU_REND1":0,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"Datenträger","Klasse":"SSD","SR":0,"SW":0,"R1":0,"R8":0,"W1":0},"Disks":[],"DisksByClass":{}},"Telemetry":{"CpuTempMax":null,"CpuTempLeerlauf":null,"TjMax":null,"GpuTempMax":null,"CpuMHzAvg":null,"CpuMHzMax":null,"Drosselung":"keine","TaktAbfall":0,"Unterbrechungen":"keine über 50 ms","UnterbrechungenUeber50ms":false,"Series":[{"T":0,"Temp":42,"MHz":4004,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":4,"Temp":50.5,"MHz":3966,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":8,"Temp":59,"MHz":3927,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":12,"Temp":67.5,"MHz":3888,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":16,"Temp":74.2,"MHz":3849,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":20,"Temp":73.2,"MHz":3831,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":24,"Temp":72.2,"MHz":3825,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":28,"Temp":71.4,"MHz":3834,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":32,"Temp":71.2,"MHz":3853,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":36,"Temp":71.6,"MHz":3870,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":40,"Temp":72.5,"MHz":3875,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":44,"Temp":73.5,"MHz":3865,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":48,"Temp":74.4,"MHz":3846,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":52,"Temp":74.8,"MHz":3829,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":56,"Temp":74.5,"MHz":3826,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":60,"Temp":73.7,"MHz":3837,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":64,"Temp":72.6,"MHz":3856,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":68,"Temp":71.7,"MHz":3871,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":72,"Temp":71.2,"MHz":3874,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":76,"Temp":71.3,"MHz":3862,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":80,"Temp":72,"MHz":3843,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":84,"Temp":73,"MHz":3828,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":88,"Temp":74,"MHz":3826,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":92,"Temp":74.7,"MHz":3839,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":96,"Temp":74.7,"MHz":3859,"GpuTemp":null,"CpuW":65,"Fps":null},{"T":100,"Temp":72.3,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":104,"Temp":68.6,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":108,"Temp":65,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":112,"Temp":61.3,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":116,"Temp":57.6,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":null},{"T":120,"Temp":53.9,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":null}],"ThrottleEvents":[]},"RawValues":{}},{"Id":"TORRENT_202610051447","Computer":"TORRENT","DisplayName":"TORRENT (Ryzen 5 7600X, 32 GB DDR5-6000, Radeon RX 6800)","Datum":"2026-10-05 14:47","IsReference":false,"OS":"Microsoft Windows 11 Pro 25H2 (Build 26200.9457)","Hardware":{"CPU":"AMD Ryzen 5 7600X","RAM":"32 GB DDR5-6000","GPU":"Radeon RX 6800","Datentraeger":"SanDisk SDSSDH3 1T02 (953,9 GB, SATA, Healthy); Samsung SSD 860 EVO 1TB (931,5 GB, SATA, Healthy); SAMSUNG MZVL21T0HCLR-00B00 (953,9 GB, NVMe, Healthy); Lexar SSD NM620 1TB (953,9 GB, NVMe, Healthy); WDS100T3X0C-00SJG0 (931,5 GB, NVMe, Healthy)","Mainboard":"Gigabyte Technology Co., Ltd. B650 GAMING X AX"},"Scores":{"Overall":24008,"Gaming":13226,"Desktop":15100,"Workstation":26013},"Metrics":{"CPU_ST":3118,"CPU_MT":37969,"RAM_Lesen":61.9,"RAM_Kopieren":23.9,"RAM_Latenz":81.5,"GPU_REND":133.7,"GPU_REND1":123,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"SAMSUNG MZVL21T0HCLR-00B00 (C:)","Klasse":"NVMe PCIe 4.0 x4","SR":6641,"SW":4647,"R1":17935,"R8":158384,"W1":51975},"Disks":[{"Model":"SanDisk SDSSDH3 1T02 (D:)","Klasse":"SATA-SSD","SR":552,"SW":517,"R1":10486,"R8":70540,"W1":29213},{"Model":"Samsung SSD 860 EVO 1TB (E:)","Klasse":"SATA-SSD","SR":564,"SW":533,"R1":12049,"R8":75812,"W1":28831},{"Model":"SAMSUNG MZVL21T0HCLR-00B00 (C:)","Klasse":"NVMe PCIe 4.0 x4","SR":6641,"SW":4647,"R1":17935,"R8":158384,"W1":51975},{"Model":"Lexar SSD NM620 1TB (F:)","Klasse":"NVMe PCIe 3.0 x4","SR":2824,"SW":2712,"R1":16417,"R8":124329,"W1":49027},{"Model":"WDS100T3X0C-00SJG0 (G:)","Klasse":"NVMe PCIe 3.0 x4","SR":3430,"SW":2900,"R1":12875,"R8":101965,"W1":68639}],"DisksByClass":{"SATA-SSD":{"Model":"Samsung SSD 860 EVO 1TB (E:)","Klasse":"SATA-SSD","SR":564,"SW":533,"R1":12049,"R8":75812,"W1":28831},"NVMe PCIe 4.0 x4":{"Model":"SAMSUNG MZVL21T0HCLR-00B00 (C:)","Klasse":"NVMe PCIe 4.0 x4","SR":6641,"SW":4647,"R1":17935,"R8":158384,"W1":51975},"NVMe PCIe 3.0 x4":{"Model":"WDS100T3X0C-00SJG0 (G:)","Klasse":"NVMe PCIe 3.0 x4","SR":3430,"SW":2900,"R1":12875,"R8":101965,"W1":68639}}},"Telemetry":{"CpuTempMax":68.5,"CpuTempLeerlauf":60,"TjMax":null,"GpuTempMax":68,"CpuMHzAvg":5205,"CpuMHzMax":5440,"Drosselung":"keine","TaktAbfall":0,"Unterbrechungen":"Last: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 192/18/0)","UnterbrechungenUeber50ms":false,"Series":[{"T":0,"Temp":59,"MHz":4788,"GpuTemp":48,"CpuW":29.9,"Fps":null},{"T":3,"Temp":59.1,"MHz":5229,"GpuTemp":59,"CpuW":39.2,"Fps":null},{"T":5,"Temp":61.3,"MHz":5240,"GpuTemp":61,"CpuW":38.8,"Fps":129.5},{"T":8,"Temp":62.1,"MHz":5227,"GpuTemp":62,"CpuW":39.3,"Fps":136.5},{"T":11,"Temp":62.9,"MHz":5210,"GpuTemp":62,"CpuW":39.5,"Fps":131.8},{"T":14,"Temp":62.5,"MHz":5205,"GpuTemp":63,"CpuW":39.7,"Fps":136.5},{"T":16,"Temp":62.3,"MHz":5217,"GpuTemp":63,"CpuW":39.2,"Fps":132.2},{"T":19,"Temp":62.1,"MHz":5224,"GpuTemp":64,"CpuW":39.1,"Fps":135.4},{"T":22,"Temp":62,"MHz":5212,"GpuTemp":64,"CpuW":39.2,"Fps":131.8},{"T":24,"Temp":62.4,"MHz":5207,"GpuTemp":64,"CpuW":39.4,"Fps":134.2},{"T":27,"Temp":62.6,"MHz":5223,"GpuTemp":64,"CpuW":39.1,"Fps":133.5},{"T":30,"Temp":62.4,"MHz":5214,"GpuTemp":64,"CpuW":39.2,"Fps":133.1},{"T":32,"Temp":62.6,"MHz":5207,"GpuTemp":64,"CpuW":39.4,"Fps":134.6},{"T":35,"Temp":63.4,"MHz":5208,"GpuTemp":65,"CpuW":39.3,"Fps":131.3},{"T":38,"Temp":62.8,"MHz":5213,"GpuTemp":65,"CpuW":39.1,"Fps":136.8},{"T":40,"Temp":62.5,"MHz":5219,"GpuTemp":65,"CpuW":39.3,"Fps":132},{"T":43,"Temp":62.9,"MHz":5210,"GpuTemp":66,"CpuW":39.3,"Fps":136.6},{"T":46,"Temp":64.5,"MHz":5240,"GpuTemp":66,"CpuW":40.4,"Fps":131.9},{"T":49,"Temp":63.4,"MHz":5210,"GpuTemp":66,"CpuW":39.5,"Fps":135.9},{"T":51,"Temp":63,"MHz":5219,"GpuTemp":66,"CpuW":39.3,"Fps":131.6},{"T":54,"Temp":62.5,"MHz":5217,"GpuTemp":66,"CpuW":39.3,"Fps":134.8},{"T":57,"Temp":62.8,"MHz":5213,"GpuTemp":67,"CpuW":39.4,"Fps":133.3},{"T":59,"Temp":67,"MHz":5179,"GpuTemp":67,"CpuW":41.6,"Fps":130.7},{"T":62,"Temp":64.6,"MHz":5208,"GpuTemp":66,"CpuW":39.5,"Fps":135.1},{"T":65,"Temp":63.8,"MHz":5212,"GpuTemp":67,"CpuW":39.5,"Fps":130.2},{"T":67,"Temp":63.3,"MHz":5218,"GpuTemp":67,"CpuW":39.5,"Fps":136.2},{"T":70,"Temp":63.8,"MHz":5219,"GpuTemp":66,"CpuW":39.8,"Fps":132.2},{"T":73,"Temp":63.5,"MHz":5215,"GpuTemp":66,"CpuW":39.7,"Fps":136},{"T":76,"Temp":63.3,"MHz":5211,"GpuTemp":66,"CpuW":39.2,"Fps":131.9},{"T":78,"Temp":62.9,"MHz":5217,"GpuTemp":67,"CpuW":39.7,"Fps":135.1},{"T":81,"Temp":63.1,"MHz":5209,"GpuTemp":66,"CpuW":39.4,"Fps":131.8},{"T":84,"Temp":63,"MHz":5219,"GpuTemp":67,"CpuW":39.6,"Fps":134.3},{"T":86,"Temp":62.9,"MHz":5214,"GpuTemp":67,"CpuW":39.5,"Fps":133.2},{"T":89,"Temp":63.6,"MHz":5213,"GpuTemp":67,"CpuW":39.9,"Fps":133.2},{"T":92,"Temp":64.8,"MHz":5216,"GpuTemp":68,"CpuW":39.8,"Fps":134.7},{"T":94,"Temp":64.8,"MHz":5220,"GpuTemp":68,"CpuW":39.6,"Fps":130.4},{"T":97,"Temp":64.6,"MHz":5202,"GpuTemp":67,"CpuW":39.4,"Fps":136},{"T":100,"Temp":64.5,"MHz":5215,"GpuTemp":67,"CpuW":39.6,"Fps":131.8},{"T":102,"Temp":64.3,"MHz":5214,"GpuTemp":67,"CpuW":39.6,"Fps":136.3},{"T":105,"Temp":64.6,"MHz":5214,"GpuTemp":67,"CpuW":39.6,"Fps":131.3},{"T":108,"Temp":64.9,"MHz":5206,"GpuTemp":68,"CpuW":39.7,"Fps":135.8},{"T":111,"Temp":65,"MHz":5214,"GpuTemp":68,"CpuW":39.7,"Fps":131.4},{"T":113,"Temp":65.1,"MHz":5212,"GpuTemp":68,"CpuW":39.7,"Fps":133.5},{"T":116,"Temp":64.5,"MHz":5219,"GpuTemp":68,"CpuW":39.8,"Fps":133.5},{"T":119,"Temp":68.5,"MHz":5181,"GpuTemp":68,"CpuW":41,"Fps":131.9},{"T":122,"Temp":65.8,"MHz":5170,"GpuTemp":68,"CpuW":39.4,"Fps":null},{"T":124,"Temp":61.5,"MHz":4517,"GpuTemp":56,"CpuW":27.8,"Fps":null},{"T":127,"Temp":58.5,"MHz":4514,"GpuTemp":55,"CpuW":26.8,"Fps":null},{"T":130,"Temp":56.8,"MHz":4512,"GpuTemp":53,"CpuW":27.1,"Fps":null},{"T":132,"Temp":56,"MHz":4533,"GpuTemp":53,"CpuW":27.6,"Fps":null},{"T":135,"Temp":55.3,"MHz":4502,"GpuTemp":52,"CpuW":27,"Fps":null},{"T":138,"Temp":54.8,"MHz":4526,"GpuTemp":52,"CpuW":27.1,"Fps":null},{"T":140,"Temp":54.6,"MHz":4533,"GpuTemp":52,"CpuW":26.8,"Fps":null},{"T":143,"Temp":54.6,"MHz":4502,"GpuTemp":52,"CpuW":26.9,"Fps":null},{"T":146,"Temp":54.3,"MHz":4526,"GpuTemp":52,"CpuW":26.7,"Fps":null},{"T":148,"Temp":54.1,"MHz":4514,"GpuTemp":52,"CpuW":27,"Fps":null},{"T":151,"Temp":54.1,"MHz":4548,"GpuTemp":52,"CpuW":27,"Fps":null}],"ThrottleEvents":[]},"RawValues":{"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|W1":51975,"CPU|SHA":2557,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|R8":101965,"GPU|AMD Radeon RX 6800|RPKT":12322,"RAM|Schreiben":31.2,"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|SR":6641,"DISK|NVMe3|R1":14646,"DISK|NVMe4|W1":51975,"CPU|AMD Ryzen 5 7600X 6-Core Processor|SHA":2557,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|R8":75812,"DISK|NVMe3|SW":2806,"RAM|Lesen":61.9,"DISK|SATA-SSD|W1":29022,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|SW":533,"DISK|203791800341|SanDisk SDSSDH3 1T02|R1":10486,"DISK|NVMe3|R8":113147,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|W1":68639,"DISK|203791800341|SanDisk SDSSDH3 1T02|SW":517,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|W1":28831,"CPU|AES":1439,"DISK|SATA-SSD|SR":558,"GPU|AMD Radeon RX 6800|REND1|1280x720":123,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|W1":49027,"RAM|32GB|6000|Latenz":81.5,"DISK|NVMe4|SR":6641,"CPU|AMD Ryzen 5 7600X 6-Core Processor|DEFL":296,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|R8":124329,"CPU|ST":3118,"RAM|32GB|6000|Schreiben":31.2,"RAM|32GB|6000|Kopieren":23.9,"DISK|SATA-SSD|SW":525,"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|SW":4647,"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|R1":17935,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|SW":2900,"DISK|203791800341|SanDisk SDSSDH3 1T02|W1":29213,"GPU|AMD Radeon RX 6800|DWM":17035,"GPU|RPKT":12322,"RAM|Kopieren":23.9,"CPU|AMD Ryzen 5 7600X 6-Core Processor|MT":37969,"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|R8":158384,"RAM|Latenz":81.5,"GPU|AMD Radeon RX 6800|REND|1280x720":133.7,"DISK|SATA-SSD|R1":11268,"GPU|REND1":123,"CPU|AMD Ryzen 5 7600X 6-Core Processor|AES":1439,"DISK|SATA-SSD|R8":73176,"RAM|32GB|6000|Lesen":61.9,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|R1":16417,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|R1":12875,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|SR":564,"GPU|AMD Radeon RX 6800|VMB":289.2,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|R1":12049,"GPU|DWM":17035,"GPU|REND":133.7,"CPU|DEFL":296,"DISK|203791800341|SanDisk SDSSDH3 1T02|R8":70540,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|SW":2712,"DISK|NVMe4|SW":4647,"DISK|203791800341|SanDisk SDSSDH3 1T02|SR":552,"DISK|NVMe3|SR":3127,"CPU|MT":37969,"GPU|VMB":289.2,"DISK|NVMe4|R8":158384,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|SR":2824,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|SR":3430,"CPU|AMD Ryzen 5 7600X 6-Core Processor|ST":3118,"DISK|NVMe4|R1":17935,"DISK|NVMe3|W1":58833}},{"Id":"ULB-PC10039_202610031812","Computer":"ULB-PC10039","DisplayName":"ULB-PC10039 (13th Gen Intel Core i9-13900H, 64 GB LPDDR5-6000, RTX 3000 Ada Generation Laptop GPU)","Datum":"2026-10-03 18:12","IsReference":false,"OS":"Microsoft Windows 11 Education 25H2 (Build 26200.9457)","Hardware":{"CPU":"13th Gen Intel Core i9-13900H","RAM":"64 GB LPDDR5-6000","GPU":"RTX 3000 Ada Generation Laptop GPU","Datentraeger":"NVMe PC SN820 NVMe WD 4096GB (3,73 TB, NVMe, Healthy); USB SanDisk 3.2Gen1 (57,3 GB, USB, Healthy)","Mainboard":"Dell Inc. 0JGCT2"},"Scores":{"Overall":21950,"Gaming":11122,"Desktop":15672,"Workstation":26759},"Metrics":{"CPU_ST":3464,"CPU_MT":42759,"RAM_Lesen":67.9,"RAM_Kopieren":28.5,"RAM_Latenz":113.9,"GPU_REND":90.6,"GPU_REND1":37.8,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"NVMe PC SN820 NVMe WD 4096GB (C:)","Klasse":"NVMe","SR":6689,"SW":3974,"R1":18211,"R8":106690,"W1":46373},"Disks":[{"Model":"NVMe PC SN820 NVMe WD 4096GB (C:)","Klasse":"NVMe","SR":6689,"SW":3974,"R1":18211,"R8":106690,"W1":46373}],"DisksByClass":{"NVMe":{"Model":"NVMe PC SN820 NVMe WD 4096GB (C:)","Klasse":"NVMe","SR":6689,"SW":3974,"R1":18211,"R8":106690,"W1":46373}}},"Telemetry":{"CpuTempMax":null,"CpuTempLeerlauf":null,"TjMax":null,"GpuTempMax":75,"CpuMHzAvg":3225,"CpuMHzMax":null,"Drosselung":"Firmware","TaktAbfall":41.7,"Unterbrechungen":"CPU-Last: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 0/0/0); RAM-Last: 1 über 50 ms, längste 847 ms, zusammen 0,8 s (Speicherbereinigungen Gen 0/1/2: 5/5/5); Arbeitsprozess: keine über 50 ms (Speicherbereinigungen Gen 0/1/2: 84/3/0)","UnterbrechungenUeber50ms":true,"Series":[{"T":0,"Temp":null,"MHz":2655,"GpuTemp":57,"CpuW":null,"Fps":null},{"T":4,"Temp":null,"MHz":2880,"GpuTemp":66,"CpuW":null,"Fps":null},{"T":6,"Temp":null,"MHz":2872,"GpuTemp":68,"CpuW":null,"Fps":84.4},{"T":9,"Temp":null,"MHz":2826,"GpuTemp":71,"CpuW":null,"Fps":84.5},{"T":12,"Temp":null,"MHz":2817,"GpuTemp":71,"CpuW":null,"Fps":82.2},{"T":15,"Temp":null,"MHz":2814,"GpuTemp":72,"CpuW":null,"Fps":84.8},{"T":18,"Temp":null,"MHz":2797,"GpuTemp":73,"CpuW":null,"Fps":82.5},{"T":21,"Temp":null,"MHz":2770,"GpuTemp":74,"CpuW":null,"Fps":84.3},{"T":24,"Temp":null,"MHz":2782,"GpuTemp":74,"CpuW":null,"Fps":81.8},{"T":26,"Temp":null,"MHz":2788,"GpuTemp":75,"CpuW":null,"Fps":83.2},{"T":29,"Temp":null,"MHz":2644,"GpuTemp":75,"CpuW":null,"Fps":81.3},{"T":33,"Temp":null,"MHz":1931,"GpuTemp":74,"CpuW":null,"Fps":84.4},{"T":36,"Temp":null,"MHz":1878,"GpuTemp":73,"CpuW":null,"Fps":81.7},{"T":39,"Temp":null,"MHz":1835,"GpuTemp":72,"CpuW":null,"Fps":85},{"T":42,"Temp":null,"MHz":1801,"GpuTemp":71,"CpuW":null,"Fps":82.9},{"T":45,"Temp":null,"MHz":1780,"GpuTemp":71,"CpuW":null,"Fps":85},{"T":48,"Temp":null,"MHz":1816,"GpuTemp":71,"CpuW":null,"Fps":83.7},{"T":51,"Temp":null,"MHz":1811,"GpuTemp":70,"CpuW":null,"Fps":85.6},{"T":53,"Temp":null,"MHz":1806,"GpuTemp":70,"CpuW":null,"Fps":83.1},{"T":56,"Temp":null,"MHz":1823,"GpuTemp":69,"CpuW":null,"Fps":86},{"T":59,"Temp":null,"MHz":1748,"GpuTemp":69,"CpuW":null,"Fps":83},{"T":62,"Temp":null,"MHz":1685,"GpuTemp":69,"CpuW":null,"Fps":85.1},{"T":67,"Temp":null,"MHz":1764,"GpuTemp":68,"CpuW":null,"Fps":82.8},{"T":69,"Temp":null,"MHz":1730,"GpuTemp":69,"CpuW":null,"Fps":84.2},{"T":72,"Temp":null,"MHz":1675,"GpuTemp":68,"CpuW":null,"Fps":84},{"T":75,"Temp":null,"MHz":1727,"GpuTemp":68,"CpuW":null,"Fps":84.3},{"T":78,"Temp":null,"MHz":1731,"GpuTemp":68,"CpuW":null,"Fps":84.3},{"T":81,"Temp":null,"MHz":1685,"GpuTemp":68,"CpuW":null,"Fps":84.8},{"T":84,"Temp":null,"MHz":1639,"GpuTemp":68,"CpuW":null,"Fps":84},{"T":87,"Temp":null,"MHz":1682,"GpuTemp":67,"CpuW":null,"Fps":84.6},{"T":90,"Temp":null,"MHz":1685,"GpuTemp":67,"CpuW":null,"Fps":84.8},{"T":93,"Temp":null,"MHz":1662,"GpuTemp":67,"CpuW":null,"Fps":84.9},{"T":96,"Temp":null,"MHz":1641,"GpuTemp":67,"CpuW":null,"Fps":84.7},{"T":100,"Temp":null,"MHz":1671,"GpuTemp":67,"CpuW":null,"Fps":83.8},{"T":103,"Temp":null,"MHz":1635,"GpuTemp":67,"CpuW":null,"Fps":86.1},{"T":106,"Temp":null,"MHz":1635,"GpuTemp":67,"CpuW":null,"Fps":84.2},{"T":109,"Temp":null,"MHz":1614,"GpuTemp":66,"CpuW":null,"Fps":86.2},{"T":112,"Temp":null,"MHz":1580,"GpuTemp":66,"CpuW":null,"Fps":84},{"T":115,"Temp":null,"MHz":1612,"GpuTemp":66,"CpuW":null,"Fps":86.4},{"T":118,"Temp":null,"MHz":1619,"GpuTemp":66,"CpuW":null,"Fps":84},{"T":121,"Temp":null,"MHz":1580,"GpuTemp":63,"CpuW":null,"Fps":null}],"ThrottleEvents":[{"T":28,"Label":"Drosselung (Firmware, -42 %)","Type":"Firmware"}]},"RawValues":{"RAM|Lesen":67.9,"RAM|64GB|6000|Lesen":67.9,"DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|R1":18211,"RAM|64GB|6000|Latenz":113.9,"CPU|13th Gen Intel(R) Core(TM) i9-13900H|DEFL":295,"GPU|NVIDIA RTX 3000 Ada Generation Laptop GPU|RPKT":8354,"RAM|Kopieren":28.5,"GPU|REND":90.6,"GPU|Intel(R) Iris(R) Xe Graphics|REND1|1280x720":21.8,"GPU|REND1":37.8,"RAM|64GB|6000|Kopieren":28.5,"DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|W1":46373,"DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|R8":106690,"CPU|AES":1786,"GPU|NVIDIA RTX 3000 Ada Generation Laptop GPU|REND|1280x720":90.6,"CPU|MT":42759,"WINSAT|RAM":9.4,"WINSAT|DISK":9.45,"GPU|RPKT":8354,"GPU|VMB":48.4,"GPU|Intel(R) Iris(R) Xe Graphics|DWM":2850,"DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|SR":6689,"CPU|13th Gen Intel(R) Core(TM) i9-13900H|SHA":2409,"WINSAT|CPU":9.4,"GPU|DWM":2850,"CPU|13th Gen Intel(R) Core(TM) i9-13900H|MT":42759,"CPU|13th Gen Intel(R) Core(TM) i9-13900H|ST":3464,"DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|SW":3974,"CPU|ST":3464,"RAM|64GB|6000|Schreiben":47.2,"GPU|NVIDIA RTX 3000 Ada Generation Laptop GPU|REND1|1280x720":37.8,"RAM|Latenz":113.9,"CPU|13th Gen Intel(R) Core(TM) i9-13900H|AES":1786,"GPU|Intel(R) Iris(R) Xe Graphics|VMB":48.4,"GPU|Intel(R) Iris(R) Xe Graphics|REND|1280x720":23,"CPU|SHA":2409,"CPU|DEFL":295,"GPU|Intel(R) Iris(R) Xe Graphics|RPKT":2124,"WINSAT|GFX":8.4,"RAM|Schreiben":47.2}},{"Id":"WIN11VM_202610061053","Computer":"WIN11VM","DisplayName":"WIN11VM (Core i5-8500T, 8 GB RAM-)","Datum":"2026-10-06 10:53","IsReference":false,"OS":"Microsoft Windows 11 Enterprise LTSC 24H2 (Build 26100.9457)","Hardware":{"CPU":"Intel Core i5-8500T","RAM":"8 GB RAM-","GPU":"","Datentraeger":"QEMU HARDDISK (30.0 GB, SATA, Healthy)","Mainboard":""},"Scores":{"Overall":6363,"Gaming":2924,"Desktop":2924,"Workstation":5386},"Metrics":{"CPU_ST":1982,"CPU_MT":6363,"RAM_Lesen":0,"RAM_Kopieren":0,"RAM_Latenz":0,"GPU_REND":0,"GPU_REND1":0,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"Datenträger","Klasse":"SSD","SR":0,"SW":0,"R1":0,"R8":0,"W1":0},"Disks":[],"DisksByClass":{}},"Telemetry":{"CpuTempMax":null,"CpuTempLeerlauf":null,"TjMax":null,"GpuTempMax":null,"CpuMHzAvg":2112,"CpuMHzMax":null,"Drosselung":"keine","TaktAbfall":0,"Unterbrechungen":"keine über 50 ms","UnterbrechungenUeber50ms":false,"Series":[{"T":1,"Temp":null,"MHz":2114,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":3,"Temp":null,"MHz":2112,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":7,"Temp":null,"MHz":2112,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":9,"Temp":null,"MHz":2112,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":12,"Temp":null,"MHz":2112,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":14,"Temp":null,"MHz":2112,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":17,"Temp":null,"MHz":2112,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":19,"Temp":null,"MHz":2112,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":21,"Temp":null,"MHz":2112,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":23,"Temp":null,"MHz":2112,"GpuTemp":null,"CpuW":null,"Fps":null},{"T":26,"Temp":null,"MHz":2112,"GpuTemp":null,"CpuW":null,"Fps":null}],"ThrottleEvents":[]},"RawValues":{"CPU|Intel(R) Core(TM) i5-8500T CPU @ 2.10GHz|SHA":366,"CPU|ST":1982,"CPU|Intel(R) Core(TM) i5-8500T CPU @ 2.10GHz|MT":6363,"CPU|Intel(R) Core(TM) i5-8500T CPU @ 2.10GHz|ST":1982,"CPU|Intel(R) Core(TM) i5-8500T CPU @ 2.10GHz|DEFL":79,"CPU|Intel(R) Core(TM) i5-8500T CPU @ 2.10GHz|AES":870,"CPU|MT":6363,"CPU|AES":870,"CPU|SHA":366,"CPU|DEFL":79}}],"References":[{"Id":"REF_Notebook_Standard","Computer":"Referenz-Notebook-Standard","DisplayName":"Referenz: Notebook Standard (Core i5, Intel UHD)","Datum":"2026-10-01 12:00","IsReference":true,"OS":"Microsoft Windows 11","Hardware":{"CPU":"Intel Core i5-8365U","RAM":"24 GB DDR4-2400","GPU":"UHD Graphics 620","Datentraeger":"NVMe PCIe 3.0 SSD 512GB","Mainboard":"Notebook Mainboard"},"Scores":{"Overall":3716,"Gaming":1621,"Desktop":6539,"Workstation":8304},"Metrics":{"CPU_ST":2133,"CPU_MT":14744,"RAM_Lesen":28.3,"RAM_Kopieren":9.9,"RAM_Latenz":134.4,"GPU_REND":4.8,"GPU_REND1":4.7,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"SAMSUNG MZVLB512HBJQ-000L7","Klasse":"NVMe PCIe 3.0 x4","SR":3487,"SW":2424,"R1":15440,"R8":112473,"W1":22297},"Disks":[{"Model":"SAMSUNG MZVLB512HBJQ-000L7","Klasse":"NVMe PCIe 3.0 x4","SR":3487,"SW":2424,"R1":15440,"R8":112473,"W1":22297}],"DisksByClass":{"NVMe PCIe 3.0 x4":{"Model":"SAMSUNG MZVLB512HBJQ-000L7","Klasse":"NVMe PCIe 3.0 x4","SR":3487,"SW":2424,"R1":15440,"R8":112473,"W1":22297}}},"Telemetry":{"CpuTempMax":null,"CpuTempLeerlauf":null,"TjMax":null,"GpuTempMax":null,"CpuMHzAvg":null,"CpuMHzMax":null,"Drosselung":"keine","TaktAbfall":0,"Unterbrechungen":"keine über 50 ms","UnterbrechungenUeber50ms":false,"Series":[{"T":0,"Temp":42,"MHz":4004,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":4,"Temp":50.5,"MHz":3966,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":8,"Temp":59,"MHz":3927,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":12,"Temp":67.5,"MHz":3888,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":16,"Temp":74.2,"MHz":3849,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":20,"Temp":73.2,"MHz":3831,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":24,"Temp":72.2,"MHz":3825,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":28,"Temp":71.4,"MHz":3834,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":32,"Temp":71.2,"MHz":3853,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":36,"Temp":71.6,"MHz":3870,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":40,"Temp":72.5,"MHz":3875,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":44,"Temp":73.5,"MHz":3865,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":48,"Temp":74.4,"MHz":3846,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":52,"Temp":74.8,"MHz":3829,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":56,"Temp":74.5,"MHz":3826,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":60,"Temp":73.7,"MHz":3837,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":64,"Temp":72.6,"MHz":3856,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":68,"Temp":71.7,"MHz":3871,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":72,"Temp":71.2,"MHz":3874,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":76,"Temp":71.3,"MHz":3862,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":80,"Temp":72,"MHz":3843,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":84,"Temp":73,"MHz":3828,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":88,"Temp":74,"MHz":3826,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":92,"Temp":74.7,"MHz":3839,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":96,"Temp":74.7,"MHz":3859,"GpuTemp":null,"CpuW":65,"Fps":4.8},{"T":100,"Temp":72.3,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":104,"Temp":68.6,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":108,"Temp":65,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":112,"Temp":61.3,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":116,"Temp":57.6,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":4.8},{"T":120,"Temp":53.9,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":4.8}],"ThrottleEvents":[]},"RawValues":{"GPU|Intel(R) UHD Graphics 620|REND|1280x720":4.8,"RAM|Lesen":28.3,"CPU|MT":14744,"GPU|Intel(R) UHD Graphics 620|REND1|1280x720":4.7,"GPU|Intel(R) UHD Graphics 620|DWM":383,"RAM|Kopieren":9.9,"GPU|REND":4.8,"GPU|REND1":4.7,"RAM|24GB|2400|Lesen":28.3,"DISK|NVMe3|R8":112473,"DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|SW":2424,"DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|W1":22297,"CPU|AES":1031,"DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|R1":15440,"RAM|24GB|2400|Schreiben":13.4,"DISK|NVMe3|W1":22297,"WINSAT|RAM":8.9,"WINSAT|DISK":9.05,"GPU|RPKT":442,"CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|AES":1031,"GPU|VMB":6.5,"GPU|Intel(R) UHD Graphics 620|VMB":6.5,"RAM|24GB|2400|Latenz":134.4,"WINSAT|CPU":8.9,"CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|MT":14744,"GPU|DWM":383,"DISK|NVMe3|R1":15440,"DISK|NVMe3|SW":2424,"CPU|ST":2133,"DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|R8":112473,"GPU|Intel(R) UHD Graphics 620|RPKT":442,"DISK|NVMe3|SR":3487,"RAM|24GB|2400|Kopieren":9.9,"RAM|Latenz":134.4,"DISK|0025_3887_11B9_A4F0.|SAMSUNG MZVLB512HBJQ-000L7|SR":3487,"CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|ST":2133,"RAM|Schreiben":13.4,"CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|SHA":437,"CPU|Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz|DEFL":118,"CPU|SHA":437,"CPU|DEFL":118,"WINSAT|GFX":6.2}},{"Id":"REF_Desktop_Mittelklasse","Computer":"Referenz-Desktop-Mittelklasse","DisplayName":"Referenz: Desktop Mittelklasse (Ryzen 5600, RX 570)","Datum":"2026-10-01 12:00","IsReference":true,"OS":"Microsoft Windows 11","Hardware":{"CPU":"AMD Ryzen 5 5600","RAM":"32 GB DDR4-2133","GPU":"Radeon RX 570 Series","Datentraeger":"NVMe PCIe 3.0 SSD 500GB; SATA SSD 1TB","Mainboard":"AMD B450 Mainboard"},"Scores":{"Overall":12111,"Gaming":6082,"Desktop":8993,"Workstation":14844},"Metrics":{"CPU_ST":2731,"CPU_MT":30319,"RAM_Lesen":27.5,"RAM_Kopieren":11.5,"RAM_Latenz":113.2,"GPU_REND":45.4,"GPU_REND1":42.8,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"Samsung SSD 980 1TB","Klasse":"NVMe PCIe 3.0 x4","SR":3095,"SW":2591,"R1":14329,"R8":108045,"W1":35518},"Disks":[{"Model":"ST2000DX001-1CM164","Klasse":"Festplatte","SR":110,"SW":128,"R1":106,"R8":172,"W1":1339},{"Model":"ST4000DM004-2CV104","Klasse":"Festplatte","SR":114,"SW":118,"R1":103,"R8":185,"W1":1485},{"Model":"Samsung SSD 980 1TB","Klasse":"NVMe PCIe 3.0 x4","SR":3095,"SW":2591,"R1":14329,"R8":108045,"W1":35518}],"DisksByClass":{"Festplatte":{"Model":"ST4000DM004-2CV104","Klasse":"Festplatte","SR":114,"SW":118,"R1":103,"R8":185,"W1":1485},"NVMe PCIe 3.0 x4":{"Model":"Samsung SSD 980 1TB","Klasse":"NVMe PCIe 3.0 x4","SR":3095,"SW":2591,"R1":14329,"R8":108045,"W1":35518}}},"Telemetry":{"CpuTempMax":null,"CpuTempLeerlauf":null,"TjMax":null,"GpuTempMax":null,"CpuMHzAvg":null,"CpuMHzMax":null,"Drosselung":"keine","TaktAbfall":0,"Unterbrechungen":"keine über 50 ms","UnterbrechungenUeber50ms":false,"Series":[{"T":0,"Temp":42,"MHz":4004,"GpuTemp":null,"CpuW":20,"Fps":45.4},{"T":4,"Temp":50.5,"MHz":3966,"GpuTemp":null,"CpuW":20,"Fps":45.4},{"T":8,"Temp":59,"MHz":3927,"GpuTemp":null,"CpuW":20,"Fps":45.4},{"T":12,"Temp":67.5,"MHz":3888,"GpuTemp":null,"CpuW":20,"Fps":45.4},{"T":16,"Temp":74.2,"MHz":3849,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":20,"Temp":73.2,"MHz":3831,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":24,"Temp":72.2,"MHz":3825,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":28,"Temp":71.4,"MHz":3834,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":32,"Temp":71.2,"MHz":3853,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":36,"Temp":71.6,"MHz":3870,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":40,"Temp":72.5,"MHz":3875,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":44,"Temp":73.5,"MHz":3865,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":48,"Temp":74.4,"MHz":3846,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":52,"Temp":74.8,"MHz":3829,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":56,"Temp":74.5,"MHz":3826,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":60,"Temp":73.7,"MHz":3837,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":64,"Temp":72.6,"MHz":3856,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":68,"Temp":71.7,"MHz":3871,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":72,"Temp":71.2,"MHz":3874,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":76,"Temp":71.3,"MHz":3862,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":80,"Temp":72,"MHz":3843,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":84,"Temp":73,"MHz":3828,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":88,"Temp":74,"MHz":3826,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":92,"Temp":74.7,"MHz":3839,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":96,"Temp":74.7,"MHz":3859,"GpuTemp":null,"CpuW":65,"Fps":45.4},{"T":100,"Temp":72.3,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":45.4},{"T":104,"Temp":68.6,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":45.4},{"T":108,"Temp":65,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":45.4},{"T":112,"Temp":61.3,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":45.4},{"T":116,"Temp":57.6,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":45.4},{"T":120,"Temp":53.9,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":45.4}],"ThrottleEvents":[]},"RawValues":{"GPU|REND1":42.8,"CPU|AMD Ryzen 5 5600 6-Core Processor|SHA":2192,"RAM|Lesen":27.5,"CPU|MT":30319,"DISK|Z1E7D75M|ST2000DX001-1CM164|SW":128,"DISK|ZFN03R4F|ST4000DM004-2CV104|R8":185,"CPU|AMD Ryzen 5 5600 6-Core Processor|MT":30319,"GPU|Radeon RX 570 Series|DWM":4339,"DISK|HDD|SR":112,"GPU|VMB":73.7,"DISK|ZFN03R4F|ST4000DM004-2CV104|SW":118,"RAM|Kopieren":11.5,"GPU|REND":45.4,"GPU|DWM":4339,"DISK|HDD|SW":123,"DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|SR":3095,"DISK|NVMe3|R8":108045,"DISK|Z1E7D75M|ST2000DX001-1CM164|R1":106,"DISK|HDD|W1":1412,"DISK|HDD|R8":178,"WINSAT|DISK":8.8,"DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|SW":2591,"CPU|AES":1160,"DISK|Z1E7D75M|ST2000DX001-1CM164|R8":172,"DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|R8":108045,"CPU|AMD Ryzen 5 5600 6-Core Processor|ST":2731,"DISK|ZFN03R4F|ST4000DM004-2CV104|W1":1485,"DISK|ZFN03R4F|ST4000DM004-2CV104|R1":103,"DISK|NVMe3|W1":35518,"WINSAT|RAM":9.3,"DISK|ZFN03R4F|ST4000DM004-2CV104|SR":114,"GPU|RPKT":4189,"CPU|AMD Ryzen 5 5600 6-Core Processor|DEFL":244,"DISK|HDD|R1":104,"DISK|Z1E7D75M|ST2000DX001-1CM164|SR":110,"GPU|Radeon RX 570 Series|RPKT":4189,"CPU|AMD Ryzen 5 5600 6-Core Processor|AES":1160,"WINSAT|CPU":9.3,"DISK|NVMe3|R1":14329,"GPU|Radeon RX 570 Series|REND1|1280x720":42.8,"DISK|NVMe3|SW":2591,"DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|W1":35518,"CPU|ST":2731,"GPU|Radeon RX 570 Series|REND|1280x720":45.4,"DISK|0025_38D9_31A0_34FA.|Samsung SSD 980 1TB|R1":14329,"RAM|32GB|2133|Schreiben":13.4,"RAM|32GB|2133|Latenz":113.2,"DISK|NVMe3|SR":3095,"GPU|Radeon RX 570 Series|VMB":73.7,"RAM|Latenz":113.2,"RAM|Schreiben":13.4,"DISK|Z1E7D75M|ST2000DX001-1CM164|W1":1339,"CPU|SHA":2192,"CPU|DEFL":244,"WINSAT|GFX":8.7,"RAM|32GB|2133|Lesen":27.5,"RAM|32GB|2133|Kopieren":11.5}},{"Id":"REF_Workstation_Mobil","Computer":"Referenz-Workstation-Mobil","DisplayName":"Referenz: Workstation Mobil (Core i9-13900H, RTX 3000 Ada)","Datum":"2026-10-01 12:00","IsReference":true,"OS":"Microsoft Windows 11","Hardware":{"CPU":"13th Gen Intel Core i9-13900H","RAM":"64 GB LPDDR5-6000","GPU":"RTX 3000 Ada Generation Laptop GPU","Datentraeger":"NVMe PCIe 4.0 SSD 1TB","Mainboard":"Mobile Workstation Board"},"Scores":{"Overall":21950,"Gaming":11122,"Desktop":15672,"Workstation":26759},"Metrics":{"CPU_ST":3464,"CPU_MT":42759,"RAM_Lesen":67.9,"RAM_Kopieren":28.5,"RAM_Latenz":113.9,"GPU_REND":90.6,"GPU_REND1":37.8,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"NVMe PC SN820 NVMe WD 4096GB","Klasse":"NVMe","SR":6689,"SW":3974,"R1":18211,"R8":106690,"W1":46373},"Disks":[{"Model":"NVMe PC SN820 NVMe WD 4096GB","Klasse":"NVMe","SR":6689,"SW":3974,"R1":18211,"R8":106690,"W1":46373}],"DisksByClass":{"NVMe":{"Model":"NVMe PC SN820 NVMe WD 4096GB","Klasse":"NVMe","SR":6689,"SW":3974,"R1":18211,"R8":106690,"W1":46373}}},"Telemetry":{"CpuTempMax":null,"CpuTempLeerlauf":null,"TjMax":null,"GpuTempMax":null,"CpuMHzAvg":null,"CpuMHzMax":null,"Drosselung":"keine","TaktAbfall":0,"Unterbrechungen":"keine über 50 ms","UnterbrechungenUeber50ms":false,"Series":[{"T":0,"Temp":42,"MHz":4004,"GpuTemp":null,"CpuW":20,"Fps":90.6},{"T":4,"Temp":50.5,"MHz":3966,"GpuTemp":null,"CpuW":20,"Fps":90.6},{"T":8,"Temp":59,"MHz":3927,"GpuTemp":null,"CpuW":20,"Fps":90.6},{"T":12,"Temp":67.5,"MHz":3888,"GpuTemp":null,"CpuW":20,"Fps":90.6},{"T":16,"Temp":74.2,"MHz":3849,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":20,"Temp":73.2,"MHz":3831,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":24,"Temp":72.2,"MHz":3825,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":28,"Temp":71.4,"MHz":3834,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":32,"Temp":71.2,"MHz":3853,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":36,"Temp":71.6,"MHz":3870,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":40,"Temp":72.5,"MHz":3875,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":44,"Temp":73.5,"MHz":3865,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":48,"Temp":74.4,"MHz":3846,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":52,"Temp":74.8,"MHz":3829,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":56,"Temp":74.5,"MHz":3826,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":60,"Temp":73.7,"MHz":3837,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":64,"Temp":72.6,"MHz":3856,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":68,"Temp":71.7,"MHz":3871,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":72,"Temp":71.2,"MHz":3874,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":76,"Temp":71.3,"MHz":3862,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":80,"Temp":72,"MHz":3843,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":84,"Temp":73,"MHz":3828,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":88,"Temp":74,"MHz":3826,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":92,"Temp":74.7,"MHz":3839,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":96,"Temp":74.7,"MHz":3859,"GpuTemp":null,"CpuW":65,"Fps":90.6},{"T":100,"Temp":72.3,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":90.6},{"T":104,"Temp":68.6,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":90.6},{"T":108,"Temp":65,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":90.6},{"T":112,"Temp":61.3,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":90.6},{"T":116,"Temp":57.6,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":90.6},{"T":120,"Temp":53.9,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":90.6}],"ThrottleEvents":[]},"RawValues":{"RAM|Lesen":67.9,"RAM|64GB|6000|Lesen":67.9,"DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|R1":18211,"RAM|64GB|6000|Latenz":113.9,"CPU|13th Gen Intel(R) Core(TM) i9-13900H|DEFL":295,"GPU|NVIDIA RTX 3000 Ada Generation Laptop GPU|RPKT":8354,"RAM|Kopieren":28.5,"GPU|REND":90.6,"GPU|Intel(R) Iris(R) Xe Graphics|REND1|1280x720":21.8,"GPU|REND1":37.8,"RAM|64GB|6000|Kopieren":28.5,"DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|W1":46373,"DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|R8":106690,"CPU|AES":1786,"GPU|NVIDIA RTX 3000 Ada Generation Laptop GPU|REND|1280x720":90.6,"CPU|MT":42759,"WINSAT|RAM":9.4,"WINSAT|DISK":9.45,"GPU|RPKT":8354,"GPU|VMB":48.4,"GPU|Intel(R) Iris(R) Xe Graphics|DWM":2850,"DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|SR":6689,"CPU|13th Gen Intel(R) Core(TM) i9-13900H|SHA":2409,"WINSAT|CPU":9.4,"GPU|DWM":2850,"CPU|13th Gen Intel(R) Core(TM) i9-13900H|MT":42759,"CPU|13th Gen Intel(R) Core(TM) i9-13900H|ST":3464,"DISK|E823_8FA6_BF53_0001_001B_444A_4143_AA1D.|NVMe PC SN820 NVMe WD 4096GB|SW":3974,"CPU|ST":3464,"RAM|64GB|6000|Schreiben":47.2,"GPU|NVIDIA RTX 3000 Ada Generation Laptop GPU|REND1|1280x720":37.8,"RAM|Latenz":113.9,"CPU|13th Gen Intel(R) Core(TM) i9-13900H|AES":1786,"GPU|Intel(R) Iris(R) Xe Graphics|VMB":48.4,"GPU|Intel(R) Iris(R) Xe Graphics|REND|1280x720":23,"CPU|SHA":2409,"CPU|DEFL":295,"GPU|Intel(R) Iris(R) Xe Graphics|RPKT":2124,"WINSAT|GFX":8.4,"RAM|Schreiben":47.2}},{"Id":"REF_Desktop_HighEnd","Computer":"Referenz-Desktop-HighEnd","DisplayName":"Referenz: Desktop High-End (Ryzen 7600X, RX 6800)","Datum":"2026-10-01 12:00","IsReference":true,"OS":"Microsoft Windows 11","Hardware":{"CPU":"AMD Ryzen 5 7600X","RAM":"32 GB DDR5-6000","GPU":"Radeon RX 6800","Datentraeger":"NVMe PCIe 4.0 SSD 1TB; NVMe PCIe 3.0 SSD 1TB; SATA SSD 1TB","Mainboard":"AMD B650 Mainboard"},"Scores":{"Overall":24209,"Gaming":13197,"Desktop":15049,"Workstation":26188},"Metrics":{"CPU_ST":3092,"CPU_MT":38883,"RAM_Lesen":61.9,"RAM_Kopieren":24.1,"RAM_Latenz":80.6,"GPU_REND":133.3,"GPU_REND1":121,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"SAMSUNG MZVL21T0HCLR-00B00","Klasse":"NVMe PCIe 4.0 x4","SR":6551,"SW":2779,"R1":14178,"R8":119846,"W1":52665},"Disks":[{"Model":"SanDisk SDSSDH3 1T02","Klasse":"SATA-SSD","SR":554,"SW":514,"R1":10433,"R8":70639,"W1":29362},{"Model":"Samsung SSD 860 EVO 1TB","Klasse":"SATA-SSD","SR":563,"SW":533,"R1":12241,"R8":75637,"W1":30117},{"Model":"SAMSUNG MZVL21T0HCLR-00B00","Klasse":"NVMe PCIe 4.0 x4","SR":6551,"SW":2779,"R1":14178,"R8":119846,"W1":52665},{"Model":"Lexar SSD NM620 1TB","Klasse":"NVMe PCIe 3.0 x4","SR":2805,"SW":2908,"R1":16504,"R8":124476,"W1":48673},{"Model":"WDS100T3X0C-00SJG0","Klasse":"NVMe PCIe 3.0 x4","SR":3422,"SW":2912,"R1":11676,"R8":93685,"W1":67914}],"DisksByClass":{"SATA-SSD":{"Model":"Samsung SSD 860 EVO 1TB","Klasse":"SATA-SSD","SR":563,"SW":533,"R1":12241,"R8":75637,"W1":30117},"NVMe PCIe 4.0 x4":{"Model":"SAMSUNG MZVL21T0HCLR-00B00","Klasse":"NVMe PCIe 4.0 x4","SR":6551,"SW":2779,"R1":14178,"R8":119846,"W1":52665},"NVMe PCIe 3.0 x4":{"Model":"WDS100T3X0C-00SJG0","Klasse":"NVMe PCIe 3.0 x4","SR":3422,"SW":2912,"R1":11676,"R8":93685,"W1":67914}}},"Telemetry":{"CpuTempMax":null,"CpuTempLeerlauf":null,"TjMax":null,"GpuTempMax":null,"CpuMHzAvg":null,"CpuMHzMax":null,"Drosselung":"keine","TaktAbfall":0,"Unterbrechungen":"keine über 50 ms","UnterbrechungenUeber50ms":false,"Series":[{"T":0,"Temp":42,"MHz":4004,"GpuTemp":null,"CpuW":20,"Fps":133.3},{"T":4,"Temp":50.5,"MHz":3966,"GpuTemp":null,"CpuW":20,"Fps":133.3},{"T":8,"Temp":59,"MHz":3927,"GpuTemp":null,"CpuW":20,"Fps":133.3},{"T":12,"Temp":67.5,"MHz":3888,"GpuTemp":null,"CpuW":20,"Fps":133.3},{"T":16,"Temp":74.2,"MHz":3849,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":20,"Temp":73.2,"MHz":3831,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":24,"Temp":72.2,"MHz":3825,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":28,"Temp":71.4,"MHz":3834,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":32,"Temp":71.2,"MHz":3853,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":36,"Temp":71.6,"MHz":3870,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":40,"Temp":72.5,"MHz":3875,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":44,"Temp":73.5,"MHz":3865,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":48,"Temp":74.4,"MHz":3846,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":52,"Temp":74.8,"MHz":3829,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":56,"Temp":74.5,"MHz":3826,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":60,"Temp":73.7,"MHz":3837,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":64,"Temp":72.6,"MHz":3856,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":68,"Temp":71.7,"MHz":3871,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":72,"Temp":71.2,"MHz":3874,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":76,"Temp":71.3,"MHz":3862,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":80,"Temp":72,"MHz":3843,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":84,"Temp":73,"MHz":3828,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":88,"Temp":74,"MHz":3826,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":92,"Temp":74.7,"MHz":3839,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":96,"Temp":74.7,"MHz":3859,"GpuTemp":null,"CpuW":65,"Fps":133.3},{"T":100,"Temp":72.3,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":133.3},{"T":104,"Temp":68.6,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":133.3},{"T":108,"Temp":65,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":133.3},{"T":112,"Temp":61.3,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":133.3},{"T":116,"Temp":57.6,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":133.3},{"T":120,"Temp":53.9,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":133.3}],"ThrottleEvents":[]},"RawValues":{"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|W1":52665,"WINSAT|GFX":9.9,"CPU|SHA":2535,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|R8":93685,"GPU|AMD Radeon RX 6800|RPKT":12285,"RAM|Schreiben":31.3,"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|SR":6551,"DISK|NVMe3|R1":14090,"DISK|NVMe4|W1":52665,"CPU|AMD Ryzen 5 7600X 6-Core Processor|SHA":2535,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|R8":75637,"DISK|NVMe3|SW":2910,"RAM|Lesen":61.9,"DISK|SATA-SSD|W1":29740,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|SW":533,"DISK|203791800341|SanDisk SDSSDH3 1T02|R1":10433,"DISK|NVMe3|R8":109080,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|W1":67914,"DISK|203791800341|SanDisk SDSSDH3 1T02|SW":514,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|W1":30117,"CPU|AES":1429,"DISK|SATA-SSD|SR":558,"GPU|AMD Radeon RX 6800|REND1|1280x720":121,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|W1":48673,"RAM|32GB|6000|Latenz":80.6,"DISK|NVMe4|SR":6551,"CPU|AMD Ryzen 5 7600X 6-Core Processor|DEFL":296,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|R8":124476,"CPU|ST":3092,"RAM|32GB|6000|Schreiben":31.3,"RAM|32GB|6000|Kopieren":24.1,"DISK|SATA-SSD|SW":524,"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|SW":2779,"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|R1":14178,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|SW":2912,"DISK|203791800341|SanDisk SDSSDH3 1T02|W1":29362,"WINSAT|RAM":9.3,"GPU|AMD Radeon RX 6800|DWM":17440,"GPU|RPKT":12285,"RAM|Kopieren":24.1,"CPU|AMD Ryzen 5 7600X 6-Core Processor|MT":38883,"DISK|0025_38B6_31A3_2B45.|SAMSUNG MZVL21T0HCLR-00B00|R8":119846,"RAM|Latenz":80.6,"GPU|AMD Radeon RX 6800|REND|1280x720":133.3,"DISK|SATA-SSD|R1":11337,"GPU|REND1":121,"CPU|AMD Ryzen 5 7600X 6-Core Processor|AES":1429,"WINSAT|DISK":9.35,"DISK|SATA-SSD|R8":73138,"RAM|32GB|6000|Lesen":61.9,"WINSAT|CPU":9.3,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|R1":16504,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|R1":11676,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|SR":563,"GPU|AMD Radeon RX 6800|VMB":296.1,"DISK|S4X6NF0MC07136F|Samsung SSD 860 EVO 1TB|R1":12241,"GPU|DWM":17440,"GPU|REND":133.3,"CPU|DEFL":296,"DISK|203791800341|SanDisk SDSSDH3 1T02|R8":70639,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|SW":2908,"DISK|NVMe4|SW":2779,"DISK|203791800341|SanDisk SDSSDH3 1T02|SR":554,"DISK|NVMe3|SR":3114,"CPU|MT":38883,"GPU|VMB":296.1,"DISK|NVMe4|R8":119846,"DISK|0000_0006_2303_2570_CAF2_5B03_FF00_024E.|Lexar SSD NM620 1TB|SR":2805,"DISK|E823_8FA6_BF53_0001_001B_444A_463E_D685.|WDS100T3X0C-00SJG0|SR":3422,"CPU|AMD Ryzen 5 7600X 6-Core Processor|ST":3092,"DISK|NVMe4|R1":14178,"DISK|NVMe3|W1":58294}},{"Id":"REF_MiniPC_APU","Computer":"Referenz-MiniPC-APU","DisplayName":"Referenz: Mini-PC / APU (Ryzen 7 255H, Radeon 780M)","Datum":"2026-10-01 12:00","IsReference":true,"OS":"Microsoft Windows 11","Hardware":{"CPU":"AMD Ryzen 7 H 255 w/ Radeon 780M Graphics","RAM":"32 GB DDR5-5600","GPU":"Radeon 780M Graphics","Datentraeger":"NVMe PCIe 4.0 SSD 1TB","Mainboard":"Mini-PC Mainboard"},"Scores":{"Overall":16907,"Gaming":7182,"Desktop":12211,"Workstation":22678},"Metrics":{"CPU_ST":2928,"CPU_MT":46553,"RAM_Lesen":58.2,"RAM_Kopieren":17.4,"RAM_Latenz":112,"GPU_REND":46.8,"GPU_REND1":42.3,"GPU_REND01":0,"GPU_STUTTER":0,"FastestDisk":{"Model":"PC801 NVMe SK hynix 1TB","Klasse":"NVMe PCIe 4.0 x4","SR":4295,"SW":1140,"R1":4519,"R8":34279,"W1":54294},"Disks":[{"Model":"PC801 NVMe SK hynix 1TB","Klasse":"NVMe PCIe 4.0 x4","SR":4295,"SW":1140,"R1":4519,"R8":34279,"W1":54294}],"DisksByClass":{"NVMe PCIe 4.0 x4":{"Model":"PC801 NVMe SK hynix 1TB","Klasse":"NVMe PCIe 4.0 x4","SR":4295,"SW":1140,"R1":4519,"R8":34279,"W1":54294}}},"Telemetry":{"CpuTempMax":null,"CpuTempLeerlauf":null,"TjMax":null,"GpuTempMax":null,"CpuMHzAvg":null,"CpuMHzMax":null,"Drosselung":"keine","TaktAbfall":0,"Unterbrechungen":"keine über 50 ms","UnterbrechungenUeber50ms":false,"Series":[{"T":0,"Temp":42,"MHz":4004,"GpuTemp":null,"CpuW":20,"Fps":46.8},{"T":4,"Temp":50.5,"MHz":3966,"GpuTemp":null,"CpuW":20,"Fps":46.8},{"T":8,"Temp":59,"MHz":3927,"GpuTemp":null,"CpuW":20,"Fps":46.8},{"T":12,"Temp":67.5,"MHz":3888,"GpuTemp":null,"CpuW":20,"Fps":46.8},{"T":16,"Temp":74.2,"MHz":3849,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":20,"Temp":73.2,"MHz":3831,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":24,"Temp":72.2,"MHz":3825,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":28,"Temp":71.4,"MHz":3834,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":32,"Temp":71.2,"MHz":3853,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":36,"Temp":71.6,"MHz":3870,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":40,"Temp":72.5,"MHz":3875,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":44,"Temp":73.5,"MHz":3865,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":48,"Temp":74.4,"MHz":3846,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":52,"Temp":74.8,"MHz":3829,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":56,"Temp":74.5,"MHz":3826,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":60,"Temp":73.7,"MHz":3837,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":64,"Temp":72.6,"MHz":3856,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":68,"Temp":71.7,"MHz":3871,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":72,"Temp":71.2,"MHz":3874,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":76,"Temp":71.3,"MHz":3862,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":80,"Temp":72,"MHz":3843,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":84,"Temp":73,"MHz":3828,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":88,"Temp":74,"MHz":3826,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":92,"Temp":74.7,"MHz":3839,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":96,"Temp":74.7,"MHz":3859,"GpuTemp":null,"CpuW":65,"Fps":46.8},{"T":100,"Temp":72.3,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":46.8},{"T":104,"Temp":68.6,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":46.8},{"T":108,"Temp":65,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":46.8},{"T":112,"Temp":61.3,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":46.8},{"T":116,"Temp":57.6,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":46.8},{"T":120,"Temp":53.9,"MHz":2502,"GpuTemp":null,"CpuW":20,"Fps":46.8}],"ThrottleEvents":[]},"RawValues":{"DISK|NVMe4|SW":1140,"RAM|Lesen":58.2,"CPU|MT":46553,"DISK|NVMe4|R8":34279,"DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|SW":1140,"CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|MT":46553,"CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|DEFL":345,"CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|ST":2928,"RAM|32GB|5600|Latenz":112,"GPU|AMD Radeon 780M Graphics|DWM":1670,"DISK|NVMe4|SR":4295,"DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|W1":54294,"RAM|Kopieren":17.4,"GPU|REND":46.8,"GPU|REND1":42.3,"RAM|32GB|5600|Lesen":58.2,"CPU|AES":1362,"GPU|AMD Radeon 780M Graphics|REND1|1280x720":42.3,"WINSAT|RAM":9.4,"WINSAT|DISK":8.45,"GPU|RPKT":4313,"GPU|VMB":28.4,"DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|R8":34279,"WINSAT|CPU":9.4,"GPU|DWM":1670,"CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|AES":1362,"CPU|ST":2928,"DISK|NVMe4|R1":4519,"RAM|32GB|5600|Kopieren":17.4,"RAM|Latenz":112,"WINSAT|GFX":8.2,"RAM|32GB|5600|Schreiben":25.4,"CPU|AMD Ryzen 7 H 255 w/ Radeon 780M Graphics|SHA":2409,"DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|R1":4519,"DISK|NVMe4|W1":54294,"GPU|AMD Radeon 780M Graphics|VMB":28.4,"CPU|SHA":2409,"CPU|DEFL":345,"DISK|ACE4_2E00_3A0E_DF9B_2EE4_AC00_0000_0001.|PC801 NVMe SK hynix 1TB|SR":4295,"GPU|AMD Radeon 780M Graphics|RPKT":4313,"RAM|Schreiben":25.4,"GPU|AMD Radeon 780M Graphics|REND|1280x720":46.8}}]};
+
+(function() {
+  'use strict';
+
+  let data = window.MINIBENCH_DASHBOARD_DATA;
+  let currentTarget = null;
+  let currentRef = null;
+
+  // DOM-Elemente
+  const themeToggle = document.getElementById('themeToggle');
+  const targetSelect = document.getElementById('targetSelect');
+  const refSelect = document.getElementById('refSelect');
+  const swapBtn = document.getElementById('swapBtn');
+  const canvas = document.getElementById('telemetryCanvas');
+  const chartWrapper = document.getElementById('chartWrapper');
+  const tooltip = document.getElementById('chartTooltip');
+
+  // THEME MANAGEMENT
+  function initTheme() {
+    const saved = localStorage.getItem('minibench_theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDark = saved ? saved === 'dark' : prefersDark;
+    setTheme(isDark);
+  }
+
+  function setTheme(isDark) {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    themeToggle.setAttribute('aria-checked', isDark ? 'true' : 'false');
+    localStorage.setItem('minibench_theme', isDark ? 'dark' : 'light');
+    renderChart();
+  }
+
+  themeToggle.addEventListener('click', () => {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    setTheme(!isDark);
+  });
+
+  // INITIALISIERUNG
+  function init() {
+    initTheme();
+    if (!data || (!data.Systems && !data.References)) {
+      console.warn('Keine Benchmark-Daten eingebettet.');
+      return;
+    }
+
+    populateSelects();
+
+    // Standardauswahl
+    if (data.Systems && data.Systems.length > 0) {
+      targetSelect.value = String(data.Systems[0].Id);
+    }
+
+    if (data.References && data.References.length > 0) {
+      const mid = data.References.find(r => r.DisplayName.includes('Mittelklasse')) || data.References[0];
+      refSelect.value = String(mid.Id);
+    } else if (data.Systems && data.Systems.length > 1) {
+      refSelect.value = String(data.Systems[1].Id);
+    }
+
+    updateDashboard();
+
+    targetSelect.addEventListener('change', updateDashboard);
+    refSelect.addEventListener('change', updateDashboard);
+    swapBtn.addEventListener('click', () => {
+      const t = targetSelect.value;
+      const r = refSelect.value;
+      targetSelect.value = r;
+      refSelect.value = t;
+      updateDashboard();
+    });
+
+    window.addEventListener('resize', renderChart);
+  }
+
+  function getSystemById(id) {
+    if (!data || id === null || id === undefined) return null;
+    const targetId = String(id);
+    const all = [ ...(data.Systems || []), ...(data.References || []) ];
+    return all.find(s => String(s.Id) === targetId) || null;
+  }
+
+  function populateSelects() {
+    targetSelect.innerHTML = '';
+    refSelect.innerHTML = '';
+
+    const sysGroup = document.createElement('optgroup');
+    sysGroup.label = 'Geprüfte Systeme (Datenbank)';
+    const refGroup = document.createElement('optgroup');
+    refGroup.label = 'Referenzprofile (Eingebettet)';
+
+    if (data.Systems) {
+      data.Systems.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = String(s.Id);
+        opt.textContent = s.DisplayName + (s.Datum ? ' (' + s.Datum + ')' : '');
+        sysGroup.appendChild(opt);
+      });
+    }
+
+    if (data.References) {
+      data.References.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = String(r.Id);
+        opt.textContent = '⭐ ' + r.DisplayName;
+        refGroup.appendChild(opt);
+      });
+    }
+
+    targetSelect.appendChild(sysGroup.cloneNode(true));
+    targetSelect.appendChild(refGroup.cloneNode(true));
+
+    refSelect.appendChild(refGroup.cloneNode(true));
+    refSelect.appendChild(sysGroup.cloneNode(true));
+  }
+
+  function fmtNum(n, decimals = 0) {
+    if (n === null || n === undefined || isNaN(n) || n === 0) return '-';
+    return Number(n).toLocaleString('de-DE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  }
+
+  function calcDelta(targetVal, refVal, lowerIsBetter = false) {
+    if (!targetVal || !refVal || targetVal <= 0 || refVal <= 0) return null;
+    let pct = 0;
+    if (lowerIsBetter) {
+      pct = ((refVal - targetVal) / refVal) * 100.0;
+    } else {
+      pct = ((targetVal - refVal) / refVal) * 100.0;
+    }
+    return pct;
+  }
+
+  function renderPill(el, pct, lowerIsBetter = false) {
+    if (pct === null || isNaN(pct)) {
+      el.className = 'pill neutral';
+      el.textContent = 'n/v';
+      return;
+    }
+    const sign = pct > 0 ? '+' : '';
+    const txt = sign + pct.toFixed(1) + ' %';
+    el.textContent = txt;
+    if (pct >= 2.0) {
+      el.className = 'pill ok';
+    } else if (pct <= -5.0) {
+      el.className = 'pill crit';
+    } else {
+      el.className = 'pill neutral';
+    }
+  }
+
+  function getRatingWord(score) {
+    if (score >= 130) return 'Exzellent';
+    if (score >= 115) return 'Sehr gut';
+    if (score >= 100) return 'Referenzniveau';
+    if (score >= 85) return 'Gut';
+    if (score >= 70) return 'Befriedigend';
+    if (score >= 50) return 'Mäßig';
+    return 'Schwach';
+  }
+
+  function updateDashboard() {
+    currentTarget = getSystemById(targetSelect.value);
+    currentRef = getSystemById(refSelect.value);
+    if (!currentTarget || !currentRef) {
+      console.warn('Systeme nicht gefunden:', targetSelect.value, refSelect.value);
+      return;
+    }
+
+    // 1. SPECS
+    function setTxt(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+    setTxt('targetName', currentTarget.DisplayName || currentTarget.Computer || '-');
+    setTxt('targetDate', currentTarget.Datum || 'Unbekannt');
+    setTxt('targetCpu', currentTarget.Hardware && currentTarget.Hardware.CPU ? currentTarget.Hardware.CPU : '-');
+    setTxt('targetGpu', currentTarget.Hardware && currentTarget.Hardware.GPU ? currentTarget.Hardware.GPU : '-');
+    setTxt('targetRam', currentTarget.Hardware && currentTarget.Hardware.RAM ? currentTarget.Hardware.RAM : '-');
+    setTxt('targetDisk', currentTarget.Hardware && currentTarget.Hardware.Datentraeger ? currentTarget.Hardware.Datentraeger : '-');
+
+    setTxt('refName', currentRef.DisplayName || currentRef.Computer || '-');
+    setTxt('refDate', currentRef.Datum || 'Referenz');
+    setTxt('refCpu', currentRef.Hardware && currentRef.Hardware.CPU ? currentRef.Hardware.CPU : '-');
+    setTxt('refGpu', currentRef.Hardware && currentRef.Hardware.GPU ? currentRef.Hardware.GPU : '-');
+    setTxt('refRam', currentRef.Hardware && currentRef.Hardware.RAM ? currentRef.Hardware.RAM : '-');
+    setTxt('refDisk', currentRef.Hardware && currentRef.Hardware.Datentraeger ? currentRef.Hardware.Datentraeger : '-');
+
+    // 2. HERO PROFILES (GAMING, DESKTOP, WORKSTATION)
+    updateProfileCard('game', currentTarget.Scores?.Gaming, currentRef.Scores?.Gaming);
+    updateProfileCard('desk', currentTarget.Scores?.Desktop, currentRef.Scores?.Desktop);
+    updateProfileCard('work', currentTarget.Scores?.Workstation, currentRef.Scores?.Workstation);
+
+    // 3. HARDWARE COMPONENTS
+    const tm = currentTarget.Metrics || {};
+    const rm = currentRef.Metrics || {};
+
+    // CPU
+    updateMetricRow('cpuSt', tm.CPU_ST, rm.CPU_ST, '', 0);
+    updateMetricRow('cpuMt', tm.CPU_MT, rm.CPU_MT, '', 0);
+
+    // GPU
+    updateMetricRow('gpuRend', tm.GPU_REND, rm.GPU_REND, ' FPS', 1);
+    updateMetricRow('gpuRend1', tm.GPU_REND1, rm.GPU_REND1, ' FPS', 1);
+    updateMetricRow('gpuRend01', tm.GPU_REND01, rm.GPU_REND01, ' FPS', 1);
+    updateMetricRow('gpuStutter', tm.GPU_STUTTER, rm.GPU_STUTTER, ' %', 1, true);
+
+    // RAM
+    updateMetricRow('ramRead', tm.RAM_Lesen, rm.RAM_Lesen, ' GB/s', 1);
+    updateMetricRow('ramCopy', tm.RAM_Kopieren, rm.RAM_Kopieren, ' GB/s', 1);
+    updateMetricRow('ramLat', tm.RAM_Latenz, rm.RAM_Latenz, ' ns', 1, true);
+
+    // DISK
+    const td = tm.FastestDisk || {};
+    const rd = rm.FastestDisk || {};
+    document.getElementById('diskOverallSub').textContent = (td.Model || 'Speicher') + (td.Klasse ? ' (' + td.Klasse + ')' : '');
+    updateMetricRow('diskSr', td.SR, rd.SR, ' MB/s', 0);
+    updateMetricRow('diskSw', td.SW, rd.SW, ' MB/s', 0);
+    updateMetricRow('diskR1', td.R1, rd.R1, ' IOPS', 0);
+    updateMetricRow('diskR8', td.R8, rd.R8, ' IOPS', 0);
+
+    // 4. TELEMETRIE & LASTTEST STATS
+    const tel = currentTarget.Telemetry || {};
+    function setStat(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+    setStat('statCpuTemp', tel.CpuTempMax ? tel.CpuTempMax + ' °C' : '-');
+    setStat('statGpuTemp', tel.GpuTempMax ? tel.GpuTempMax + ' °C' : '-');
+    setStat('statCpuClock', tel.CpuMHzAvg ? (tel.CpuMHzAvg >= 1000 ? (tel.CpuMHzAvg / 1000).toFixed(2) + ' GHz' : tel.CpuMHzAvg + ' MHz') : '-');
+    setStat('statThrottle', tel.Drosselung || 'keine');
+    setStat('statPauses', tel.UnterbrechungenUeber50ms ? 'Auffällig' : 'Keine');
+
+    const banner = document.getElementById('throttleBanner');
+    const bIcon = document.getElementById('throttleIcon');
+    const bText = document.getElementById('throttleText');
+
+    if (banner && bIcon && bText) {
+      if (tel.Drosselung === 'thermisch') {
+        banner.className = 'throttle-banner thermisch';
+        bIcon.textContent = '⚠️';
+        bText.textContent = 'Thermische Drosselung aufgetreten! CPU erreichte ' + (tel.CpuTempMax || 95) + ' °C (TjMax). Taktabfall um ' + (tel.TaktAbfall ? tel.TaktAbfall.toFixed(0) : '20') + ' % belegt.';
+      } else if (tel.Drosselung && tel.Drosselung !== 'keine') {
+        banner.className = 'throttle-banner leistung';
+        bIcon.textContent = 'ℹ️';
+        bText.textContent = 'Drosselung / Begrenzung aktiv (' + tel.Drosselung + '): Takt sank unter Last' + (tel.TaktAbfall ? ' um ' + tel.TaktAbfall.toFixed(0) + ' %' : '') + '.';
+      } else {
+        banner.className = 'throttle-banner ok';
+        bIcon.textContent = '✔️';
+        bText.textContent = 'Keine thermische Drosselung belegt. CPU-Takt und Kühlsystem arbeiten unter Volllast stabil.';
+      }
+    }
+
+    renderChart();
+  }
+
+  function updateProfileCard(prefix, tScore, rScore) {
+    const scoreEl = document.getElementById(prefix + 'Score');
+    const pillEl = document.getElementById(prefix + 'Pill');
+    const barEl = document.getElementById(prefix + 'Bar');
+    const ratingEl = document.getElementById(prefix + 'Rating');
+    const tValEl = document.getElementById(prefix + 'TargetVal');
+    const rValEl = document.getElementById(prefix + 'RefVal');
+
+    if (!scoreEl || !pillEl || !barEl || !ratingEl || !tValEl || !rValEl) return;
+
+    if (!tScore || !rScore) {
+      scoreEl.innerHTML = '-<small> %</small>';
+      pillEl.className = 'pill neutral';
+      pillEl.textContent = 'n/v';
+      barEl.style.width = '0%';
+      ratingEl.textContent = '-';
+      tValEl.textContent = 'Ziel: -';
+      rValEl.textContent = 'Ref: -';
+      return;
+    }
+
+    const relPct = Math.round((tScore / rScore) * 100.0);
+    const delta = relPct - 100.0;
+
+    scoreEl.innerHTML = relPct + '<small> %</small>';
+    renderPill(pillEl, delta);
+    ratingEl.textContent = getRatingWord(relPct);
+    tValEl.textContent = 'Score: ' + fmtNum(tScore);
+    rValEl.textContent = 'Ref: ' + fmtNum(rScore);
+
+    const barW = Math.max(5, Math.min(100, (relPct / 150.0) * 100));
+    barEl.style.width = barW + '%';
+  }
+
+  function updateMetricRow(id, targetVal, refVal, unit, decimals, lowerIsBetter = false) {
+    const valEl = document.getElementById(id + 'Val');
+    const refEl = document.getElementById(id + 'Ref');
+    const pillEl = document.getElementById(id + 'Pill');
+    const barEl = document.getElementById(id + 'Bar');
+
+    if (!valEl || !refEl || !pillEl) return;
+
+    valEl.textContent = (targetVal !== null && targetVal !== undefined && targetVal > 0) ? fmtNum(targetVal, decimals) + unit : '-';
+    refEl.textContent = (refVal !== null && refVal !== undefined && refVal > 0) ? 'Ref: ' + fmtNum(refVal, decimals) + unit : '-';
+
+    const delta = calcDelta(targetVal, refVal, lowerIsBetter);
+    renderPill(pillEl, delta, lowerIsBetter);
+
+    if (barEl) {
+      if (targetVal > 0 && refVal > 0) {
+        const ratio = (targetVal / Math.max(targetVal, refVal)) * 100;
+        barEl.style.width = Math.max(2, Math.min(100, ratio)) + '%';
+      } else if (targetVal > 0) {
+        barEl.style.width = '80%';
+      } else {
+        barEl.style.width = '0%';
+      }
+    }
+  }
+
+  // PURE VANILLA CANVAS CHART RENDERING
+  function renderChart() {
+    if (!currentTarget) return;
+    const series = currentTarget.Telemetry?.Series || [];
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = chartWrapper.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
+
+    if (series.length < 2) {
+      ctx.fillStyle = isDark ? '#A0A0A0' : '#5F6368';
+      ctx.font = '14px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Keine Zeitreihen-Messdaten für dieses System verfügbar.', width / 2, height / 2);
+      return;
+    }
+
+    const padding = { top: 30, right: 60, bottom: 40, left: 55 };
+    const chartW = width - padding.left - padding.right;
+    const chartH = height - padding.top - padding.bottom;
+
+    const tMax = series[series.length - 1].T || 120;
+    const tempMax = 110;
+    let maxMhz = 5000;
+    series.forEach(pt => { if (pt.MHz && pt.MHz > maxMhz) maxMhz = pt.MHz * 1.1; });
+
+    const getX = t => padding.left + (t / tMax) * chartW;
+    const getYTemp = temp => padding.top + chartH - (temp / tempMax) * chartH;
+    const getYMhz = mhz => padding.top + chartH - (mhz / maxMhz) * chartH;
+
+    // GRID LINES
+    ctx.strokeStyle = isDark ? '#363636' : '#ECEFF1';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = isDark ? '#808080' : '#888888';
+    ctx.font = '11px system-ui, sans-serif';
+
+    // Temp Steps: 0, 25, 50, 75, 100 °C
+    [0, 25, 50, 75, 100].forEach(deg => {
+      const y = getYTemp(deg);
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(padding.left + chartW, y);
+      ctx.stroke();
+
+      ctx.textAlign = 'right';
+      ctx.fillText(deg + ' °C', padding.left - 8, y + 4);
+    });
+
+    // Mhz Right Axis Labels
+    [0, 2000, 4000, 6000].filter(m => m <= maxMhz).forEach(m => {
+      const y = getYMhz(m);
+      ctx.textAlign = 'left';
+      ctx.fillText((m / 1000).toFixed(1) + ' GHz', padding.left + chartW + 8, y + 4);
+    });
+
+    // X Axis Time Labels
+    ctx.textAlign = 'center';
+    const xStep = tMax <= 120 ? 30 : 60;
+    for (let sec = 0; sec <= tMax; sec += xStep) {
+      const x = getX(sec);
+      const mm = Math.floor(sec / 60);
+      const ss = Math.floor(sec % 60);
+      const timeStr = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
+      ctx.fillText(timeStr, x, padding.top + chartH + 20);
+    }
+
+    // TJMAX GUIDELINE
+    const tjMax = currentTarget.Telemetry?.TjMax || 100;
+    const yTj = getYTemp(tjMax);
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(232, 17, 35, 0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, yTj);
+    ctx.lineTo(padding.left + chartW, yTj);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(232, 17, 35, 0.85)';
+    ctx.textAlign = 'left';
+    ctx.fillText('TjMax (' + tjMax + ' °C)', padding.left + 8, yTj - 6);
+    ctx.restore();
+
+    // THROTTLE VERTICAL LINE
+    const events = currentTarget.Telemetry?.ThrottleEvents || [];
+    events.forEach(ev => {
+      const xEv = getX(ev.T);
+      ctx.save();
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = '#D13438';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(xEv, padding.top);
+      ctx.lineTo(xEv, padding.top + chartH);
+      ctx.stroke();
+
+      // Flag Banner
+      ctx.fillStyle = isDark ? '#442726' : '#FDE7E9';
+      ctx.fillRect(xEv - 4, padding.top + 6, 120, 20);
+      ctx.strokeStyle = '#D13438';
+      ctx.strokeRect(xEv - 4, padding.top + 6, 120, 20);
+      ctx.fillStyle = '#D13438';
+      ctx.font = '10px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('⚠️ ' + (ev.Label || 'Drosselung'), xEv + 2, padding.top + 20);
+      ctx.restore();
+    });
+
+    // CURVE: CPU CLOCK (BLUE)
+    ctx.save();
+    ctx.strokeStyle = isDark ? '#4CC2FF' : '#0078D4';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    let started = false;
+    series.forEach(pt => {
+      if (pt.MHz) {
+        const x = getX(pt.T);
+        const y = getYMhz(pt.MHz);
+        if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
+      }
+    });
+    ctx.stroke();
+    ctx.restore();
+
+    // CURVE: CPU TEMPERATURE (RED) WITH GRADIENT AREA
+    ctx.save();
+    ctx.strokeStyle = isDark ? '#FF5A5A' : '#E81123';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    let startedT = false;
+    series.forEach(pt => {
+      if (pt.Temp) {
+        const x = getX(pt.T);
+        const y = getYTemp(pt.Temp);
+        if (!startedT) { ctx.moveTo(x, y); startedT = true; } else { ctx.lineTo(x, y); }
+      }
+    });
+    ctx.stroke();
+
+    // Area fill
+    ctx.lineTo(getX(series[series.length - 1].T), padding.top + chartH);
+    ctx.lineTo(getX(series[0].T), padding.top + chartH);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
+    grad.addColorStop(0, isDark ? 'rgba(255, 90, 90, 0.2)' : 'rgba(232, 17, 35, 0.15)');
+    grad.addColorStop(1, 'rgba(232, 17, 35, 0.0)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.restore();
+
+    // HOVER INTERACTION
+    canvas.onmousemove = function(e) {
+      const mouseRect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - mouseRect.left;
+      if (mouseX < padding.left || mouseX > padding.left + chartW) {
+        tooltip.style.display = 'none';
+        renderChartStatic();
+        return;
+      }
+
+      const ratio = (mouseX - padding.left) / chartW;
+      const targetT = ratio * tMax;
+
+      let closest = series[0];
+      let minDiff = Infinity;
+      series.forEach(pt => {
+        const diff = Math.abs(pt.T - targetT);
+        if (diff < minDiff) { minDiff = diff; closest = pt; }
+      });
+
+      if (!closest) return;
+
+      renderChartStatic();
+
+      const cx = getX(closest.T);
+      const cyTemp = closest.Temp ? getYTemp(closest.Temp) : null;
+      const cyMhz = closest.MHz ? getYMhz(closest.MHz) : null;
+
+      // Crosshair
+      ctx.save();
+      ctx.strokeStyle = isDark ? '#707070' : '#A0A0A0';
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.moveTo(cx, padding.top);
+      ctx.lineTo(cx, padding.top + chartH);
+      ctx.stroke();
+
+      // Highlight dots
+      if (cyTemp) {
+        ctx.fillStyle = isDark ? '#FF5A5A' : '#E81123';
+        ctx.beginPath();
+        ctx.arc(cx, cyTemp, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      if (cyMhz) {
+        ctx.fillStyle = isDark ? '#4CC2FF' : '#0078D4';
+        ctx.beginPath();
+        ctx.arc(cx, cyMhz, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Tooltip HTML
+      const mm = Math.floor(closest.T / 60);
+      const ss = Math.floor(closest.T % 60);
+      const timeStr = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
+
+      tooltip.innerHTML = `
+        <div style="font-weight: 700; margin-bottom: 4px; border-bottom: 1px solid var(--card-border); padding-bottom: 2px;">
+          ⏱️ Zeit: ${timeStr} (${closest.T.toFixed(0)} s)
+        </div>
+        <div style="color: var(--curve-temp); font-weight: 600;">
+          🌡️ CPU-Temperatur: ${closest.Temp ? closest.Temp.toFixed(1) + ' °C' : '-'}
+        </div>
+        <div style="color: var(--curve-mhz); font-weight: 600;">
+          ⚡ CPU-Takt: ${closest.MHz ? (closest.MHz / 1000).toFixed(2) + ' GHz (' + closest.MHz + ' MHz)' : '-'}
+        </div>
+        ${closest.GpuTemp ? '<div style="color: var(--curve-gpu);">🎮 GPU-Temp: ' + closest.GpuTemp.toFixed(1) + ' °C</div>' : ''}
+        ${closest.CpuW ? '<div>💡 CPU-Paket: ' + closest.CpuW.toFixed(1) + ' W</div>' : ''}
+        ${closest.Fps ? '<div>📊 Rendertest: ' + closest.Fps.toFixed(1) + ' FPS</div>' : ''}
+      `;
+
+      tooltip.style.display = 'block';
+      let tooltipX = cx + 15;
+      if (tooltipX + 180 > width) tooltipX = cx - 190;
+      tooltip.style.left = tooltipX + 'px';
+      tooltip.style.top = Math.max(10, (cyTemp || padding.top) - 30) + 'px';
+    };
+
+    canvas.onmouseleave = function() {
+      tooltip.style.display = 'none';
+      renderChartStatic();
+    };
+
+    function renderChartStatic() {
+      renderChartNoHover();
+    }
+  }
+
+  function renderChartNoHover() {
+    renderChart();
+  }
+
+  // DOM READY
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>
