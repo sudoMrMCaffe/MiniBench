@@ -2,6 +2,23 @@
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
 
+## v3.2 (06.10.2026)
+
+* **Fluent 2 / Wintoys-Look & Design-Modernisierung:**
+  * Modernes Windows 11 Fluent 2-Farbschema: Hintergrund `#F9F9FB`, weiße Karten mit feinem 1px-Rahmen (`#E5E7EB`), Windows 11-Akzentfarben (`#0067C0`, Hover `#005A9E`, Active `#004F8A`, Auswahl `#EBF3FB`) und weiche Pastell-Badges.
+  * Neues `ToggleSwitch`-Steuerelement: Pillenförmige Spur (`UI.S(20)` Höhe, `UI.S(38)` Breite), runder Schieber mit dezentem Schatten, Windows-Akzentfüllung im aktiven Zustand, barrierefreie Tastaturbedienung mit Leertaste und Tooltip-Unterstützung.
+  * Neue `FluentCard`-Komponente: Kartenansicht für Optionen im Wintoys-Stil mit Segoe-Symbol, Titel, Untertitel und eingebetteten Toggle-Schaltern oder Aktionsschaltflächen (Umschaltung per Klick auf die Karte).
+  * Gestochen scharfe Segoe-Icons: Einbindung von `Segoe Fluent Icons` (mit Fallback auf `Segoe MDL2 Assets`) für Navigation und Hardware-Kategorien.
+  * Modernisierte Navigation (`NavItem`): Windows 11-Sidebar-Stil mit 6 px Eckenrundung, aktivem 3 px-Akzentbalken, sanftem Auswahlhintergrund und Segoe-Icons.
+* **Windows 11 DWM-Integration & Notebook-Sicherheit:**
+  * Echte Windows 11-Fensterabrundung über DWM P/Invoke (`DWMWA_WINDOW_CORNER_PREFERENCE = 33`, `DWMWCP_ROUND = 2`).
+  * Saubere DPI-Initialisierung über `SetProcessDpiAwarenessContext(-4)` (PerMonitorV2) und `SetProcessDpiAwareness(2)` ohne das veraltete `SetProcessDPIAware()`.
+  * Dynamische Fensterberechnung anhand des sichtbaren Arbeitsbereichs (`WorkingArea * 0.94` Breite, `WorkingArea * 0.88` Höhe) und `MinimumSize` von `860x540` px gegen Überlauf auf 1080p-Notebooks bei 150 % Skalierung.
+* **Zentraler DPI-Helper & Tabellen-OwnerDraw:**
+  * Zentraler DPI-Helper in `UI` mit `UI.DpiScale`, `UI.S(px)` und `UI.SF(px)`.
+  * Vollständig responsive Seiten Versionen, Änderungen und Vergleichsdatenbank mit `DockStyle.Fill` und automatischer Restbreiten-Ausfüllung der ListViews.
+  * Tabellen-OwnerDraw in der Laufansicht mit skalierter Zeilenhöhe (`34 px`), zentrierten Badge-Pillen und verbreiterten Messwertbereichen (`48 px`) für WinSAT- und Index-Balken (`8 px` Höhe).
+
 ## v3.1 (05.10.2026)
 
 * **Vergleichsseite & Deserialisierung:** Fehlerbehebung beim Laden von Systemen in der Benutzeroberfläche; strukturierte Fehlerbehandlung und Logging im JSON-Parser (`DbEntry.Load`).

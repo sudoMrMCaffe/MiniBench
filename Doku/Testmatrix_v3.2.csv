@@ -1,0 +1,14 @@
+﻿Nr;Bereich;Testfall;Umgebung;Erwartung;Art;Ergebnis;Datum;Bemerkung
+A1;Bau;Testen.cmd ausführen;Windows 10/11 mit Pester 5/6;alle Pester-Tests bestanden, 0 fehlgeschlagen, Version32.Tests.ps1 dabei;automatisch;;;
+A2;Bau;Bauen.cmd ausführen;Windows-Buildumgebung;Version 3.2.0.0 erzeugt, Archiv\v3.1 mit voriger Version gesichert;automatisch;;;
+D1;DPI;Zentraler DPI-Helper UI.S() und UI.DpiScale;High-DPI Bildschirm (125 %, 150 %, 200 %);Pixelmaße, Paddings und Zeilenhöhen skalieren exakt proportional;automatisch;;;
+D2;DPI;Responsive Fensterberechnung auf Full-HD-Notebook;1080p Display mit 150 % Skalierung (1280x670 netto);Fensterhöhe überschreitet 88 % WorkingArea nicht, Fußleiste bleibt sichtbar;automatisch;;;
+D3;DWM;Windows 11 DWM-Fensterabrundung;Windows 11 Build 22000+;DWMWA_WINDOW_CORNER_PREFERENCE (33) mit DWMWCP_ROUND (2) ohne Fehler angewendet;manuell;;;
+U1;UI;ToggleSwitch Steuerelement;Windows 10/11;Schaltet Zustand per Klick und Leertaste um, löst Toggled-Ereignis aus, Focus-Rechteck;automatisch;;;
+U2;UI;FluentCard Kartenkomponente;Windows 10/11;Karten mit Segoe-Icon, Titel, Subtitel und ToggleSwitch, Klick auf Karte schaltet um;automatisch;;;
+U3;UI;Modul-Navigation (NavItem) Fluent-Stil;Windows 10/11;Blauer 3 px Akzentbalken bei Auswahl, Segoe-Icons für alle Module, saubere Skalierung;automatisch;;;
+U4;UI;Responsive ListViews und Detailansichten;Vergleichsdatenbank, Änderungen, Versionen;DockStyle.Fill, letzte Spalte füllt Restbreite, keine starren 880 px;automatisch;;;
+U5;UI;Laufansicht OwnerDraw und Balken;Diagnose und Benchmark;Zentrierte Pillen-Badges, WinSAT- und Index-Balken mit 48 px Zahlenbreite ohne Abschneiden;automatisch;;;
+H1;Hardware;Testlauf Desktop mit dGPU;AMD Ryzen + Radeon RX / NVIDIA GeForce (100 % Skalierung);Vollständiger Durchlauf Diagnose, Benchmark, Lasttest ohne Auffälligkeiten;manuell;;;
+H2;Hardware;Testlauf Notebook mit iGPU;Intel Core / Iris Xe / UHD 620 (150 % High-DPI Skalierung);Fenster passt auf Bildschirm, alle Steuerelemente scharf und bedienbar;manuell;;;
+H3;Hardware;Testlauf Notebook mit Hybridgrafik;Intel/AMD iGPU + NVIDIA dGPU;Beide Grafikadapter erkannt, Rendertest auf beiden GPUs erfolgreich;manuell;;;

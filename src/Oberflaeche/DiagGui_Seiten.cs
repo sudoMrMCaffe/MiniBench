@@ -3,9 +3,13 @@ public partial class DiagGui
 {
     Control BuildVersionPage()
     {
-        FlowLayoutPanel f = Page("Versionen", "Was sich von Version zu Version geändert hat, neueste zuerst. Ausführlich in den Änderungsdateien im Ordner Doku des Projekts (Änderungen_vX.Y.txt).", -1);
+        Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel;
+        FlowLayoutPanel top = Page("Versionen", "Was sich von Version zu Version geändert hat, neueste zuerst. Ausführlich in den Änderungsdateien im Ordner Doku des Projekts (Änderungen_vX.Y.txt).", -1);
+        top.Dock = DockStyle.Top;
+        top.AutoSize = true;
+        top.Padding = new Padding(0, 0, 0, UI.S(10));
         RichTextBox rt = new RichTextBox(); rt.ReadOnly = true; rt.BorderStyle = BorderStyle.FixedSingle; rt.BackColor = UI.Panel; rt.ForeColor = UI.Text;
-        rt.Width = 880; rt.Height = 560; rt.DetectUrls = false; rt.ScrollBars = RichTextBoxScrollBars.Vertical; rt.Font = new Font("Segoe UI", 9.75f);
+        rt.Dock = DockStyle.Fill; rt.DetectUrls = false; rt.ScrollBars = RichTextBoxScrollBars.Vertical; rt.Font = new Font("Segoe UI", 9.75f);
         Font fh = new Font("Segoe UI Semibold", 11f), fd = new Font("Segoe UI", 9f), fb = new Font("Segoe UI", 9.75f);
         foreach (Versionshistorie.Eintrag e in Versionshistorie.Liste)
         {
@@ -18,17 +22,39 @@ public partial class DiagGui
         }
         rt.SelectionStart = 0; rt.ScrollToCaret();
         f.Controls.Add(rt);
+        f.Controls.Add(top);
+        top.SendToBack();
         return f;
     }
 
     Control BuildChangePage()
     {
-        FlowLayoutPanel f = Page("Änderungen", "Alles, was Leos Minibench an einem PC verändert hat, mit Vorher-Wert. Einträge der Stufe Ändern lassen sich auf dem PC, auf dem sie entstanden sind, zurücknehmen. Eingriffe stehen mit dem Weg zurück als Hinweis in der Liste.", -1);
-        Label lp = Lbl("Protokoll: " + (changeDir.Length > 0 ? changeDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lp.Margin = new Padding(3, 0, 3, 8); f.Controls.Add(lp);
-        lvChg = new ListView(); lvChg.View = View.Details; lvChg.FullRowSelect = true; lvChg.CheckBoxes = true; lvChg.Width = 880; lvChg.Height = 360; lvChg.BorderStyle = BorderStyle.FixedSingle; lvChg.HideSelection = false; lvChg.ShowItemToolTips = true;
+        Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel;
+        FlowLayoutPanel top = Page("Änderungen", "Alles, was Leos Minibench an einem PC verändert hat, mit Vorher-Wert. Einträge der Stufe Ändern lassen sich auf dem PC, auf dem sie entstanden sind, zurücknehmen. Eingriffe stehen mit dem Weg zurück als Hinweis in der Liste.", -1);
+        top.Dock = DockStyle.Top;
+        top.AutoSize = true;
+        Label lp = Lbl("Protokoll: " + (changeDir.Length > 0 ? changeDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lp.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8)); top.Controls.Add(lp);
+
+        FlowLayoutPanel bottom = new FlowLayoutPanel(); bottom.FlowDirection = FlowDirection.TopDown; bottom.WrapContents = false; bottom.AutoSize = true; bottom.BackColor = UI.Panel; bottom.Dock = DockStyle.Bottom;
+        Label hint = Lbl("Anhaken lassen sich nur aktive Einträge dieses PCs. Graue Einträge sind Hinweise, bereits zurückgenommen oder stammen von einem anderen PC.", 8.75f, false, UI.Muted); hint.Margin = new Padding(UI.S(4), UI.S(4), UI.S(4), 0); bottom.Controls.Add(hint);
+        FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(10), 0, 0);
+        btnUndo = UI.Primary("Rückgängig machen"); btnUndo.Margin = new Padding(0); btnUndo.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnUndo.Font = new Font("Segoe UI Semibold", 9.75f);
+        btnUndo.Click += delegate { UndoSelected(); };
+        Button rel = UI.Secondary("Aktualisieren"); rel.Margin = new Padding(UI.S(8), 0, 0, 0); rel.Click += delegate { ReloadDb(); };
+        Button open = UI.Secondary("Protokollordner"); open.Margin = new Padding(UI.S(8), 0, 0, 0); open.Click += delegate { if (changeDir.Length > 0 && Directory.Exists(changeDir)) OpenShell(changeDir); else if (dataDir.Length > 0) OpenShell(dataDir); };
+        Tip(rel, "Liest das Änderungsprotokoll neu ein.");
+        Tip(open, "Öffnet den Protokollordner.");
+        b.Controls.Add(btnUndo); b.Controls.Add(rel); b.Controls.Add(open); bottom.Controls.Add(b);
+
+        lvChg = new ListView(); lvChg.View = View.Details; lvChg.FullRowSelect = true; lvChg.CheckBoxes = true; lvChg.Dock = DockStyle.Fill; lvChg.BorderStyle = BorderStyle.FixedSingle; lvChg.HideSelection = false; lvChg.ShowItemToolTips = true;
         string[] cols = new string[] { "Zeit", "Computer", "Maßnahme", "Ziel", "Vorher", "Nachher", "Status" };
-        int[] w = new int[] { 112, 100, 170, 190, 90, 110, 96 };
+        int[] w = new int[] { UI.S(112), UI.S(100), UI.S(170), UI.S(190), UI.S(90), UI.S(110), UI.S(96) };
         for (int i = 0; i < cols.Length; i++) lvChg.Columns.Add(cols[i], w[i]);
+        lvChg.Resize += delegate {
+            int rem = lvChg.ClientSize.Width;
+            for (int i = 0; i < lvChg.Columns.Count - 1; i++) rem -= lvChg.Columns[i].Width;
+            if (rem > UI.S(60)) lvChg.Columns[lvChg.Columns.Count - 1].Width = rem - 2;
+        };
         lvChg.ItemCheck += delegate(object sender, ItemCheckEventArgs e)
         {
             ChangeEntry c = lvChg.Items[e.Index].Tag as ChangeEntry;
@@ -40,14 +66,13 @@ public partial class DiagGui
             if (e.Item.Checked && c != null && !c.Undoable) { e.Item.Checked = false; return; }
             UpdateChangeButtons();
         };
+
         f.Controls.Add(lvChg);
-        Label hint = Lbl("Anhaken lassen sich nur aktive Einträge dieses PCs. Graue Einträge sind Hinweise, bereits zurückgenommen oder stammen von einem anderen PC.", 8.75f, false, UI.Muted); hint.Margin = new Padding(3, 4, 3, 0); f.Controls.Add(hint);
-        FlowLayoutPanel b = Row(); b.Margin = new Padding(0, 10, 0, 0);
-        btnUndo = UI.Primary("Rückgängig machen"); btnUndo.Margin = new Padding(0); btnUndo.Padding = new Padding(14, 3, 14, 3); btnUndo.Font = new Font("Segoe UI Semibold", 9.75f);
-        btnUndo.Click += delegate { UndoSelected(); };
-        Button rel = UI.Secondary("Aktualisieren"); rel.Click += delegate { ReloadDb(); };
-        Button open = UI.Secondary("Protokollordner"); open.Click += delegate { if (changeDir.Length > 0 && Directory.Exists(changeDir)) OpenShell(changeDir); else if (dataDir.Length > 0) OpenShell(dataDir); };
-        b.Controls.Add(btnUndo); b.Controls.Add(rel); b.Controls.Add(open); f.Controls.Add(b);
+        f.Controls.Add(bottom);
+        f.Controls.Add(top);
+        top.SendToBack();
+        bottom.SendToBack();
+
         FillChangeList();
         return f;
     }

@@ -11,6 +11,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.2", "06.10.2026", "Fluent 2 / Wintoys-Look, Windows 11 DWM-Rundungen, Segoe-Icons und responsive Notebook-Skalierung",
+            "Fluent 2-Designsystem: Modernes helles Farbschema (#F9F9FB Hintergrund, weiße Karten mit feinem 1px-Rahmen #E5E7EB, Windows 11-Akzentblau #0067C0 und pastellfarbene Status-Badges). " +
+            "Moderne Steuerelemente: Eigener ToggleSwitch im Windows 11-Pillendesign mit animiertem Schieber und barrierefreiem Fokus; FluentCard-Komponente für modulare Optionen mit Segoe-Icons und integrierten Schaltern. " +
+            "Modul-Navigation: Neugestaltetes NavItem im Windows 11-Sidebar-Stil mit 6 px Eckenrundung, aktivem 3 px-Akzentbalken und gestochen scharfen Segoe-Symbolen (Segoe Fluent Icons / MDL2 Assets). " +
+            "DWM-Integration: Echte Windows 11-Fensterabrundung über DWMWA_WINDOW_CORNER_PREFERENCE (DWMWCP_ROUND), PerMonitorV2 DPI-Awareness ohne veraltetes SetProcessDPIAware. " +
+            "Zentraler DPI-Helper & Notebook-Sicherheit: Vollständige Skalierung über UI.S(...) und UI.SF(...), dynamische Fenstergröße anhand des Arbeitsbereichs (WorkingArea) gegen Überlauf auf 1080p-Notebooks mit 150 % Skalierung."),
         new Eintrag("3.1", "05.10.2026", "Bugfix-Release: Vergleichsseite, eingebettete Referenzdaten, CPU-Benchmark und Grafiktest auf Einsteiger-GPUs",
             "Vergleichsseite: Fehlerbehebung beim Einlesen der Systemdatenbank und Logging im JSON-Parser (DbEntry.Load), sodass Systeme zuverlässig angezeigt werden. " +
             "Eingebettete Referenzdaten: Fünf anonyme Referenzprofile (Desktop High-End bis Notebook Standard) direkt im Skript eingebettet und bei leerer Datenbank automatisch entpackt. " +

@@ -5,8 +5,24 @@ Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Verweis Versionshistorie oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
 
+VERSION 3.2   (06.10.2026)  FLUENT 2 / WINTOYS-LOOK, WINDOWS 11 DWM-RUNDUNGEN, SEGOE-ICONS & RESPONSIVE SKALIERUNG
+====================================================================================================
+Fluent 2-Designsystem: Modernes helles Farbschema (#F9F9FB Hintergrund, weiße Karten mit feinem 1px-Rahmen #E5E7EB,
+Windows 11-Akzentblau #0067C0 und weiche pastellfarbene Status-Badges für OK, Warnung, Kritisch und Info).
+Moderne Steuerelemente: Eigener ToggleSwitch im Windows 11-Pillendesign mit animiertem Schieber, barrierefreier
+Tastaturbedienung und Tooltip-Unterstützung; FluentCard-Komponente für modulare Optionen mit Segoe-Icons und Toggle-Schaltern.
+Modul-Navigation: Neugestaltetes NavItem im Windows 11-Sidebar-Stil mit sanfter 6 px Eckenrundung, aktivem
+3 px-Akzentbalken, sanftem Auswahlhintergrund und gestochen scharfen Segoe-Symbolen (Segoe Fluent Icons / MDL2 Assets).
+DWM-Integration: Echte Windows 11-Fensterabrundung über DWMWA_WINDOW_CORNER_PREFERENCE (DWMWCP_ROUND) und
+PerMonitorV2 DPI-Awareness ohne den veralteten P/Invoke-Aufruf SetProcessDPIAware().
+Zentraler DPI-Helper & Notebook-Sicherheit: Vollständige Skalierung über UI.S(...) und UI.SF(...), dynamische
+Berechnung der Fenstermaße anhand der sichtbaren WorkingArea gegen Überlauf auf 1080p-Notebooks mit 150 % Skalierung.
+Laufansicht & OwnerDraw: Skalierte Tabellenzeilen (34 px), Badge-Pillen (20 px Höhe) mit zentrierter
+Textmessung sowie verbreiterte Messwert-Bereiche (48 px) für WinSAT- und Index-Balken (8 px Höhe).
+
 VERSION 3.1   (05.10.2026)  BUGFIX: VERGLEICHSSEITE, REFERENZDATEN, CPU-REGRESSION, GPU-FEHLER
 ====================================================================================================
+
 Vergleichsseite: Fehlerbehebung beim Einlesen der Systemdatenbank und Logging im JSON-Parser (DbEntry.Load),
 sodass Systeme in der Vergleichsansicht stets zuverlässig geladen und angezeigt werden.
 Eingebettete Referenzdaten: Fünf anonyme Referenzprofile (Desktop High-End bis Notebook Standard) direkt im

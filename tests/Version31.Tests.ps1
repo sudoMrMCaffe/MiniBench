@@ -148,16 +148,16 @@ Describe 'Version 3.1: Grafik-Benchmark Robustheit bei niedrigen Bildraten (BUG 
 Describe 'Version 3.1: Release und Dokumentation' {
     It 'Versionsnummer ist 3.1 in Version.ps1, Versionen.cs und Versionshistorie.txt' {
         $vPs1 = [IO.File]::ReadAllText((Join-Path $global:V31Src 'Kern/Version.ps1'))
-        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''3\.1'''
+        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''(3\.1(\.1)?|3\.2)'''
         $firstVer = [regex]::Match($global:V31Ver, 'new Eintrag\("([^"]+)"').Groups[1].Value
-        $firstVer | Should -Be '3.1'
-        $global:V31Hist | Should -Match 'VERSION 3\.1'
+        $firstVer | Should -Match '^(3\.1(\.1)?|3\.2)$'
+        $global:V31Hist | Should -Match 'VERSION (3\.1|3\.2)'
     }
 
     It 'Änderungsdatei und Testmatrix für Version 3.1 existieren' {
         $b = Get-MinibenchBuild
-        $b.Version | Should -Be '3.1'
-        $aePath = Join-Path $global:MinibenchRepoRoot ('Doku/' + [char]0x00C4 + 'nderungen_v3.1.txt')
+        $b.Version | Should -Match '^(3\.1(\.1)?|3\.2)$'
+        $aePath = Join-Path $global:MinibenchRepoRoot ('Doku/' + [char]0x00C4 + ('nderungen_v{0}.txt' -f $b.Version))
         Test-Path -LiteralPath $aePath | Should -BeTrue
         Join-Path $global:MinibenchRepoRoot ('Doku/Testmatrix_v{0}.csv' -f $b.Version) | Should -Exist
     }
@@ -198,10 +198,10 @@ Describe 'Version 3.1: Release und Dokumentation' {
 
     It 'README.md und CHANGELOG.md sind auf Version 3.1 aktualisiert' {
         $rm = [IO.File]::ReadAllText((Join-Path $global:MinibenchRepoRoot 'README.md'))
-        $rm | Should -Match 'https://img\.shields\.io/badge/Version-3\.1-'
-        $rm | Should -Match 'Download-LeosMinibench\.exe%20\(v3\.1\)'
+        $rm | Should -Match 'https://img\.shields\.io/badge/Version-3\.[12](\.1)?-'
+        $rm | Should -Match 'Download-LeosMinibench\.exe%20\(v3\.[12](\.1)?\)'
         $cl = [IO.File]::ReadAllText((Join-Path $global:MinibenchRepoRoot 'CHANGELOG.md'))
-        $cl | Should -Match '## v3\.1'
+        $cl | Should -Match '## v3\.[12]'
     }
 
     It 'Bauen.cmd aktualisiert README.md automatisch' {

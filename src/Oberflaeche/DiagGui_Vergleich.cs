@@ -90,27 +90,27 @@ public partial class DiagGui
         dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
         dlg.MaximizeBox = false; dlg.MinimizeBox = false;
         dlg.StartPosition = FormStartPosition.CenterParent;
-        dlg.ClientSize = new Size(440, 145);
+        dlg.ClientSize = new Size(UI.S(440), UI.S(145));
         dlg.BackColor = UI.Bg; dlg.Font = new Font("Segoe UI", 9f);
 
         Label lbl = new Label();
         lbl.Text = prompt;
-        lbl.Location = new Point(16, 14);
-        lbl.Size = new Size(408, 30);
+        lbl.Location = new Point(UI.S(16), UI.S(14));
+        lbl.Size = new Size(UI.S(408), UI.S(30));
 
         TextBox tb = new TextBox();
         tb.Text = defaultValue ?? "";
-        tb.Location = new Point(16, 48);
-        tb.Size = new Size(408, 24);
+        tb.Location = new Point(UI.S(16), UI.S(48));
+        tb.Size = new Size(UI.S(408), UI.S(24));
 
         Button btnOk = UI.Primary("Speichern");
-        btnOk.Location = new Point(226, 92);
-        btnOk.Size = new Size(95, 32);
+        btnOk.Location = new Point(UI.S(226), UI.S(92));
+        btnOk.Size = new Size(UI.S(95), UI.S(32));
         btnOk.DialogResult = DialogResult.OK;
 
         Button btnCancel = UI.Secondary("Abbrechen");
-        btnCancel.Location = new Point(328, 92);
-        btnCancel.Size = new Size(96, 32);
+        btnCancel.Location = new Point(UI.S(328), UI.S(92));
+        btnCancel.Size = new Size(UI.S(96), UI.S(32));
         btnCancel.DialogResult = DialogResult.Cancel;
 
         dlg.Controls.Add(lbl); dlg.Controls.Add(tb); dlg.Controls.Add(btnOk); dlg.Controls.Add(btnCancel);
@@ -166,38 +166,56 @@ public partial class DiagGui
 
     Control BuildDbPage()
     {
-        FlowLayoutPanel f = Page("Vergleichsdatenbank", "Jeder Lauf wird als System gespeichert. Hier lassen sich bereits geprüfte Systeme ohne neuen Benchmark vergleichen: mindestens zwei Systeme anhaken und \"Vergleichen\" klicken. Ältere Ausgabeordner lassen sich importieren. Ein Klick auf die Spaltenköpfe sortiert die Einträge.", -1);
-        lblDbPath = Lbl("Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lblDbPath.Margin = new Padding(3, 0, 3, 8); f.Controls.Add(lblDbPath);
-        lvDb = new ListView(); lvDb.View = View.Details; lvDb.FullRowSelect = true; lvDb.CheckBoxes = true; lvDb.Width = 880; lvDb.Height = 360; lvDb.BorderStyle = BorderStyle.FixedSingle; lvDb.HideSelection = false; lvDb.ShowItemToolTips = true;
+        Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel;
+        FlowLayoutPanel top = Page("Vergleichsdatenbank", "Jeder Lauf wird als System gespeichert. Hier lassen sich bereits geprüfte Systeme ohne neuen Benchmark vergleichen: mindestens zwei Systeme anhaken und \"Vergleichen\" klicken. Ältere Ausgabeordner lassen sich importieren. Ein Klick auf die Spaltenköpfe sortiert die Einträge.", -1);
+        top.Dock = DockStyle.Top;
+        top.AutoSize = true;
+        lblDbPath = Lbl("Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lblDbPath.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8)); top.Controls.Add(lblDbPath);
+
+        FlowLayoutPanel bottom = new FlowLayoutPanel(); bottom.FlowDirection = FlowDirection.TopDown; bottom.WrapContents = false; bottom.AutoSize = true; bottom.BackColor = UI.Panel; bottom.Dock = DockStyle.Bottom;
+        Label hint = Lbl("Doppelklick öffnet den Bericht des Laufs. Graue Einträge enthalten keine Benchmark-Werte. Klick auf Spaltenkopf sortiert die Tabelle.", 8.75f, false, UI.Muted); hint.Margin = new Padding(UI.S(4), UI.S(4), UI.S(4), 0); bottom.Controls.Add(hint);
+        FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(10), 0, 0);
+        btnCompare = UI.Primary("Vergleichen"); btnCompare.Margin = new Padding(0); btnCompare.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnCompare.Font = new Font("Segoe UI Semibold", 9.75f);
+        btnCompare.Click += delegate { CompareSelected(); };
+        btnRename = UI.Secondary("Name ändern ..."); btnRename.Margin = new Padding(UI.S(8), 0, 0, 0);
+        btnRename.Click += delegate { RenameSelectedEntry(); };
+        btnRename.Enabled = false;
+        Tip(btnRename, "Bearbeitet den Anzeigenamen des ausgewählten Systems (z. B. für Notizen wie Vor Reinigung oder Neuer Treiber), ohne die Hardware-Erkennung zu verändern.");
+        Button imp = UI.Secondary("Importieren ..."); imp.Margin = new Padding(UI.S(8), 0, 0, 0);
+        imp.Click += delegate { ImportFolder(); };
+        btnDelete = UI.Secondary("Entfernen"); btnDelete.Margin = new Padding(UI.S(8), 0, 0, 0); btnDelete.Click += delegate { DeleteSelected(); };
+        Button rel = UI.Secondary("Aktualisieren"); rel.Margin = new Padding(UI.S(8), 0, 0, 0); rel.Click += delegate { ReloadDb(); };
+        Button open = UI.Secondary("Datenordner"); open.Margin = new Padding(UI.S(8), 0, 0, 0); open.Click += delegate { if (dataDir.Length > 0) OpenShell(dataDir); };
+        btnDbClean = UI.Secondary("Aufräumen ..."); btnDbClean.Margin = new Padding(UI.S(8), 0, 0, 0); btnDbClean.Click += delegate { CleanData(); }; btnDbClean.Enabled = dataDir.Length > 0;
+        Tip(imp, "Übernimmt Benchmark-Werte aus Ausgabeordnern früherer Läufe in die Datenbank (auch von PC-Diagnose).");
+        Tip(rel, "Liest Datenbank und Referenz neu ein.");
+        Tip(open, "Öffnet den Datenordner (Berichte, Datenbank, Tools, Archiv).");
+        b.Controls.Add(btnCompare); b.Controls.Add(btnRename); b.Controls.Add(imp); b.Controls.Add(btnDelete); b.Controls.Add(rel); b.Controls.Add(btnDbClean); b.Controls.Add(open); bottom.Controls.Add(b);
+        lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
+        lblDbClean.Margin = new Padding(UI.S(4), UI.S(8), UI.S(4), 0); bottom.Controls.Add(lblDbClean);
+        bottom.Resize += delegate { lblDbClean.MaximumSize = new Size(Math.Max(UI.S(200), bottom.ClientSize.Width - UI.S(10)), 0); };
+
+        lvDb = new ListView(); lvDb.View = View.Details; lvDb.FullRowSelect = true; lvDb.CheckBoxes = true; lvDb.Dock = DockStyle.Fill; lvDb.BorderStyle = BorderStyle.FixedSingle; lvDb.HideSelection = false; lvDb.ShowItemToolTips = true;
         string[] cols = new string[] { "System", "Datum", "Gesamt", "Prozessor", "Grafik", "Arbeitsspeicher", "CPU Mehrkern", "RAM Lesen", "GPU", "Befunde K/W/I" };
-        int[] w = new int[] { 135, 95, 65, 125, 115, 105, 80, 70, 70, 62 };
+        int[] w = new int[] { UI.S(135), UI.S(95), UI.S(65), UI.S(125), UI.S(115), UI.S(105), UI.S(80), UI.S(70), UI.S(70), UI.S(62) };
         for (int i = 0; i < cols.Length; i++) lvDb.Columns.Add(cols[i], w[i]);
+        lvDb.Resize += delegate {
+            int rem = lvDb.ClientSize.Width;
+            for (int i = 0; i < lvDb.Columns.Count - 1; i++) rem -= lvDb.Columns[i].Width;
+            if (rem > UI.S(60)) lvDb.Columns[lvDb.Columns.Count - 1].Width = rem - 2;
+        };
         lvDb.DoubleClick += delegate { if (lvDb.SelectedItems.Count > 0) OpenEntry((DbEntry)lvDb.SelectedItems[0].Tag); };
         lvDb.ItemChecked += delegate { UpdateDbButtons(); };
         lvDb.SelectedIndexChanged += delegate { UpdateDbButtons(); };
         lvDb.ColumnClick += OnDbColumnClick;
         Tip(lvDb, "Vergleichsdatenbank aller gespeicherten Systeme. Ein Klick auf die Spaltenköpfe sortiert nach Datum, Gesamtwertung, CPU oder GPU.");
+
         f.Controls.Add(lvDb);
-        Label hint = Lbl("Doppelklick öffnet den Bericht des Laufs. Graue Einträge enthalten keine Benchmark-Werte. Klick auf Spaltenkopf sortiert die Tabelle.", 8.75f, false, UI.Muted); hint.Margin = new Padding(3, 4, 3, 0); f.Controls.Add(hint);
-        FlowLayoutPanel b = Row(); b.Margin = new Padding(0, 10, 0, 0);
-        btnCompare = UI.Primary("Vergleichen"); btnCompare.Margin = new Padding(0); btnCompare.Padding = new Padding(14, 3, 14, 3); btnCompare.Font = new Font("Segoe UI Semibold", 9.75f);
-        btnCompare.Click += delegate { CompareSelected(); };
-        btnRename = UI.Secondary("Name ändern ...");
-        btnRename.Click += delegate { RenameSelectedEntry(); };
-        btnRename.Enabled = false;
-        Tip(btnRename, "Bearbeitet den Anzeigenamen des ausgewählten Systems (z. B. für Notizen wie Vor Reinigung oder Neuer Treiber), ohne die Hardware-Erkennung zu verändern.");
-        Button imp = UI.Secondary("Importieren ...");
-        imp.Click += delegate { ImportFolder(); };
-        btnDelete = UI.Secondary("Entfernen"); btnDelete.Click += delegate { DeleteSelected(); };
-        Button rel = UI.Secondary("Aktualisieren"); rel.Click += delegate { ReloadDb(); };
-        Button open = UI.Secondary("Datenordner"); open.Click += delegate { if (dataDir.Length > 0) OpenShell(dataDir); };
-        btnDbClean = UI.Secondary("Aufräumen ..."); btnDbClean.Click += delegate { CleanData(); }; btnDbClean.Enabled = dataDir.Length > 0;
-        Tip(imp, "Übernimmt Benchmark-Werte aus Ausgabeordnern früherer Läufe in die Datenbank (auch von PC-Diagnose).");
-        Tip(rel, "Liest Datenbank und Referenz neu ein.");
-        Tip(open, "Öffnet den Datenordner (Berichte, Datenbank, Tools, Archiv).");
-        b.Controls.Add(btnCompare); b.Controls.Add(btnRename); b.Controls.Add(imp); b.Controls.Add(btnDelete); b.Controls.Add(rel); b.Controls.Add(btnDbClean); b.Controls.Add(open); f.Controls.Add(b);
-        lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
-        lblDbClean.MaximumSize = new Size(880, 0); lblDbClean.Margin = new Padding(3, 8, 3, 0); f.Controls.Add(lblDbClean);
+        f.Controls.Add(bottom);
+        f.Controls.Add(top);
+        top.SendToBack();
+        bottom.SendToBack();
+
         FillDbList();
         return f;
     }

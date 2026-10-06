@@ -221,7 +221,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenp
 }
 #endregion
 
-$ScriptVersion = '3.2'
+$ScriptVersion = '3.1'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -4392,11 +4392,7 @@ public partial class DiagGui : Form
     [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
     [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
-    [DllImport("user32.dll", SetLastError = true)] static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
-    [DllImport("shcore.dll", SetLastError = true)] static extern int SetProcessDpiAwareness(int awareness);
-    [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
-    const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
-    const int DWMWCP_ROUND = 2;
+    [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
     [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
     [DllImport("user32.dll")] static extern bool AttachThreadInput(uint a, uint b, bool attach);
@@ -4594,17 +4590,10 @@ public partial class DiagGui : Form
         Run(psExe, script, cpDir, dataDir, version, disks, contract, "");
     }
 
-    static void EnableDpi()
-    {
-        try { if (SetProcessDpiAwarenessContext((IntPtr)(-4))) return; } catch { }
-        try { if (SetProcessDpiAwareness(2) == 0) return; } catch { }
-    }
-
     public static void Run(string psExe, string script, string cpDir, string dataDir, string version, string[] disks, string[] contract, string deviceId)
     {
         IntPtr con = IntPtr.Zero; bool wasVisible = false;
-        EnableDpi();
-        try { using (Graphics g = Graphics.FromHwnd(IntPtr.Zero)) if (g.DpiX > 0) UI.DpiScale = g.DpiX / 96.0f; } catch { }
+        try { SetProcessDPIAware(); } catch { }
         AppSymbol.SetAppId();
         try { Application.EnableVisualStyles(); } catch { }
         try { Application.SetCompatibleTextRenderingDefault(false); } catch { }
@@ -4638,10 +4627,6 @@ public partial class DiagGui : Form
 
     public DiagGui(string psExe, string script, string cpDir, string dataDir, string version, string[] disks, string[] contract, string deviceId)
     {
-        using (Graphics g = CreateGraphics())
-        {
-            if (g.DpiX > 0) UI.DpiScale = g.DpiX / 96.0f;
-        }
         this.deviceId = deviceId ?? "";
         this.psExe = psExe; this.script = script; this.cpDir = cpDir; this.dataDir = dataDir ?? ""; this.version = version ?? "";
         this.disks = disks ?? new string[0];
@@ -4653,29 +4638,24 @@ public partial class DiagGui : Form
         Font = new Font("Segoe UI", 9.75f);
         BackColor = UI.Bg; ForeColor = UI.Text;
         StartPosition = FormStartPosition.CenterScreen;
-        Rectangle workArea = Screen.FromPoint(Cursor.Position).WorkingArea;
-        int startW = Math.Min(UI.S(1120), (int)(workArea.Width * 0.94));
-        int startH = Math.Min(UI.S(680), (int)(workArea.Height * 0.88));
-        ClientSize = new Size(startW, startH);
-        MinimumSize = new Size(UI.S(860), UI.S(540));
+        ClientSize = new Size(1180, 800); MinimumSize = new Size(980, 680);
         try { Icon ic = AppSymbol.Get(); if (ic != null) Icon = ic; else Icon = Icon.ExtractAssociatedIcon(psExe); } catch { }
-        try { int round = DWMWCP_ROUND; DwmSetWindowAttribute(Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int)); } catch { }
 
-        Panel head = new Panel(); head.Dock = DockStyle.Top; head.Height = UI.S(74); head.BackColor = UI.Header;
-        Label t1 = Lbl("Leos Minibench", 18f, true, Color.White); t1.Location = new Point(UI.S(76), UI.S(10));
-        Label t2 = Lbl(Environment.MachineName + "   ·   " + OsName() + "   ·   Version " + this.version, 9.75f, false, Color.FromArgb(170, 182, 200)); t2.Location = new Point(UI.S(78), UI.S(44));
-        PictureBox logo = new PictureBox(); logo.Size = new Size(UI.S(48), UI.S(48)); logo.Location = new Point(UI.S(18), UI.S(13)); logo.SizeMode = PictureBoxSizeMode.Zoom; logo.BackColor = Color.Transparent;
-        try { logo.Image = AppSymbol.Image(UI.S(48)); } catch { }
+        Panel head = new Panel(); head.Dock = DockStyle.Top; head.Height = 78; head.BackColor = UI.Header;
+        Label t1 = Lbl("Leos Minibench", 18f, true, Color.White); t1.Location = new Point(76, 10);
+        Label t2 = Lbl(Environment.MachineName + "   ·   " + OsName() + "   ·   Version " + this.version, 9.75f, false, Color.FromArgb(170, 182, 200)); t2.Location = new Point(79, 48);
+        PictureBox logo = new PictureBox(); logo.Size = new Size(48, 48); logo.Location = new Point(18, 15); logo.SizeMode = PictureBoxSizeMode.Zoom; logo.BackColor = Color.Transparent;
+        try { logo.Image = AppSymbol.Image(48); } catch { }
         head.Controls.Add(logo); head.Controls.Add(t1); head.Controls.Add(t2);
         // ab v2.7: Versionshistorie oben rechts
-        FlowLayoutPanel hr = new FlowLayoutPanel(); hr.Dock = DockStyle.Right; hr.Width = UI.S(240); hr.FlowDirection = FlowDirection.RightToLeft; hr.BackColor = Color.Transparent; hr.Padding = new Padding(0, UI.S(26), UI.S(20), 0);
+        FlowLayoutPanel hr = new FlowLayoutPanel(); hr.Dock = DockStyle.Right; hr.Width = 240; hr.FlowDirection = FlowDirection.RightToLeft; hr.BackColor = Color.Transparent; hr.Padding = new Padding(0, 30, 20, 0);
         LinkLabel lnkVer = new LinkLabel(); lnkVer.Text = "Versionshistorie"; lnkVer.AutoSize = true; lnkVer.Font = new Font("Segoe UI", 9.75f);
         lnkVer.LinkColor = Color.FromArgb(147, 197, 253); lnkVer.ActiveLinkColor = Color.White; lnkVer.VisitedLinkColor = Color.FromArgb(147, 197, 253); lnkVer.BackColor = Color.Transparent;
         lnkVer.LinkClicked += delegate { if (setupView != null && setupView.Visible && versionPage >= 0) ShowPage(versionPage); };
         Tip(lnkVer, "Was sich von Version 1.0 bis " + this.version + " geändert hat.");
         hr.Controls.Add(lnkVer); head.Controls.Add(hr);
 
-        Panel body = new Panel(); body.Dock = DockStyle.Fill; body.Padding = new Padding(UI.S(20), UI.S(16), UI.S(20), UI.S(14)); body.BackColor = UI.Bg;
+        Panel body = new Panel(); body.Dock = DockStyle.Fill; body.Padding = new Padding(20, 16, 20, 14); body.BackColor = UI.Bg;
         LoadDb();
         setupView = BuildSetup(); runView = BuildRun();
         FillPresets(true);
@@ -4690,12 +4670,6 @@ public partial class DiagGui : Form
         EnableDoubleBuffer(this);
         timer = new Timer(); timer.Interval = 250; timer.Tick += delegate { OnTick(); };
         StartLog.Phase("Fenster aufgebaut");
-    }
-
-    protected override void OnHandleCreated(EventArgs e)
-    {
-        base.OnHandleCreated(e);
-        try { int round = DWMWCP_ROUND; DwmSetWindowAttribute(Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int)); } catch { }
     }
 
     // DoubleBuffered ist bei Panels und ListViews geschützt; per Reflexion für alle Unterelemente setzen
@@ -4752,10 +4726,10 @@ public partial class DiagGui : Form
         }
     }
 
-    NavItem ModNav(string name, string title, string desc, string icon = "")
+    NavItem ModNav(string name, string title, string desc)
     {
         string[] mi; if (modInfo.TryGetValue(name, out mi)) { title = mi[0]; desc = mi[1]; }
-        return new NavItem(title, desc, icon);
+        return new NavItem(title, desc);
     }
 
     // ------------------------------------------------------------ Einrichtung
@@ -4763,17 +4737,17 @@ public partial class DiagGui : Form
     {
         Panel p = new Panel(); p.BackColor = UI.Bg;
 
-        FlowLayoutPanel left = new FlowLayoutPanel(); left.Dock = DockStyle.Left; left.Width = UI.S(246); left.FlowDirection = FlowDirection.TopDown; left.WrapContents = false;
-        left.BackColor = UI.Bg; left.Padding = new Padding(0, 0, UI.S(14), 0); left.AutoScroll = true;
-        Label lm = Lbl("Module", 12f, true, UI.Text); lm.Margin = new Padding(UI.S(2), 0, 0, UI.S(10)); left.Controls.Add(lm);
-        nav.Add(ModNav("Diagnose", "Diagnose", "Inventar, Prüfungen, Ereignisse", UI.IcoDiag));
-        nav.Add(ModNav("Benchmark", "Benchmark", "Wählbare Messungen mit Vergleich", UI.IcoCpu));
-        nav.Add(ModNav("Lasttest", "Lasttest", "Komponenten und Dauer wählbar", UI.IcoFlame));
-        nav.Add(ModNav("Wartung", "Wartung", "SFC, DISM, Bereinigung und Systempflege", UI.IcoWartung));
-        nav.Add(ModNav("Optimierung", "Optimierung", "Windows Optimisation Pack, gruppiert", UI.IcoOpt));
-        navSens = ModNav("Sensoren", "Sensoren live", "Temperatur, Takt, Lüfter, Leistung", UI.IcoSens); navSens.HasCheck = false; nav.Add(navSens);
-        navDb = new NavItem("Vergleichsdatenbank", db.Count + " gespeicherte Systeme", UI.IcoDb); navDb.HasCheck = false; nav.Add(navDb);
-        navChg = new NavItem("Änderungen", "Protokoll und Rückgängig", UI.IcoChg); navChg.HasCheck = false; nav.Add(navChg);
+        FlowLayoutPanel left = new FlowLayoutPanel(); left.Dock = DockStyle.Left; left.Width = 246; left.FlowDirection = FlowDirection.TopDown; left.WrapContents = false;
+        left.BackColor = UI.Bg; left.Padding = new Padding(0, 0, 14, 0); left.AutoScroll = true;
+        Label lm = Lbl("Module", 12f, true, UI.Text); lm.Margin = new Padding(2, 0, 0, 10); left.Controls.Add(lm);
+        nav.Add(ModNav("Diagnose", "Diagnose", "Inventar, Prüfungen, Ereignisse"));
+        nav.Add(ModNav("Benchmark", "Benchmark", "Wählbare Messungen mit Vergleich"));
+        nav.Add(ModNav("Lasttest", "Lasttest", "Komponenten und Dauer wählbar"));
+        nav.Add(ModNav("Wartung", "Wartung", "SFC, DISM, Bereinigung und Systempflege"));
+        nav.Add(ModNav("Optimierung", "Optimierung", "Windows Optimisation Pack, gruppiert"));
+        navSens = ModNav("Sensoren", "Sensoren live", "Temperatur, Takt, Lüfter, Leistung"); navSens.HasCheck = false; nav.Add(navSens);
+        navDb = new NavItem("Vergleichsdatenbank", db.Count + " gespeicherte Systeme"); navDb.HasCheck = false; nav.Add(navDb);
+        navChg = new NavItem("Änderungen", "Protokoll und Rückgängig"); navChg.HasCheck = false; nav.Add(navChg);
         for (int i = 0; i < nav.Count; i++)
         {
             int idx = i;
@@ -4783,47 +4757,37 @@ public partial class DiagGui : Form
         }
         nav[0].Checked = true;
         // ab v2.8 acht Einträge: bei kleinem Fenster mit senkrechter Bildlaufleiste schmaler statt waagerecht zu scrollen
-        left.Layout += delegate { int w = left.ClientSize.Width - left.Padding.Horizontal - 2; if (w > UI.S(150)) foreach (NavItem n in nav) if (n.Width != w) n.Width = w; };
+        left.Layout += delegate { int w = left.ClientSize.Width - left.Padding.Horizontal - 2; if (w > 150) foreach (NavItem n in nav) if (n.Width != w) n.Width = w; };
 
-        content = new Panel(); content.Dock = DockStyle.Fill; content.BackColor = UI.Panel; content.Padding = new Padding(UI.S(32), UI.S(22), UI.S(28), UI.S(20)); content.AutoScroll = true;
+        content = new Panel(); content.Dock = DockStyle.Fill; content.BackColor = UI.Panel; content.Padding = new Padding(22, 16, 16, 16); content.AutoScroll = true;
         Panel contentHost = new Panel(); contentHost.Dock = DockStyle.Fill; contentHost.BackColor = UI.Line; contentHost.Padding = new Padding(1);
         contentHost.Controls.Add(content);
 
         pages.Add(BuildDiagPage()); pages.Add(BuildBenchPage()); pages.Add(BuildLoadPage()); pages.Add(BuildRepairPage()); pages.Add(BuildOptPage()); pages.Add(BuildSensorPage()); pages.Add(BuildDbPage()); pages.Add(BuildChangePage()); versionPage = pages.Count; pages.Add(BuildVersionPage());
         foreach (Control c in pages) { c.Visible = false; content.Controls.Add(c); }
 
-        TableLayoutPanel foot = new TableLayoutPanel(); foot.Dock = DockStyle.Bottom; foot.Height = UI.S(72); foot.ColumnCount = 2; foot.BackColor = UI.Bg; foot.Padding = new Padding(0, UI.S(8), 0, 0);
+        TableLayoutPanel foot = new TableLayoutPanel(); foot.Dock = DockStyle.Bottom; foot.Height = 78; foot.ColumnCount = 2; foot.BackColor = UI.Bg; foot.Padding = new Padding(0, 12, 0, 0);
         foot.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); foot.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         FlowLayoutPanel fl = new FlowLayoutPanel(); fl.FlowDirection = FlowDirection.TopDown; fl.WrapContents = false; fl.AutoSize = true; fl.BackColor = UI.Bg; fl.Dock = DockStyle.Fill;
-        lblSel = Lbl("", 9.5f, true, UI.Text); lblSel.Margin = new Padding(0, 0, 0, UI.S(2)); lblSel.AutoEllipsis = true;
+        lblSel = Lbl("", 10f, true, UI.Text); lblSel.Margin = new Padding(0, 0, 0, 2);
         FlowLayoutPanel fo = new FlowLayoutPanel(); fo.AutoSize = true; fo.WrapContents = false; fo.BackColor = UI.Bg; fo.Margin = new Padding(0);
-        chkAnon = Chk("Persönliche Daten in der KI-Datei unkenntlich machen", true); chkAnon.Margin = new Padding(0, UI.S(2), UI.S(16), 0);
-        Label ld = Lbl("Ablage: " + (this.dataDir.Length > 0 ? this.dataDir : "(kein Datenordner)"), 9f, false, UI.Muted); ld.Margin = new Padding(0, UI.S(4), 0, 0); ld.AutoEllipsis = true;
+        chkAnon = Chk("Persönliche Daten in der KI-Datei unkenntlich machen", true); chkAnon.Margin = new Padding(0, 2, 22, 0);
+        Label ld = Lbl("Ablage: " + (this.dataDir.Length > 0 ? this.dataDir : "(kein Datenordner)"), 9f, false, UI.Muted); ld.Margin = new Padding(0, 4, 0, 0);
         fo.Controls.Add(chkAnon); fo.Controls.Add(ld);
         fl.Controls.Add(lblSel); fl.Controls.Add(fo);
-        btnStart = UI.Primary("Start"); btnStart.Margin = new Padding(UI.S(12), 0, 0, 0);
+        btnStart = UI.Primary("Start"); btnStart.Margin = new Padding(12, 0, 0, 0);
         btnStart.Click += delegate { StartRun(); };
         // Voreinstellungen (ab v2.65): gespeicherte Auswahl laden, speichern, löschen
-        FlowLayoutPanel fr = new FlowLayoutPanel(); fr.AutoSize = true; fr.WrapContents = false; fr.BackColor = UI.Bg; fr.Anchor = AnchorStyles.Right; fr.Margin = new Padding(0, UI.S(4), 0, 0);
-        Label lp = Lbl("Voreinstellung", 9f, false, UI.Muted); lp.Margin = new Padding(0, UI.S(6), UI.S(6), 0); fr.Controls.Add(lp);
-        cmbPreset = Combo(170, new string[0], 0); cmbPreset.Margin = new Padding(0, UI.S(2), UI.S(6), 0); fr.Controls.Add(cmbPreset);
-        btnPresetSave = UI.Secondary("Speichern ..."); btnPresetSave.Margin = new Padding(0, 0, UI.S(4), 0); fr.Controls.Add(btnPresetSave);
+        FlowLayoutPanel fr = new FlowLayoutPanel(); fr.AutoSize = true; fr.WrapContents = false; fr.BackColor = UI.Bg; fr.Anchor = AnchorStyles.Right; fr.Margin = new Padding(0, 6, 0, 0);
+        Label lp = Lbl("Voreinstellung", 9f, false, UI.Muted); lp.Margin = new Padding(0, 6, 6, 0); fr.Controls.Add(lp);
+        cmbPreset = Combo(210, new string[0], 0); cmbPreset.Margin = new Padding(0, 2, 6, 0); fr.Controls.Add(cmbPreset);
+        btnPresetSave = UI.Secondary("Speichern ..."); btnPresetSave.Margin = new Padding(0, 0, 4, 0); fr.Controls.Add(btnPresetSave);
         btnPresetDel = UI.Secondary("Löschen"); btnPresetDel.Margin = new Padding(0, 0, 0, 0); fr.Controls.Add(btnPresetDel);
         fr.Controls.Add(btnStart);
         cmbPreset.SelectedIndexChanged += delegate { if (!presetFilling) PresetPicked(); };
         btnPresetSave.Click += delegate { SavePresetDialog(); };
         btnPresetDel.Click += delegate { DeletePreset(); };
         foot.Controls.Add(fl, 0, 0); foot.Controls.Add(fr, 1, 0);
-        foot.Resize += delegate
-        {
-            int avail = foot.ClientSize.Width - fr.Width - UI.S(20);
-            if (avail > UI.S(80))
-            {
-                lblSel.MaximumSize = new Size(avail, UI.S(22));
-                int availAblage = avail - chkAnon.Width - UI.S(16);
-                ld.MaximumSize = new Size(Math.Max(UI.S(80), availAblage), UI.S(20));
-            }
-        };
 
         p.Controls.Add(contentHost); p.Controls.Add(left); p.Controls.Add(foot);
         ShowPage(0);
@@ -4963,15 +4927,13 @@ public partial class DiagGui : Form
 
     static CheckBox Chk(string text, bool on)
     {
-        CheckBox c = new CheckBox(); c.Text = text; c.AutoSize = true; c.Checked = on; c.ForeColor = UI.Text;
-        c.Font = new Font("Segoe UI", 9.5f);
-        c.Margin = new Padding(UI.S(4), UI.S(3), 0, UI.S(3));
+        CheckBox c = new CheckBox(); c.Text = text; c.AutoSize = true; c.Checked = on; c.ForeColor = UI.Text; c.Margin = new Padding(0, 3, 0, 3);
         return c;
     }
 
     static ComboBox Combo(int width, string[] items, int sel)
     {
-        ComboBox c = new ComboBox(); c.DropDownStyle = ComboBoxStyle.DropDownList; c.Width = width; c.Margin = new Padding(0, UI.S(1), UI.S(16), UI.S(1));
+        ComboBox c = new ComboBox(); c.DropDownStyle = ComboBoxStyle.DropDownList; c.Width = width; c.Margin = new Padding(0, 1, 16, 1);
         foreach (string s in items) c.Items.Add(s);
         if (items.Length > 0) c.SelectedIndex = Math.Min(sel, items.Length - 1);
         return c;
@@ -4980,12 +4942,12 @@ public partial class DiagGui : Form
     FlowLayoutPanel Page(string title, string hint, int idx)
     {
         FlowLayoutPanel f = new FlowLayoutPanel(); f.FlowDirection = FlowDirection.TopDown; f.WrapContents = false; f.AutoSize = true; f.BackColor = UI.Panel; f.Location = new Point(0, 0);
-        f.Controls.Add(Lbl(title, 14.5f, true, UI.Text));
-        Label h = Lbl(hint, 9.5f, false, UI.Muted); h.MaximumSize = new Size(UI.S(820), 0); h.Margin = new Padding(0, UI.S(3), 0, UI.S(10)); f.Controls.Add(h);
+        f.Controls.Add(Lbl(title, 14f, true, UI.Text));
+        Label h = Lbl(hint, 9.75f, false, UI.Muted); h.MaximumSize = new Size(820, 0); h.Margin = new Padding(3, 2, 3, 10); f.Controls.Add(h);
         if (idx >= 0)
         {
             CheckBox on = Chk("Dieses Modul beim Start ausführen", nav[idx].Checked);
-            on.Font = new Font("Segoe UI Semibold", 9.75f); on.Margin = new Padding(UI.S(4), 0, 0, UI.S(10));
+            on.Font = new Font("Segoe UI Semibold", 9.75f); on.Margin = new Padding(0, 0, 0, 10);
             on.CheckedChanged += delegate { nav[idx].Checked = on.Checked; };
             nav[idx].CheckedChanged += delegate { if (on.Checked != nav[idx].Checked) on.Checked = nav[idx].Checked; };
             f.Controls.Add(on);
@@ -4995,18 +4957,18 @@ public partial class DiagGui : Form
 
     static Label Section(string text)
     {
-        Label l = Lbl(text, 10.5f, true, UI.Text); l.Margin = new Padding(0, UI.S(14), 0, UI.S(6)); return l;
+        Label l = Lbl(text, 10.5f, true, UI.Text); l.Margin = new Padding(0, 12, 0, 4); return l;
     }
 
     static FlowLayoutPanel Row()
     {
-        FlowLayoutPanel r = new FlowLayoutPanel(); r.AutoSize = true; r.WrapContents = false; r.BackColor = UI.Panel; r.Margin = new Padding(UI.S(4), UI.S(2), 0, UI.S(2));
+        FlowLayoutPanel r = new FlowLayoutPanel(); r.AutoSize = true; r.WrapContents = false; r.BackColor = UI.Panel; r.Margin = new Padding(0, 2, 0, 2);
         return r;
     }
 
     static Label RowLabel(string text, int width)
     {
-        Label l = Lbl(text, 9.75f, false, UI.Text); l.AutoSize = false; l.Width = UI.S(width); l.Height = UI.S(24); l.TextAlign = ContentAlignment.MiddleLeft; l.Margin = new Padding(0, UI.S(1), UI.S(6), UI.S(1));
+        Label l = Lbl(text, 9.75f, false, UI.Text); l.AutoSize = false; l.Width = width; l.Height = 24; l.TextAlign = ContentAlignment.MiddleLeft; l.Margin = new Padding(0, 1, 6, 1);
         return l;
     }
 
@@ -5016,36 +4978,29 @@ public partial class DiagGui : Form
         if (File.Exists(Path.Combine(cpDir, "laufend.json")))
         {
             Label warn = Lbl("  Der letzte Lauf wurde nicht beendet (Absturz?). Die Absturzanalyse läuft beim nächsten Start automatisch zuerst.  ", 9.75f, true, UI.Crit);
-            warn.BackColor = UI.CritBg; warn.Padding = new Padding(UI.S(6)); warn.Margin = new Padding(0, 0, 0, UI.S(8));
+            warn.BackColor = UI.CritBg; warn.Padding = new Padding(6); warn.Margin = new Padding(0, 0, 0, 8);
             f.Controls.Add(warn);
         }
         f.Controls.Add(Section("Umfang"));
         rbSchnell = new RadioButton(); rbVoll = new RadioButton(); rbCustom = new RadioButton(); rbTest = new RadioButton(); rbCrash = new RadioButton();
         RadioButton[] rbs = new RadioButton[] { rbVoll, rbSchnell, rbCustom, rbTest, rbCrash };
         string[] rt = new string[] {
-            "Vollständig (30 bis 60 Minuten, zuzüglich SMART-Langtest)",
-            "Schnell (5 bis 10 Minuten: Inventar, Ereignisse, Netzwerk, kurzer RAM-Test)",
-            "Benutzerdefiniert (Prüfungen unten frei wählen)",
-            "Funktionstest (1 bis 2 Minuten, prüft nur das Skript)",
-            "Nur Absturzanalyse (letzter unterbrochener Lauf und Ereignisprotokolle)" };
-        for (int i = 0; i < rbs.Length; i++) {
-            rbs[i].Text = rt[i]; rbs[i].AutoSize = true; rbs[i].ForeColor = UI.Text;
-            rbs[i].Font = new Font("Segoe UI", 9.5f);
-            rbs[i].Margin = new Padding(UI.S(4), UI.S(3), 0, UI.S(3));
-            rbs[i].CheckedChanged += delegate { ApplyDiagProfile(); };
-            f.Controls.Add(rbs[i]);
-        }
+            "Vollständig  (30 bis 60 Minuten, zuzüglich SMART-Langtest)",
+            "Schnell  (5 bis 10 Minuten: Inventar, Ereignisse, Netzwerk, kurzer RAM-Test)",
+            "Benutzerdefiniert  (Prüfungen unten frei wählen)",
+            "Funktionstest  (1 bis 2 Minuten, prüft nur das Skript)",
+            "Nur Absturzanalyse  (letzter unterbrochener Lauf und Ereignisprotokolle)" };
+        for (int i = 0; i < rbs.Length; i++) { rbs[i].Text = rt[i]; rbs[i].AutoSize = true; rbs[i].ForeColor = UI.Text; rbs[i].Margin = new Padding(0, 2, 0, 2); rbs[i].CheckedChanged += delegate { ApplyDiagProfile(); }; f.Controls.Add(rbs[i]); }
         chkFast = Chk("Schneller Modus (lesende Prüfungen laufen parallel)", false);
-        chkFast.Margin = new Padding(UI.S(4), UI.S(8), 0, UI.S(2));
-        chkFast.Font = new Font("Segoe UI Semibold", 9.5f);
+        chkFast.Margin = new Padding(0, 8, 0, 0); chkFast.Font = new Font("Segoe UI Semibold", 9.75f);
         chkFast.CheckedChanged += delegate { UpdateSummary(); }; f.Controls.Add(chkFast);
         Label fastHint = Lbl("Updatesuche, Defender-Schnellscan, Energieanalyse und SMART-Langtest laufen nebenher. Messungen bleiben exklusiv, damit die Werte vergleichbar sind.", 8.5f, false, UI.Muted);
-        fastHint.MaximumSize = new Size(UI.S(820), 0); fastHint.Margin = new Padding(UI.S(24), 0, 0, UI.S(4)); f.Controls.Add(fastHint);
+        fastHint.MaximumSize = new Size(820, 0); fastHint.Margin = new Padding(18, 0, 0, 4); f.Controls.Add(fastHint);
         f.Controls.Add(Section("Prüfungen"));
         diagChk = new CheckBox[diagKeys.Length];
         for (int i = 0; i < diagKeys.Length; i++) { diagChk[i] = Chk(diagText[i], true); diagChk[i].CheckedChanged += delegate { UpdateSummary(); }; f.Controls.Add(diagChk[i]); }
         Label cpuHint = Lbl("Die CPU-Stabilität prüft ab v2.7 das Modul Lasttest (Prozessor, ab 2 Minuten): eigener Lastprozess, Rechenfehler, Takt- und Temperaturverlauf und Drosselnachweis.", 8.5f, false, UI.Muted);
-        cpuHint.MaximumSize = new Size(UI.S(820), 0); cpuHint.Margin = new Padding(UI.S(24), UI.S(2), 0, UI.S(4)); f.Controls.Add(cpuHint);
+        cpuHint.MaximumSize = new Size(820, 0); cpuHint.Margin = new Padding(18, 2, 0, 4); f.Controls.Add(cpuHint);
         f.Controls.Add(Section("Optionen"));
         chkInstall = Chk("smartmontools bei Bedarf installieren (winget) oder aus dem Datenordner verwenden", true); f.Controls.Add(chkInstall);
         chkMem = Chk("Windows-Speicherdiagnose beim nächsten Neustart einplanen", false); f.Controls.Add(chkMem);
@@ -5054,7 +5009,7 @@ public partial class DiagGui : Form
         FlowLayoutPanel rs = Row(); rs.Controls.Add(RowLabel("SMART-Langtest", 150));
         string[] sm = new string[smartMinutes.Length]; for (int i = 0; i < sm.Length; i++) sm[i] = "höchstens " + smartMinutes[i] + " Min. warten";
         cmbSmartMax = Combo(220, sm, 3); cmbSmartMax.SelectedIndexChanged += delegate { UpdateSummary(); }; rs.Controls.Add(cmbSmartMax);
-        Label lsm = Lbl("danach wird der Bericht ohne Ergebnis des Langtests erstellt; der Test läuft im Laufwerk weiter", 8.75f, false, UI.Muted); lsm.Margin = new Padding(0, UI.S(5), 0, 0); rs.Controls.Add(lsm);
+        Label lsm = Lbl("danach wird der Bericht ohne Ergebnis des Langtests erstellt; der Test läuft im Laufwerk weiter", 8.75f, false, UI.Muted); lsm.Margin = new Padding(0, 5, 0, 0); rs.Controls.Add(lsm);
         f.Controls.Add(rs);
         rbVoll.Checked = true;
         return f;
@@ -5091,7 +5046,7 @@ public partial class DiagGui : Form
         benchChk = new CheckBox[benchKeys.Length];
         for (int i = 0; i < benchKeys.Length; i++) { benchChk[i] = Chk(benchText[i], i < 4); benchChk[i].CheckedChanged += delegate { clbDisks.Enabled = benchChk[3].Checked; UpdateSummary(); }; f.Controls.Add(benchChk[i]); }
         f.Controls.Add(Section("Laufwerke"));
-        clbDisks = new CheckedListBox(); clbDisks.CheckOnClick = true; clbDisks.Width = UI.S(640); clbDisks.BorderStyle = BorderStyle.FixedSingle; clbDisks.IntegralHeight = false; clbDisks.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4));
+        clbDisks = new CheckedListBox(); clbDisks.CheckOnClick = true; clbDisks.Width = 640; clbDisks.BorderStyle = BorderStyle.FixedSingle; clbDisks.IntegralHeight = false;
         foreach (string d in disks)
         {
             string[] x = d.Split('|');
@@ -5100,10 +5055,10 @@ public partial class DiagGui : Form
             clbDisks.Items.Add(String.Format("Datenträger {0}:  {1}   ({2}, {3}, {4}, {5})", x[0], x[1], x[2], x[3], x[4], letters), x[6] != "1" && x[5].Length > 0);
             diskNums.Add(x[0]);
         }
-        clbDisks.Height = Math.Max(UI.S(48), Math.Min(8, clbDisks.Items.Count) * UI.S(21) + UI.S(6));
+        clbDisks.Height = Math.Max(48, Math.Min(8, clbDisks.Items.Count) * 21 + 6);
         clbDisks.ItemCheck += delegate { BeginInvoke(new System.Windows.Forms.MethodInvoker(UpdateSummary)); };
         f.Controls.Add(clbDisks);
-        Label dh = Lbl("Gemessen wird mit einer Testdatei auf dem Volume mit dem meisten freien Platz. USB-Datenträger sind abgewählt.", 8.75f, false, UI.Muted); dh.Margin = new Padding(UI.S(4), UI.S(3), 0, 0); dh.MaximumSize = new Size(UI.S(820), 0); f.Controls.Add(dh);
+        Label dh = Lbl("Gemessen wird mit einer Testdatei auf dem Volume mit dem meisten freien Platz. USB-Datenträger sind abgewählt.", 8.75f, false, UI.Muted); dh.Margin = new Padding(3, 3, 3, 0); dh.MaximumSize = new Size(820, 0); f.Controls.Add(dh);
         f.Controls.Add(Section("Rendertest (Grafik)"));
         FlowLayoutPanel rg0 = Row(); rg0.Controls.Add(RowLabel("Grafikeinheit", 150));
         cmbGpuSel = Combo(420, GpuChoiceTexts(), 0); rg0.Controls.Add(cmbGpuSel); f.Controls.Add(rg0);
@@ -5112,9 +5067,9 @@ public partial class DiagGui : Form
         rg.Controls.Add(RowLabel("Anzeige", 70)); cmbGpuShow = Combo(170, new string[] { "Fenster", "Vollbild", "ohne Anzeige" }, 0); rg.Controls.Add(cmbGpuShow);
         f.Controls.Add(rg);
         Label gh = Lbl("Eigener Rendertest mit Direct3D 11, je Grafikeinheit 6 s Aufwärmen und 20 s Messung ohne VSync. Ergebnis: Ø Bilder/s, 1-%-Low und Punktzahl. Vorher prüft eine kurze Gegenprobe, ob eine Bildratengrenze im Treiber bremst. Esc im Fenster beendet den Test.", 8.75f, false, UI.Muted);
-        gh.Margin = new Padding(UI.S(4), UI.S(3), 0, 0); gh.MaximumSize = new Size(UI.S(820), 0); f.Controls.Add(gh);
+        gh.Margin = new Padding(3, 3, 3, 0); gh.MaximumSize = new Size(820, 0); f.Controls.Add(gh);
         chkGpuWahl = Chk("Bei Hybridgrafik WinSAT zusätzlich auf der Grafikkarte messen (kurze Umstellung, steht im Änderungsprotokoll)", false);
-        chkGpuWahl.MaximumSize = new Size(UI.S(840), 0); chkGpuWahl.Margin = new Padding(UI.S(4), UI.S(8), 0, UI.S(3)); f.Controls.Add(chkGpuWahl);
+        chkGpuWahl.MaximumSize = new Size(840, 0); chkGpuWahl.Margin = new Padding(0, 8, 0, 3); f.Controls.Add(chkGpuWahl);
 
         f.Controls.Add(Section("Messdauer und Referenz"));
         FlowLayoutPanel r1 = Row(); r1.Controls.Add(RowLabel("Messdauer", 150));
@@ -5122,9 +5077,9 @@ public partial class DiagGui : Form
         FlowLayoutPanel r2 = Row(); r2.Controls.Add(RowLabel("Referenz (100 %)", 150));
         cmbRef = Combo(520, new string[0], 0); r2.Controls.Add(cmbRef); f.Controls.Add(r2);
         f.Controls.Add(Section("Bereits geprüfte Systeme einblenden"));
-        clbCompare = new CheckedListBox(); clbCompare.CheckOnClick = true; clbCompare.Width = UI.S(640); clbCompare.BorderStyle = BorderStyle.FixedSingle; clbCompare.IntegralHeight = false; clbCompare.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4));
+        clbCompare = new CheckedListBox(); clbCompare.CheckOnClick = true; clbCompare.Width = 640; clbCompare.BorderStyle = BorderStyle.FixedSingle; clbCompare.IntegralHeight = false;
         f.Controls.Add(clbCompare);
-        Label ch = Lbl("Die gewählten Systeme erscheinen im Bericht, in der KI-Datei und im Reiter Leistung als zusätzliche Vergleichswerte.", 8.75f, false, UI.Muted); ch.Margin = new Padding(UI.S(4), UI.S(3), 0, 0); ch.MaximumSize = new Size(UI.S(820), 0); f.Controls.Add(ch);
+        Label ch = Lbl("Die gewählten Systeme erscheinen im Bericht, in der KI-Datei und im Reiter Leistung als zusätzliche Vergleichswerte.", 8.75f, false, UI.Muted); ch.Margin = new Padding(3, 3, 3, 0); ch.MaximumSize = new Size(820, 0); f.Controls.Add(ch);
         f.Controls.Add(Section("Speichern"));
         chkDbSave = Chk("Ergebnis in der Vergleichsdatenbank speichern", dbDir.Length > 0); chkDbSave.Enabled = dbDir.Length > 0; f.Controls.Add(chkDbSave);
         chkRefSave = Chk("Dieses System als Referenz (100 %) festlegen", false); f.Controls.Add(chkRefSave);
@@ -5152,7 +5107,7 @@ public partial class DiagGui : Form
         cmbRef.SelectedIndex = sel;
         if (clbCompare.Items.Count == 0) { clbCompare.Items.Add("(noch keine Systeme mit Benchmark in der Datenbank)"); clbCompare.Enabled = false; }
         else clbCompare.Enabled = true;
-        clbCompare.Height = Math.Max(UI.S(48), Math.Min(8, clbCompare.Items.Count) * UI.S(21) + UI.S(6));
+        clbCompare.Height = Math.Max(48, Math.Min(8, clbCompare.Items.Count) * 21 + 6);
     }
 
     Control BuildLoadPage()
@@ -5160,25 +5115,25 @@ public partial class DiagGui : Form
         FlowLayoutPanel f = Page("Lasttest", "Belastet die gewählten Komponenten gleichzeitig, jede mit eigener Dauer, und zeichnet Temperatur, Takt, Leistung und Lüfter auf. Gemeldet werden Rechen-, Bit- und Datenfehler, WHEA-Fehler und Drosselung. \"Test beenden\" bricht jederzeit ab.", 2);
         string[] mins = new string[] { "2 Minuten", "5 Minuten", "10 Minuten", "15 Minuten", "30 Minuten", "60 Minuten", "120 Minuten", "240 Minuten" };
         f.Controls.Add(Section("Komponenten und Dauer"));
-        FlowLayoutPanel r1 = Row(); chkLCpu = Chk("Prozessor (alle Threads, Ergebnisprüfung)", true); chkLCpu.Width = UI.S(350); chkLCpu.AutoSize = false; r1.Controls.Add(chkLCpu);
+        FlowLayoutPanel r1 = Row(); chkLCpu = Chk("Prozessor (alle Threads, Ergebnisprüfung)", true); chkLCpu.Width = 330; chkLCpu.AutoSize = false; r1.Controls.Add(chkLCpu);
         cmbLCpu = Combo(120, mins, 3); r1.Controls.Add(cmbLCpu); f.Controls.Add(r1);
-        FlowLayoutPanel r2 = Row(); chkLRam = Chk("Arbeitsspeicher (Mustertest, Bitfehler)", true); chkLRam.Width = UI.S(350); chkLRam.AutoSize = false; r2.Controls.Add(chkLRam);
+        FlowLayoutPanel r2 = Row(); chkLRam = Chk("Arbeitsspeicher (Mustertest, Bitfehler)", true); chkLRam.Width = 330; chkLRam.AutoSize = false; r2.Controls.Add(chkLRam);
         cmbLRam = Combo(120, mins, 3); r2.Controls.Add(cmbLRam);
         r2.Controls.Add(RowLabel("Anteil am freien RAM", 140)); cmbLRamPct = Combo(80, new string[] { "25 %", "40 %", "60 %", "75 %" }, 1); r2.Controls.Add(cmbLRamPct); f.Controls.Add(r2);
-        FlowLayoutPanel r3 = Row(); chkLGpu = Chk("Grafik (Rendertest)", false); chkLGpu.Width = UI.S(350); chkLGpu.AutoSize = false; r3.Controls.Add(chkLGpu);
+        FlowLayoutPanel r3 = Row(); chkLGpu = Chk("Grafik (Rendertest)", false); chkLGpu.Width = 330; chkLGpu.AutoSize = false; r3.Controls.Add(chkLGpu);
         cmbLGpu = Combo(120, mins, 3); r3.Controls.Add(cmbLGpu);
         cmbLGpuRes = Combo(110, new string[] { "1280x720", "1920x1080" }, 0); r3.Controls.Add(cmbLGpuRes);
         cmbLGpuShow = Combo(140, new string[] { "Fenster", "Vollbild", "ohne Anzeige" }, 0); r3.Controls.Add(cmbLGpuShow);
         f.Controls.Add(r3);
-        FlowLayoutPanel r3b = Row(); Label lsel = RowLabel("Grafikeinheit", 332); lsel.Margin = new Padding(UI.S(22), UI.S(1), UI.S(6), UI.S(1)); r3b.Controls.Add(lsel);
+        FlowLayoutPanel r3b = Row(); Label lsel = RowLabel("Grafikeinheit", 312); lsel.Margin = new Padding(18, 1, 6, 1); r3b.Controls.Add(lsel);
         cmbLGpuSel = Combo(420, GpuChoiceTexts(), 0); r3b.Controls.Add(cmbLGpuSel); f.Controls.Add(r3b);
         // Einstellungen des Rendertests auf beiden Seiten gleich halten
         EventHandler sync1 = delegate { if (syncGpu || cmbGpuRes == null) return; syncGpu = true; cmbLGpuRes.SelectedIndex = cmbGpuRes.SelectedIndex; cmbLGpuShow.SelectedIndex = cmbGpuShow.SelectedIndex; if (cmbGpuSel != null) cmbLGpuSel.SelectedIndex = cmbGpuSel.SelectedIndex; syncGpu = false; };
-        EventHandler sync2 = delegate { if (syncGpu || cmbGpuRes == null) return; syncGpu = true; cmbGpuRes.SelectedIndex = cmbLGpuRes.SelectedIndex; cmbGpuShow.SelectedIndex = cmbLGpuShow.SelectedIndex; if (cmbGpuSel != null) cmbLGpuSel.SelectedIndex = cmbGpuSel.SelectedIndex; syncGpu = false; };
+        EventHandler sync2 = delegate { if (syncGpu || cmbGpuRes == null) return; syncGpu = true; cmbGpuRes.SelectedIndex = cmbLGpuRes.SelectedIndex; cmbGpuShow.SelectedIndex = cmbLGpuShow.SelectedIndex; if (cmbGpuSel != null) cmbGpuSel.SelectedIndex = cmbLGpuSel.SelectedIndex; syncGpu = false; };
         if (cmbGpuRes != null) { cmbGpuRes.SelectedIndexChanged += sync1; cmbGpuShow.SelectedIndexChanged += sync1; }
         if (cmbGpuSel != null) cmbGpuSel.SelectedIndexChanged += sync1;
         cmbLGpuRes.SelectedIndexChanged += sync2; cmbLGpuShow.SelectedIndexChanged += sync2; cmbLGpuSel.SelectedIndexChanged += sync2;
-        FlowLayoutPanel r4 = Row(); chkLDisk = Chk("Datenträger (Schreiben, Lesen, Datenprüfung)", false); chkLDisk.Width = UI.S(350); chkLDisk.AutoSize = false; r4.Controls.Add(chkLDisk);
+        FlowLayoutPanel r4 = Row(); chkLDisk = Chk("Datenträger (Schreiben, Lesen, Datenprüfung)", false); chkLDisk.Width = 330; chkLDisk.AutoSize = false; r4.Controls.Add(chkLDisk);
         cmbLDisk = Combo(120, mins, 2); r4.Controls.Add(cmbLDisk);
         r4.Controls.Add(RowLabel("Laufwerk", 70));
         List<string> letters = new List<string>();
@@ -5197,9 +5152,9 @@ public partial class DiagGui : Form
         cmbLAbortCpu = Combo(260, new string[] { "automatisch (TjMax, sonst 100 °C)", "85 °C", "90 °C", "95 °C", "100 °C", "aus" }, 0); r5.Controls.Add(cmbLAbortCpu);
         r5.Controls.Add(RowLabel("GPU-Temperatur", 120)); cmbLAbortGpu = Combo(100, new string[] { "85 °C", "90 °C", "95 °C", "aus" }, 1); r5.Controls.Add(cmbLAbortGpu); f.Controls.Add(r5);
         Label ha = Lbl("Liegt die Temperatur rund 10 Sekunden auf oder über der Schwelle, endet der Test mit einem Befund. Echte CPU-Temperaturen gibt es mit LibreHardwareMonitor und dem Treiber PawnIO (nur nach Rückfrage, wird nach dem Lauf entfernt).", 8.75f, false, UI.Muted);
-        ha.MaximumSize = new Size(UI.S(820), 0); ha.Margin = new Padding(UI.S(4), UI.S(4), 0, 0); f.Controls.Add(ha);
+        ha.MaximumSize = new Size(820, 0); ha.Margin = new Padding(3, 4, 3, 0); f.Controls.Add(ha);
         Label h = Lbl("Grafiklast: eigener Rendertest mit Direct3D 11 (Volllast ähnlich FurMark) auf den gewählten Grafikeinheiten gleichzeitig, mit Bilder/s-Verlauf, Bildprüfung alle 30 Sekunden und Erkennung von Treiber-Resets. Der Datenträgertest schreibt eine Testdatei (bis 4 GB) und löscht sie danach. Am Notebook das Netzteil anschließen.", 8.75f, false, UI.Muted);
-        h.MaximumSize = new Size(UI.S(820), 0); h.Margin = new Padding(UI.S(4), UI.S(12), 0, 0); f.Controls.Add(h);
+        h.MaximumSize = new Size(820, 0); h.Margin = new Padding(3, 12, 3, 0); f.Controls.Add(h);
         UpdateLoadEnabled();
         return f;
     }
@@ -5218,7 +5173,7 @@ public partial class DiagGui : Form
         f.Controls.Add(Section("Absicherung"));
         chkRestorePoint = Chk("Vorher einen Systemwiederherstellungspunkt anlegen", true); f.Controls.Add(chkRestorePoint);
         f.Controls.Add(Section("Reparaturen"));
-        FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(8));
+        FlowLayoutPanel b = Row(); b.Margin = new Padding(0, 4, 0, 8);
         Button all = UI.Secondary("Übliche Auswahl"); all.Margin = new Padding(0);
         Tip(all, "Wählt alle risikoarmen Routine-Wartungsaufgaben wie Bereinigungen und Cache-Leerungen aus.");
         all.Click += delegate { for (int i = 0; i < repChk.Length; i++) repChk[i].Checked = repUsual[i]; };
@@ -5233,7 +5188,7 @@ public partial class DiagGui : Form
             repChk[i] = Chk(t, repDefault[i]); repChk[i].CheckedChanged += delegate { UpdateSummary(); }; f.Controls.Add(repChk[i]);
         }
         Label lg = Lbl("Ändern: wird mit Vorher-Wert protokolliert und lässt sich auf der Seite Änderungen zurücknehmen.  Eingriff: nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt.", 8.75f, false, UI.Muted);
-        lg.MaximumSize = new Size(UI.S(820), 0); lg.Margin = new Padding(UI.S(4), UI.S(8), 0, 0); f.Controls.Add(lg);
+        lg.MaximumSize = new Size(820, 0); lg.Margin = new Padding(3, 8, 3, 0); f.Controls.Add(lg);
         return f;
     }
 
@@ -5347,39 +5302,39 @@ public partial class DiagGui : Form
         f.Controls.Add(Section("Absicherung"));
         chkOptRestore = Chk("Vorher einen Systemwiederherstellungspunkt anlegen", true); f.Controls.Add(chkOptRestore);
         f.Controls.Add(Section("Vorlagen und Zustand"));
-        FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(2), 0, UI.S(4));
+        FlowLayoutPanel b = Row(); b.Margin = new Padding(0, 2, 0, 4);
         string[] pn = new string[] { "Minimal", "Leos Empfehlung", "Erweitert", "Keine" };
         for (int i = 0; i < pn.Length; i++)
         {
             string key = i == 0 ? "M" : i == 1 ? "S" : i == 2 ? "E" : "";
-            Button pb = UI.Secondary(pn[i]); pb.Margin = new Padding(i == 0 ? 0 : UI.S(8), 0, 0, 0);
+            Button pb = UI.Secondary(pn[i]); pb.Margin = new Padding(i == 0 ? 0 : 8, 0, 0, 0);
             pb.Click += delegate { ApplyOptPreset(key); };
             optPresetButtons.Add(pb); b.Controls.Add(pb);
         }
-        btnOptCheck = UI.Secondary("Zustand prüfen"); btnOptCheck.Margin = new Padding(UI.S(16), 0, 0, 0); btnOptCheck.Click += delegate { CheckOptState(); }; b.Controls.Add(btnOptCheck);
-        btnOptTools = UI.Secondary("Werkzeuge holen ..."); btnOptTools.Margin = new Padding(UI.S(8), 0, 0, 0); btnOptTools.Click += delegate { FetchOptTools(); }; b.Controls.Add(btnOptTools);
-        btnOptAll = UI.Secondary("Alle aufklappen"); btnOptAll.Margin = new Padding(UI.S(8), 0, 0, 0); btnOptAll.Click += delegate { ToggleOptAll(); }; b.Controls.Add(btnOptAll);
+        btnOptCheck = UI.Secondary("Zustand prüfen"); btnOptCheck.Margin = new Padding(24, 0, 0, 0); btnOptCheck.Click += delegate { CheckOptState(); }; b.Controls.Add(btnOptCheck);
+        btnOptTools = UI.Secondary("Werkzeuge holen ..."); btnOptTools.Click += delegate { FetchOptTools(); }; b.Controls.Add(btnOptTools);
+        btnOptAll = UI.Secondary("Alle aufklappen"); btnOptAll.Click += delegate { ToggleOptAll(); }; b.Controls.Add(btnOptAll);
         f.Controls.Add(b);
-        lblOptInfo = Lbl("", 9f, false, UI.Muted); lblOptInfo.MaximumSize = new Size(UI.S(820), 0); lblOptInfo.Margin = new Padding(UI.S(4), UI.S(4), UI.S(4), 0); f.Controls.Add(lblOptInfo);
-        lblOptState = Lbl("", 9f, false, UI.Muted); lblOptState.MaximumSize = new Size(UI.S(820), 0); lblOptState.Margin = new Padding(UI.S(4), UI.S(2), UI.S(4), UI.S(4)); f.Controls.Add(lblOptState);
+        lblOptInfo = Lbl("", 9f, false, UI.Muted); lblOptInfo.MaximumSize = new Size(820, 0); lblOptInfo.Margin = new Padding(3, 4, 3, 0); f.Controls.Add(lblOptInfo);
+        lblOptState = Lbl("", 9f, false, UI.Muted); lblOptState.MaximumSize = new Size(820, 0); lblOptState.Margin = new Padding(3, 2, 3, 4); f.Controls.Add(lblOptState);
         if (optItems.Count == 0) { lblOptInfo.Text = "Der Katalog der Optimierung fehlt (Skript ohne Modul Optimierung)."; return f; }
         foreach (string[] k in optCats)
         {
             string key = k[0];
             List<OptItem> items = optItems.FindAll(delegate(OptItem it) { return it.Kat == key; });
             if (items.Count == 0) continue;
-            FlowLayoutPanel h = Row(); h.Margin = new Padding(UI.S(4), UI.S(10), 0, 0);
-            LinkLabel tg = new LinkLabel(); tg.Text = "▸ " + k[1]; tg.AutoSize = true; tg.Font = new Font("Segoe UI Semibold", 10f); tg.LinkColor = UI.Text; tg.ActiveLinkColor = UI.Accent; tg.LinkBehavior = LinkBehavior.HoverUnderline; tg.Margin = new Padding(0, UI.S(2), UI.S(10), 0);
-            Label cnt = Lbl("", 9f, false, UI.Muted); cnt.Margin = new Padding(0, UI.S(4), UI.S(12), 0);
-            LinkLabel all = new LinkLabel(); all.Text = "alle"; all.AutoSize = true; all.Margin = new Padding(0, UI.S(4), UI.S(8), 0); all.LinkColor = UI.Accent;
-            LinkLabel none = new LinkLabel(); none.Text = "keine"; none.AutoSize = true; none.Margin = new Padding(0, UI.S(4), 0, 0); none.LinkColor = UI.Accent;
+            FlowLayoutPanel h = Row(); h.Margin = new Padding(0, 10, 0, 0);
+            LinkLabel tg = new LinkLabel(); tg.Text = "▸ " + k[1]; tg.AutoSize = true; tg.Font = new Font("Segoe UI Semibold", 10f); tg.LinkColor = UI.Text; tg.ActiveLinkColor = UI.Accent; tg.LinkBehavior = LinkBehavior.HoverUnderline; tg.Margin = new Padding(0, 2, 10, 0);
+            Label cnt = Lbl("", 9f, false, UI.Muted); cnt.Margin = new Padding(0, 4, 12, 0);
+            LinkLabel all = new LinkLabel(); all.Text = "alle"; all.AutoSize = true; all.Margin = new Padding(0, 4, 8, 0); all.LinkColor = UI.Accent;
+            LinkLabel none = new LinkLabel(); none.Text = "keine"; none.AutoSize = true; none.Margin = new Padding(0, 4, 0, 0); none.LinkColor = UI.Accent;
             h.Controls.Add(tg); h.Controls.Add(cnt); h.Controls.Add(all); h.Controls.Add(none);
             f.Controls.Add(h);
-            Label desc = Lbl(k[2], 8.75f, false, UI.Muted); desc.MaximumSize = new Size(UI.S(820), 0); desc.Margin = new Padding(UI.S(20), 0, UI.S(4), UI.S(2)); f.Controls.Add(desc);
-            FlowLayoutPanel body = new FlowLayoutPanel(); body.FlowDirection = FlowDirection.TopDown; body.WrapContents = false; body.AutoSize = true; body.BackColor = UI.Panel; body.Margin = new Padding(UI.S(16), 0, 0, UI.S(4)); body.Visible = false;
+            Label desc = Lbl(k[2], 8.75f, false, UI.Muted); desc.MaximumSize = new Size(820, 0); desc.Margin = new Padding(16, 0, 3, 2); f.Controls.Add(desc);
+            FlowLayoutPanel body = new FlowLayoutPanel(); body.FlowDirection = FlowDirection.TopDown; body.WrapContents = false; body.AutoSize = true; body.BackColor = UI.Panel; body.Margin = new Padding(16, 0, 0, 4); body.Visible = false;
             foreach (OptItem it in items)
             {
-                it.Box = Chk(OptBoxText(it), false); it.Box.Margin = new Padding(UI.S(4), UI.S(2), 0, UI.S(2)); it.Box.UseMnemonic = false;
+                it.Box = Chk(OptBoxText(it), false); it.Box.Margin = new Padding(0, 2, 0, 2); it.Box.UseMnemonic = false;
                 it.Box.CheckedChanged += delegate { UpdateOptCounts(); };
                 body.Controls.Add(it.Box);
             }
@@ -5392,7 +5347,7 @@ public partial class DiagGui : Form
             Tip(all, "Alle Einträge dieser Kategorie wählen."); Tip(none, "Keinen Eintrag dieser Kategorie wählen.");
         }
         Label lg = Lbl("Ändern: mit Vorher-Wert protokolliert, auf der Seite Änderungen einzeln rücknehmbar.  Eingriff: nicht automatisch umkehrbar (Apps, Zusatzfeatures, Bereinigung, DDU).  verwaltet: berührt Gruppenrichtlinien, auf Domänen-PCs nicht in den Vorlagen.  Benutzereinstellungen gelten für den angemeldeten Benutzer.", 8.75f, false, UI.Muted);
-        lg.MaximumSize = new Size(UI.S(820), 0); lg.Margin = new Padding(UI.S(4), UI.S(12), UI.S(4), 0); f.Controls.Add(lg);
+        lg.MaximumSize = new Size(820, 0); lg.Margin = new Padding(3, 12, 3, 0); f.Controls.Add(lg);
         ApplyOptPreset("S");
         return f;
     }
@@ -5587,21 +5542,21 @@ public partial class DiagGui : Form
         using (Form d = new Form())
         {
             d.Text = "PawnIO-Treiber"; d.FormBorderStyle = FormBorderStyle.FixedDialog; d.MaximizeBox = false; d.MinimizeBox = false; d.ShowInTaskbar = false;
-            d.StartPosition = FormStartPosition.CenterParent; d.Font = new Font("Segoe UI", 9.5f); d.BackColor = UI.Bg; d.AutoSize = true; d.AutoSizeMode = AutoSizeMode.GrowAndShrink; d.Padding = new Padding(UI.S(16));
+            d.StartPosition = FormStartPosition.CenterParent; d.Font = new Font("Segoe UI", 9.5f); d.BackColor = UI.Bg; d.AutoSize = true; d.AutoSizeMode = AutoSizeMode.GrowAndShrink; d.Padding = new Padding(16);
             FlowLayoutPanel f = new FlowLayoutPanel(); f.FlowDirection = FlowDirection.TopDown; f.AutoSize = true; f.WrapContents = false; f.Dock = DockStyle.Fill;
-            Label t = new Label(); t.AutoSize = true; t.MaximumSize = new Size(UI.S(520), 0); t.Margin = new Padding(0, 0, 0, UI.S(10));
+            Label t = new Label(); t.AutoSize = true; t.MaximumSize = new Size(520, 0); t.Margin = new Padding(0, 0, 0, 10);
             t.Text = "Für CPU-Temperatur, CPU-Takt, CPU-Leistung und die Lüfter am Mainboard braucht LibreHardwareMonitor den Treiber PawnIO. Die Installation erscheint auf der Seite Änderungen.";
             f.Controls.Add(t);
-            RadioButton rbMit = new RadioButton(); rbMit.Text = "mit Treiber messen"; rbMit.AutoSize = true; rbMit.Checked = true; rbMit.Margin = new Padding(UI.S(4), UI.S(3), 0, UI.S(3));
-            RadioButton rbOhne = new RadioButton(); rbOhne.Text = "ohne Treiber (GPU, Datenträger und Ersatzwerte)"; rbOhne.AutoSize = true; rbOhne.Margin = new Padding(UI.S(4), UI.S(3), 0, UI.S(3));
+            RadioButton rbMit = new RadioButton(); rbMit.Text = "mit Treiber messen"; rbMit.AutoSize = true; rbMit.Checked = true;
+            RadioButton rbOhne = new RadioButton(); rbOhne.Text = "ohne Treiber (GPU, Datenträger und Ersatzwerte)"; rbOhne.AutoSize = true;
             f.Controls.Add(rbMit); f.Controls.Add(rbOhne);
-            CheckBox cKeep = new CheckBox(); cKeep.AutoSize = true; cKeep.Margin = new Padding(UI.S(4), UI.S(10), 0, UI.S(3)); cKeep.MaximumSize = new Size(UI.S(520), 0);
+            CheckBox cKeep = new CheckBox(); cKeep.AutoSize = true; cKeep.Margin = new Padding(3, 10, 3, 3); cKeep.MaximumSize = new Size(520, 0);
             cKeep.Text = "PawnIO und smartmontools nach dem Lauf auf diesem PC behalten (sonst am Ende wieder entfernt, nach einem Absturz beim nächsten Start)";
             cKeep.Checked = cmbKeep != null && cmbKeep.SelectedIndex == 2; cKeep.Enabled = askKeep;
-            CheckBox cMerk = new CheckBox(); cMerk.AutoSize = true; cMerk.Margin = new Padding(UI.S(4), UI.S(3), 0, UI.S(3)); cMerk.Text = "Wahl für diesen PC merken (änderbar auf der Seite Sensoren)";
+            CheckBox cMerk = new CheckBox(); cMerk.AutoSize = true; cMerk.Text = "Wahl für diesen PC merken (änderbar auf der Seite Sensoren)";
             f.Controls.Add(cKeep); f.Controls.Add(cMerk);
-            FlowLayoutPanel b = new FlowLayoutPanel(); b.AutoSize = true; b.Margin = new Padding(0, UI.S(12), 0, 0);
-            Button ok = UI.Primary("Starten"); ok.DialogResult = DialogResult.OK; ok.Margin = new Padding(0, 0, UI.S(8), 0); Button ab = UI.Secondary("Abbrechen"); ab.DialogResult = DialogResult.Cancel;
+            FlowLayoutPanel b = new FlowLayoutPanel(); b.AutoSize = true; b.Margin = new Padding(0, 12, 0, 0);
+            Button ok = UI.Primary("Starten"); ok.DialogResult = DialogResult.OK; Button ab = UI.Secondary("Abbrechen"); ab.DialogResult = DialogResult.Cancel;
             b.Controls.Add(ok); b.Controls.Add(ab); f.Controls.Add(b);
             d.Controls.Add(f); d.AcceptButton = ok; d.CancelButton = ab;
             if (d.ShowDialog(this) != DialogResult.OK) return -1;
@@ -5694,38 +5649,38 @@ public partial class DiagGui : Form
     Control BuildSensorPage()
     {
         FlowLayoutPanel f = Page("Sensoren live", "Zeigt Temperatur, Takt, Lüfter, Spannung und Leistung laufend an (Kurven der letzten zehn Minuten). CPU-Werte und Mainboard-Lüfter brauchen den Treiber PawnIO; er wird nur nach Rückfrage installiert und beim Beenden entfernt.", -1);
-        lblSensTools = Lbl("", 9f, false, UI.Muted); lblSensTools.MaximumSize = new Size(UI.S(880), 0); lblSensTools.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8)); f.Controls.Add(lblSensTools);
-        FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
-        btnLive = UI.Primary("Live-Ansicht starten"); btnLive.Margin = new Padding(0); btnLive.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnLive.Font = new Font("Segoe UI Semibold", 9.75f);
+        lblSensTools = Lbl("", 9f, false, UI.Muted); lblSensTools.MaximumSize = new Size(880, 0); lblSensTools.Margin = new Padding(3, 0, 3, 8); f.Controls.Add(lblSensTools);
+        FlowLayoutPanel b = Row(); b.Margin = new Padding(0, 0, 0, 8);
+        btnLive = UI.Primary("Live-Ansicht starten"); btnLive.Margin = new Padding(0); btnLive.Padding = new Padding(14, 3, 14, 3); btnLive.Font = new Font("Segoe UI Semibold", 9.75f);
         btnLive.Click += delegate { if (liveRunning) StopLive(); else StartLive(); };
-        btnSensTools = UI.Secondary("Sensorwerkzeuge holen"); btnSensTools.Margin = new Padding(UI.S(8), 0, 0, 0); btnSensTools.Click += delegate { FetchSensorTools(); };
-        btnSensSave = UI.Secondary("Aufzeichnung speichern"); btnSensSave.Margin = new Padding(UI.S(8), 0, 0, 0); btnSensSave.Enabled = false; btnSensSave.Click += delegate { SaveSensorCsv(); };
+        btnSensTools = UI.Secondary("Sensorwerkzeuge holen"); btnSensTools.Click += delegate { FetchSensorTools(); };
+        btnSensSave = UI.Secondary("Aufzeichnung speichern"); btnSensSave.Enabled = false; btnSensSave.Click += delegate { SaveSensorCsv(); };
         b.Controls.Add(btnLive); b.Controls.Add(btnSensTools); b.Controls.Add(btnSensSave);
         f.Controls.Add(b);
-        FlowLayoutPanel bd = Row(); bd.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
+        FlowLayoutPanel bd = Row(); bd.Margin = new Padding(0, 0, 0, 8);
         bd.Controls.Add(RowLabel("PawnIO-Treiber", 120));
         cmbDriver = Combo(230, new string[] { "bei Bedarf nachfragen", "vorübergehend verwenden", "nicht verwenden" }, 0); bd.Controls.Add(cmbDriver);
-        Label ld = Lbl("gilt für Live-Ansicht, Diagnose, Benchmark und Lasttest; ein vorhandener PawnIO bleibt immer unverändert", 8.75f, false, UI.Muted); ld.Margin = new Padding(0, UI.S(5), 0, 0); bd.Controls.Add(ld);
+        Label ld = Lbl("gilt für Live-Ansicht, Diagnose, Benchmark und Lasttest; ein vorhandener PawnIO bleibt immer unverändert", 8.75f, false, UI.Muted); ld.Margin = new Padding(0, 5, 0, 0); bd.Controls.Add(ld);
         f.Controls.Add(bd);
-        FlowLayoutPanel bk = Row(); bk.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
+        FlowLayoutPanel bk = Row(); bk.Margin = new Padding(0, 0, 0, 8);
         bk.Controls.Add(RowLabel("Hilfswerkzeuge", 120));
         cmbKeep = Combo(230, new string[] { "jedes Mal fragen", "nach dem Lauf entfernen", "auf diesem PC behalten" }, 0); bk.Controls.Add(cmbKeep);
-        Label lk = Lbl("PawnIO und smartmontools, die Leos Minibench installiert hat; gespeichert je Gerät in Geraete.json", 8.75f, false, UI.Muted); lk.Margin = new Padding(0, UI.S(5), 0, 0); bk.Controls.Add(lk);
+        Label lk = Lbl("PawnIO und smartmontools, die Leos Minibench installiert hat; gespeichert je Gerät in Geraete.json", 8.75f, false, UI.Muted); lk.Margin = new Padding(0, 5, 0, 0); bk.Controls.Add(lk);
         f.Controls.Add(bk);
         LoadDeviceTools();
         cmbKeep.SelectedIndexChanged += delegate { SaveDeviceTools(); };
         cmbDriver.SelectedIndexChanged += delegate { SaveDeviceTools(); };
-        lblSensInfo = Lbl("Live-Ansicht nicht gestartet.", 9f, false, UI.Muted); lblSensInfo.MaximumSize = new Size(UI.S(880), 0); lblSensInfo.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(6)); f.Controls.Add(lblSensInfo);
-        chartLive = new SensorChart(); chartLive.Width = UI.S(880); chartLive.Height = UI.S(330); chartLive.WindowSec = 600; chartLive.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
+        lblSensInfo = Lbl("Live-Ansicht nicht gestartet.", 9f, false, UI.Muted); lblSensInfo.MaximumSize = new Size(880, 0); lblSensInfo.Margin = new Padding(3, 0, 3, 6); f.Controls.Add(lblSensInfo);
+        chartLive = new SensorChart(); chartLive.Width = 880; chartLive.Height = 330; chartLive.WindowSec = 600; chartLive.Margin = new Padding(0, 0, 0, 8);
         chartLive.Empty = "Noch keine Messwerte. \"Live-Ansicht starten\" öffnet die Sensoren.";
         f.Controls.Add(chartLive);
-        lvSens = new ListView(); lvSens.View = View.Details; lvSens.FullRowSelect = true; lvSens.Width = UI.S(880); lvSens.Height = UI.S(380); lvSens.BorderStyle = BorderStyle.FixedSingle; lvSens.HideSelection = false; lvSens.ShowGroups = true; lvSens.ShowItemToolTips = true; lvSens.Margin = new Padding(UI.S(4), 0, 0, UI.S(4));
+        lvSens = new ListView(); lvSens.View = View.Details; lvSens.FullRowSelect = true; lvSens.Width = 880; lvSens.Height = 380; lvSens.BorderStyle = BorderStyle.FixedSingle; lvSens.HideSelection = false; lvSens.ShowGroups = true; lvSens.ShowItemToolTips = true;
         string[] cols = new string[] { "Sensor", "Art", "Aktuell", "Min", "Max", "Quelle" };
-        int[] w = new int[] { UI.S(260), UI.S(120), UI.S(110), UI.S(110), UI.S(110), UI.S(140) };
+        int[] w = new int[] { 260, 120, 110, 110, 110, 140 };
         for (int i = 0; i < cols.Length; i++) lvSens.Columns.Add(cols[i], w[i], i >= 2 && i <= 4 ? HorizontalAlignment.Right : HorizontalAlignment.Left);
         f.Controls.Add(lvSens);
         Label hint = Lbl("\"Aufzeichnung speichern\" legt alle Werte als CSV unter Berichte\\Sensoren ab. Während eines Laufs ist die Live-Ansicht aus; der Lasttest zeigt seine Kurven im Reiter Sensoren.", 8.75f, false, UI.Muted);
-        hint.MaximumSize = new Size(UI.S(880), 0); hint.Margin = new Padding(UI.S(4), UI.S(4), UI.S(4), 0); f.Controls.Add(hint);
+        hint.MaximumSize = new Size(880, 0); hint.Margin = new Padding(3, 4, 3, 0); f.Controls.Add(hint);
         liveTimer = new Timer(); liveTimer.Interval = 250; liveTimer.Tick += delegate { OnLiveTick(); };
         UpdateSensTools();
         return f;
@@ -6514,9 +6469,9 @@ public partial class DiagGui : Form
         Panel p = new Panel(); p.BackColor = UI.Bg;
         TableLayoutPanel t = new TableLayoutPanel(); t.Dock = DockStyle.Fill; t.ColumnCount = 1; t.BackColor = UI.Bg;
         t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, UI.S(22)));
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
         t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, UI.S(16)));
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 16));
         t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -6526,15 +6481,15 @@ public partial class DiagGui : Form
         TableLayoutPanel stepRow = new TableLayoutPanel(); stepRow.Dock = DockStyle.Fill; stepRow.AutoSize = true; stepRow.ColumnCount = 2; stepRow.BackColor = UI.Bg;
         stepRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); stepRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         lblStep = Lbl("Wird gestartet ...", 13f, true, UI.Text); lblStep.AutoEllipsis = true;
-        lblCounter = Lbl("", 10f, false, UI.Muted); lblCounter.Anchor = AnchorStyles.Right; lblCounter.Margin = new Padding(UI.S(3), UI.S(6), 0, UI.S(3));
+        lblCounter = Lbl("", 10f, false, UI.Muted); lblCounter.Anchor = AnchorStyles.Right; lblCounter.Margin = new Padding(3, 6, 0, 3);
         stepRow.Controls.Add(lblStep, 0, 0); stepRow.Controls.Add(lblCounter, 1, 0);
         t.Controls.Add(stepRow, 0, 0);
-        barAll = new FlatBar(); barAll.Dock = DockStyle.Fill; barAll.Margin = new Padding(UI.S(3), UI.S(4), UI.S(3), UI.S(6)); t.Controls.Add(barAll, 0, 1);
-        lblSub = Lbl(" ", 9.5f, false, UI.Muted); lblSub.AutoEllipsis = true; lblSub.Margin = new Padding(UI.S(3), UI.S(4), UI.S(3), UI.S(2)); t.Controls.Add(lblSub, 0, 2);
-        barSub = new FlatBar(); barSub.Dock = DockStyle.Fill; barSub.Fill = Color.FromArgb(96, 140, 245); barSub.Margin = new Padding(UI.S(3), UI.S(3), UI.S(3), UI.S(5)); t.Controls.Add(barSub, 0, 3);
-        lblPar = Lbl(" ", 9f, false, UI.Muted); lblPar.AutoEllipsis = true; lblPar.Margin = new Padding(UI.S(3), 0, UI.S(3), 0); lblPar.Visible = false; t.Controls.Add(lblPar, 0, 4);
+        barAll = new FlatBar(); barAll.Dock = DockStyle.Fill; barAll.Margin = new Padding(3, 4, 3, 6); t.Controls.Add(barAll, 0, 1);
+        lblSub = Lbl(" ", 9.5f, false, UI.Muted); lblSub.AutoEllipsis = true; lblSub.Margin = new Padding(3, 4, 3, 2); t.Controls.Add(lblSub, 0, 2);
+        barSub = new FlatBar(); barSub.Dock = DockStyle.Fill; barSub.Fill = Color.FromArgb(96, 140, 245); barSub.Margin = new Padding(3, 3, 3, 5); t.Controls.Add(barSub, 0, 3);
+        lblPar = Lbl(" ", 9f, false, UI.Muted); lblPar.AutoEllipsis = true; lblPar.Margin = new Padding(3, 0, 3, 0); lblPar.Visible = false; t.Controls.Add(lblPar, 0, 4);
 
-        FlowLayoutPanel cards = new FlowLayoutPanel(); cards.AutoSize = true; cards.BackColor = UI.Bg; cards.Margin = new Padding(0, UI.S(14), 0, UI.S(10));
+        FlowLayoutPanel cards = new FlowLayoutPanel(); cards.AutoSize = true; cards.BackColor = UI.Bg; cards.Margin = new Padding(0, 14, 0, 10);
         cardK = new StatCard("kritisch", UI.Crit); cardW = new StatCard("Warnungen", UI.Warn); cardI = new StatCard("Hinweise", UI.Info); cardT = new StatCard("Tests bestanden", UI.Ok);
         cards.Controls.Add(cardK); cards.Controls.Add(cardW); cards.Controls.Add(cardI); cards.Controls.Add(cardT);
         t.Controls.Add(cards, 0, 5);
@@ -6542,10 +6497,10 @@ public partial class DiagGui : Form
         tabs = new TabStrip(); tabs.Dock = DockStyle.Fill; tabs.Items.Add("Befunde"); tabs.Items.Add("Tests"); tabs.Items.Add("Leistung"); tabs.Items.Add("Sensoren"); tabs.Items.Add("Protokoll");
         t.Controls.Add(tabs, 0, 6);
 
-        Panel host = new Panel(); host.Dock = DockStyle.Fill; host.BackColor = UI.Panel; host.Padding = new Padding(1); host.Margin = new Padding(0, 0, 0, UI.S(10));
-        lvFind = MakeList(new string[] { "Stufe", "Bereich", "Befund" }, new int[] { UI.S(110), UI.S(140), UI.S(700) });
-        lvTests = MakeList(new string[] { "Ergebnis", "Test", "Details" }, new int[] { UI.S(110), UI.S(320), UI.S(520) });
-        lvBench = MakeList(new string[] { "Ergebnis", "Messung", "Wert", "Index", "Referenz", "Vergleich" }, new int[] { UI.S(110), UI.S(330), UI.S(160), UI.S(190), UI.S(95), UI.S(220) });
+        Panel host = new Panel(); host.Dock = DockStyle.Fill; host.BackColor = UI.Panel; host.Padding = new Padding(1); host.Margin = new Padding(0, 0, 0, 10);
+        lvFind = MakeList(new string[] { "Stufe", "Bereich", "Befund" }, new int[] { 110, 140, 700 });
+        lvTests = MakeList(new string[] { "Ergebnis", "Test", "Details" }, new int[] { 110, 320, 520 });
+        lvBench = MakeList(new string[] { "Ergebnis", "Messung", "Wert", "Index", "Referenz", "Vergleich" }, new int[] { 110, 330, 160, 190, 95, 220 });
         lvBench.Tag = "bench";
         txtLog = new TextBox(); txtLog.Multiline = true; txtLog.ReadOnly = true; txtLog.ScrollBars = ScrollBars.Vertical; txtLog.WordWrap = true;
         txtLog.Dock = DockStyle.Fill; txtLog.Font = new Font("Consolas", 9.75f); txtLog.BorderStyle = BorderStyle.None;
@@ -6602,13 +6557,13 @@ public partial class DiagGui : Form
         ListView lv = new ListView(); lv.View = View.Details; lv.FullRowSelect = true; lv.Dock = DockStyle.Fill; lv.HideSelection = false;
         lv.HeaderStyle = ColumnHeaderStyle.Nonclickable; lv.ShowItemToolTips = true; lv.BorderStyle = BorderStyle.None; lv.OwnerDraw = true;
         lv.Font = new Font("Segoe UI", 9.75f); lv.BackColor = UI.Panel; lv.ForeColor = UI.Text;
-        ImageList rowHeight = new ImageList(); rowHeight.ImageSize = new Size(1, UI.S(34)); lv.SmallImageList = rowHeight;
+        ImageList rowHeight = new ImageList(); rowHeight.ImageSize = new Size(1, 32); lv.SmallImageList = rowHeight;
         for (int i = 0; i < cols.Length; i++) lv.Columns.Add(cols[i], widths[i]);
         lv.DrawColumnHeader += delegate(object s, DrawListViewColumnHeaderEventArgs e) {
             using (SolidBrush b = new SolidBrush(Color.FromArgb(248, 249, 251))) e.Graphics.FillRectangle(b, e.Bounds);
             using (Pen pen = new Pen(UI.Line)) e.Graphics.DrawLine(pen, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
             using (Font f = new Font("Segoe UI Semibold", 8.5f))
-                TextRenderer.DrawText(e.Graphics, e.Header.Text.ToUpperInvariant(), f, new Rectangle(e.Bounds.X + UI.S(10), e.Bounds.Y, e.Bounds.Width - UI.S(12), e.Bounds.Height), UI.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+                TextRenderer.DrawText(e.Graphics, e.Header.Text.ToUpperInvariant(), f, new Rectangle(e.Bounds.X + 10, e.Bounds.Y, e.Bounds.Width - 12, e.Bounds.Height), UI.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
         };
         lv.DrawItem += delegate(object s, DrawListViewItemEventArgs e) { };
         lv.DrawSubItem += delegate(object s, DrawListViewSubItemEventArgs e) {
@@ -6627,17 +6582,17 @@ public partial class DiagGui : Form
                 using (Font fb = new Font("Segoe UI Semibold", 10f))
                 {
                     Size sz = TextRenderer.MeasureText(g, txt, fb);
-                    TextRenderer.DrawText(g, txt, fb, new Rectangle(e.Bounds.X + UI.S(10), e.Bounds.Y, sz.Width + UI.S(4), e.Bounds.Height), UI.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                    TextRenderer.DrawText(g, txt, fb, new Rectangle(e.Bounds.X + 10, e.Bounds.Y, sz.Width + 4, e.Bounds.Height), UI.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
                     string sub = e.Item.SubItems.Count > 2 ? e.Item.SubItems[2].Text : "";
                     if (sub.Length > 0)
-                        TextRenderer.DrawText(g, sub, lv.Font, new Rectangle(e.Bounds.X + UI.S(18) + sz.Width, e.Bounds.Y, w - sz.Width - UI.S(26), e.Bounds.Height), UI.Muted,
+                        TextRenderer.DrawText(g, sub, lv.Font, new Rectangle(e.Bounds.X + 18 + sz.Width, e.Bounds.Y, w - sz.Width - 26, e.Bounds.Height), UI.Muted,
                             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
                 }
             }
             else if (hdr && e.ColumnIndex == 4 && txt.Length > 0)
             {
                 using (Font fb = new Font("Segoe UI Semibold", 9.75f))
-                    TextRenderer.DrawText(g, txt, fb, new Rectangle(e.Bounds.X + UI.S(10), e.Bounds.Y, e.Bounds.Width - UI.S(14), e.Bounds.Height), UI.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                    TextRenderer.DrawText(g, txt, fb, new Rectangle(e.Bounds.X + 10, e.Bounds.Y, e.Bounds.Width - 14, e.Bounds.Height), UI.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
             }
             else if (e.ColumnIndex == 0 && txt.Length == 0) { }
             else if (e.ColumnIndex == 0)
@@ -6646,11 +6601,9 @@ public partial class DiagGui : Form
                 using (Font f = new Font("Segoe UI Semibold", 8.25f))
                 {
                     Size sz = TextRenderer.MeasureText(g, txt.ToUpperInvariant(), f);
-                    int pillH = UI.S(20);
-                    int pillW = sz.Width + UI.S(12);
-                    RectangleF pill = new RectangleF(e.Bounds.X + UI.S(8), e.Bounds.Y + (e.Bounds.Height - pillH) / 2f, pillW, pillH);
+                    RectangleF pill = new RectangleF(e.Bounds.X + 8, e.Bounds.Y + (e.Bounds.Height - 20) / 2f, sz.Width + 12, 20);
                     g.SmoothingMode = SmoothingMode.AntiAlias;
-                    using (GraphicsPath gp = UI.Round(pill, UI.SF(10))) using (SolidBrush pb = new SolidBrush(bg)) g.FillPath(pb, gp);
+                    using (GraphicsPath gp = UI.Round(pill, 10)) using (SolidBrush pb = new SolidBrush(bg)) g.FillPath(pb, gp);
                     g.SmoothingMode = SmoothingMode.None;
                     TextRenderer.DrawText(g, txt.ToUpperInvariant(), f, Rectangle.Round(pill), fg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
                 }
@@ -6658,50 +6611,44 @@ public partial class DiagGui : Form
             else if ("bench".Equals(lv.Tag) && e.ColumnIndex == 3)
             {
                 int iv; double wv;
-                int textW = UI.S(48);
-                int barMargin = UI.S(10);
-                int barGap = UI.S(6);
-                int totalReserve = barMargin + barGap + textW;
                 if (txt.StartsWith("W") && double.TryParse(txt.Substring(1), NumberStyles.Float, CultureInfo.InvariantCulture, out wv))
                 {
                     // WinSAT: Skala 1,0 bis 9,9, Farbe nach Bewertung
                     Color fc = wv >= 7 ? UI.Ok : wv >= 5 ? UI.Info : wv >= 3.5 ? UI.Warn : UI.Crit;
-                    int bw = Math.Max(UI.S(40), e.Bounds.Width - totalReserve);
-                    int barH = UI.S(8);
-                    RectangleF tr = new RectangleF(e.Bounds.X + barMargin, e.Bounds.Y + (e.Bounds.Height - barH) / 2f, bw, barH);
+                    int bw = Math.Max(40, e.Bounds.Width - 60);
+                    RectangleF tr = new RectangleF(e.Bounds.X + 10, e.Bounds.Y + e.Bounds.Height / 2f - 5, bw, 10);
                     g.SmoothingMode = SmoothingMode.AntiAlias;
-                    using (GraphicsPath gp = UI.Round(tr, UI.SF(4))) using (SolidBrush b0 = new SolidBrush(UI.SkipBg)) g.FillPath(b0, gp);
-                    float fw = Math.Max(UI.SF(6f), (float)(bw * (Math.Min(9.9, Math.Max(1.0, wv)) - 1.0) / 8.9));
-                    using (GraphicsPath gf = UI.Round(new RectangleF(tr.X, tr.Y, fw, tr.Height), UI.SF(4))) using (SolidBrush b1 = new SolidBrush(fc)) g.FillPath(b1, gf);
+                    using (GraphicsPath gp = UI.Round(tr, 5)) using (SolidBrush b0 = new SolidBrush(UI.SkipBg)) g.FillPath(b0, gp);
+                    float fw = Math.Max(6f, (float)(bw * (Math.Min(9.9, Math.Max(1.0, wv)) - 1.0) / 8.9));
+                    using (GraphicsPath gf = UI.Round(new RectangleF(tr.X, tr.Y, fw, tr.Height), 5)) using (SolidBrush b1 = new SolidBrush(fc)) g.FillPath(b1, gf);
                     g.SmoothingMode = SmoothingMode.None;
-                    TextRenderer.DrawText(g, wv.ToString("0.0", CultureInfo.GetCultureInfo("de-DE")), (wsBold ?? (wsBold = new Font(lv.Font, FontStyle.Bold))), new Rectangle((int)tr.Right + barGap, e.Bounds.Y, textW, e.Bounds.Height), UI.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+                    TextRenderer.DrawText(g, wv.ToString("0.0", CultureInfo.GetCultureInfo("de-DE")), (wsBold ?? (wsBold = new Font(lv.Font, FontStyle.Bold))), new Rectangle((int)tr.Right + 6, e.Bounds.Y, 44, e.Bounds.Height), UI.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
                 }
                 else if (int.TryParse(txt, out iv))
                 {
                     Color fg, bg; UI.Level(e.Item.SubItems[0].Text, out fg, out bg);
-                    int bw = Math.Max(UI.S(40), e.Bounds.Width - totalReserve);
-                    int barH = UI.S(8);
-                    RectangleF tr = new RectangleF(e.Bounds.X + barMargin, e.Bounds.Y + (e.Bounds.Height - barH) / 2f, bw, barH);
+                    int bw = Math.Max(40, e.Bounds.Width - 60);
+                    RectangleF tr = new RectangleF(e.Bounds.X + 10, e.Bounds.Y + e.Bounds.Height / 2f - 4, bw, 8);
                     g.SmoothingMode = SmoothingMode.AntiAlias;
-                    using (GraphicsPath gp = UI.Round(tr, UI.SF(4))) using (SolidBrush b0 = new SolidBrush(UI.SkipBg)) g.FillPath(b0, gp);
-                    float fw = Math.Max(UI.SF(4f), bw * Math.Min(150, Math.Max(0, iv)) / 150f);
-                    using (GraphicsPath gf = UI.Round(new RectangleF(tr.X, tr.Y, fw, tr.Height), UI.SF(4))) using (SolidBrush b1 = new SolidBrush(fg)) g.FillPath(b1, gf);
-                    using (Pen pm = new Pen(UI.Muted, UI.SF(2f))) g.DrawLine(pm, tr.X + bw * 100f / 150f, tr.Y - UI.SF(3), tr.X + bw * 100f / 150f, tr.Bottom + UI.SF(3));
+                    using (GraphicsPath gp = UI.Round(tr, 4)) using (SolidBrush b0 = new SolidBrush(UI.SkipBg)) g.FillPath(b0, gp);
+                    float fw = Math.Max(4f, bw * Math.Min(150, Math.Max(0, iv)) / 150f);
+                    using (GraphicsPath gf = UI.Round(new RectangleF(tr.X, tr.Y, fw, tr.Height), 4)) using (SolidBrush b1 = new SolidBrush(fg)) g.FillPath(b1, gf);
+                    using (Pen pm = new Pen(UI.Muted, 2f)) g.DrawLine(pm, tr.X + bw * 100f / 150f, tr.Y - 3, tr.X + bw * 100f / 150f, tr.Bottom + 3);
                     g.SmoothingMode = SmoothingMode.None;
-                    TextRenderer.DrawText(g, txt, lv.Font, new Rectangle((int)tr.Right + barGap, e.Bounds.Y, textW, e.Bounds.Height), UI.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+                    TextRenderer.DrawText(g, txt, lv.Font, new Rectangle((int)tr.Right + 6, e.Bounds.Y, 44, e.Bounds.Height), UI.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
                 }
                 else if (txt.Length > 0)
-                    TextRenderer.DrawText(g, txt, lv.Font, new Rectangle(e.Bounds.X + UI.S(10), e.Bounds.Y, e.Bounds.Width - UI.S(14), e.Bounds.Height), UI.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                    TextRenderer.DrawText(g, txt, lv.Font, new Rectangle(e.Bounds.X + 10, e.Bounds.Y, e.Bounds.Width - 14, e.Bounds.Height), UI.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
             }
             else
             {
-                TextRenderer.DrawText(g, txt, lv.Font, new Rectangle(e.Bounds.X + UI.S(10), e.Bounds.Y, e.Bounds.Width - UI.S(14), e.Bounds.Height), UI.Text,
+                TextRenderer.DrawText(g, txt, lv.Font, new Rectangle(e.Bounds.X + 10, e.Bounds.Y, e.Bounds.Width - 14, e.Bounds.Height), UI.Text,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
             }
         };
         lv.Resize += delegate {
             int w = lv.ClientSize.Width; for (int i = 0; i < lv.Columns.Count - 1; i++) w -= lv.Columns[i].Width;
-            if (w > UI.S(150)) lv.Columns[lv.Columns.Count - 1].Width = w - 2;
+            if (w > 150) lv.Columns[lv.Columns.Count - 1].Width = w - 2;
         };
         lv.DoubleClick += delegate {
             if (lv.SelectedItems.Count == 0) return;
@@ -7031,89 +6978,22 @@ public partial class DiagGui : Form
     }
 }
 // Grafische Oberflaeche: Steuerelemente
-public static class UI
+static class UI
 {
-    public static readonly Color Bg = Color.FromArgb(249, 249, 251);
+    public static readonly Color Bg = Color.FromArgb(243, 245, 248);
     public static readonly Color Panel = Color.White;
-    public static readonly Color Text = Color.FromArgb(28, 29, 31);
-    public static readonly Color Muted = Color.FromArgb(95, 99, 104);
-    public static readonly Color Line = Color.FromArgb(229, 231, 235);
-    public static readonly Color Accent = Color.FromArgb(0, 103, 192);
-    public static readonly Color AccentHover = Color.FromArgb(0, 90, 158);
-    public static readonly Color AccentActive = Color.FromArgb(0, 79, 138);
-    public static readonly Color AccentDark = Color.FromArgb(0, 79, 138);
-    public static readonly Color AccentSoft = Color.FromArgb(235, 243, 251);
+    public static readonly Color Text = Color.FromArgb(28, 35, 48);
+    public static readonly Color Muted = Color.FromArgb(98, 108, 124);
+    public static readonly Color Line = Color.FromArgb(221, 226, 233);
+    public static readonly Color Accent = Color.FromArgb(37, 99, 235);
+    public static readonly Color AccentDark = Color.FromArgb(29, 78, 196);
+    public static readonly Color AccentSoft = Color.FromArgb(232, 240, 254);
     public static readonly Color Header = Color.FromArgb(22, 30, 46);
-    public static readonly Color Crit = Color.FromArgb(196, 43, 28), CritBg = Color.FromArgb(253, 231, 233);
-    public static readonly Color Warn = Color.FromArgb(157, 93, 0), WarnBg = Color.FromArgb(255, 244, 206);
-    public static readonly Color Info = Color.FromArgb(0, 103, 192), InfoBg = Color.FromArgb(235, 243, 251);
-    public static readonly Color Ok = Color.FromArgb(16, 124, 65), OkBg = Color.FromArgb(223, 246, 221);
-    public static readonly Color Skip = Color.FromArgb(95, 99, 104), SkipBg = Color.FromArgb(243, 244, 246);
-
-    public static float DpiScale = 1.0f;
-
-    static UI()
-    {
-        DpiScale = 1.0f;
-        try
-        {
-            using (Graphics g = Graphics.FromHwnd(IntPtr.Zero))
-            {
-                if (g.DpiX > 0) DpiScale = g.DpiX / 96.0f;
-            }
-        }
-        catch { DpiScale = 1.0f; }
-        if (DpiScale <= 0.1f) DpiScale = 1.0f;
-    }
-
-    public static int S(int px)
-    {
-        return (int)Math.Round(px * DpiScale);
-    }
-
-    public static float SF(float px)
-    {
-        return px * DpiScale;
-    }
-
-    public static string SymbolFontFamily = ResolveSymbolFontFamily();
-    static string ResolveSymbolFontFamily()
-    {
-        try
-        {
-            using (Font f = new Font("Segoe Fluent Icons", 9f))
-            {
-                if (f.Name == "Segoe Fluent Icons") return "Segoe Fluent Icons";
-            }
-        }
-        catch { }
-        try
-        {
-            using (Font f = new Font("Segoe MDL2 Assets", 9f))
-            {
-                if (f.Name == "Segoe MDL2 Assets") return "Segoe MDL2 Assets";
-            }
-        }
-        catch { }
-        return "Segoe UI Symbol";
-    }
-
-    public static Font SymbolFont(float size)
-    {
-        return new Font(SymbolFontFamily, size);
-    }
-
-    public const string IcoCpu = "\uE7F8";
-    public const string IcoRam = "\uE7F4";
-    public const string IcoGpu = "\uE790";
-    public const string IcoDisk = "\uEDA2";
-    public const string IcoDiag = "\uE9D9";
-    public const string IcoWartung = "\uE90F";
-    public const string IcoOpt = "\uE713";
-    public const string IcoSens = "\uE950";
-    public const string IcoDb = "\uE81E";
-    public const string IcoChg = "\uE81C";
-    public const string IcoFlame = "\uECAD";
+    public static readonly Color Crit = Color.FromArgb(185, 35, 28), CritBg = Color.FromArgb(253, 234, 232);
+    public static readonly Color Warn = Color.FromArgb(160, 92, 0), WarnBg = Color.FromArgb(254, 243, 214);
+    public static readonly Color Info = Color.FromArgb(31, 91, 196), InfoBg = Color.FromArgb(231, 239, 255);
+    public static readonly Color Ok = Color.FromArgb(17, 120, 66), OkBg = Color.FromArgb(225, 245, 233);
+    public static readonly Color Skip = Color.FromArgb(105, 112, 125), SkipBg = Color.FromArgb(236, 238, 242);
 
     public static GraphicsPath Round(RectangleF r, float rad)
     {
@@ -7125,11 +7005,6 @@ public static class UI
         p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
         p.CloseFigure();
         return p;
-    }
-
-    public static GraphicsPath Round(Rectangle r, float rad)
-    {
-        return Round(new RectangleF(r.X, r.Y, r.Width, r.Height), rad);
     }
 
     public static void Level(string lvl, out Color fg, out Color bg)
@@ -7145,304 +7020,22 @@ public static class UI
     public static Button Primary(string text)
     {
         Button b = new Button(); b.Text = text; b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderSize = 0;
-        b.BackColor = Accent; b.ForeColor = Color.White; b.FlatAppearance.MouseOverBackColor = AccentHover; b.FlatAppearance.MouseDownBackColor = AccentActive;
-        b.Font = new Font("Segoe UI Semibold", 10.5f); b.AutoSize = true; b.Padding = new Padding(S(18), S(6), S(18), S(6)); b.Cursor = Cursors.Hand; b.UseVisualStyleBackColor = false;
+        b.BackColor = Accent; b.ForeColor = Color.White; b.FlatAppearance.MouseOverBackColor = AccentDark; b.FlatAppearance.MouseDownBackColor = AccentDark;
+        b.Font = new Font("Segoe UI Semibold", 10.5f); b.AutoSize = true; b.Padding = new Padding(18, 6, 18, 6); b.Cursor = Cursors.Hand; b.UseVisualStyleBackColor = false;
         return b;
     }
 
     public static Button Secondary(string text)
     {
-        Button b = new Button(); b.Text = text; b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderColor = Line;
-        b.BackColor = Panel; b.ForeColor = Text; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(243, 244, 246); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(235, 237, 240);
-        b.Font = new Font("Segoe UI", 9.75f); b.AutoSize = true; b.Padding = new Padding(S(10), S(3), S(10), S(3)); b.Margin = new Padding(S(8), 0, 0, 0); b.Cursor = Cursors.Hand; b.UseVisualStyleBackColor = false;
+        Button b = new Button(); b.Text = text; b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 218);
+        b.BackColor = Panel; b.ForeColor = Text; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 243, 248);
+        b.Font = new Font("Segoe UI", 9.75f); b.AutoSize = true; b.Padding = new Padding(10, 3, 10, 3); b.Margin = new Padding(8, 0, 0, 0); b.Cursor = Cursors.Hand; b.UseVisualStyleBackColor = false;
         return b;
     }
 
     public static Button SkipStepButton()
     {
         return Secondary("Diesen Schritt überspringen");
-    }
-}
-
-// Moderner Windows 11 Toggle-Switch (Wintoys-Look)
-public class ToggleSwitch : Control
-{
-    bool isChecked;
-    bool hover;
-    public event EventHandler CheckedChanged;
-
-    public ToggleSwitch()
-    {
-        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
-                 ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor | ControlStyles.Selectable, true);
-        TabStop = true;
-        Cursor = Cursors.Hand;
-        Size = new Size(UI.S(44), UI.S(24));
-        BackColor = Color.Transparent;
-    }
-
-    public bool Checked
-    {
-        get { return isChecked; }
-        set
-        {
-            if (isChecked != value)
-            {
-                isChecked = value;
-                Invalidate();
-                if (CheckedChanged != null) CheckedChanged(this, EventArgs.Empty);
-            }
-        }
-    }
-
-    protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
-    protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
-    protected override void OnGotFocus(EventArgs e) { Invalidate(); base.OnGotFocus(e); }
-    protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
-
-    protected override void OnMouseClick(MouseEventArgs e)
-    {
-        if (e.Button == MouseButtons.Left)
-        {
-            Focus();
-            Checked = !Checked;
-        }
-        base.OnMouseClick(e);
-    }
-
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        if (e.KeyCode == Keys.Space)
-        {
-            Checked = !Checked;
-            e.Handled = true;
-        }
-        base.OnKeyDown(e);
-    }
-
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        Graphics g = e.Graphics;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-
-        int trackW = UI.S(38);
-        int trackH = UI.S(20);
-        int trackX = (Width - trackW) / 2;
-        int trackY = (Height - trackH) / 2;
-        RectangleF trackRect = new RectangleF(trackX, trackY, trackW, trackH);
-        float rad = trackH / 2f;
-
-        int knobD = UI.S(14);
-        int knobY = trackY + (trackH - knobD) / 2;
-        int knobX = isChecked ? (trackX + trackW - knobD - UI.S(3)) : (trackX + UI.S(3));
-
-        using (GraphicsPath trackPath = UI.Round(trackRect, rad))
-        {
-            if (isChecked)
-            {
-                Color fillColor = hover ? UI.AccentHover : UI.Accent;
-                using (SolidBrush b = new SolidBrush(fillColor)) g.FillPath(b, trackPath);
-                using (Pen p = new Pen(fillColor, 1f)) g.DrawPath(p, trackPath);
-            }
-            else
-            {
-                Color borderColor = hover ? Color.FromArgb(118, 118, 118) : Color.FromArgb(209, 213, 219);
-                using (SolidBrush b = new SolidBrush(Color.White)) g.FillPath(b, trackPath);
-                using (Pen p = new Pen(borderColor, UI.SF(1.5f))) g.DrawPath(p, trackPath);
-            }
-        }
-
-        // Subtiler Schatten des Knopfs
-        RectangleF shadowRect = new RectangleF(knobX, knobY + UI.SF(0.5f), knobD, knobD);
-        using (SolidBrush sb = new SolidBrush(Color.FromArgb(30, 0, 0, 0)))
-        {
-            g.FillEllipse(sb, shadowRect);
-        }
-
-        // Weißer Schieber-Knopf
-        RectangleF knobRect = new RectangleF(knobX, knobY, knobD, knobD);
-        using (SolidBrush kb = new SolidBrush(Color.White))
-        {
-            g.FillEllipse(kb, knobRect);
-        }
-        if (!isChecked)
-        {
-            using (Pen kp = new Pen(Color.FromArgb(118, 118, 118), 1f))
-            {
-                g.DrawEllipse(kp, knobRect);
-            }
-        }
-
-        // Barrierefreies Fokus-Rechteck
-        if (Focused)
-        {
-            Rectangle fRect = new Rectangle(trackX - UI.S(2), trackY - UI.S(2), trackW + UI.S(4), trackH + UI.S(4));
-            using (Pen fp = new Pen(UI.Accent, 1f))
-            {
-                fp.DashStyle = DashStyle.Dot;
-                g.DrawRectangle(fp, fRect);
-            }
-        }
-    }
-}
-
-// Moderne Fluent-Kartenansicht (Wintoys-Look)
-public class FluentCard : Control
-{
-    string title = "";
-    string desc = "";
-    string icon = "";
-    bool hover;
-    ToggleSwitch toggle;
-    Button actionButton;
-    public event EventHandler CheckedChanged;
-
-    public FluentCard(string title, string desc, string icon = "")
-    {
-        this.title = title ?? "";
-        this.desc = desc ?? "";
-        this.icon = icon ?? "";
-        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
-                 ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
-        Cursor = Cursors.Hand;
-        BackColor = UI.Panel;
-        Size = new Size(UI.S(400), UI.S(64));
-        Margin = new Padding(0, 0, 0, UI.S(8));
-
-        toggle = new ToggleSwitch();
-        toggle.Location = new Point(Width - toggle.Width - UI.S(16), (Height - toggle.Height) / 2);
-        toggle.CheckedChanged += delegate
-        {
-            if (CheckedChanged != null) CheckedChanged(this, EventArgs.Empty);
-            Invalidate();
-        };
-        Controls.Add(toggle);
-    }
-
-    public string Title { get { return title; } set { title = value ?? ""; Invalidate(); } }
-    public string Description { get { return desc; } set { desc = value ?? ""; Invalidate(); } }
-    public string Icon { get { return icon; } set { icon = value ?? ""; Invalidate(); } }
-    public ToggleSwitch Toggle { get { return toggle; } }
-
-    public Button ActionButton
-    {
-        get { return actionButton; }
-        set
-        {
-            if (actionButton != null) Controls.Remove(actionButton);
-            actionButton = value;
-            if (actionButton != null)
-            {
-                if (toggle != null) toggle.Visible = false;
-                Controls.Add(actionButton);
-                LayoutControls();
-            }
-            else if (toggle != null)
-            {
-                toggle.Visible = true;
-                LayoutControls();
-            }
-            Invalidate();
-        }
-    }
-
-    public bool Checked
-    {
-        get { return toggle != null && toggle.Checked; }
-        set { if (toggle != null) toggle.Checked = value; }
-    }
-
-    void LayoutControls()
-    {
-        if (actionButton != null)
-        {
-            actionButton.Location = new Point(Width - actionButton.Width - UI.S(16), (Height - actionButton.Height) / 2);
-        }
-        else if (toggle != null)
-        {
-            toggle.Location = new Point(Width - toggle.Width - UI.S(16), (Height - toggle.Height) / 2);
-        }
-    }
-
-    protected override void OnResize(EventArgs e)
-    {
-        base.OnResize(e);
-        LayoutControls();
-    }
-
-    protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
-    protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
-
-    protected override void OnMouseClick(MouseEventArgs e)
-    {
-        if (e.Button == MouseButtons.Left)
-        {
-            Focus();
-            if (actionButton == null && toggle != null && toggle.Visible)
-            {
-                toggle.Checked = !toggle.Checked;
-            }
-        }
-        base.OnMouseClick(e);
-    }
-
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        if (e.KeyCode == Keys.Space && actionButton == null && toggle != null && toggle.Visible)
-        {
-            toggle.Checked = !toggle.Checked;
-            e.Handled = true;
-        }
-        base.OnKeyDown(e);
-    }
-
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        Graphics g = e.Graphics;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-
-        RectangleF r = new RectangleF(1, 1, Width - 3, Height - 3);
-        Color bg = hover ? Color.FromArgb(250, 251, 253) : UI.Panel;
-        Color border = hover ? Color.FromArgb(209, 213, 219) : UI.Line;
-
-        using (GraphicsPath p = UI.Round(r, UI.SF(8)))
-        {
-            using (SolidBrush b = new SolidBrush(bg)) g.FillPath(b, p);
-            using (Pen pen = new Pen(border, 1f)) g.DrawPath(pen, p);
-        }
-
-        int curX = UI.S(16);
-        if (!String.IsNullOrEmpty(icon))
-        {
-            int icoSize = UI.S(28);
-            using (Font ifont = UI.SymbolFont(UI.SF(14)))
-            {
-                Rectangle icoRect = new Rectangle(curX, (Height - icoSize) / 2, icoSize, icoSize);
-                TextRenderer.DrawText(g, icon, ifont, icoRect, UI.Accent, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.NoClipping);
-            }
-            curX += icoSize + UI.S(10);
-        }
-
-        int rightBound = (actionButton != null && actionButton.Visible ? actionButton.Left : (toggle != null && toggle.Visible ? toggle.Left : Width)) - UI.S(12);
-        int textW = Math.Max(UI.S(50), rightBound - curX);
-
-        using (Font ft = new Font("Segoe UI Semibold", UI.SF(10f)))
-        {
-            Size tsz = TextRenderer.MeasureText(g, title, ft);
-            int titleH = Math.Max(tsz.Height, UI.S(18));
-            int startY = String.IsNullOrEmpty(desc) ? (Height - titleH) / 2 : UI.S(12);
-            TextRenderer.DrawText(g, title, ft, new Rectangle(curX, startY, textW, titleH), UI.Text, TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
-
-            if (!String.IsNullOrEmpty(desc))
-            {
-                using (Font fd = new Font("Segoe UI", UI.SF(8.5f)))
-                {
-                    int descY = startY + titleH + UI.S(2);
-                    TextRenderer.DrawText(g, desc, fd, new Rectangle(curX, descY, textW, Height - descY - UI.S(4)), UI.Muted, TextFormatFlags.Left | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis);
-                }
-            }
-        }
     }
 }
 
@@ -7454,7 +7047,7 @@ class FlatBar : Control
     {
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
-        anim = new Timer(); anim.Interval = 25; anim.Tick += delegate { pos = (pos + UI.S(8)) % Math.Max(1, Width + UI.S(160)); Invalidate(); };
+        anim = new Timer(); anim.Interval = 25; anim.Tick += delegate { pos = (pos + 8) % Math.Max(1, Width + 160); Invalidate(); };
     }
     public int Value { get { return val; } set { int v = Math.Max(0, Math.Min(100, value)); if (v != val) { val = v; Invalidate(); } } }
     public bool Marquee
@@ -7473,7 +7066,7 @@ class FlatBar : Control
             g.SetClip(clip);
             using (SolidBrush fb = new SolidBrush(Fill))
             {
-                if (marquee) g.FillRectangle(fb, pos - UI.S(160), 0, UI.S(160), Height);
+                if (marquee) g.FillRectangle(fb, pos - 160, 0, 160, Height);
                 else if (val > 0) g.FillRectangle(fb, 0, 0, (Width - 1) * val / 100f, Height);
             }
             g.ResetClip();
@@ -7481,20 +7074,19 @@ class FlatBar : Control
     }
 }
 
-// Eintrag der Modulnavigation: moderner Windows 11-Sidebar-Stil
+// Eintrag der Modulnavigation: Kästchen links schaltet das Modul ein oder aus, ein Klick daneben zeigt seine Einstellungen
 class NavItem : Control
 {
     bool sel, hover, chk;
-    public string Title, Desc, Icon;
+    public string Title, Desc;
     public bool HasCheck = true;
     public event EventHandler Picked;
     public event EventHandler CheckedChanged;
-    public NavItem(string title, string desc) : this(title, desc, "") { }
-    public NavItem(string title, string desc, string icon)
+    public NavItem(string title, string desc)
     {
-        Title = title; Desc = desc; Icon = icon ?? "";
+        Title = title; Desc = desc;
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
-        Cursor = Cursors.Hand; Size = new Size(UI.S(226), UI.S(66)); Margin = new Padding(0, 0, 0, UI.S(6)); BackColor = UI.Bg;
+        Cursor = Cursors.Hand; Size = new Size(226, 64); Margin = new Padding(0, 0, 0, 6); BackColor = UI.Bg;
     }
     public bool Selected { get { return sel; } set { sel = value; Invalidate(); } }
     public bool Checked
@@ -7502,13 +7094,13 @@ class NavItem : Control
         get { return chk; }
         set { if (chk == value) return; chk = value; Invalidate(); if (CheckedChanged != null) CheckedChanged(this, EventArgs.Empty); }
     }
-    Rectangle Box { get { return new Rectangle(UI.S(14), (Height - UI.S(20)) / 2, UI.S(20), UI.S(20)); } }
+    Rectangle Box { get { return new Rectangle(14, 11, 20, 20); } }
     protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
     protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
     protected override void OnMouseClick(MouseEventArgs e)
     {
         Focus();
-        Rectangle hit = Box; hit.Inflate(UI.S(8), UI.S(8));
+        Rectangle hit = Box; hit.Inflate(8, 8);
         if (HasCheck && hit.Contains(e.Location)) Checked = !Checked;
         if (Picked != null) Picked(this, e);
         base.OnMouseClick(e);
@@ -7523,63 +7115,26 @@ class NavItem : Control
     {
         Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
         RectangleF r = new RectangleF(1, 1, Width - 3, Height - 3);
-        Color fill = sel ? UI.AccentSoft : (hover ? Color.FromArgb(240, 243, 248) : UI.Panel);
-        using (GraphicsPath p = UI.Round(r, UI.SF(6)))
+        Color fill = sel ? UI.AccentSoft : (hover ? Color.FromArgb(250, 251, 253) : UI.Panel);
+        using (GraphicsPath p = UI.Round(r, 10))
         {
             using (SolidBrush b = new SolidBrush(fill)) g.FillPath(b, p);
-            using (Pen pen = new Pen(sel ? UI.Accent : (hover ? Color.FromArgb(209, 213, 219) : UI.Line), sel ? UI.SF(1.5f) : UI.SF(1f))) g.DrawPath(pen, p);
+            using (Pen pen = new Pen(sel ? UI.Accent : (hover ? Color.FromArgb(180, 190, 205) : UI.Line), sel ? 2f : 1f)) g.DrawPath(pen, p);
         }
-
-        // Bei Auswahl: Links ein 3 px breiter, abgerundeter blauer Akzentbalken
-        if (sel)
-        {
-            int barH = Height - UI.S(20);
-            RectangleF barR = new RectangleF(UI.S(3), (Height - barH) / 2f, UI.S(3), barH);
-            using (GraphicsPath bp = UI.Round(barR, UI.SF(1.5f)))
-            using (SolidBrush bb = new SolidBrush(UI.Accent))
-                g.FillPath(bb, bp);
-        }
-
-        int x = UI.S(14);
+        int x = 14;
         if (HasCheck)
         {
             Rectangle bx = Box;
-            using (GraphicsPath bp = UI.Round(bx, UI.SF(5)))
+            using (GraphicsPath bp = UI.Round(bx, 5))
             {
                 using (SolidBrush bb = new SolidBrush(chk ? UI.Accent : UI.Panel)) g.FillPath(bb, bp);
-                using (Pen bpen = new Pen(chk ? UI.Accent : Color.FromArgb(160, 170, 185), UI.SF(1.5f))) g.DrawPath(bpen, bp);
+                using (Pen bpen = new Pen(chk ? UI.Accent : Color.FromArgb(160, 170, 185), 1.5f)) g.DrawPath(bpen, bp);
             }
-            if (chk) using (Pen ck = new Pen(Color.White, UI.SF(2.4f))) { ck.StartCap = LineCap.Round; ck.EndCap = LineCap.Round; g.DrawLines(ck, new Point[] { new Point(bx.X + UI.S(5), bx.Y + UI.S(10)), new Point(bx.X + UI.S(9), bx.Y + UI.S(14)), new Point(bx.X + UI.S(15), bx.Y + UI.S(6)) }); }
-            x = bx.Right + UI.S(10);
+            if (chk) using (Pen ck = new Pen(Color.White, 2.4f)) { ck.StartCap = LineCap.Round; ck.EndCap = LineCap.Round; g.DrawLines(ck, new Point[] { new Point(bx.X + 5, bx.Y + 10), new Point(bx.X + 9, bx.Y + 14), new Point(bx.X + 15, bx.Y + 6) }); }
+            x = 44;
         }
-
-        if (!String.IsNullOrEmpty(Icon))
-        {
-            int icoSize = UI.S(24);
-            int icoY = (Height - icoSize) / 2;
-            using (Font ifont = UI.SymbolFont(UI.SF(13)))
-            {
-                Rectangle icoR = new Rectangle(x, icoY, icoSize, icoSize);
-                TextRenderer.DrawText(g, Icon, ifont, icoR, sel ? UI.Accent : UI.Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.NoClipping);
-            }
-            x += icoSize + UI.S(8);
-        }
-
-        using (Font ft = new Font("Segoe UI Semibold", UI.SF(10f)))
-        {
-            Size tsz = TextRenderer.MeasureText(g, Title, ft);
-            int th = Math.Max(tsz.Height, UI.S(18));
-            int startY = String.IsNullOrEmpty(Desc) ? (Height - th) / 2 : UI.S(12);
-            TextRenderer.DrawText(g, Title, ft, new Rectangle(x, startY, Width - x - UI.S(8), th), sel ? UI.AccentDark : UI.Text, TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
-            if (!String.IsNullOrEmpty(Desc))
-            {
-                using (Font fs = new Font("Segoe UI", UI.SF(8.5f)))
-                {
-                    int dy = startY + th + UI.S(2);
-                    TextRenderer.DrawText(g, Desc, fs, new Rectangle(x, dy, Width - x - UI.S(8), Height - dy - UI.S(4)), UI.Muted, TextFormatFlags.Left | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis);
-                }
-            }
-        }
+        using (Font ft = new Font("Segoe UI Semibold", 10.5f)) TextRenderer.DrawText(g, Title, ft, new Rectangle(x, 9, Width - x - 10, 22), UI.Text, TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+        using (Font fs = new Font("Segoe UI", 8.5f)) TextRenderer.DrawText(g, Desc, fs, new Rectangle(x, 30, Width - x - 10, Height - 32), UI.Muted, TextFormatFlags.Left | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis);
     }
 }
 
@@ -7590,32 +7145,23 @@ class StatCard : Control
     {
         Caption = caption; Accent = accent;
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
-        Size = new Size(UI.S(170), UI.S(72)); Margin = new Padding(0, 0, UI.S(12), 0); BackColor = UI.Bg;
+        Size = new Size(170, 70); Margin = new Padding(0, 0, 12, 0); BackColor = UI.Bg;
     }
     public int Count { get { return count; } set { count = value; Invalidate(); } }
     protected override void OnPaint(PaintEventArgs e)
     {
         Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
         RectangleF r = new RectangleF(0.5f, 0.5f, Width - 2, Height - 2);
-        using (GraphicsPath p = UI.Round(r, UI.SF(8)))
+        using (GraphicsPath p = UI.Round(r, 10))
         {
             using (SolidBrush b = new SolidBrush(UI.Panel)) g.FillPath(b, p);
             using (Pen pen = new Pen(UI.Line)) g.DrawPath(pen, p);
             g.SetClip(p);
-            using (SolidBrush a = new SolidBrush(Accent)) g.FillRectangle(a, 0, 0, UI.S(5), Height);
+            using (SolidBrush a = new SolidBrush(Accent)) g.FillRectangle(a, 0, 0, 5, Height);
             g.ResetClip();
         }
-        using (Font fn = new Font("Segoe UI Semibold", UI.SF(19f)))
-        {
-            Size numSz = TextRenderer.MeasureText(g, count.ToString(), fn);
-            int numY = UI.S(6);
-            TextRenderer.DrawText(g, count.ToString(), fn, new Point(UI.S(16), numY), count > 0 ? Accent : UI.Muted);
-            using (Font fc = new Font("Segoe UI", UI.SF(8.5f)))
-            {
-                int capY = numY + numSz.Height - UI.S(2);
-                TextRenderer.DrawText(g, Caption, fc, new Rectangle(UI.S(16), capY, Width - UI.S(20), Height - capY), UI.Muted, TextFormatFlags.Left | TextFormatFlags.WordBreak);
-            }
-        }
+        using (Font fn = new Font("Segoe UI Semibold", 20f)) TextRenderer.DrawText(g, count.ToString(), fn, new Point(16, 6), count > 0 ? Accent : UI.Muted);
+        using (Font fc = new Font("Segoe UI", 9f)) TextRenderer.DrawText(g, Caption, fc, new Point(18, 44), UI.Muted);
     }
 }
 
@@ -7627,19 +7173,18 @@ class TabStrip : Control
     public TabStrip()
     {
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
-        Height = UI.S(38); Cursor = Cursors.Hand; BackColor = UI.Bg;
+        Height = 38; Cursor = Cursors.Hand; BackColor = UI.Bg;
     }
     public int Selected { get { return selected; } set { selected = value; Invalidate(); if (SelectedChanged != null) SelectedChanged(this, EventArgs.Empty); } }
     public void SetText(int i, string t) { if (Items[i] == t) return; Items[i] = t; Invalidate(); }
     Rectangle ItemRect(Graphics g, int i, Font f)
     {
         int x = 0;
-        int pad = UI.S(28);
         for (int k = 0; k <= i; k++)
         {
-            int w = TextRenderer.MeasureText(g, Items[k], f).Width + pad;
+            int w = TextRenderer.MeasureText(g, Items[k], f).Width + 28;
             if (k == i) return new Rectangle(x, 0, w, Height);
-            x += w + UI.S(4);
+            x += w + 4;
         }
         return Rectangle.Empty;
     }
@@ -7647,15 +7192,13 @@ class TabStrip : Control
     {
         Graphics g = e.Graphics;
         using (Pen line = new Pen(UI.Line)) g.DrawLine(line, 0, Height - 1, Width, Height - 1);
-        int barH = UI.S(2);
-        int barPad = UI.S(8);
         for (int i = 0; i < Items.Count; i++)
         {
-            using (Font f = new Font(i == selected ? "Segoe UI Semibold" : "Segoe UI", UI.SF(9.5f)))
+            using (Font f = new Font(i == selected ? "Segoe UI Semibold" : "Segoe UI", 10f))
             {
                 Rectangle r = ItemRect(g, i, f);
                 TextRenderer.DrawText(g, Items[i], f, r, i == selected ? UI.Accent : UI.Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-                if (i == selected) using (SolidBrush b = new SolidBrush(UI.Accent)) g.FillRectangle(b, r.X + barPad, Height - barH, r.Width - (barPad * 2), barH);
+                if (i == selected) using (SolidBrush b = new SolidBrush(UI.Accent)) g.FillRectangle(b, r.X + 6, Height - 3, r.Width - 12, 3);
             }
         }
     }
@@ -7663,7 +7206,7 @@ class TabStrip : Control
     {
         using (Graphics g = CreateGraphics())
             for (int i = 0; i < Items.Count; i++)
-                using (Font f = new Font(i == selected ? "Segoe UI Semibold" : "Segoe UI", UI.SF(9.5f)))
+                using (Font f = new Font(i == selected ? "Segoe UI Semibold" : "Segoe UI", 10f))
                     if (ItemRect(g, i, f).Contains(e.Location)) { Selected = i; break; }
         base.OnMouseClick(e);
     }
@@ -8077,27 +7620,27 @@ public partial class DiagGui
         dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
         dlg.MaximizeBox = false; dlg.MinimizeBox = false;
         dlg.StartPosition = FormStartPosition.CenterParent;
-        dlg.ClientSize = new Size(UI.S(440), UI.S(145));
+        dlg.ClientSize = new Size(440, 145);
         dlg.BackColor = UI.Bg; dlg.Font = new Font("Segoe UI", 9f);
 
         Label lbl = new Label();
         lbl.Text = prompt;
-        lbl.Location = new Point(UI.S(16), UI.S(14));
-        lbl.Size = new Size(UI.S(408), UI.S(30));
+        lbl.Location = new Point(16, 14);
+        lbl.Size = new Size(408, 30);
 
         TextBox tb = new TextBox();
         tb.Text = defaultValue ?? "";
-        tb.Location = new Point(UI.S(16), UI.S(48));
-        tb.Size = new Size(UI.S(408), UI.S(24));
+        tb.Location = new Point(16, 48);
+        tb.Size = new Size(408, 24);
 
         Button btnOk = UI.Primary("Speichern");
-        btnOk.Location = new Point(UI.S(226), UI.S(92));
-        btnOk.Size = new Size(UI.S(95), UI.S(32));
+        btnOk.Location = new Point(226, 92);
+        btnOk.Size = new Size(95, 32);
         btnOk.DialogResult = DialogResult.OK;
 
         Button btnCancel = UI.Secondary("Abbrechen");
-        btnCancel.Location = new Point(UI.S(328), UI.S(92));
-        btnCancel.Size = new Size(UI.S(96), UI.S(32));
+        btnCancel.Location = new Point(328, 92);
+        btnCancel.Size = new Size(96, 32);
         btnCancel.DialogResult = DialogResult.Cancel;
 
         dlg.Controls.Add(lbl); dlg.Controls.Add(tb); dlg.Controls.Add(btnOk); dlg.Controls.Add(btnCancel);
@@ -8153,56 +7696,38 @@ public partial class DiagGui
 
     Control BuildDbPage()
     {
-        Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel;
-        FlowLayoutPanel top = Page("Vergleichsdatenbank", "Jeder Lauf wird als System gespeichert. Hier lassen sich bereits geprüfte Systeme ohne neuen Benchmark vergleichen: mindestens zwei Systeme anhaken und \"Vergleichen\" klicken. Ältere Ausgabeordner lassen sich importieren. Ein Klick auf die Spaltenköpfe sortiert die Einträge.", -1);
-        top.Dock = DockStyle.Top;
-        top.AutoSize = true;
-        lblDbPath = Lbl("Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lblDbPath.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8)); top.Controls.Add(lblDbPath);
-
-        FlowLayoutPanel bottom = new FlowLayoutPanel(); bottom.FlowDirection = FlowDirection.TopDown; bottom.WrapContents = false; bottom.AutoSize = true; bottom.BackColor = UI.Panel; bottom.Dock = DockStyle.Bottom;
-        Label hint = Lbl("Doppelklick öffnet den Bericht des Laufs. Graue Einträge enthalten keine Benchmark-Werte. Klick auf Spaltenkopf sortiert die Tabelle.", 8.75f, false, UI.Muted); hint.Margin = new Padding(UI.S(4), UI.S(4), UI.S(4), 0); bottom.Controls.Add(hint);
-        FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(10), 0, 0);
-        btnCompare = UI.Primary("Vergleichen"); btnCompare.Margin = new Padding(0); btnCompare.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnCompare.Font = new Font("Segoe UI Semibold", 9.75f);
-        btnCompare.Click += delegate { CompareSelected(); };
-        btnRename = UI.Secondary("Name ändern ..."); btnRename.Margin = new Padding(UI.S(8), 0, 0, 0);
-        btnRename.Click += delegate { RenameSelectedEntry(); };
-        btnRename.Enabled = false;
-        Tip(btnRename, "Bearbeitet den Anzeigenamen des ausgewählten Systems (z. B. für Notizen wie Vor Reinigung oder Neuer Treiber), ohne die Hardware-Erkennung zu verändern.");
-        Button imp = UI.Secondary("Importieren ..."); imp.Margin = new Padding(UI.S(8), 0, 0, 0);
-        imp.Click += delegate { ImportFolder(); };
-        btnDelete = UI.Secondary("Entfernen"); btnDelete.Margin = new Padding(UI.S(8), 0, 0, 0); btnDelete.Click += delegate { DeleteSelected(); };
-        Button rel = UI.Secondary("Aktualisieren"); rel.Margin = new Padding(UI.S(8), 0, 0, 0); rel.Click += delegate { ReloadDb(); };
-        Button open = UI.Secondary("Datenordner"); open.Margin = new Padding(UI.S(8), 0, 0, 0); open.Click += delegate { if (dataDir.Length > 0) OpenShell(dataDir); };
-        btnDbClean = UI.Secondary("Aufräumen ..."); btnDbClean.Margin = new Padding(UI.S(8), 0, 0, 0); btnDbClean.Click += delegate { CleanData(); }; btnDbClean.Enabled = dataDir.Length > 0;
-        Tip(imp, "Übernimmt Benchmark-Werte aus Ausgabeordnern früherer Läufe in die Datenbank (auch von PC-Diagnose).");
-        Tip(rel, "Liest Datenbank und Referenz neu ein.");
-        Tip(open, "Öffnet den Datenordner (Berichte, Datenbank, Tools, Archiv).");
-        b.Controls.Add(btnCompare); b.Controls.Add(btnRename); b.Controls.Add(imp); b.Controls.Add(btnDelete); b.Controls.Add(rel); b.Controls.Add(btnDbClean); b.Controls.Add(open); bottom.Controls.Add(b);
-        lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
-        lblDbClean.Margin = new Padding(UI.S(4), UI.S(8), UI.S(4), 0); bottom.Controls.Add(lblDbClean);
-        bottom.Resize += delegate { lblDbClean.MaximumSize = new Size(Math.Max(UI.S(200), bottom.ClientSize.Width - UI.S(10)), 0); };
-
-        lvDb = new ListView(); lvDb.View = View.Details; lvDb.FullRowSelect = true; lvDb.CheckBoxes = true; lvDb.Dock = DockStyle.Fill; lvDb.BorderStyle = BorderStyle.FixedSingle; lvDb.HideSelection = false; lvDb.ShowItemToolTips = true;
+        FlowLayoutPanel f = Page("Vergleichsdatenbank", "Jeder Lauf wird als System gespeichert. Hier lassen sich bereits geprüfte Systeme ohne neuen Benchmark vergleichen: mindestens zwei Systeme anhaken und \"Vergleichen\" klicken. Ältere Ausgabeordner lassen sich importieren. Ein Klick auf die Spaltenköpfe sortiert die Einträge.", -1);
+        lblDbPath = Lbl("Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lblDbPath.Margin = new Padding(3, 0, 3, 8); f.Controls.Add(lblDbPath);
+        lvDb = new ListView(); lvDb.View = View.Details; lvDb.FullRowSelect = true; lvDb.CheckBoxes = true; lvDb.Width = 880; lvDb.Height = 360; lvDb.BorderStyle = BorderStyle.FixedSingle; lvDb.HideSelection = false; lvDb.ShowItemToolTips = true;
         string[] cols = new string[] { "System", "Datum", "Gesamt", "Prozessor", "Grafik", "Arbeitsspeicher", "CPU Mehrkern", "RAM Lesen", "GPU", "Befunde K/W/I" };
-        int[] w = new int[] { UI.S(135), UI.S(95), UI.S(65), UI.S(125), UI.S(115), UI.S(105), UI.S(80), UI.S(70), UI.S(70), UI.S(62) };
+        int[] w = new int[] { 135, 95, 65, 125, 115, 105, 80, 70, 70, 62 };
         for (int i = 0; i < cols.Length; i++) lvDb.Columns.Add(cols[i], w[i]);
-        lvDb.Resize += delegate {
-            int rem = lvDb.ClientSize.Width;
-            for (int i = 0; i < lvDb.Columns.Count - 1; i++) rem -= lvDb.Columns[i].Width;
-            if (rem > UI.S(60)) lvDb.Columns[lvDb.Columns.Count - 1].Width = rem - 2;
-        };
         lvDb.DoubleClick += delegate { if (lvDb.SelectedItems.Count > 0) OpenEntry((DbEntry)lvDb.SelectedItems[0].Tag); };
         lvDb.ItemChecked += delegate { UpdateDbButtons(); };
         lvDb.SelectedIndexChanged += delegate { UpdateDbButtons(); };
         lvDb.ColumnClick += OnDbColumnClick;
         Tip(lvDb, "Vergleichsdatenbank aller gespeicherten Systeme. Ein Klick auf die Spaltenköpfe sortiert nach Datum, Gesamtwertung, CPU oder GPU.");
-
         f.Controls.Add(lvDb);
-        f.Controls.Add(bottom);
-        f.Controls.Add(top);
-        top.SendToBack();
-        bottom.SendToBack();
-
+        Label hint = Lbl("Doppelklick öffnet den Bericht des Laufs. Graue Einträge enthalten keine Benchmark-Werte. Klick auf Spaltenkopf sortiert die Tabelle.", 8.75f, false, UI.Muted); hint.Margin = new Padding(3, 4, 3, 0); f.Controls.Add(hint);
+        FlowLayoutPanel b = Row(); b.Margin = new Padding(0, 10, 0, 0);
+        btnCompare = UI.Primary("Vergleichen"); btnCompare.Margin = new Padding(0); btnCompare.Padding = new Padding(14, 3, 14, 3); btnCompare.Font = new Font("Segoe UI Semibold", 9.75f);
+        btnCompare.Click += delegate { CompareSelected(); };
+        btnRename = UI.Secondary("Name ändern ...");
+        btnRename.Click += delegate { RenameSelectedEntry(); };
+        btnRename.Enabled = false;
+        Tip(btnRename, "Bearbeitet den Anzeigenamen des ausgewählten Systems (z. B. für Notizen wie Vor Reinigung oder Neuer Treiber), ohne die Hardware-Erkennung zu verändern.");
+        Button imp = UI.Secondary("Importieren ...");
+        imp.Click += delegate { ImportFolder(); };
+        btnDelete = UI.Secondary("Entfernen"); btnDelete.Click += delegate { DeleteSelected(); };
+        Button rel = UI.Secondary("Aktualisieren"); rel.Click += delegate { ReloadDb(); };
+        Button open = UI.Secondary("Datenordner"); open.Click += delegate { if (dataDir.Length > 0) OpenShell(dataDir); };
+        btnDbClean = UI.Secondary("Aufräumen ..."); btnDbClean.Click += delegate { CleanData(); }; btnDbClean.Enabled = dataDir.Length > 0;
+        Tip(imp, "Übernimmt Benchmark-Werte aus Ausgabeordnern früherer Läufe in die Datenbank (auch von PC-Diagnose).");
+        Tip(rel, "Liest Datenbank und Referenz neu ein.");
+        Tip(open, "Öffnet den Datenordner (Berichte, Datenbank, Tools, Archiv).");
+        b.Controls.Add(btnCompare); b.Controls.Add(btnRename); b.Controls.Add(imp); b.Controls.Add(btnDelete); b.Controls.Add(rel); b.Controls.Add(btnDbClean); b.Controls.Add(open); f.Controls.Add(b);
+        lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
+        lblDbClean.MaximumSize = new Size(880, 0); lblDbClean.Margin = new Padding(3, 8, 3, 0); f.Controls.Add(lblDbClean);
         FillDbList();
         return f;
     }
@@ -8329,13 +7854,9 @@ public partial class DiagGui
 {
     Control BuildVersionPage()
     {
-        Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel;
-        FlowLayoutPanel top = Page("Versionen", "Was sich von Version zu Version geändert hat, neueste zuerst. Ausführlich in den Änderungsdateien im Ordner Doku des Projekts (Änderungen_vX.Y.txt).", -1);
-        top.Dock = DockStyle.Top;
-        top.AutoSize = true;
-        top.Padding = new Padding(0, 0, 0, UI.S(10));
+        FlowLayoutPanel f = Page("Versionen", "Was sich von Version zu Version geändert hat, neueste zuerst. Ausführlich in den Änderungsdateien im Ordner Doku des Projekts (Änderungen_vX.Y.txt).", -1);
         RichTextBox rt = new RichTextBox(); rt.ReadOnly = true; rt.BorderStyle = BorderStyle.FixedSingle; rt.BackColor = UI.Panel; rt.ForeColor = UI.Text;
-        rt.Dock = DockStyle.Fill; rt.DetectUrls = false; rt.ScrollBars = RichTextBoxScrollBars.Vertical; rt.Font = new Font("Segoe UI", 9.75f);
+        rt.Width = 880; rt.Height = 560; rt.DetectUrls = false; rt.ScrollBars = RichTextBoxScrollBars.Vertical; rt.Font = new Font("Segoe UI", 9.75f);
         Font fh = new Font("Segoe UI Semibold", 11f), fd = new Font("Segoe UI", 9f), fb = new Font("Segoe UI", 9.75f);
         foreach (Versionshistorie.Eintrag e in Versionshistorie.Liste)
         {
@@ -8348,39 +7869,17 @@ public partial class DiagGui
         }
         rt.SelectionStart = 0; rt.ScrollToCaret();
         f.Controls.Add(rt);
-        f.Controls.Add(top);
-        top.SendToBack();
         return f;
     }
 
     Control BuildChangePage()
     {
-        Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel;
-        FlowLayoutPanel top = Page("Änderungen", "Alles, was Leos Minibench an einem PC verändert hat, mit Vorher-Wert. Einträge der Stufe Ändern lassen sich auf dem PC, auf dem sie entstanden sind, zurücknehmen. Eingriffe stehen mit dem Weg zurück als Hinweis in der Liste.", -1);
-        top.Dock = DockStyle.Top;
-        top.AutoSize = true;
-        Label lp = Lbl("Protokoll: " + (changeDir.Length > 0 ? changeDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lp.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8)); top.Controls.Add(lp);
-
-        FlowLayoutPanel bottom = new FlowLayoutPanel(); bottom.FlowDirection = FlowDirection.TopDown; bottom.WrapContents = false; bottom.AutoSize = true; bottom.BackColor = UI.Panel; bottom.Dock = DockStyle.Bottom;
-        Label hint = Lbl("Anhaken lassen sich nur aktive Einträge dieses PCs. Graue Einträge sind Hinweise, bereits zurückgenommen oder stammen von einem anderen PC.", 8.75f, false, UI.Muted); hint.Margin = new Padding(UI.S(4), UI.S(4), UI.S(4), 0); bottom.Controls.Add(hint);
-        FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(10), 0, 0);
-        btnUndo = UI.Primary("Rückgängig machen"); btnUndo.Margin = new Padding(0); btnUndo.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnUndo.Font = new Font("Segoe UI Semibold", 9.75f);
-        btnUndo.Click += delegate { UndoSelected(); };
-        Button rel = UI.Secondary("Aktualisieren"); rel.Margin = new Padding(UI.S(8), 0, 0, 0); rel.Click += delegate { ReloadDb(); };
-        Button open = UI.Secondary("Protokollordner"); open.Margin = new Padding(UI.S(8), 0, 0, 0); open.Click += delegate { if (changeDir.Length > 0 && Directory.Exists(changeDir)) OpenShell(changeDir); else if (dataDir.Length > 0) OpenShell(dataDir); };
-        Tip(rel, "Liest das Änderungsprotokoll neu ein.");
-        Tip(open, "Öffnet den Protokollordner.");
-        b.Controls.Add(btnUndo); b.Controls.Add(rel); b.Controls.Add(open); bottom.Controls.Add(b);
-
-        lvChg = new ListView(); lvChg.View = View.Details; lvChg.FullRowSelect = true; lvChg.CheckBoxes = true; lvChg.Dock = DockStyle.Fill; lvChg.BorderStyle = BorderStyle.FixedSingle; lvChg.HideSelection = false; lvChg.ShowItemToolTips = true;
+        FlowLayoutPanel f = Page("Änderungen", "Alles, was Leos Minibench an einem PC verändert hat, mit Vorher-Wert. Einträge der Stufe Ändern lassen sich auf dem PC, auf dem sie entstanden sind, zurücknehmen. Eingriffe stehen mit dem Weg zurück als Hinweis in der Liste.", -1);
+        Label lp = Lbl("Protokoll: " + (changeDir.Length > 0 ? changeDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lp.Margin = new Padding(3, 0, 3, 8); f.Controls.Add(lp);
+        lvChg = new ListView(); lvChg.View = View.Details; lvChg.FullRowSelect = true; lvChg.CheckBoxes = true; lvChg.Width = 880; lvChg.Height = 360; lvChg.BorderStyle = BorderStyle.FixedSingle; lvChg.HideSelection = false; lvChg.ShowItemToolTips = true;
         string[] cols = new string[] { "Zeit", "Computer", "Maßnahme", "Ziel", "Vorher", "Nachher", "Status" };
-        int[] w = new int[] { UI.S(112), UI.S(100), UI.S(170), UI.S(190), UI.S(90), UI.S(110), UI.S(96) };
+        int[] w = new int[] { 112, 100, 170, 190, 90, 110, 96 };
         for (int i = 0; i < cols.Length; i++) lvChg.Columns.Add(cols[i], w[i]);
-        lvChg.Resize += delegate {
-            int rem = lvChg.ClientSize.Width;
-            for (int i = 0; i < lvChg.Columns.Count - 1; i++) rem -= lvChg.Columns[i].Width;
-            if (rem > UI.S(60)) lvChg.Columns[lvChg.Columns.Count - 1].Width = rem - 2;
-        };
         lvChg.ItemCheck += delegate(object sender, ItemCheckEventArgs e)
         {
             ChangeEntry c = lvChg.Items[e.Index].Tag as ChangeEntry;
@@ -8392,13 +7891,14 @@ public partial class DiagGui
             if (e.Item.Checked && c != null && !c.Undoable) { e.Item.Checked = false; return; }
             UpdateChangeButtons();
         };
-
         f.Controls.Add(lvChg);
-        f.Controls.Add(bottom);
-        f.Controls.Add(top);
-        top.SendToBack();
-        bottom.SendToBack();
-
+        Label hint = Lbl("Anhaken lassen sich nur aktive Einträge dieses PCs. Graue Einträge sind Hinweise, bereits zurückgenommen oder stammen von einem anderen PC.", 8.75f, false, UI.Muted); hint.Margin = new Padding(3, 4, 3, 0); f.Controls.Add(hint);
+        FlowLayoutPanel b = Row(); b.Margin = new Padding(0, 10, 0, 0);
+        btnUndo = UI.Primary("Rückgängig machen"); btnUndo.Margin = new Padding(0); btnUndo.Padding = new Padding(14, 3, 14, 3); btnUndo.Font = new Font("Segoe UI Semibold", 9.75f);
+        btnUndo.Click += delegate { UndoSelected(); };
+        Button rel = UI.Secondary("Aktualisieren"); rel.Click += delegate { ReloadDb(); };
+        Button open = UI.Secondary("Protokollordner"); open.Click += delegate { if (changeDir.Length > 0 && Directory.Exists(changeDir)) OpenShell(changeDir); else if (dataDir.Length > 0) OpenShell(dataDir); };
+        b.Controls.Add(btnUndo); b.Controls.Add(rel); b.Controls.Add(open); f.Controls.Add(b);
         FillChangeList();
         return f;
     }
@@ -9101,12 +8601,6 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
-        new Eintrag("3.2", "06.10.2026", "Fluent 2 / Wintoys-Look, Windows 11 DWM-Rundungen, Segoe-Icons und responsive Notebook-Skalierung",
-            "Fluent 2-Designsystem: Modernes helles Farbschema (#F9F9FB Hintergrund, weiße Karten mit feinem 1px-Rahmen #E5E7EB, Windows 11-Akzentblau #0067C0 und pastellfarbene Status-Badges). " +
-            "Moderne Steuerelemente: Eigener ToggleSwitch im Windows 11-Pillendesign mit animiertem Schieber und barrierefreiem Fokus; FluentCard-Komponente für modulare Optionen mit Segoe-Icons und integrierten Schaltern. " +
-            "Modul-Navigation: Neugestaltetes NavItem im Windows 11-Sidebar-Stil mit 6 px Eckenrundung, aktivem 3 px-Akzentbalken und gestochen scharfen Segoe-Symbolen (Segoe Fluent Icons / MDL2 Assets). " +
-            "DWM-Integration: Echte Windows 11-Fensterabrundung über DWMWA_WINDOW_CORNER_PREFERENCE (DWMWCP_ROUND), PerMonitorV2 DPI-Awareness ohne veraltetes SetProcessDPIAware. " +
-            "Zentraler DPI-Helper & Notebook-Sicherheit: Vollständige Skalierung über UI.S(...) und UI.SF(...), dynamische Fenstergröße anhand des Arbeitsbereichs (WorkingArea) gegen Überlauf auf 1080p-Notebooks mit 150 % Skalierung."),
         new Eintrag("3.1", "05.10.2026", "Bugfix-Release: Vergleichsseite, eingebettete Referenzdaten, CPU-Benchmark und Grafiktest auf Einsteiger-GPUs",
             "Vergleichsseite: Fehlerbehebung beim Einlesen der Systemdatenbank und Logging im JSON-Parser (DbEntry.Load), sodass Systeme zuverlässig angezeigt werden. " +
             "Eingebettete Referenzdaten: Fünf anonyme Referenzprofile (Desktop High-End bis Notebook Standard) direkt im Skript eingebettet und bei leerer Datenbank automatisch entpackt. " +

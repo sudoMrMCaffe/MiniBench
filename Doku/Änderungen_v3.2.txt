@@ -1,0 +1,109 @@
+﻿LEOS MINIBENCH 3.2: ÄNDERUNGEN
+==============================
+
+Version 3.2 ist ein umfassendes Design-, Modernisierungs- und High-DPI-Release ("Fluent 2 / Wintoys-Look").
+Die grafische Benutzeroberfläche wurde visuell an moderne Windows 11-Systemanwendungen angeglichen
+(Card-Layout, moderne Toggle-Switches im Pillendesign statt alter Standard-Checkboxen, gestochen scharfe
+Segoe-Icons und native Windows 11 DWM-Fensterabrundung). Gleichzeitig behebt Version 3.2 sämtliche High-DPI-
+und Skalierungsprobleme auf mobilen Arbeitsgeräten (insbesondere Full-HD-Notebooks mit 150 % Windows-Skalierung)
+unter strenger Einhaltung von AGENTS.md (Windows PowerShell 5.1 und C# 5, .NET Framework 4.0, UTF-8 mit BOM).
+
+1. FLUENT 2-DESIGNSYSTEM UND MODERNER WINTOYS-LOOK
+   - Farbpalette: Einführung eines modernen Fluent 2-Farbschemas mit hellem App-Hintergrund (#F9F9FB),
+     reinen weißen Panels und Karten mit dezentem 1px-Rahmen (#E5E7EB), Windows 11-Akzentblau (#0067C0,
+     Hover #005A9E, Active #004F8A), sanftem Auswahl-Hintergrund (#EBF3FB) sowie optimierten Textfarben
+     (Haupttext #1C1D1F, Muted-Hinweistext #5F6368).
+   - Pastell-Statusbadges: Überarbeitung der Statusfarben für OK, Warnung, Kritisch und Info mit sanften
+     Pastellhintergründen und abgerundeten Pillen für optimale Ablesbarkeit ohne aggressive Signalfarben.
+   - Segoe-Symbolschriftarten: Nutzung der in Windows 10 und 11 vorinstallierten Schriftarten
+     "Segoe Fluent Icons" (mit strukturiertem Fallback auf "Segoe MDL2 Assets" und "Segoe UI Symbol")
+     für gestochen scharfe Symbole in der Navigation und den Modulkarten:
+     * Hardware & Prozessor: \uE7F8
+     * Arbeitsspeicher: \uE7F4
+     * Grafik: \uE790
+     * Datenträger: \uEDA2
+     * Diagnose: \uE9D9
+     * Wartung: \uE90F
+     * Vergleichsdatenbank: \uE81E
+     * Änderungen & Protokoll: \uE81C
+
+2. NEUE MODERNE STEUERELEMENTE (TOGGLESWITCH, FLUENTCARD, NAVITEM)
+   - Windows 11 ToggleSwitch:
+     * Neues eigenständiges Steuerelement ToggleSwitch : Control in src\Oberflaeche\DiagGui_Steuerelemente.cs.
+     * Pillenförmige Spur (Höhe UI.S(20), Breite UI.S(38)) mit Radius UI.S(10).
+     * Runder weißer Schieber-Knopf (Durchmesser UI.S(14)) mit subtiler Schattenzeichnung.
+     * Aus-Zustand: Weißer Schieber links mit feiner grauer Kontur (#767676 / #D1D5DB).
+     * An-Zustand: Weißer Schieber rechts, Spur im Windows-Akzentblau gefüllt.
+     * Volle Tastaturbedienung mit Leertaste, Klick-Umschaltung, barrierefreies Fokus-Rechteck
+       und vollständige Tooltip-Unterstützung.
+   - FluentCard-Komponente (Wintoys-Kartenansicht):
+     * Modulare Optionskarten mit weißem Hintergrund, 1px-Rahmen (#E5E7EB) und abgerundeten Ecken (UI.S(8)).
+     * Links: Optionales Segoe-Symbol + Titel (Segoe UI Semibold UI.SF(10)) + Erklärung (Segoe UI UI.SF(8.5) Muted).
+     * Rechts: Eingebetteter ToggleSwitch oder Aktions-Button.
+     * Ein Klick auf die Karte schaltet den Toggle komfortabel um (wie in den Windows 11-Einstellungen).
+   - Modernisierte Modul-Navigation (NavItem):
+     * Windows 11-Sidebar-Stil mit 6 px Eckenrundung (UI.S(6)).
+     * Aktiver Zustand (Selected): Links ein 3 px breiter, abgerundeter blauer Akzentbalken und weicher
+       Auswahlhintergrund (AccentSoft).
+     * Anzeige von Segoe-Symbol, Modultitel und kompakter Statuszeile; responsive Gesamthöhe und Abstände.
+   - StatCard & TabStrip:
+     * StatCard mit sanften Ecken (UI.S(8)), 1px-Rahmen sowie responsiv untereinander platzierten Ziffern
+       und Beschriftungen ohne feste vertikale Kollisions-Offsets.
+     * TabStrip mit schlankem Design und horizontalem, 2 px starkem Akzent-Unterstrich für den aktiven Tab.
+
+3. ZENTRALER DPI-HELPER UND DWM-INTEGRATION
+   - Zentraler DPI-Helper: In src\Oberflaeche\DiagGui_Steuerelemente.cs (Klasse UI) kapseln UI.DpiScale
+     sowie UI.S(int px) und UI.SF(float px) sämtliche Skalierungsberechnungen zentral. Beim Anwendungsstart
+     wird der exakte Skalierungsfaktor über Graphics.FromHwnd(IntPtr.Zero).DpiX / 96.0f ermittelt.
+   - DWM-Fensterrundung: Einbindung von DWM P/Invoke DwmSetWindowAttribute mit DWMWA_WINDOW_CORNER_PREFERENCE
+     (Attribut 33, DWMWCP_ROUND = 2) für echte Windows 11-Fensterabrundung.
+   - PerMonitorV2 DPI-Awareness: Bereinigung der DPI-Initialisierung durch SetProcessDpiAwarenessContext((IntPtr)(-4))
+     mit Fallback auf SetProcessDpiAwareness(2) und vollständige Entfernung des veralteten SetProcessDPIAware().
+
+4. RESPONSIVES FENSTERLAYOUT UND NOTEBOOK-SICHERHEIT
+   - Dynamische Fenstermaße: Auf 1080p-Notebooks mit 150 % Windows-Skalierung (netto ca. 1280x670 Pixel)
+     wird die Startgröße des Hauptfensters dynamisch anhand des sichtbaren Arbeitsbereichs (WorkingArea)
+     berechnet:
+     * Breite: Math.Min(UI.S(1120), (int)(Screen.WorkingArea.Width * 0.94))
+     * Höhe: Math.Min(UI.S(680), (int)(Screen.WorkingArea.Height * 0.88))
+   - Mindestgröße: MinimumSize wurde auf UI.S(860), UI.S(540) festgelegt, sodass die Fußleiste mit den
+     Start- und Abbruchknöpfen niemals aus dem sichtbaren Bildschirmbereich herausgeschoben wird.
+   - Responsive Seiten: Entfernung aller starren Breitenangaben (880 px) in Versionen, Änderungen und
+     Vergleichsdatenbank. Vollständige Ausnutzung der Fensterbreite per DockStyle.Fill und automatische
+     Restbreiten-Ausfüllung der ListViews im Resize-Ereignis.
+   - Laufansicht & Tabellen-OwnerDraw: Skalierte Zeilenhöhe (UI.S(34)), präzise zentrierte Badge-Pillen
+     mit Textmessung sowie auf UI.S(48) verbreiterte numerische Anzeigebereiche bei WinSAT- und Indexbalken
+     (Balkenhöhe UI.S(8)) verhindern abgeschnittene Messwerte bei 150 % und 200 % Skalierung.
+
+GEFUNDEN UND BEHOBEN
+  1. Veralteten P/Invoke-Aufruf SetProcessDPIAware() entfernt, der zuvor moderne PerMonitorV2-Kontexte
+     überschreiben konnte; ersetzt durch DWM-Attribute und SetProcessDpiAwarenessContext.
+  2. Fensterüberlauf auf 1080p-Notebooks mit 150 % Skalierung behoben: Höhe auf 88 % des sichtbaren
+     Arbeitsbereichs begrenzt und Mindestgröße auf 860x540 px abgesenkt.
+  3. Starre Breiten (880 px) bei RichTextBox, lvChg und lvDb entfernt; Umstellung auf DockStyle.Fill
+     und automatische Restbreiten-Ausfüllung.
+  4. Kollidierende Textpositionen in StatCard bei 150 % Skalierung durch dynamische Textmessung und
+     relative Platzierung behoben.
+  5. WinSAT- und Index-Balkenhöhe vereinheitlicht (8 px) und Zahlenbereich auf 48 px verbreitert gegen
+     Textabschneiden.
+  6. Echte Windows 11-Fensterabrundung über DWMWA_WINDOW_CORNER_PREFERENCE integriert.
+
+GRENZEN
+  - Unter älteren Windows-Versionen (Windows 7 / 8.1) ignoriert Windows das DWM-Rundungsattribut geräuschlos;
+    das Fenster wird dort mit normalen Fensterrahmen dargestellt.
+  - Auf Systemen ohne vorinstallierte Segoe Fluent Icons greift die Anwendung automatisch auf
+    Segoe MDL2 Assets bzw. Segoe UI Symbol zurück.
+
+UMSTIEG
+  1. Bauen.cmd ausführen (erzeugt LeosMinibench.exe und LeosMinibench.ps1 für v3.2).
+  2. Inhalt des Ordners "Aktueller Build" auf den USB-Stick kopieren.
+  3. Alle bestehenden Datenbanken, Berichte und Prüfsummen bleiben voll kompatibel.
+
+ERGEBNIS
+  Alle Pester-Tests bestanden (0 Fehler). Vollständige C# 5-Kompilierung ohne Warnungen.
+  Design entspricht modernen Windows 11 Fluent 2- und Wintoys-Standards.
+
+QUELLEN
+  https://learn.microsoft.com/windows/apps/design/style/color
+  https://learn.microsoft.com/windows/apps/design/style/segoe-fluent-icons-font
+  https://learn.microsoft.com/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
