@@ -6,7 +6,7 @@
 
 **Portable Diagnose-, Benchmark-, Stresstest-, Reparatur- und Optimierungs-Suite für Windows 10 & 11.**
 
-> 💡 **Hinweis:** *Leos Minibench* ist mein erstes **Vibe Coding**-Projekt – von der Konzeption über die native PowerShell 5.1- & C# 5-Architektur bis hin zum modernen Fluent 2-Look vollständig im interaktiven Pair-Programming mit KI entwickelt und gehärtet.
+> 💡 **Hinweis:** *Minibench* ist mein erstes **Vibe Coding**-Projekt – von der Konzeption über die native PowerShell 5.1- & C# 5-Architektur bis hin zum modernen Fluent 2-Look vollständig im interaktiven Pair-Programming mit KI entwickelt.
 
 [![Version](https://img.shields.io/badge/Version-3.2-0284c7.svg)](CHANGELOG.md)
 [![Changelog](https://img.shields.io/badge/Changelog-MD-6366f1.svg)](CHANGELOG.md)
