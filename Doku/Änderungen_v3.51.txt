@@ -1,0 +1,77 @@
+﻿LEOS MINIBENCH 3.51: ÄNDERUNGEN
+==============================
+
+Version 3.51 (Hotfix) ermöglicht den direkten Aufruf vollständiger Diagnoseberichte aus
+dem Multi-System-Dashboard (Dashboard.html) und der Benutzeroberfläche, bereinigt doppelte
+Einträge von Referenzsystemen im Dashboard und sorgt für eine dauerhafte, automatische
+Wiederverbindung konfigurierter NAS-Netzlaufwerke beim Programmstart.
+
+1. DASHBOARD-BERICHTSVERLINKUNG & SCHNELLZUGRIFF
+   * Interaktiver Berichtsaufruf im Dashboard:
+     Im Multi-System-Dashboard (Dashboard.html) führen Klicks auf beliebige Systemnamen in
+     der Spezifikationstabelle, den Profil-Cards, der Benchmark-Matrix und der Befundübersicht
+     direkt zum ausführlichen Diagnosebericht (Diagnosebericht.html).
+   * Berichts-Buttons und Diagnosebericht-Zeile:
+     Die Kopfzeilen der Systemspalten bieten nun praktische "Bericht"-Schaltflächen, und in
+     der Hardware-Spezifikationstabelle verweist eine eigene Zeile direkt auf die HTML-Datei.
+   * Direkter Aufruf aus der Benutzeroberfläche:
+     Auf der Vergleichsseite (Datenbank) steht neben dem Dashboard-Button ein neuer Button
+     "Bericht öffnen" zur Verfügung, der den vollständigen Bericht des aktuell ausgewählten
+     Systems mit einem Klick im Standard-Browser öffnet.
+
+2. BEREINIGUNG DER REFERENZPROFILE (DEDUPLIZIERUNG)
+   * Saubere Trennung von Testsystemen und Referenzen:
+     Beim Export der Dashboard-Daten (Export-BenchDashboardData) werden die standardmäßig
+     in der Datenbank abgelegten Referenzsysteme (Desktop_HighEnd, Notebook_Mittelklasse etc.)
+     aus der allgemeinen Systemliste herausgefiltert.
+   * Einmalige Darstellung im Dashboard:
+     Referenzprofile erscheinen im Dashboard sauber und ausschließlich einmalig in der
+     dafür vorgesehenen Sektion "Referenzprofile (Eingebettet)" mit Stern-Symbol (⭐) statt
+     doppelt in Dropdowns und Auswahllisten.
+   * Clientseitige Deduplizierung:
+     Zusätzliche Absicherung im Dashboard-JavaScript verhindert doppelte Einträge anhand
+     eindeutiger System-IDs.
+
+3. PERSISTENTE NAS- & NETZLAUFWERK-VERBINDUNG
+   * Redundante Konfigurationsspeicherung:
+     Die Netzwerkkonfiguration (Netzwerk.json) wird redundant an allen lokalen Speicherorten
+     gesichert (neben LeosMinibench.exe, im lokalen Datenordner, im Benutzer-Dokumentenverzeichnis
+     sowie im lokalen Anwendungsdatenordner AppData).
+   * Automatischer Verbindungsaufbau beim Start:
+     Resolve-DataDir in Datenordner.ps1 prüft beim Programmstart die Erreichbarkeit und führt
+     bei Bedarf automatisch "net use <Pfad> /persistent:yes" im Hintergrund aus, um abgelaufene
+     oder getrennte SMB-Sitzungen ohne Benutzereingriff wiederherzustellen.
+   * Dynamische Aktualisierung in der Oberfläche:
+     Nach erfolgreicher Verbindung eines Netzlaufwerks wird die Pfadanzeige in der Titelleiste
+     und Statuszeile live aktualisiert, und Berichte sowie Benchmark-Daten stehen sofort bereit.
+
+GEFUNDEN UND BEHOBEN
+  1. Fehlende Berichtsnavigation im Dashboard: Systeme besaßen im HTML-Dashboard keine direkte
+     Verknüpfung zu ihrem ausführlichen Einzelbericht; behoben durch Generierung von ReportUrl
+     beim Dashboard-Export und Klick-Verlinkung aller Systemtitel.
+  2. Doppelte Referenzsysteme im Dashboard: Eingebettete Referenzprofile tauchten durch das
+     Einlesen des Datenbankordners doppelt auf (mit und ohne Stern); behoben durch Filterung
+     in Export-BenchDashboardData und JS-Deduplizierung.
+  3. NAS-Verbindungsverlust nach Neustart: Durch PowerShells System32-Arbeitsverzeichnis wurde
+     Netzwerk.json am falschen Ort gesucht und abgelegt; behoben durch redundante Pfade und
+     automatischen net use Reconnect.
+
+GRENZEN
+  - Berichte müssen im selben Verzeichnis (Minibench-Daten\Berichte) oder über einen gültigen
+    relativen bzw. absoluten Pfad erreichbar sein.
+  - Netzlaufwerk-Reconnect erfordert Netzwerkverbindung zur jeweiligen SMB-Freigabe.
+
+UMSTIEG
+  1. Bauen.cmd ausführen (baut LeosMinibench.exe und LeosMinibench.ps1 für v3.51).
+  2. Inhalt des Ordners 'Aktueller Build' auf den USB-Stick kopieren.
+  3. Bisherige Datenbanken, Berichte und Netzwerkeinstellungen bleiben vollständig erhalten.
+
+ERGEBNIS
+  Alle Pester-Tests bestanden.
+  Berichte sind direkt per Klick aus Dashboard und Benutzeroberfläche aufrufbar.
+  Referenzsysteme erscheinen ohne Dopplungen.
+  Netzlaufwerke bleiben nach Neustart dauerhaft erhalten.
+
+QUELLEN
+  - Microsoft Docs: net use Befehlsreferenz (/persistent).
+  - W3C HTML5 Spezifikation: Hyperlinks und relative URI-Auflösung.

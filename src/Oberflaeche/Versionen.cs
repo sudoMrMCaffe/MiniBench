@@ -11,6 +11,10 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.51", "07.10.2026", "Dashboard-Berichtsverlinkung, Referenz-Deduplizierung & persistente Netzlaufwerke",
+            "Dashboard-Berichtsverlinkung: Vollständige Diagnoseberichte können im Multi-System-Dashboard (Dashboard.html) direkt durch Klick auf Systemnamen oder über die neuen Bericht-Schaltflächen geöffnet werden. Auf der Vergleichsseite in der Benutzeroberfläche steht zusätzlich ein Button 'Bericht öffnen' bereit. " +
+            "Bereinigung der Referenzprofile: Referenzsysteme erscheinen im Dashboard sauber und ausschließlich einmalig unter 'Referenzprofile (Eingebettet)' mit Stern-Symbol (⭐) statt fälschlich zusätzlich in der regulären Datenbankliste. " +
+            "Persistente Netzlaufwerk-Verbindung: Die Konfiguration für NAS- und Netzlaufwerkablagen (Netzwerk.json) wird redundant an allen lokalen Speicherorten abgelegt. Beim Programmstart wird die Verbindung bei Bedarf automatisch via net use wiederhergestellt, sodass alle Berichte und Benchmark-Daten der Freigabe sofort geladen werden."),
         new Eintrag("3.5", "06.10.2026", "Taskleisten-Task-Beenden, Minimal-Preset-Standard, winget-Softwarepakete, NAS-Netzlaufwerke & interaktive Berichtsdiagramme",
             "Fehlerbehebung & Optimierungs-Presets: Entkopplung der Taskleisten-Gruppierung vom Task-Beenden; TaskbarEndTask als eigenständiger Eintrag mit Vorlagen MSE. Das Preset Minimal wurde auf ein schlankes Basispaket gestrafft und ist die neue Standardvorauswahl beim Start. " +
             "Erweitertes Fensterlayout: Vergrößerte, responsive Startfenstergröße (1220x740 mit Begrenzung auf 95 % / 92 % des Arbeitsbereichs) für optimalen Überblick ohne Überlauf auf skalierten Displays. " +

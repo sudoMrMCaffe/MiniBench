@@ -20,14 +20,14 @@ BeforeAll {
 }
 
 Describe 'Version 3.5 Deklaration und Dokumentation' {
-    It 'Version.ps1 definiert Version 3.5' {
+    It 'Version.ps1 definiert Version 3.5 oder höher' {
         $vPs1 = [IO.File]::ReadAllText((Join-Path $global:MinibenchSrcRoot 'Kern/Version.ps1'), [System.Text.Encoding]::UTF8)
-        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''3\.5'''
+        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''3\.5(1)?'''
     }
 
-    It 'Versionen.cs enthält den Eintrag für 3.5 an oberster Stelle' {
+    It 'Versionen.cs enthält den Eintrag für 3.5 oder höher an oberster Stelle' {
         $firstVer = [regex]::Match($global:V35Ver, 'new Eintrag\("([^"]+)"').Groups[1].Value
-        $firstVer | Should -Be '3.5'
+        $firstVer | Should -Match '^3\.5(1)?$'
     }
 
     It 'Doku/Versionshistorie.txt enthält den Eintrag für 3.5 an oberster Stelle' {

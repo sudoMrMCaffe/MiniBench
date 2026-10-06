@@ -1,6 +1,20 @@
-# Changelog - Leos Minibench
+﻿# Changelog - Leos Minibench
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
+
+## v3.51 (07.10.2026)
+
+* **Dashboard-Berichtsverlinkung & Schnellzugriff:**
+  * **Interaktive Berichtsaufrufe:** Im Multi-System-Dashboard (`Dashboard.html`) führen Klicks auf beliebige Systemnamen in Spezifikationstabelle, Profil-Cards, Benchmark-Matrix und Befundübersicht direkt zum zugehörigen Diagnosebericht (`Diagnosebericht.html`).
+  * **Berichts-Buttons & Spalte:** Tabellenköpfe und eine dedizierte Diagnosebericht-Zeile bieten direkte `📄 Bericht`-Links zur schnellen Detailanalyse.
+  * **Neuer 'Bericht öffnen'-Button in der Benutzeroberfläche:** Auf der Vergleichsseite (`BuildDbPage`) steht neben dem Dashboard-Button nun ein direkter Button "Bericht öffnen" zur Verfügung, der den vollständigen HTML-Bericht des ausgewählten Systems mit einem Klick im Browser öffnet.
+* **Referenzsystem-Deduplizierung:**
+  * **Keine doppelten Einträge:** Referenzprofile (`Desktop_HighEnd`, `Notebook_Mittelklasse`, etc.) werden beim Multi-System-Export (`Export-BenchDashboardData`) aus der Datenbankliste herausgefiltert und erscheinen im Dashboard ausschließlich einmalig in der dedizierten Sektion "Referenzprofile (Eingebettet)" mit Stern-Symbol (`⭐`).
+  * **Robuste Eindeutigkeit im JavaScript:** Clientseitiges deduplizierendes System-Mapping verhindert doppelte Rendering-Einträge in Dropdowns und Kacheln.
+* **Persistente Netzlaufwerk- & NAS-Verbindung:**
+  * **Redundante Speicherung:** Die Netzwerkkonfiguration (`Netzwerk.json`) wird redundant an allen lokalen Speicherorten (neben der Minibench-Executable, im Datenordner, im Benutzer-Dokumentenverzeichnis und in AppData) gesichert.
+  * **Automatischer Reconnect:** Beim Start von Minibench stellt `Resolve-DataDir` nicht verbundene oder abgelaufene UNC-Freigaben automatisch im Hintergrund über `net use /persistent:yes` wieder her, sodass Berichte und Datenbanken ohne manuelles erneutes Verbinden sofort bereitstehen.
+  * **Dynamische Pfadaktualisierung:** Die Benutzeroberfläche aktualisiert die Pfadanzeige nach dem Wechsel des Datenordners live ohne Neustart.
 
 ## v3.5 (06.10.2026)
 

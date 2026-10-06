@@ -798,7 +798,28 @@ public partial class DiagGui
 
             TextBox tbPath = new TextBox();
             tbPath.Width = UI.S(480);
-            tbPath.Text = (dataDir != null && dataDir.StartsWith(@"\\")) ? dataDir : @"\\NAS\Freigabe\Minibench-Daten";
+            string initialPath = (dataDir != null && dataDir.StartsWith(@"\\")) ? dataDir : "";
+            if (String.IsNullOrEmpty(initialPath)) {
+                List<string> probeDirs = new List<string>();
+                string eEnv = Environment.GetEnvironmentVariable("LEOSMINIBENCH_EXE");
+                if (!String.IsNullOrEmpty(eEnv)) { try { string ed = Path.GetDirectoryName(eEnv); if (!String.IsNullOrEmpty(ed)) probeDirs.Add(Path.Combine(ed, "Minibench-Daten")); } catch { } }
+                probeDirs.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Leos Minibench"));
+                probeDirs.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "LeosMinibench"));
+                probeDirs.Add(Path.Combine(Directory.GetCurrentDirectory(), "Minibench-Daten"));
+                if (!String.IsNullOrEmpty(dataDir) && !dataDir.StartsWith(@"\\")) probeDirs.Add(dataDir);
+                foreach (string pd in probeDirs) {
+                    try {
+                        string cfg = Path.Combine(pd, "Netzwerk.json");
+                        if (File.Exists(cfg)) {
+                            string txt = File.ReadAllText(cfg, Encoding.UTF8);
+                            System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(txt, @"""NasPfad""\s*:\s*""([^""]+)""");
+                            if (m.Success && !String.IsNullOrEmpty(m.Groups[1].Value)) { initialPath = m.Groups[1].Value.Replace(@"\\", @"\"); break; }
+                        }
+                    } catch { }
+                }
+            }
+            if (String.IsNullOrEmpty(initialPath)) initialPath = @"\\NAS\Freigabe\Minibench-Daten";
+            tbPath.Text = initialPath;
             tbPath.Margin = new Padding(0, 0, 0, UI.S(10));
             p.Controls.Add(tbPath);
 
@@ -874,16 +895,24 @@ public partial class DiagGui
 
                 // Dauerhaft speichern wenn gewünscht
                 if (chkSave.Checked) {
-                    try {
-                        string localData = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Minibench-Daten");
-                        if (!Directory.Exists(localData) && !String.IsNullOrEmpty(dataDir) && !dataDir.StartsWith(@"\\")) {
-                            localData = dataDir;
-                        }
-                        Directory.CreateDirectory(localData);
-                        string cfgPath = Path.Combine(localData, "Netzwerk.json");
-                        string json = "{\r\n  \"NasPfad\": \"" + unc.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"\r\n}\r\n";
-                        File.WriteAllText(cfgPath, json, new UTF8Encoding(true));
-                    } catch { }
+                    List<string> cfgDirs = new List<string>();
+                    string exeEnv = Environment.GetEnvironmentVariable("LEOSMINIBENCH_EXE");
+                    if (!String.IsNullOrEmpty(exeEnv)) {
+                        try { string ed = Path.GetDirectoryName(exeEnv); if (!String.IsNullOrEmpty(ed) && Directory.Exists(ed)) cfgDirs.Add(Path.Combine(ed, "Minibench-Daten")); } catch { }
+                    }
+                    if (!String.IsNullOrEmpty(dataDir) && !dataDir.StartsWith(@"\\")) cfgDirs.Add(dataDir);
+                    cfgDirs.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Leos Minibench"));
+                    cfgDirs.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "LeosMinibench"));
+                    cfgDirs.Add(Path.Combine(Directory.GetCurrentDirectory(), "Minibench-Daten"));
+
+                    string json = "{\r\n  \"NasPfad\": \"" + unc.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"\r\n}\r\n";
+                    foreach (string cd in cfgDirs) {
+                        try {
+                            if (!Directory.Exists(cd)) Directory.CreateDirectory(cd);
+                            string cfgPath = Path.Combine(cd, "Netzwerk.json");
+                            File.WriteAllText(cfgPath, json, new UTF8Encoding(true));
+                        } catch { }
+                    }
                 }
 
                 // Live umschalten

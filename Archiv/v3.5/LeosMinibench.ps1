@@ -224,7 +224,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenp
 }
 #endregion
 
-$ScriptVersion = '3.51'
+$ScriptVersion = '3.5'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -937,49 +937,19 @@ function Test-WritableDir([string]$Dir) {
         return $true
     } catch { return $false }
 }
-function Resolve-DataDir([string]$AppDir = '') {
+function Resolve-DataDir {
     # 1. Optionalen Netzwerk- / NAS-Pfad aus Netzwerk.json prüfen
-    $localCfgDirs = [System.Collections.Generic.List[string]]::new()
-    if ($AppDir) {
-        $localCfgDirs.Add((Join-Path $AppDir 'Minibench-Daten'))
-        $localCfgDirs.Add($AppDir)
-    }
-    if ($env:LEOSMINIBENCH_EXE) {
-        try {
-            $exeDir = Split-Path $env:LEOSMINIBENCH_EXE -Parent
-            if ($exeDir) { $localCfgDirs.Add((Join-Path $exeDir 'Minibench-Daten')) }
-        } catch { }
-    }
-    if ($PSScriptRoot -and $PSScriptRoot -notlike "$env:TEMP*" -and $PSScriptRoot -notlike "*\tests*") {
-        $localCfgDirs.Add((Join-Path $PSScriptRoot 'Minibench-Daten'))
-    }
-    if ($DatenDir) {
-        $localCfgDirs.Add($DatenDir.TrimEnd('\'))
-    }
-    try {
-        $myDoc = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Leos Minibench'
-        $localCfgDirs.Add($myDoc)
-    } catch { }
-    try {
-        $appData = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'LeosMinibench'
-        $localCfgDirs.Add($appData)
-    } catch { }
-    if (Test-Path -LiteralPath 'Minibench-Daten') {
-        try { $localCfgDirs.Add((Convert-Path 'Minibench-Daten')) } catch { }
-    }
-
+    $localCfgDirs = @()
+    if ($PSScriptRoot -and $PSScriptRoot -notlike "$env:TEMP*") { $localCfgDirs += (Join-Path $PSScriptRoot 'Minibench-Daten') }
+    if ($DatenDir) { $localCfgDirs += $DatenDir.TrimEnd('\') }
     foreach ($lcd in $localCfgDirs) {
-        if (-not $lcd) { continue }
         $netCfg = Join-Path $lcd 'Netzwerk.json'
         if (Test-Path -LiteralPath $netCfg) {
             try {
                 $netObj = Get-Content -LiteralPath $netCfg -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
                 $nas = $(if ($netObj.NasPfad) { [string]$netObj.NasPfad } elseif ($netObj.NetzwerkPfad) { [string]$netObj.NetzwerkPfad } else { '' }).Trim().TrimEnd('\')
-                if ($nas) {
-                    if (Test-WritableDir $nas) { return $nas }
-                    # Automatisch Verbindung wiederherstellen via net use falls Sitzung noch nicht aktiv ist
-                    try { & net.exe use $nas /persistent:yes 2>&1 | Out-Null } catch { }
-                    if (Test-WritableDir $nas) { return $nas }
+                if ($nas -and (Test-WritableDir $nas)) {
+                    return $nas
                 }
             } catch { }
         }
@@ -987,15 +957,8 @@ function Resolve-DataDir([string]$AppDir = '') {
 
     # 2. Lokale Kandidaten (USB-Stick / Übergabepfad) mit automatischem Fallback
     $cands = @()
-    if ($AppDir) { $cands += (Join-Path $AppDir 'Minibench-Daten'); $cands += $AppDir }
     if ($DatenDir) { $cands += $DatenDir.TrimEnd('\') }
-    if ($env:LEOSMINIBENCH_EXE) {
-        try {
-            $exeDir = Split-Path $env:LEOSMINIBENCH_EXE -Parent
-            if ($exeDir) { $cands += (Join-Path $exeDir 'Minibench-Daten') }
-        } catch { }
-    }
-    if ($PSScriptRoot -and $PSScriptRoot -notlike "$env:TEMP*" -and $PSScriptRoot -notlike "*\tests*") { $cands += (Join-Path $PSScriptRoot 'Minibench-Daten') }
+    if ($PSScriptRoot -and $PSScriptRoot -notlike "$env:TEMP*") { $cands += (Join-Path $PSScriptRoot 'Minibench-Daten') }
     foreach ($c in $cands) {
         # frühere Versionen: Ordner PC-Diagnose-Daten daneben übernehmen
         $old = Join-Path (Split-Path $c -Parent) 'PC-Diagnose-Daten'
@@ -5113,15 +5076,7 @@ public partial class DiagGui : Form
         try { changes = ChangeEntry.Load(changeDir); } catch { changes = new List<ChangeEntry>(); }
     }
 
-    void ReloadDb()
-    {
-        LoadDb();
-        FillDbList();
-        FillRefLists();
-        FillChangeList();
-        UpdateSensTools();
-        if (lblDbPath != null) lblDbPath.Text = "Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)");
-    }
+    void ReloadDb() { LoadDb(); FillDbList(); FillRefLists(); FillChangeList(); UpdateSensTools(); }
 
     // Modulverträge übernehmen: Navigation und Seite Reparatur richten sich danach (ohne Vertrag gelten die festen Listen)
     void ReadContract(string[] lines)
@@ -8672,7 +8627,7 @@ public partial class DiagGui
     int dbSortCol = -1;
     bool dbSortAsc = true;
     Button btnRename;
-    Button btnCompare, btnDashboard, btnDelete, btnOpenReport;
+    Button btnCompare, btnDashboard, btnDelete;
 
     void OnDbColumnClick(object sender, ColumnClickEventArgs e)
     {
@@ -8802,23 +8757,14 @@ public partial class DiagGui
         // Hinweis: Der statische Bericht "Vergleichen (Klassisch)" ist ab v3.32 vollständig durch das interaktive Dashboard abgelöst
         btnDashboard = UI.Primary("Interaktives Dashboard"); btnDashboard.Margin = new Padding(0); btnDashboard.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnDashboard.Font = new Font("Segoe UI Semibold", 9.75f);
         btnDashboard.Click += delegate { OpenDashboard(); };
-        Tip(btnDashboard, "Öffnet das interaktive HTML5-Dashboard für detaillierten System- und Benchmark-Vergleich.");
-        btnOpenReport = UI.Secondary("Bericht öffnen"); btnOpenReport.Margin = new Padding(UI.S(8), 0, 0, 0);
-        btnOpenReport.Click += delegate {
-            DbEntry target = null;
-            if (lvDb != null && lvDb.SelectedItems.Count > 0) target = (DbEntry)lvDb.SelectedItems[0].Tag;
-            else if (lvDb != null && lvDb.CheckedItems.Count == 1) target = (DbEntry)lvDb.CheckedItems[0].Tag;
-            if (target != null) OpenEntry(target);
-        };
-        btnOpenReport.Enabled = false;
-        Tip(btnOpenReport, "Öffnet den vollständigen HTML-Diagnosebericht des ausgewählten Systems.");
+        Tip(btnDashboard, "Öffnet das interaktive Multi-System-Dashboard im Browser mit den angehakten Systemen.");
         btnRename = UI.Secondary("Name ändern ..."); btnRename.Margin = new Padding(UI.S(8), 0, 0, 0);
         btnRename.Click += delegate { RenameSelectedEntry(); };
         btnRename.Enabled = false;
         Tip(btnRename, "Bearbeitet den Anzeigenamen des ausgewählten Systems (z. B. für Notizen wie Vor Reinigung oder Neuer Treiber), ohne die Hardware-Erkennung zu verändern.");
         btnDelete = UI.Secondary("Entfernen"); btnDelete.Margin = new Padding(UI.S(8), 0, 0, 0); btnDelete.Click += delegate { DeleteSelected(); };
         Tip(btnDelete, "Löscht die ausgewählten Systeme aus der Vergleichsdatenbank.");
-        b.Controls.Add(btnDashboard); b.Controls.Add(btnOpenReport); b.Controls.Add(btnRename); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
+        b.Controls.Add(btnDashboard); b.Controls.Add(btnRename); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
         lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
         lblDbClean.Margin = new Padding(UI.S(4), UI.S(8), UI.S(4), 0); bottom.Controls.Add(lblDbClean);
         bottom.Resize += delegate { lblDbClean.MaximumSize = new Size(Math.Max(UI.S(200), bottom.ClientSize.Width - UI.S(10)), 0); };
@@ -8925,11 +8871,6 @@ public partial class DiagGui
         {
             int selCount = (lvDb != null ? lvDb.SelectedItems.Count : 0);
             btnRename.Enabled = (selCount == 1 || (selCount == 0 && n == 1));
-        }
-        if (btnOpenReport != null)
-        {
-            int selCount = (lvDb != null ? lvDb.SelectedItems.Count : 0);
-            btnOpenReport.Enabled = (selCount == 1 || (selCount == 0 && n == 1));
         }
     }
 
@@ -9822,28 +9763,7 @@ public partial class DiagGui
 
             TextBox tbPath = new TextBox();
             tbPath.Width = UI.S(480);
-            string initialPath = (dataDir != null && dataDir.StartsWith(@"\\")) ? dataDir : "";
-            if (String.IsNullOrEmpty(initialPath)) {
-                List<string> probeDirs = new List<string>();
-                string eEnv = Environment.GetEnvironmentVariable("LEOSMINIBENCH_EXE");
-                if (!String.IsNullOrEmpty(eEnv)) { try { string ed = Path.GetDirectoryName(eEnv); if (!String.IsNullOrEmpty(ed)) probeDirs.Add(Path.Combine(ed, "Minibench-Daten")); } catch { } }
-                probeDirs.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Leos Minibench"));
-                probeDirs.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "LeosMinibench"));
-                probeDirs.Add(Path.Combine(Directory.GetCurrentDirectory(), "Minibench-Daten"));
-                if (!String.IsNullOrEmpty(dataDir) && !dataDir.StartsWith(@"\\")) probeDirs.Add(dataDir);
-                foreach (string pd in probeDirs) {
-                    try {
-                        string cfg = Path.Combine(pd, "Netzwerk.json");
-                        if (File.Exists(cfg)) {
-                            string txt = File.ReadAllText(cfg, Encoding.UTF8);
-                            System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(txt, @"""NasPfad""\s*:\s*""([^""]+)""");
-                            if (m.Success && !String.IsNullOrEmpty(m.Groups[1].Value)) { initialPath = m.Groups[1].Value.Replace(@"\\", @"\"); break; }
-                        }
-                    } catch { }
-                }
-            }
-            if (String.IsNullOrEmpty(initialPath)) initialPath = @"\\NAS\Freigabe\Minibench-Daten";
-            tbPath.Text = initialPath;
+            tbPath.Text = (dataDir != null && dataDir.StartsWith(@"\\")) ? dataDir : @"\\NAS\Freigabe\Minibench-Daten";
             tbPath.Margin = new Padding(0, 0, 0, UI.S(10));
             p.Controls.Add(tbPath);
 
@@ -9919,24 +9839,16 @@ public partial class DiagGui
 
                 // Dauerhaft speichern wenn gewünscht
                 if (chkSave.Checked) {
-                    List<string> cfgDirs = new List<string>();
-                    string exeEnv = Environment.GetEnvironmentVariable("LEOSMINIBENCH_EXE");
-                    if (!String.IsNullOrEmpty(exeEnv)) {
-                        try { string ed = Path.GetDirectoryName(exeEnv); if (!String.IsNullOrEmpty(ed) && Directory.Exists(ed)) cfgDirs.Add(Path.Combine(ed, "Minibench-Daten")); } catch { }
-                    }
-                    if (!String.IsNullOrEmpty(dataDir) && !dataDir.StartsWith(@"\\")) cfgDirs.Add(dataDir);
-                    cfgDirs.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Leos Minibench"));
-                    cfgDirs.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "LeosMinibench"));
-                    cfgDirs.Add(Path.Combine(Directory.GetCurrentDirectory(), "Minibench-Daten"));
-
-                    string json = "{\r\n  \"NasPfad\": \"" + unc.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"\r\n}\r\n";
-                    foreach (string cd in cfgDirs) {
-                        try {
-                            if (!Directory.Exists(cd)) Directory.CreateDirectory(cd);
-                            string cfgPath = Path.Combine(cd, "Netzwerk.json");
-                            File.WriteAllText(cfgPath, json, new UTF8Encoding(true));
-                        } catch { }
-                    }
+                    try {
+                        string localData = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Minibench-Daten");
+                        if (!Directory.Exists(localData) && !String.IsNullOrEmpty(dataDir) && !dataDir.StartsWith(@"\\")) {
+                            localData = dataDir;
+                        }
+                        Directory.CreateDirectory(localData);
+                        string cfgPath = Path.Combine(localData, "Netzwerk.json");
+                        string json = "{\r\n  \"NasPfad\": \"" + unc.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"\r\n}\r\n";
+                        File.WriteAllText(cfgPath, json, new UTF8Encoding(true));
+                    } catch { }
                 }
 
                 // Live umschalten
@@ -10599,10 +10511,6 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
-        new Eintrag("3.51", "07.10.2026", "Dashboard-Berichtsverlinkung, Referenz-Deduplizierung & persistente Netzlaufwerke",
-            "Dashboard-Berichtsverlinkung: Vollständige Diagnoseberichte können im Multi-System-Dashboard (Dashboard.html) direkt durch Klick auf Systemnamen oder über die neuen Bericht-Schaltflächen geöffnet werden. Auf der Vergleichsseite in der Benutzeroberfläche steht zusätzlich ein Button 'Bericht öffnen' bereit. " +
-            "Bereinigung der Referenzprofile: Referenzsysteme erscheinen im Dashboard sauber und ausschließlich einmalig unter 'Referenzprofile (Eingebettet)' mit Stern-Symbol (⭐) statt fälschlich zusätzlich in der regulären Datenbankliste. " +
-            "Persistente Netzlaufwerk-Verbindung: Die Konfiguration für NAS- und Netzlaufwerkablagen (Netzwerk.json) wird redundant an allen lokalen Speicherorten abgelegt. Beim Programmstart wird die Verbindung bei Bedarf automatisch via net use wiederhergestellt, sodass alle Berichte und Benchmark-Daten der Freigabe sofort geladen werden."),
         new Eintrag("3.5", "06.10.2026", "Taskleisten-Task-Beenden, Minimal-Preset-Standard, winget-Softwarepakete, NAS-Netzlaufwerke & interaktive Berichtsdiagramme",
             "Fehlerbehebung & Optimierungs-Presets: Entkopplung der Taskleisten-Gruppierung vom Task-Beenden; TaskbarEndTask als eigenständiger Eintrag mit Vorlagen MSE. Das Preset Minimal wurde auf ein schlankes Basispaket gestrafft und ist die neue Standardvorauswahl beim Start. " +
             "Erweitertes Fensterlayout: Vergrößerte, responsive Startfenstergröße (1220x740 mit Begrenzung auf 95 % / 92 % des Arbeitsbereichs) für optimalen Überblick ohne Überlauf auf skalierten Displays. " +
@@ -12681,7 +12589,7 @@ function New-CompareReport([string[]]$Paths) {
 function Export-BenchDashboardData {
     [CmdletBinding()]
     param(
-        [Alias('DatenOrdner', 'AppDir')]
+        [Alias('DatenOrdner')]
         [string]$DatabaseDir = '',
         [string]$ReportDir = '',
         [string[]]$SystemPaths = @(),
@@ -12698,6 +12606,7 @@ function Export-BenchDashboardData {
     if (-not $dbDir -or -not (Test-Path -LiteralPath $dbDir)) {
         if ($script:DbDir -and (Test-Path -LiteralPath $script:DbDir)) { $dbDir = $script:DbDir }
         elseif (Test-Path -LiteralPath 'Minibench-Daten\Datenbank') { $dbDir = (Convert-Path 'Minibench-Daten\Datenbank') }
+        elseif (Test-Path -LiteralPath 'Aktueller Build\Minibench-Daten\Datenbank') { $dbDir = (Convert-Path 'Aktueller Build\Minibench-Daten\Datenbank') }
         elseif (Test-Path -LiteralPath (Join-Path (Get-Location) 'Minibench-Daten\Datenbank')) { $dbDir = (Join-Path (Get-Location) 'Minibench-Daten\Datenbank') }
         else { $dbDir = '' }
     }
@@ -12706,6 +12615,7 @@ function Export-BenchDashboardData {
     if (-not $repDir -or -not (Test-Path -LiteralPath $repDir)) {
         if ($script:ReportDir -and (Test-Path -LiteralPath $script:ReportDir)) { $repDir = $script:ReportDir }
         elseif (Test-Path -LiteralPath 'Minibench-Daten\Berichte') { $repDir = (Convert-Path 'Minibench-Daten\Berichte') }
+        elseif (Test-Path -LiteralPath 'Aktueller Build\Minibench-Daten\Berichte') { $repDir = (Convert-Path 'Aktueller Build\Minibench-Daten\Berichte') }
         elseif (Test-Path -LiteralPath (Join-Path (Get-Location) 'Minibench-Daten\Berichte')) { $repDir = (Join-Path (Get-Location) 'Minibench-Daten\Berichte') }
         else { $repDir = '' }
     }
@@ -13089,30 +12999,8 @@ function Export-BenchDashboardData {
             })
         }
 
-        # Ermittlung des Berichts-Pfads für Direktverlinkung (v3.51)
-        $reportUrl = ''
-        if ($j.BerichtPfad) {
-            $reportUrl = [string]$j.BerichtPfad
-        } elseif ($FilePath) {
-            $parentDir = Split-Path $FilePath -Parent
-            $candRel = Join-Path (Split-Path $parentDir -Parent) ('Berichte\' + (Split-Path $parentDir -Leaf) + '\Diagnosebericht.html')
-            if (Test-Path -LiteralPath $candRel) { $reportUrl = $candRel }
-            else {
-                # Suche nach Diagnosebericht.html im Geschwister-Ordner Berichte
-                $candRep = Join-Path (Split-Path (Split-Path $FilePath -Parent) -Parent) 'Berichte'
-                if (Test-Path -LiteralPath $candRep) {
-                    $found = @(Get-ChildItem -LiteralPath $candRep -Filter 'Diagnosebericht.html' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*$($j.Computer)*" })
-                    if ($found.Count) { $reportUrl = $found[0].FullName }
-                }
-            }
-        }
-        if (-not $reportUrl -and $j.Datum -and $j.Computer) {
-            $reportUrl = ('Berichte\{0}_{1}\Diagnosebericht.html' -f ($j.Datum -replace '[- :]', ''), $j.Computer)
-        }
-
         return [ordered]@{
             Id          = $id
-            ReportUrl   = $reportUrl
             Computer    = $comp
             DisplayName = $name
             Datum       = $datum
@@ -13174,12 +13062,6 @@ function Export-BenchDashboardData {
     }
 
     # 2. Reale Daten laden
-    $isRefEntry = {
-        param($j, $p)
-        if ($j.Typ -eq 'Referenz' -or $j.Format -eq 'PC-Diagnose-Referenz' -or $j.Id -like 'Desktop_*' -or $j.Id -like 'Workstation_*' -or $j.Id -like 'Notebook_*' -or $j.Id -like 'MiniPC_*') { return $true }
-        if ($p -and (Split-Path $p -Leaf) -match '^(Desktop_|Workstation_|Notebook_|MiniPC_).*\.json$') { return $true }
-        return $false
-    }
     $systems = [System.Collections.Generic.List[object]]::new()
     $references = [System.Collections.Generic.List[object]]::new()
     $preselectedIds = [System.Collections.Generic.List[string]]::new()
@@ -13196,13 +13078,10 @@ function Export-BenchDashboardData {
                         $raw = [IO.File]::ReadAllText($full, [System.Text.Encoding]::UTF8)
                         $parsed = $raw | ConvertFrom-Json
                         if ($parsed.Format -like 'PC-Diagnose-DB*') {
-                            $isRef = & $isRefEntry $parsed $full
-                            if (-not $isRef) {
-                                $sysObj = & $parseSystemEntry $parsed $false $full
-                                if ($sysObj) {
-                                    $systems.Add($sysObj)
-                                    $preselectedIds.Add([string]$sysObj.Id)
-                                }
+                            $sysObj = & $parseSystemEntry $parsed $false $full
+                            if ($sysObj) {
+                                $systems.Add($sysObj)
+                                $preselectedIds.Add([string]$sysObj.Id)
                             }
                         }
                     }
@@ -13220,11 +13099,8 @@ function Export-BenchDashboardData {
                     $raw = [IO.File]::ReadAllText($f.FullName, [System.Text.Encoding]::UTF8)
                     $parsed = $raw | ConvertFrom-Json
                     if ($parsed.Format -like 'PC-Diagnose-DB*') {
-                        $isRef = & $isRefEntry $parsed $f.FullName
-                        if (-not $isRef) {
-                            $sysObj = & $parseSystemEntry $parsed $false $f.FullName
-                            if ($sysObj) { $systems.Add($sysObj) }
-                        }
+                        $sysObj = & $parseSystemEntry $parsed $false $f.FullName
+                        if ($sysObj) { $systems.Add($sysObj) }
                     }
                 } catch { }
             }
@@ -14148,19 +14024,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
   // HILFSFUNKTIONEN
   function getAllSystems() {
     if (!data) return [];
-    const list = [];
-    const seen = new Set();
-    const addSys = s => {
-      if (!s) return;
-      const key = String(s.Id || s.DisplayName || s.Computer || '').trim().toLowerCase();
-      if (key && !seen.has(key)) {
-        seen.add(key);
-        list.push(s);
-      }
-    };
-    (data.Systems || []).forEach(addSys);
-    (data.References || []).forEach(addSys);
-    return list;
+    return [ ...(data.Systems || []), ...(data.References || []) ];
   }
 
   function getSystemById(id) {
@@ -14433,18 +14297,11 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     comparedSystems.forEach((s, idx) => {
       const color = getSysColor(idx, isDark);
       const isBase = (idx === 0);
-      const nameHtml = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" title="Diagnosebericht für ${s.DisplayName || s.Computer} im Browser öffnen" style="color:inherit; text-decoration:underline; font-weight:600; cursor:pointer;">${s.DisplayName || s.Computer}</a>`
-        : `<span>${s.DisplayName || s.Computer}</span>`;
-      const repBadge = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" class="report-badge-btn" title="Diagnosebericht öffnen" style="margin-left:auto; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; font-size:0.75rem; border-radius:4px; background:var(--accent-subtle); color:var(--accent); text-decoration:none; border:1px solid var(--accent); font-weight:600; cursor:pointer;">📄 Bericht</a>`
-        : '';
       html += `<th>
         <div style="display: flex; align-items: center; gap: 6px;">
           <span class="sys-dot" style="background: ${color};"></span>
-          ${nameHtml}
+          <span>${s.DisplayName || s.Computer}</span>
           ${isBase ? '<span class="pill ok">Basis</span>' : ''}
-          ${repBadge}
         </div>
         <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">${s.Datum || 'Referenz'}</div>
       </th>`;
@@ -14452,7 +14309,6 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     html += '</tr></thead><tbody>';
 
     const rows = [
-      { key: 'Bericht', label: 'Diagnosebericht', get: s => s.ReportUrl ? `<a href="${s.ReportUrl}" target="_blank" style="color:var(--accent); text-decoration:underline; font-weight:600;">📄 Diagnosebericht.html öffnen</a>` : '<span style="color:var(--text-muted);">-</span>' },
       { key: 'Computer', label: 'Rechnername', get: s => s.Computer || '-' },
       { key: 'CPU', label: 'Prozessor (CPU)', get: s => s.Hardware?.CPU || '-' },
       { key: 'RAM', label: 'Arbeitsspeicher (RAM)', get: s => s.Hardware?.RAM || '-' },
@@ -14509,14 +14365,10 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
         const delta = isBase ? 0 : calcDelta(sc, baseScore);
         const deltaHtml = isBase ? '<span class="pill ok">100 % (Basis)</span>' : renderPill(delta);
 
-        const nameLink = s.ReportUrl
-          ? `<a href="${s.ReportUrl}" target="_blank" title="Diagnosebericht für ${s.DisplayName || s.Computer} öffnen" style="color:inherit; text-decoration:underline; cursor:pointer;">${s.DisplayName || s.Computer}</a>`
-          : `<span>${s.DisplayName || s.Computer}</span>`;
-
         html += `<div class="profile-sys-row ${isBase ? 'is-base' : ''}">
           <div style="display: flex; align-items: center; gap: 6px;">
             <span class="sys-dot" style="background: ${color};"></span>
-            <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nameLink}</span>
+            <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s.DisplayName || s.Computer}</span>
           </div>
           <div style="display: flex; align-items: center; gap: 4px;">
             <span style="font-weight: 700;">${fmtNum(sc)}</span>
@@ -14540,18 +14392,11 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     comparedSystems.forEach((s, idx) => {
       const color = getSysColor(idx, isDark);
       const isBase = (idx === 0);
-      const nameLink = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" title="Diagnosebericht für ${s.DisplayName || s.Computer} im Browser öffnen" style="color:inherit; text-decoration:underline; font-weight:600; cursor:pointer;">${s.DisplayName || s.Computer}</a>`
-        : `<span>${s.DisplayName || s.Computer}</span>`;
-      const repBtn = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" title="Diagnosebericht öffnen" style="font-size:0.75rem; color:var(--accent); text-decoration:none; margin-left:4px;">📄</a>`
-        : '';
       html += `<th style="text-align: right;">
         <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
           <span class="sys-dot" style="background: ${color};"></span>
-          ${nameLink}
+          <span>${s.DisplayName || s.Computer}</span>
           ${isBase ? '<span class="pill ok">Basis</span>' : ''}
-          ${repBtn}
         </div>
       </th>`;
     });
@@ -14652,18 +14497,10 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       const b = s.Befunde || { Kritisch: 0, Warnungen: 0, Hinweise: 0, Liste: [] };
       const list = b.Liste || [];
 
-      const nameLink = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" title="Diagnosebericht für ${s.DisplayName || s.Computer} im Browser öffnen" style="color:inherit; text-decoration:underline; font-weight:600; cursor:pointer;">${s.DisplayName || s.Computer}</a>`
-        : `<span>${s.DisplayName || s.Computer}</span>`;
-      const repBadge = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" class="report-badge-btn" title="Diagnosebericht öffnen" style="margin-left:auto; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; font-size:0.75rem; border-radius:4px; background:var(--accent-subtle); color:var(--accent); text-decoration:none; border:1px solid var(--accent); font-weight:600; cursor:pointer;">📄 Bericht</a>`
-        : '';
-
       html += `<div class="finding-card">
-        <div class="finding-card-head" style="display:flex; align-items:center; gap:6px;">
+        <div class="finding-card-head">
           <span class="sys-dot" style="background: ${color};"></span>
-          ${nameLink}
-          ${repBadge}
+          <span>${s.DisplayName || s.Computer}</span>
         </div>
         <div class="finding-card-badges">
           <span class="badge ${b.Kritisch > 0 ? 'crit' : 'neutral'}">${b.Kritisch} kritisch</span>
@@ -15069,7 +14906,7 @@ function Export-BenchDashboardHtml {
     [CmdletBinding()]
     param(
         [string]$OutputPath = '',
-        [Alias('DatenOrdner', 'AppDir')]
+        [Alias('DatenOrdner')]
         [string]$DatabaseDir = '',
         [string]$ReportDir = '',
         [string[]]$SystemPaths = @()

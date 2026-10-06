@@ -664,7 +664,15 @@ public partial class DiagGui : Form
         try { changes = ChangeEntry.Load(changeDir); } catch { changes = new List<ChangeEntry>(); }
     }
 
-    void ReloadDb() { LoadDb(); FillDbList(); FillRefLists(); FillChangeList(); UpdateSensTools(); }
+    void ReloadDb()
+    {
+        LoadDb();
+        FillDbList();
+        FillRefLists();
+        FillChangeList();
+        UpdateSensTools();
+        if (lblDbPath != null) lblDbPath.Text = "Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)");
+    }
 
     // Modulverträge übernehmen: Navigation und Seite Reparatur richten sich danach (ohne Vertrag gelten die festen Listen)
     void ReadContract(string[] lines)

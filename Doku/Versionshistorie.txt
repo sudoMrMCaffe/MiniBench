@@ -5,6 +5,19 @@ Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Verweis Versionshistorie oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
 
+VERSION 3.51   (07.10.2026)  DASHBOARD-BERICHTSVERLINKUNG, REFERENZ-DEDUPLIZIERUNG & PERSISTENTE NETZLAUFWERKE
+====================================================================================================
+Dashboard-Berichtsverlinkung: Vollständige Diagnoseberichte können im Multi-System-Dashboard
+(Dashboard.html) direkt durch Klick auf Systemnamen oder über die neuen Bericht-Schaltflächen geöffnet
+werden. Auf der Vergleichsseite in der Benutzeroberfläche steht zusätzlich ein Button "Bericht öffnen" bereit.
+Bereinigung der Referenzprofile: Referenzsysteme erscheinen im Dashboard sauber und ausschließlich
+einmalig unter "Referenzprofile (Eingebettet)" mit Stern-Symbol (⭐) statt fälschlich zusätzlich in der
+regulären Datenbankliste.
+Persistente Netzlaufwerk-Verbindung: Die Konfiguration für NAS- und Netzlaufwerkablagen (Netzwerk.json)
+wird redundant an allen lokalen Speicherorten abgelegt. Beim Programmstart wird die Verbindung bei Bedarf
+automatisch via net use wiederhergestellt, sodass alle Berichte und Benchmark-Daten der Freigabe sofort
+geladen werden.
+
 VERSION 3.5    (06.10.2026)  TASKLEISTEN-BUGFIX, MINIMAL-PRESET, WINGET & NAS-INTEGRATION
 ====================================================================================================
 Fehlerbehebung & Optimierungs-Presets: Entkopplung der Taskleisten-Gruppierung vom Task-Beenden;
