@@ -11,6 +11,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.52", "07.10.2026", "Netzlaufwerk-Härtung, Dashboard-Link-Fix, optimierte Datenpflege, aufgeräumte Optionen und vollständige Historie",
+            "Netzlaufwerk- und NAS-Härtung: Klare Trennung zwischen Berichten/Datenbank auf dem Netzlaufwerk und strikt lokalen Binaries/Caches auf dem USB-Stick oder im lokalen Temp-Verzeichnis. Ausnahme 'Pfadformat nicht unterstützt' und CAS-Sicherheitsblockaden bei OpenRead und externen Treibern (smartctl, PawnIO, LibreHardwareMonitor) behoben. " +
+            "Dashboard-Link-Korrektur: Relative Pfadauflösung von Berichts-Links im interaktiven Multi-System-Dashboard (Dashboard.html) bereinigt; Auflösung auf <Lauf-Ordner>/Diagnosebericht.html mit Vorwärtsslash ohne doppeltes Berichte-Präfix (ERR_FILE_NOT_FOUND behoben). " +
+            "Erweiterte Datenpflege: Verwaiste und beschädigte Datenbankeinträge (ohne Berichtsordner oder leere JSON-Dateien) werden automatisch ins Archiv verschoben; verwaiste Locks, Checkpoints und temporäre Reste im Laufzeitordner werden bereinigt und freigegebener Speicherplatz detailliert protokolliert. " +
+            "Oberflächen-Verfeinerung: Redundante Vergleichs-Checkliste auf der Benchmark-Startseite entfernt; Diagnose-Optionen in moderne Fluent-Karten mit Icons kategorisiert; Startfenstergröße weiter vergrößert für scrollbalkenfreie Darstellung. " +
+            "Vollständige Versionshistorie: Dokumentation aller Einzelversionen von 1.0 bis 1.8 mit konkreten Changelogs nachgepflegt."),
         new Eintrag("3.51", "07.10.2026", "Dashboard-Berichtsverlinkung, Referenz-Deduplizierung & persistente Netzlaufwerke",
             "Dashboard-Berichtsverlinkung: Vollständige Diagnoseberichte können im Multi-System-Dashboard (Dashboard.html) direkt durch Klick auf Systemnamen oder über die neuen Bericht-Schaltflächen geöffnet werden. Auf der Vergleichsseite in der Benutzeroberfläche steht zusätzlich ein Button 'Bericht öffnen' bereit. " +
             "Bereinigung der Referenzprofile: Referenzsysteme erscheinen im Dashboard sauber und ausschließlich einmalig unter 'Referenzprofile (Eingebettet)' mit Stern-Symbol (⭐) statt fälschlich zusätzlich in der regulären Datenbankliste. " +
@@ -97,7 +103,27 @@ public static class Versionshistorie
             "Quelltext in Teilen (src) mit Bauen.cmd, Modulvertrag je Modul, Risikostufen (Lesen, Ändern, Eingriff, Zerstörend), Änderungsprotokoll mit Rückgängig, Werkzeug-Manifest mit SHA-256, Datenbankformat 2 mit Geräteidentität, Pester-Tests und Testmatrix. Bedienung, Berichte und Ablage blieben wie in 2.1."),
         new Eintrag("2.0 bis 2.1", "bis 01.10.2026", "Leos Minibench",
             "Neuer Name Leos Minibench, Start als LeosMinibench.exe vom Stick, Datenordner Minibench-Daten neben der exe (ein Ordner PC-Diagnose-Daten wird übernommen). Oberfläche mit den Modulen Diagnose, Benchmark, Lasttest und Reparatur, Vergleichsdatenbank (Format 1), HTML- und Textbericht, KI-Datei. smartctl lag im Tools-Ordner noch ohne Manifest. Stand 2.1 ist die Grundlage, die 2.2 in Teile zerlegt hat."),
-        new Eintrag("1.0 bis 1.8", "bis 30.09.2026", "PC-Diagnose",
-            "Diagnose- und Benchmark-Skript unter dem Namen PC-Diagnose, Ausgabe in Ordnern PC-Diagnose_<PC> mit Diagnosebericht und Benchmark.csv. Aus Läufen mit 1.8 vom 30.09.2026 stammen die ersten Einträge der Vergleichsdatenbank (TORRENT, AlexPC, LizPC); die Werte von TORRENT dienten bis 2.6 als eingebaute Referenz. Einzelne Stände 1.0 bis 1.7 sind nicht mehr dokumentiert.")
+        new Eintrag("1.8", "30.09.2026", "Gruppierter Benchmark und Referenz",
+            "Der Benchmark ist in vier ausklappbare Blöcke gegliedert, im Bericht und in der Oberfläche. Laufwerke stehen kompakt in einer Zeile pro Laufwerk. Neue Messungen:\r\n" +
+            "· CPU: AES-256, SHA-256, Kompression\r\n" +
+            "· RAM: Kopieren\r\n" +
+            "· GPU: PCIe-Anbindung, Grafikspeicher\r\n" +
+            "· Laufwerke: 4K schreiben"),
+        new Eintrag("1.7", "29.09.2026", "Benchmark-Korrektur und schlankere Ausgabe",
+            "Fehler behoben, durch den nur die CPU gemessen wurde. Jeder Teil des Benchmarks läuft jetzt abgesichert für sich. Die Ausgabe ist entschlackt: Im Ordner liegen nur noch der HTML- und der Textbericht, alles andere steckt in Anhang.zip."),
+        new Eintrag("1.6", "28.09.2026", "Benchmark und Lasttest",
+            "Benchmark für CPU (Einzel- und Mehrkern, Takt), RAM (Lesen, Schreiben, Latenz), GPU (WinSAT) und Laufwerke (sequentiell und 4K, ohne Windows-Cache). Jeder Wert bekommt einen Index für seine Hardwareklasse und wird mit früheren Läufen verglichen. PCIe-Anbindung von Grafikkarte und NVMe wird geprüft. Lasttest mit wählbarer Dauer, Takt- und Temperaturkurve, Drosselungserkennung und Abbruchknopf."),
+        new Eintrag("1.5", "27.09.2026", "Kurztest und neues Design",
+            "Kurztest-Modus, der alles Langwierige überspringt. Die Oberfläche ist komplett überarbeitet, mit Kacheln, Statuskarten und Reitern, und öffnet sich im Vordergrund. Die exe fordert Administratorrechte selbst an. Dazu Korrekturen aus dem Code-Review."),
+        new Eintrag("1.4", "26.09.2026", "Oberfläche und HTML-Bericht",
+            "Optionale grafische Oberfläche mit Live-Befunden, Testergebnissen und Protokoll. Grafischer Endbericht als HTML mit Hell- und Dunkelmodus. Ein Build-Skript kompiliert die exe direkt auf dem Desktop, ganz ohne Download."),
+        new Eintrag("1.3", "25.09.2026", "Absturzsicherheit und Korrekturen",
+            "Checkpoints werden direkt auf die Platte geschrieben, damit sie auch einen Absturz überstehen. Nach einem abgebrochenen Lauf startet eine Absturzanalyse: Bluescreen-Stoppcode, Kernel-Power 41, WHEA-Fehler und der Schritt, in dem der PC ausfiel. Neue Option Absturzanalyse (-AnalyzeLastRun). Behoben wurden die Fehler aus dem ersten Praxislauf: Auswertung von SFC, Fehlalarme bei NTFS und Store-Apps, SMART-Meldung, Firmwaretyp und Konsolenkodierung."),
+        new Eintrag("1.2", "24.09.2026", "Kodierung",
+            "Das Skript repariert sich selbst, wenn die UTF-8-Kennung (BOM) beim Kopieren verloren geht. Hashtable-Schlüssel mit Umlauten stehen jetzt in Anführungszeichen."),
+        new Eintrag("1.1", "23.09.2026", "Starten und Fortschritt",
+            "Start-CMD mit Menü und eine exe als Starter. Die Administratorrechte holt sich die CMD selbst, und das Fenster bleibt bei Fehlern offen. Klare Fortschrittsbalken für den Gesamtlauf und den einzelnen Schritt."),
+        new Eintrag("1.0", "22.09.2026", "Grundversion",
+            "Diagnoseskript für Windows 11. Es erfasst die Hardware und das System: Firmware, TPM, BitLocker, CPU, RAM-Module, GPU, Datenträger, SMART, Akku, Netzwerk, Treiber, Updates, Sicherheit, Autostart und Software. Dazu kommen Tests: WinSAT, chkdsk-Onlinescan, DISM und SFC, Defender-Schnellscan, SMART-Langtest, RAM-Mustertest, CPU-Stabilitätstest, Netzwerk- und Energieanalyse sowie die Auswertung der Ereignisprotokolle. Der komplette Bericht landet in der Zwischenablage und als Textdatei auf dem Desktop.")
     };
 }

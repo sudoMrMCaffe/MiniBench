@@ -1,0 +1,98 @@
+﻿LEOS MINIBENCH 3.52: ÄNDERUNGEN
+==============================
+
+Version 3.52 (Patch-Release) härtet die Netzlaufwerk- und NAS-Integration gegen UNC-Pfadfehler
+und .NET CAS-Sicherheitsblockaden, korrigiert die relative Verlinkung aus dem interaktiven
+Dashboard auf Diagnoseberichte (ERR_FILE_NOT_FOUND), erweitert die Datenpflege um automatisches
+Archivieren verwaister/beschädigter Datenbankeinträge und Bereinigen von Laufzeit-Dateien,
+entfernt die redundante Benchmark-Vergleichstabelle, fasst Diagnose-Optionen in moderne Fluent-Karten
+zusammen, vergrößert das Startfenster zur Vermeidung von Scrollbalken und pflegt die lückenlose
+Versionshistorie aller Versionen von 1.0 bis 1.8 nach.
+
+1. SENSORWERKZEUGE, BINARIES & CACHE STRIKT LOKAL HALTEN (NAS-HÄRTUNG)
+   * Klare Trennung von Nutzerdaten und ausführbaren Programmteilen:
+     Nur die Ordner Berichte ($script:ReportDir) und Datenbank ($script:DbDir) dürfen auf das
+     konfigurierte NAS oder ein UNC-Netzlaufwerk ausgelagert werden.
+   * Lokale Isolation für Binärdateien und Caches:
+     Kompilierte C#-Assemblies ($script:CacheDir), externe Hilfswerkzeuge ($script:ToolsDir /
+     Get-ToolsDir wie LibreHardwareMonitor, smartctl, PawnIO) sowie Laufzeit-Checkpoints und Mutexes
+     ($script:CpDir) verbleiben strikt lokal (auf dem USB-Stick bzw. im lokalen %TEMP% / %LOCALAPPDATA%).
+   * Behebung von Pfadformat- & CAS-Ausnahmen:
+     Verhindert die .NET-Ausnahme "Das angegebene Pfadformat wird nicht unterstützt." sowie
+     Code-Access-Security-Blockaden beim Laden von Treibern und Typen über das Netzwerk.
+   * Härtung von Get-FileSha256:
+     Vor [IO.File]::OpenRead wird der Pfad via [System.IO.Path]::GetFullPath normalisiert und mit
+     robuster Fehlerabfangung gegen Dateizugriffsfehler abgesichert.
+
+2. FIX: VERLINKUNG IM DASHBOARD AUF BERICHTE KORRIGIERT
+   * Relative Pfadauflösung:
+     Im interaktiven Multi-System-Dashboard (Dashboard.html) verweisen die Links auf Diagnoseberichte
+     nun strikt relativ zu Dashboard.html (<Lauf-Ordner>/Diagnosebericht.html).
+   * URL-Konformität und Fehlerbehebung:
+     Doppelte Pfadpräfixe ("Berichte/Berichte/...") und Windows-Backslashes ("\") in URL-Attributen
+     wurden eliminiert. Dadurch wird der Browserfehler ERR_FILE_NOT_FOUND beim Öffnen von Berichten
+     aus dem Dashboard vollständig behoben.
+
+3. AUFRÄUMEN-FUNKTION (DATENPFLEGE) FÜR VERWAISTE EINTRÄGE ERWEITERT
+   * Verwaiste und korrupte Datenbankeinträge:
+     Einträge in Datenbank/*.json, deren zugehöriger Berichtsordner gelöscht wurde oder deren JSON
+     beschädigt bzw. leer (0 Byte) ist, werden sauber identifiziert und ins Archiv verschoben
+     (Archiv\Verwaist\Datenbank bzw. Archiv\Beschaedigt\Datenbank) statt Fehler zu werfen.
+   * Gründliche Laufzeit-Bereinigung:
+     Alte temporäre Dateien (*.tmp), verwaiste Lock-Dateien (*.lock), abgebrochene Checkpoints
+     (checkpoint*.json) und Steuerungsdateien im Ordner Laufzeit/ werden vollständig bereinigt.
+   * Transparente Rückmeldung:
+     Freigegebener Speicherplatz wird in Megabyte berechnet und sowohl in der Oberfläche (lblDbClean)
+     als auch im Protokoll Archiv\Datenpflege.log detailliert ausgewiesen.
+
+4. BENUTZEROBERFLÄCHE: BENCHMARK-CHECKLISTE, FLUENT-KARTEN & FENSTERGRÖSSE
+   * Entfernung der redundanten Vergleichs-Checkliste:
+     In BuildBenchPage() wurde der Abschnitt "Bereits geprüfte Systeme einblenden" samt clbCompare
+     und Hinweistext entfernt. Vergleichsaufgaben werden vollständig durch das Dashboard und die
+     Seite Vergleichsdatenbank übernommen.
+   * Kategorisierung der Diagnose-Optionen:
+     Optionen auf der Startseite in zwei übersichtliche Fluent-Karten gegliedert:
+     "Zusatzwerkzeuge & Speicherdiagnose" und "Prüfzeiträume & Schwellenwerte".
+   * Großzügige Startfenstergröße:
+     Auf 1320x860 vergrößert, wodurch unschöne Scrollbalken beim ersten Start entfallen.
+
+5. VOLLSTÄNDIGE VERSIONSHISTORIE (1.0 BIS 1.8)
+   * Dokumentation der Ur-Versionen:
+     Die bisherige Sammelzeile "1.0 bis 1.8" in Versionen.cs, Doku\Versionshistorie.txt und
+     CHANGELOG.md wurde durch die 9 konkreten Einzelversionen (1.0 bis 1.8) mit vollständigem
+     Wortlaut der historischen Meilensteine ersetzt.
+
+GEFUNDEN UND BEHOBEN
+  1. Ausnahme bei Binärzugriff über UNC-Netzlaufwerke: Beim Auslagern des Datenordners auf ein NAS
+     warfen Get-FileSha256 und Add-CachedType Ausnahmen wegen ungültiger Pfadformate; behoben durch
+     strikte lokale Bindung von CacheDir, ToolsDir und CpDir sowie Pfadnormalisierung.
+  2. ERR_FILE_NOT_FOUND bei Berichtslinks im Dashboard: Dashboard.html generierte relative Links mit
+     dem Präfix "Berichte/", was zu doppelten Pfaden führte; behoben durch pfadrelative Links mit
+     Vorwärtsslash.
+  3. Verwaiste Datenbankeinträge führten zu Fehlern: Gelöschte Berichtsordner hinterließen DB-Einträge
+     ohne Ziel; behoben durch automatische Erkennung und Archivierung in Invoke-Datenpflege.
+  4. Veraltete Vergleichs-Checkliste auf der Benchmarkseite: Verwirrte Nutzer neben dem modernen
+     Dashboard; entfernt für ein klareres, aufgeräumtes Design.
+  5. Unschöne Scrollbalken beim ersten Programmstart: Durch Vergrößerung auf 1320x860 behoben.
+
+GRENZEN
+  - Nur Berichte und die Vergleichsdatenbank können auf Netzlaufwerke ausgelagert werden; Hilfswerkzeuge
+    und Zwischenspeicher müssen aus Sicherheits- und Stabilitätsgründen lokal verbleiben.
+  - Das automatische Aufräumen verwaister DB-Einträge greift nur, wenn der Berichtsordner nicht mehr
+    existiert; externe oder manuell verschobene Berichte sollten vor dem Aufräumen gesichert werden.
+
+UMSTIEG
+  1. Bauen.cmd ausführen (baut LeosMinibench.exe und LeosMinibench.ps1 für v3.52).
+  2. Inhalt des Ordners "Aktueller Build" auf den USB-Stick kopieren.
+  3. Bisherige Datenbanken, Berichte und Konfigurationen bleiben nahtlos kompatibel.
+
+ERGEBNIS
+  Alle Pester-Tests bestanden.
+  Netzlaufwerkbetrieb ohne Abstürze oder CAS-Fehler.
+  Dashboard-Verlinkungen auf Diagnoseberichte funktionieren fehlerfrei.
+  Saubere, aufgeräumte Oberfläche und lückenlose Versionshistorie.
+
+QUELLEN
+  - Microsoft Docs: .NET Code Access Security und UNC-Pfade.
+  - W3C HTML5: Relative URLs und Pfadauflösung.
+  - Windows Design Guidelines: Fluent UI Card Patterns.

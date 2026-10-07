@@ -1,0 +1,17 @@
+﻿Nr;Bereich;Testfall;Umgebung;Erwartung;Art;Ergebnis;Datum;Bemerkung
+A1;Bau;Testen.cmd ausführen;Windows 10/11 mit Pester 5/6;alle Pester-Tests bestanden, 0 fehlgeschlagen, Version352.Tests.ps1 dabei;automatisch;;;
+A2;Bau;Bauen.cmd ausführen & Git-Sync;Windows-Buildumgebung;Version 3.52 erzeugt, Archiv\v3.51 gesichert, Stand.txt aktuell, automatischer Git-Commit;automatisch;;;
+N1;Netzwerk;Lokale Tools-Bindung bei NAS;Datenordner.ps1;ToolsDir und CacheDir bleiben lokal trotz Netzwerk.json;automatisch;;;
+N2;Netzwerk;Get-FileSha256 Pfadnormalisierung;Werkzeuge.ps1;Normalisiert Pfade und fängt Zugriffsfehler sauber ab;automatisch;;;
+D1;Dashboard;ReportUrl ohne Berichte-Präfix;Bausteine_Dashboard.ps1;ReportUrl lautet <Ordner>/Diagnosebericht.html mit /;automatisch;;;
+D2;Dashboard;Direkter Berichtsaufruf im Browser;Dashboard.html;Klick auf System öffnet Bericht ohne ERR_FILE_NOT_FOUND;automatisch;;;
+P1;Pflege;Verwaiste DB-Einträge archivieren;Datenpflege.ps1;Verschiebt DB-Einträge ohne Berichtsordner nach Archiv\Verwaist;automatisch;;;
+P2;Pflege;Beschädigte DB-Dateien archivieren;Datenpflege.ps1;Verschiebt 0-Byte-Dateien nach Archiv\Beschaedigt;automatisch;;;
+P3;Pflege;Laufzeit-Bereinigung;Datenpflege.ps1;Löscht verwaiste Locks und Checkpoints im Ordner Laufzeit;automatisch;;;
+G1;Oberfläche;Benchmark-Seite ohne clbCompare;DiagGui.cs;clbCompare nicht im Formular eingebunden;automatisch;;;
+G2;Oberfläche;OptionCard Fluent-Karten;DiagGui.cs;Diagnose-Optionen in Fluent-Karten gegliedert;automatisch;;;
+G3;Oberfläche;Startfenstergröße 1320x860;DiagGui.cs;Größere Startdimensionen ohne Scrollbalken;automatisch;;;
+V1;Historie;Versionshistorie 1.0 bis 1.8;Versionen.cs & Versionshistorie.txt;Alle 9 Einzelversionen vorhanden;automatisch;;;
+H1;Hardware;Testlauf Desktop Intel Core + NVIDIA dGPU;Intel i9 / i7 + RTX dGPU;Lokale Binaries und NAS-Berichte fehlerfrei;manuell;;;
+H2;Hardware;Testlauf Desktop AMD Ryzen + Radeon dGPU;AMD Ryzen 9/7 + RX dGPU;Dashboard-Links und Datenpflege fehlerfrei;manuell;;;
+H3;Hardware;Testlauf Notebook mit iGPU;Intel Core Iris Xe / AMD APU;Fenstergröße ohne Scrollbalken auf 1080p;manuell;;;

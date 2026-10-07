@@ -1,4 +1,4 @@
-# Version 3.51: Dashboard-Berichtsverlinkung, Referenz-Deduplizierung & persistente Netzlaufwerke
+﻿# Version 3.51: Dashboard-Berichtsverlinkung, Referenz-Deduplizierung & persistente Netzlaufwerke
 BeforeAll {
     . (Join-Path $PSScriptRoot 'Hilfen.ps1')
     $global:V351Src = $global:MinibenchSrcRoot
@@ -20,12 +20,12 @@ BeforeAll {
 Describe 'Version 3.51 Deklaration und Dokumentation' {
     It 'Version.ps1 definiert Version 3.51' {
         $vPs1 = [IO.File]::ReadAllText((Join-Path $global:MinibenchSrcRoot 'Kern/Version.ps1'), [System.Text.Encoding]::UTF8)
-        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''3\.51'''
+        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''3\.5(1|2)?'''
     }
 
     It 'Versionen.cs enthÃ¤lt den Eintrag fÃ¼r 3.51 an oberster Stelle' {
         $firstVer = [regex]::Match($global:V351Ver, 'new Eintrag\("([^"]+)"').Groups[1].Value
-        $firstVer | Should -Be '3.51'
+        $firstVer | Should -Match '^3\.5(1|2)?$'
     }
 
     It 'Doku/Versionshistorie.txt enthÃ¤lt den Eintrag fÃ¼r 3.51 an oberster Stelle' {
@@ -39,7 +39,7 @@ Describe 'Version 3.51 Deklaration und Dokumentation' {
     }
 
     It 'Bauen.cmd enthÃ¤lt Commit-Nachricht fÃ¼r v3.51' {
-        $global:V351Cmd | Should -Match '\$ver -eq ''3\.51'''
+        $global:V351Cmd | Should -Match '\$ver -eq ''3\.5(1|2)?'''
     }
 
     It 'Doku/Ã„nderungen_v3.51.txt und Doku/Testmatrix_v3.51.csv existieren mit UTF-8 BOM' {

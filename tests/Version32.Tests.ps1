@@ -55,8 +55,8 @@ Describe 'Version 3.2: Zentraler DPI-Helper & Windows 11 DWM-Integration' {
 
     It 'Form berechnet Startgröße anhand des sichtbaren Arbeitsbereichs (Höhe 0.88)' {
         $global:V32Gui | Should -Match 'Screen\.FromPoint\(Cursor\.Position\)\.WorkingArea'
-        $global:V32Gui | Should -Match 'Math\.Min\(UI\.S\((1120|1220)\)'
-        $global:V32Gui | Should -Match 'Math\.Min\(UI\.S\((680|740)\),\s*\(int\)\(workArea\.Height\s*\*\s*0\.(88|92)\)\)'
+        $global:V32Gui | Should -Match 'Math\.Min\(UI\.S\((1120|1220|1320)\)'
+        $global:V32Gui | Should -Match 'Math\.Min\(UI\.S\((680|740|860)\),\s*\(int\)\(workArea\.Height\s*\*\s*0\.(88|92|95)\)\)'
         $global:V32Gui | Should -Match 'MinimumSize\s*=\s*new\s+Size\(UI\.S\((860|880)\),\s*UI\.S\((540|560)\)\)'
     }
 }
@@ -180,15 +180,15 @@ Describe 'Version 3.2: C# 5-Kompatibilität' {
 Describe 'Version 3.2: Release und Dokumentation' {
     It 'Versionsnummer ist 3.2 oder 3.3 in Version.ps1, Versionen.cs und Versionshistorie.txt' {
         $vPs1 = [IO.File]::ReadAllText((Join-Path $global:V32Src 'Kern/Version.ps1'))
-        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''(3\.2|3\.3|3\.31|3\.32|3\.4|3\.5|3\.51)'''
+        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''(3\.2|3\.3|3\.31|3\.32|3\.4|3\.5|3\.51|3\.52)'''
         $firstVer = [regex]::Match($global:V32Ver, 'new Eintrag\("([^"]+)"').Groups[1].Value
-        $firstVer | Should -Match '^(3\.2|3\.3|3\.31|3\.32|3\.4|3\.5|3\.51)$'
-        $global:V32Hist | Should -Match 'VERSION (3\.2|3\.3|3\.31|3\.32|3\.4|3\.5|3\.51)'
+        $firstVer | Should -Match '^(3\.2|3\.3|3\.31|3\.32|3\.4|3\.5|3\.51|3\.52)$'
+        $global:V32Hist | Should -Match 'VERSION (3\.2|3\.3|3\.31|3\.32|3\.4|3\.5|3\.51|3\.52)'
     }
 
     It 'Änderungsdatei und Testmatrix für Version existieren' {
         $b = Get-MinibenchBuild
-        $b.Version | Should -Match '^(3\.2|3\.3|3\.31|3\.32|3\.4|3\.5|3\.51)$'
+        $b.Version | Should -Match '^(3\.2|3\.3|3\.31|3\.32|3\.4|3\.5|3\.51|3\.52)$'
         $aePath = Join-Path $global:MinibenchRepoRoot ('Doku/' + [char]0x00C4 + ('nderungen_v{0}.txt' -f $b.Version))
         Test-Path -LiteralPath $aePath | Should -BeTrue
         Join-Path $global:MinibenchRepoRoot ('Doku/Testmatrix_v{0}.csv' -f $b.Version) | Should -Exist

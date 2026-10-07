@@ -288,8 +288,8 @@ public partial class DiagGui : Form
         BackColor = UI.Bg; ForeColor = UI.Text;
         StartPosition = FormStartPosition.CenterScreen;
         Rectangle workArea = Screen.FromPoint(Cursor.Position).WorkingArea;
-        int startW = Math.Min(UI.S(1220), (int)(workArea.Width * 0.95));
-        int startH = Math.Min(UI.S(740), (int)(workArea.Height * 0.92));
+        int startW = Math.Min(UI.S(1320), (int)(workArea.Width * 0.96));
+        int startH = Math.Min(UI.S(860), (int)(workArea.Height * 0.95));
         ClientSize = new Size(startW, startH);
         MinimumSize = new Size(UI.S(880), UI.S(560));
         try { Icon ic = AppSymbol.Get(); if (ic != null) Icon = ic; else Icon = Icon.ExtractAssociatedIcon(psExe); } catch { }
@@ -841,7 +841,6 @@ public partial class DiagGui : Form
         Tip(chkGpuWahl, "Bei Notebooks mit zwei Grafikeinheiten misst WinSAT nur die Einheit, die den Desktop ausgibt. Mit diesem Haken wird WinSAT kurz auf die Grafikkarte gestellt und gleich wieder zurück (steht im Änderungsprotokoll).");
         Tip(cmbBenchDur, "Normal: 5 Sekunden je Messung, stabile Werte. Kurz: 2 Sekunden, etwa halbe Dauer; Kurzläufe werden nur mit Kurzläufen verglichen.");
         Tip(cmbRef, "Bezug für die Prozentwerte (100 %): die gespeicherte Referenz (Referenz.json, gesetzt mit dem Haken unten), der Median aller Systeme der Datenbank oder ein einzelner gespeicherter Lauf.");
-        Tip(clbCompare, "Diese Systeme erscheinen zusätzlich im Bericht, in der KI-Datei und im Reiter Leistung.");
         Tip(chkDbSave, "Legt die Werte dieses Laufs als Eintrag in Minibench-Daten\\Datenbank ab (Verlauf auf diesem PC, Vergleiche, Rang).");
         Tip(chkRefSave, "Speichert die Werte dieses Laufs als Referenz.json im Datenordner. Alle PCs, die mit diesem Datenordner messen, werden dann in Prozent dieses Systems angegeben.");
         // Lasttest
@@ -968,6 +967,49 @@ public partial class DiagGui : Form
         return l;
     }
 
+    static Panel OptionCard(string categoryTitle, string icon, Control[] controls)
+    {
+        Panel card = new Panel();
+        card.BackColor = UI.Panel;
+        card.Padding = new Padding(UI.S(14), UI.S(10), UI.S(14), UI.S(10));
+        card.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(8));
+        card.Width = UI.S(840);
+        card.AutoSize = true;
+        card.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+
+        FlowLayoutPanel inner = new FlowLayoutPanel();
+        inner.FlowDirection = FlowDirection.TopDown;
+        inner.WrapContents = false;
+        inner.AutoSize = true;
+        inner.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        inner.BackColor = UI.Panel;
+        inner.Margin = new Padding(0);
+        inner.Dock = DockStyle.Fill;
+
+        Label header = Lbl((icon != null && icon.Length > 0 ? icon + "  " : "") + categoryTitle, 9.75f, true, UI.Text);
+        header.Margin = new Padding(0, 0, 0, UI.S(6));
+        inner.Controls.Add(header);
+
+        if (controls != null)
+        {
+            foreach (Control c in controls)
+            {
+                if (c != null) inner.Controls.Add(c);
+            }
+        }
+
+        card.Controls.Add(inner);
+        card.Paint += delegate(object sender, PaintEventArgs e)
+        {
+            Rectangle r = card.ClientRectangle; r.Width--; r.Height--;
+            using (Pen pen = new Pen(UI.Line, 1f))
+            {
+                e.Graphics.DrawRectangle(pen, r);
+            }
+        };
+        return card;
+    }
+
     Control BuildDiagPage()
     {
         FlowLayoutPanel f = Page("Diagnose", "Liest Hardware, Treiber, Sicherheit und Ereignisprotokolle aus, führt die gewählten Prüfungen durch und bewertet alles in einem Bericht. Prüfungen verändern nichts am System.", 0);
@@ -1016,15 +1058,17 @@ public partial class DiagGui : Form
         Label cpuHint = Lbl("Die CPU-Stabilität prüft ab v2.7 das Modul Lasttest (Prozessor, ab 2 Minuten): eigener Lastprozess, Rechenfehler, Takt- und Temperaturverlauf und Drosselnachweis.", 8.5f, false, UI.Muted);
         cpuHint.MaximumSize = new Size(UI.S(820), 0); cpuHint.Margin = new Padding(UI.S(24), UI.S(2), 0, UI.S(4)); f.Controls.Add(cpuHint);
         f.Controls.Add(Section("Optionen"));
-        chkInstall = Chk("smartmontools bei Bedarf installieren (winget) oder aus dem Datenordner verwenden", true); f.Controls.Add(chkInstall);
-        chkMem = Chk("Windows-Speicherdiagnose beim nächsten Neustart einplanen", false); f.Controls.Add(chkMem);
+        chkInstall = Chk("smartmontools bei Bedarf installieren (winget) oder aus dem Datenordner verwenden", true);
+        chkMem = Chk("Windows-Speicherdiagnose beim nächsten Neustart einplanen", false);
+        f.Controls.Add(OptionCard("Zusatzwerkzeuge & Speicherdiagnose", UI.IcoTools, new Control[] { chkInstall, chkMem }));
+
         FlowLayoutPanel r = Row(); r.Controls.Add(RowLabel("Ereignisse der letzten", 150));
-        cmbDays = Combo(110, new string[] { "3 Tage", "7 Tage", "14 Tage", "30 Tage", "60 Tage" }, 2); r.Controls.Add(cmbDays); f.Controls.Add(r);
+        cmbDays = Combo(110, new string[] { "3 Tage", "7 Tage", "14 Tage", "30 Tage", "60 Tage" }, 2); r.Controls.Add(cmbDays);
         FlowLayoutPanel rs = Row(); rs.Controls.Add(RowLabel("SMART-Langtest", 150));
         string[] sm = new string[smartMinutes.Length]; for (int i = 0; i < sm.Length; i++) sm[i] = "höchstens " + smartMinutes[i] + " Min. warten";
         cmbSmartMax = Combo(220, sm, 3); cmbSmartMax.SelectedIndexChanged += delegate { UpdateSummary(); }; rs.Controls.Add(cmbSmartMax);
         Label lsm = Lbl("danach wird der Bericht ohne Ergebnis des Langtests erstellt; der Test läuft im Laufwerk weiter", 8.75f, false, UI.Muted); lsm.Margin = new Padding(0, UI.S(5), 0, 0); rs.Controls.Add(lsm);
-        f.Controls.Add(rs);
+        f.Controls.Add(OptionCard("Prüfzeiträume & Schwellenwerte", UI.IcoDiag, new Control[] { r, rs }));
         rbVoll.Checked = true;
         return f;
     }
@@ -1096,10 +1140,7 @@ public partial class DiagGui : Form
         cmbBenchDur = Combo(260, new string[] { "Normal (stabile Werte)", "Kurz (etwa halbe Dauer)" }, 0); cmbBenchDur.SelectedIndexChanged += delegate { UpdateSummary(); }; r1.Controls.Add(cmbBenchDur); f.Controls.Add(r1);
         FlowLayoutPanel r2 = Row(); r2.Controls.Add(RowLabel("Referenz (100 %)", 150));
         cmbRef = Combo(520, new string[0], 0); r2.Controls.Add(cmbRef); f.Controls.Add(r2);
-        f.Controls.Add(Section("Bereits geprüfte Systeme einblenden"));
-        clbCompare = new CheckedListBox(); clbCompare.CheckOnClick = true; clbCompare.Width = UI.S(640); clbCompare.BorderStyle = BorderStyle.FixedSingle; clbCompare.IntegralHeight = false; clbCompare.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4)); clbCompare.BackColor = UI.Panel; clbCompare.ForeColor = UI.Text;
-        f.Controls.Add(clbCompare);
-        Label ch = Lbl("Die gewählten Systeme erscheinen im Bericht, in der KI-Datei und im Reiter Leistung als zusätzliche Vergleichswerte.", 8.75f, false, UI.Muted); ch.Margin = new Padding(UI.S(4), UI.S(3), 0, 0); ch.MaximumSize = new Size(UI.S(820), 0); f.Controls.Add(ch);
+        clbCompare = new CheckedListBox(); clbCompare.BackColor = UI.Panel; clbCompare.ForeColor = UI.Text;
         f.Controls.Add(Section("Speichern"));
         chkDbSave = Chk("Ergebnis in der Vergleichsdatenbank speichern", dbDir.Length > 0); chkDbSave.Enabled = dbDir.Length > 0; f.Controls.Add(chkDbSave);
         chkRefSave = Chk("Dieses System als Referenz (100 %) festlegen", false); f.Controls.Add(chkRefSave);

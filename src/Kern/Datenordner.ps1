@@ -78,11 +78,71 @@ function Resolve-DataDir([string]$AppDir = '') {
     if (Test-WritableDir $doc) { $script:DataDirFallback = $true; return $doc }
     return ''
 }
+
+function Test-IsNetworkPath([string]$Path) {
+    if (-not $Path) { return $false }
+    if ($Path.StartsWith('\\')) { return $true }
+    try {
+        $root = [System.IO.Path]::GetPathRoot($Path)
+        if ($root) {
+            $di = New-Object System.IO.DriveInfo($root)
+            return ($di.DriveType -eq [System.IO.DriveType]::Network)
+        }
+    } catch { }
+    return $false
+}
+
+function Resolve-LocalDataDir([string]$AppDir = '') {
+    $cands = [System.Collections.Generic.List[string]]::new()
+    if ($AppDir -and -not (Test-IsNetworkPath $AppDir)) {
+        $cands.Add((Join-Path $AppDir 'Minibench-Daten'))
+        $cands.Add($AppDir)
+    }
+    if ($DatenDir -and -not (Test-IsNetworkPath $DatenDir)) {
+        $cands.Add($DatenDir.TrimEnd('\'))
+    }
+    if ($env:LEOSMINIBENCH_EXE) {
+        try {
+            $exeDir = Split-Path $env:LEOSMINIBENCH_EXE -Parent
+            if ($exeDir -and -not (Test-IsNetworkPath $exeDir)) {
+                $cands.Add((Join-Path $exeDir 'Minibench-Daten'))
+            }
+        } catch { }
+    }
+    if ($PSScriptRoot -and $PSScriptRoot -notlike "$env:TEMP*" -and $PSScriptRoot -notlike "*\tests*" -and -not (Test-IsNetworkPath $PSScriptRoot)) {
+        $cands.Add((Join-Path $PSScriptRoot 'Minibench-Daten'))
+    }
+    if (Test-Path -LiteralPath 'Minibench-Daten') {
+        try {
+            $cp = Convert-Path 'Minibench-Daten'
+            if (-not (Test-IsNetworkPath $cp)) { $cands.Add($cp) }
+        } catch { }
+    }
+    foreach ($c in $cands) {
+        if (-not $c) { continue }
+        $old = Join-Path (Split-Path $c -Parent) 'PC-Diagnose-Daten'
+        if (-not (Test-Path -LiteralPath $c) -and (Test-Path -LiteralPath $old)) {
+            try { Rename-Item -LiteralPath $old -NewName (Split-Path $c -Leaf) -ErrorAction Stop } catch { }
+        }
+        if (Test-WritableDir $c) { return $c }
+    }
+    $doc = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Leos Minibench'
+    if (Test-WritableDir $doc) { return $doc }
+    $localApp = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'LeosMinibench'
+    if (Test-WritableDir $localApp) { return $localApp }
+    $tmp = Join-Path ([System.IO.Path]::GetTempPath()) 'LeosMinibench'
+    if (Test-WritableDir $tmp) { return $tmp }
+    return ''
+}
+
 $script:DataDirFallback = $false
-$script:DataDir  = Resolve-DataDir
-$script:DbDir    = $(if ($script:DataDir) { Join-Path $script:DataDir 'Datenbank' } else { '' })
-$script:CacheDir = $(if ($script:DataDir) { Join-Path $script:DataDir 'Cache' } else { '' })
-$script:CpDir    = $(if ($script:DataDir) { Join-Path (Join-Path $script:DataDir 'Laufzeit') $env:COMPUTERNAME } else { Join-Path $env:TEMP ('LeosMinibench_' + $env:COMPUTERNAME) })
+$script:DataDir      = Resolve-DataDir
+$script:LocalDataDir = $(if ($script:DataDir -and -not (Test-IsNetworkPath $script:DataDir)) { $script:DataDir } else { Resolve-LocalDataDir })
+$script:ReportDir    = $(if ($script:DataDir) { Join-Path $script:DataDir 'Berichte' } else { Join-Path $env:TEMP 'LeosMinibench-Berichte' })
+$script:DbDir        = $(if ($script:DataDir) { Join-Path $script:DataDir 'Datenbank' } else { '' })
+$script:ToolsDir     = $(if ($script:LocalDataDir) { Join-Path $script:LocalDataDir 'Tools' } else { Join-Path ([System.IO.Path]::GetTempPath()) 'LeosMinibench\Tools' })
+$script:CacheDir     = $(if ($script:LocalDataDir) { Join-Path $script:LocalDataDir 'Cache' } else { Join-Path ([System.IO.Path]::GetTempPath()) 'LeosMinibench\Cache' })
+$script:CpDir        = $(if ($script:LocalDataDir) { Join-Path (Join-Path $script:LocalDataDir 'Laufzeit') $env:COMPUTERNAME } else { Join-Path $env:TEMP ('LeosMinibench_' + $env:COMPUTERNAME) })
 
 function Initialize-DbDir {
     if (-not $script:DbDir) { return }

@@ -224,7 +224,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenp
 }
 #endregion
 
-$ScriptVersion = '3.52'
+$ScriptVersion = '3.51'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -1007,71 +1007,11 @@ function Resolve-DataDir([string]$AppDir = '') {
     if (Test-WritableDir $doc) { $script:DataDirFallback = $true; return $doc }
     return ''
 }
-
-function Test-IsNetworkPath([string]$Path) {
-    if (-not $Path) { return $false }
-    if ($Path.StartsWith('\\')) { return $true }
-    try {
-        $root = [System.IO.Path]::GetPathRoot($Path)
-        if ($root) {
-            $di = New-Object System.IO.DriveInfo($root)
-            return ($di.DriveType -eq [System.IO.DriveType]::Network)
-        }
-    } catch { }
-    return $false
-}
-
-function Resolve-LocalDataDir([string]$AppDir = '') {
-    $cands = [System.Collections.Generic.List[string]]::new()
-    if ($AppDir -and -not (Test-IsNetworkPath $AppDir)) {
-        $cands.Add((Join-Path $AppDir 'Minibench-Daten'))
-        $cands.Add($AppDir)
-    }
-    if ($DatenDir -and -not (Test-IsNetworkPath $DatenDir)) {
-        $cands.Add($DatenDir.TrimEnd('\'))
-    }
-    if ($env:LEOSMINIBENCH_EXE) {
-        try {
-            $exeDir = Split-Path $env:LEOSMINIBENCH_EXE -Parent
-            if ($exeDir -and -not (Test-IsNetworkPath $exeDir)) {
-                $cands.Add((Join-Path $exeDir 'Minibench-Daten'))
-            }
-        } catch { }
-    }
-    if ($PSScriptRoot -and $PSScriptRoot -notlike "$env:TEMP*" -and $PSScriptRoot -notlike "*\tests*" -and -not (Test-IsNetworkPath $PSScriptRoot)) {
-        $cands.Add((Join-Path $PSScriptRoot 'Minibench-Daten'))
-    }
-    if (Test-Path -LiteralPath 'Minibench-Daten') {
-        try {
-            $cp = Convert-Path 'Minibench-Daten'
-            if (-not (Test-IsNetworkPath $cp)) { $cands.Add($cp) }
-        } catch { }
-    }
-    foreach ($c in $cands) {
-        if (-not $c) { continue }
-        $old = Join-Path (Split-Path $c -Parent) 'PC-Diagnose-Daten'
-        if (-not (Test-Path -LiteralPath $c) -and (Test-Path -LiteralPath $old)) {
-            try { Rename-Item -LiteralPath $old -NewName (Split-Path $c -Leaf) -ErrorAction Stop } catch { }
-        }
-        if (Test-WritableDir $c) { return $c }
-    }
-    $doc = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Leos Minibench'
-    if (Test-WritableDir $doc) { return $doc }
-    $localApp = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'LeosMinibench'
-    if (Test-WritableDir $localApp) { return $localApp }
-    $tmp = Join-Path ([System.IO.Path]::GetTempPath()) 'LeosMinibench'
-    if (Test-WritableDir $tmp) { return $tmp }
-    return ''
-}
-
 $script:DataDirFallback = $false
-$script:DataDir      = Resolve-DataDir
-$script:LocalDataDir = $(if ($script:DataDir -and -not (Test-IsNetworkPath $script:DataDir)) { $script:DataDir } else { Resolve-LocalDataDir })
-$script:ReportDir    = $(if ($script:DataDir) { Join-Path $script:DataDir 'Berichte' } else { Join-Path $env:TEMP 'LeosMinibench-Berichte' })
-$script:DbDir        = $(if ($script:DataDir) { Join-Path $script:DataDir 'Datenbank' } else { '' })
-$script:ToolsDir     = $(if ($script:LocalDataDir) { Join-Path $script:LocalDataDir 'Tools' } else { Join-Path ([System.IO.Path]::GetTempPath()) 'LeosMinibench\Tools' })
-$script:CacheDir     = $(if ($script:LocalDataDir) { Join-Path $script:LocalDataDir 'Cache' } else { Join-Path ([System.IO.Path]::GetTempPath()) 'LeosMinibench\Cache' })
-$script:CpDir        = $(if ($script:LocalDataDir) { Join-Path (Join-Path $script:LocalDataDir 'Laufzeit') $env:COMPUTERNAME } else { Join-Path $env:TEMP ('LeosMinibench_' + $env:COMPUTERNAME) })
+$script:DataDir  = Resolve-DataDir
+$script:DbDir    = $(if ($script:DataDir) { Join-Path $script:DataDir 'Datenbank' } else { '' })
+$script:CacheDir = $(if ($script:DataDir) { Join-Path $script:DataDir 'Cache' } else { '' })
+$script:CpDir    = $(if ($script:DataDir) { Join-Path (Join-Path $script:DataDir 'Laufzeit') $env:COMPUTERNAME } else { Join-Path $env:TEMP ('LeosMinibench_' + $env:COMPUTERNAME) })
 
 function Initialize-DbDir {
     if (-not $script:DbDir) { return }
@@ -1322,7 +1262,7 @@ function Get-DatenpflegeZiel([string]$Dir, [string]$Leaf, [switch]$Ordner) {
 # Rückgabe: Objekt mit Verschoben, Geloescht, Fehler, Zeilen (Text je Eintrag) und Kurz (eine Zeile für die Oberfläche).
 function Invoke-Datenpflege {
     param([string]$DataDir = $script:DataDir, [string]$ArchivDir = '', [switch]$NurPlan, [int]$MindestAlterMin = 0)
-    $res = [pscustomobject]@{ Verschoben = 0; Geloescht = 0; Fehler = 0; Zeilen = (New-Object System.Collections.Generic.List[string]); Kurz = ''; Archiv = ''; BytesGeloescht = 0L; BytesVerschoben = 0L; FreigegebenMB = 0.0 }
+    $res = [pscustomobject]@{ Verschoben = 0; Geloescht = 0; Fehler = 0; Zeilen = (New-Object System.Collections.Generic.List[string]); Kurz = ''; Archiv = '' }
     if (-not $DataDir -or -not (Test-Path -LiteralPath $DataDir)) { $res.Kurz = 'kein Datenordner'; return $res }
     if (-not $ArchivDir) { $ArchivDir = Join-Path $DataDir 'Archiv' }
     $res.Archiv = $ArchivDir
@@ -1331,18 +1271,6 @@ function Invoke-Datenpflege {
     $plan = New-Object System.Collections.Generic.List[object]
     $add = { param($Pfad, $Unterordner, $Grund, $Art) $plan.Add([pscustomobject]@{ Pfad = $Pfad; Unterordner = $Unterordner; Grund = $Grund; Art = $Art }) }
     $alt = { param($p) try { $i = Get-Item -LiteralPath $p -Force -ErrorAction Stop; return (($now - $i.LastWriteTime).TotalMinutes -ge $MindestAlterMin) } catch { return $false } }
-    $getSize = {
-        param($p)
-        try {
-            if (-not (Test-Path -LiteralPath $p)) { return 0L }
-            if (Test-Path -LiteralPath $p -PathType Leaf) { return (Get-Item -LiteralPath $p -Force).Length }
-            $sum = 0L
-            foreach ($item in @(Get-ChildItem -LiteralPath $p -Recurse -File -Force -ErrorAction SilentlyContinue)) {
-                $sum += $item.Length
-            }
-            return $sum
-        } catch { return 0L }
-    }
 
     # Läufe, deren Absturzanalyse noch aussteht (laufend.json), bleiben unangetastet
     $busy = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
@@ -1356,28 +1284,12 @@ function Invoke-Datenpflege {
     $keep = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
     foreach ($f in @(Get-ChildItem -LiteralPath $dbDir -Filter '*.json' -File -ErrorAction SilentlyContinue | Sort-Object Name)) {
         $e = Read-DatenpflegeJson $f.FullName
-        if (-not $e) {
-            # 0-Byte oder beschädigte JSON-Datei ins Archiv verschieben
-            if (& $alt $f.FullName) {
-                & $add $f.FullName (Join-Path 'Beschaedigt' 'Datenbank') 'beschädigte oder leere JSON-Datei' 'Beschädigt'
-            }
-            continue
-        }
+        if (-not $e) { continue }
         $ein = Get-DatenpflegeEinordnung $e
         # Ordner relativ zum Datenordner (Berichte\<Lauf>) oder absolut; Trenner \ oder /
         $leaf = $(if ($e.Ordner) { @(([string]$e.Ordner).TrimEnd('\', '/') -split '[\\/]')[-1] } else { '' })
-        if ($leaf -and $busy.Contains($leaf)) { [void]$keep.Add($f.Name); continue }
-
-        # Verwaister Datenbankeintrag: Ordner war benannt, existiert aber im Berichtsordner nicht mehr
-        if (-not $ein -and $leaf -and (& $alt $f.FullName)) {
-            $rd = Join-Path $repDir $leaf
-            if (-not (Test-Path -LiteralPath $rd -PathType Container)) {
-                $ein = [pscustomobject]@{ Ziel = 'Verwaist'; Art = 'Verwaist'; Grund = ('zugehöriger Berichtsordner nicht mehr vorhanden ({0})' -f $leaf) }
-            }
-        }
-
         if (-not $ein) { [void]$keep.Add($f.Name); continue }
-        if ($ein.Art -eq 'Kurz' -and -not (& $alt $f.FullName)) { [void]$keep.Add($f.Name); continue }
+        if (($leaf -and $busy.Contains($leaf)) -or ($ein.Art -eq 'Kurz' -and -not (& $alt $f.FullName))) { [void]$keep.Add($f.Name); continue }
         & $add $f.FullName (Join-Path $ein.Ziel 'Datenbank') $ein.Grund $ein.Art
         if ($leaf) {
             $rd = Join-Path $repDir $leaf
@@ -1426,84 +1338,31 @@ function Invoke-Datenpflege {
         $line = ('{0} -> {1}: {2}' -f $rel, $p.Unterordner, $p.Grund)
         if ($NurPlan) { $res.Zeilen.Add('geplant: ' + $line); continue }
         try {
-            $sz = & $getSize $p.Pfad
             New-Item -ItemType Directory -Path $zielDir -Force -ErrorAction Stop | Out-Null
             $ziel = Get-DatenpflegeZiel $zielDir (Split-Path $p.Pfad -Leaf) -Ordner:(Test-Path -LiteralPath $p.Pfad -PathType Container)
             Move-Item -LiteralPath $p.Pfad -Destination $ziel -ErrorAction Stop
             $res.Verschoben++
-            $res.BytesVerschoben += $sz
             $res.Zeilen.Add($line)
         } catch { $res.Fehler++; $res.Zeilen.Add(('nicht verschoben: {0} ({1})' -f $line, $_.Exception.Message)) }
     }
 
-    # 6. Reste ohne Wert löschen: ältere Übersetzungen im Cache (sie entstehen bei Bedarf neu) und verwaiste Laufzeitdaten
+    # 6. Reste ohne Wert löschen: ältere Übersetzungen im Cache (sie entstehen bei Bedarf neu) und alte Stoppdateien
     if (-not $NurPlan) {
         $cache = Join-Path $DataDir 'Cache'
         $groups = @(Get-ChildItem -LiteralPath $cache -Filter 'LeosMinibench-*.dll' -File -ErrorAction SilentlyContinue | Group-Object { $_.Name -replace '-[0-9a-f]{12}\.dll$', '' })
         foreach ($g in $groups) {
             foreach ($x in @($g.Group | Sort-Object LastWriteTime -Descending | Select-Object -Skip 1)) {
-                try {
-                    $sz = & $getSize $x.FullName
-                    Remove-Item -LiteralPath $x.FullName -Force -ErrorAction Stop
-                    $res.Geloescht++
-                    $res.BytesGeloescht += $sz
-                    $res.Zeilen.Add(('Cache\{0} gelöscht: ältere Übersetzung' -f $x.Name))
-                } catch { }
+                try { Remove-Item -LiteralPath $x.FullName -Force -ErrorAction Stop; $res.Geloescht++; $res.Zeilen.Add(('Cache\{0} gelöscht: ältere Übersetzung' -f $x.Name)) } catch { }
             }
         }
-        $lz = Join-Path $DataDir 'Laufzeit'
-        if (Test-Path -LiteralPath $lz) {
-            # Stoppdateien, verwaiste Locks und abgebrochene Checkpoints im Laufzeitordner
-            foreach ($pc in @(Get-ChildItem -LiteralPath $lz -Directory -ErrorAction SilentlyContinue)) {
-                $hasActiveRun = $false
-                $lf = Join-Path $pc.FullName 'laufend.json'
-                if (Test-Path -LiteralPath $lf) {
-                    $fi = Get-Item -LiteralPath $lf -Force -ErrorAction SilentlyContinue
-                    if ($fi -and ($now - $fi.LastWriteTime).TotalDays -lt 7) { $hasActiveRun = $true }
-                    else {
-                        try {
-                            $sz = & $getSize $lf
-                            Remove-Item -LiteralPath $lf -Force -ErrorAction Stop
-                            $res.Geloescht++; $res.BytesGeloescht += $sz
-                            $res.Zeilen.Add(('Laufzeit\{0}\laufend.json gelöscht: veralteter Laufzeit-Marker' -f $pc.Name))
-                        } catch { }
-                    }
-                }
-                if (-not $hasActiveRun) {
-                    foreach ($s in @(Get-ChildItem -LiteralPath $pc.FullName -Filter 'sensor.stop' -File -ErrorAction SilentlyContinue | Where-Object { ($now - $_.LastWriteTime).TotalMinutes -ge 30 })) {
-                        try {
-                            $sz = & $getSize $s.FullName
-                            Remove-Item -LiteralPath $s.FullName -Force -ErrorAction Stop
-                            $res.Geloescht++; $res.BytesGeloescht += $sz
-                            $res.Zeilen.Add(('Laufzeit\{0}\sensor.stop gelöscht: Rest der Live-Ansicht' -f $pc.Name))
-                        } catch { }
-                    }
-                    foreach ($tmp in @(Get-ChildItem -LiteralPath $pc.FullName -Include '*.tmp', '*.lock', 'checkpoint*.json' -File -ErrorAction SilentlyContinue | Where-Object { ($now - $_.LastWriteTime).TotalHours -ge 2 })) {
-                        try {
-                            $sz = & $getSize $tmp.FullName
-                            Remove-Item -LiteralPath $tmp.FullName -Force -ErrorAction Stop
-                            $res.Geloescht++; $res.BytesGeloescht += $sz
-                            $res.Zeilen.Add(('Laufzeit\{0}\{1} gelöscht: verwaiste temporäre Datei' -f $pc.Name, $tmp.Name))
-                        } catch { }
-                    }
-                }
-                if (-not @(Get-ChildItem -LiteralPath $pc.FullName -Force -ErrorAction SilentlyContinue).Count) {
-                    try { Remove-Item -LiteralPath $pc.FullName -Force -ErrorAction Stop } catch { }
-                }
+        foreach ($pc in @(Get-ChildItem -LiteralPath (Join-Path $DataDir 'Laufzeit') -Directory -ErrorAction SilentlyContinue)) {
+            if (Test-Path -LiteralPath (Join-Path $pc.FullName 'laufend.json')) { continue }
+            foreach ($s in @(Get-ChildItem -LiteralPath $pc.FullName -Filter 'sensor.stop' -File -ErrorAction SilentlyContinue | Where-Object { ($now - $_.LastWriteTime).TotalHours -ge 1 })) {
+                try { Remove-Item -LiteralPath $s.FullName -Force -ErrorAction Stop; $res.Geloescht++; $res.Zeilen.Add(('Laufzeit\{0}\sensor.stop gelöscht: Rest der Live-Ansicht' -f $pc.Name)) } catch { }
             }
-            # Wurzel-Dateien im Laufzeitordner
-            foreach ($rt in @(Get-ChildItem -LiteralPath $lz -File -ErrorAction SilentlyContinue | Where-Object { ($now - $_.LastWriteTime).TotalHours -ge 2 })) {
-                try {
-                    $sz = & $getSize $rt.FullName
-                    Remove-Item -LiteralPath $rt.FullName -Force -ErrorAction Stop
-                    $res.Geloescht++; $res.BytesGeloescht += $sz
-                    $res.Zeilen.Add(('Laufzeit\{0} gelöscht: temporärer Rest' -f $rt.Name))
-                } catch { }
-            }
+            if (-not @(Get-ChildItem -LiteralPath $pc.FullName -Force -ErrorAction SilentlyContinue).Count) { try { Remove-Item -LiteralPath $pc.FullName -Force -ErrorAction Stop } catch { } }
         }
     }
-
-    $res.FreigegebenMB = [math]::Round($res.BytesGeloescht / 1MB, 2)
 
     # 7. Protokoll im Archiv
     if (-not $NurPlan -and ($res.Verschoben -or $res.Geloescht -or $res.Fehler)) {
@@ -1511,7 +1370,6 @@ function Invoke-Datenpflege {
             New-Item -ItemType Directory -Path $ArchivDir -Force -ErrorAction Stop | Out-Null
             $log = New-Object System.Text.StringBuilder
             [void]$log.AppendLine(('{0:yyyy-MM-dd HH:mm} Datenpflege v{1}, Datenordner {2}' -f $now, $ScriptVersion, $DataDir))
-            [void]$log.AppendLine(('  Status: {0} Läufe/Einträge verschoben, {1} temporäre Dateien/Reste bereinigt, {2:N2} MB freigegeben' -f $res.Verschoben, $res.Geloescht, $res.FreigegebenMB))
             foreach ($z in $res.Zeilen) { [void]$log.AppendLine('  ' + $z) }
             [IO.File]::AppendAllText((Join-Path $ArchivDir 'Datenpflege.log'), $log.ToString(), (New-Object Text.UTF8Encoding($true)))
         } catch { }
@@ -1519,12 +1377,10 @@ function Invoke-Datenpflege {
     $nM = @($plan | Where-Object { $_.Art -eq 'Messreihe' -and $_.Pfad -like '*.json' -and $_.Pfad -like ($dbDir + '*') }).Count
     $nU = @($plan | Where-Object { $_.Art -eq 'Unvollständig' }).Count
     $nK = @($plan | Where-Object { $_.Art -eq 'Kurz' -and $_.Pfad -like ($dbDir + '*') }).Count
-    $nV = @($plan | Where-Object { $_.Art -in 'Verwaist', 'Beschädigt' }).Count
     $parts = @()
     if ($nM) { $parts += ('{0} {1} vor v{2}' -f $nM, $(if ($nM -eq 1) { 'Lasttest' } else { 'Lasttests' }), $script:MessreiheAb) }
     if ($nK) { $parts += ('{0} {1}' -f $nK, $(if ($nK -eq 1) { 'kurzer Lauf' } else { 'kurze Läufe' })) }
     if ($nU) { $parts += ('{0} {1}' -f $nU, $(if ($nU -eq 1) { 'unvollständiger Lauf' } else { 'unvollständige Läufe' })) }
-    if ($nV) { $parts += ('{0} verwaiste {1}' -f $nV, $(if ($nV -eq 1) { 'Eintrag' } else { 'Einträge' })) }
     $nW = @($plan | Where-Object { $_.Art -eq 'Werkzeug' }).Count
     if ($nW) { $parts += ('{0} ungenutzte {1} von smartmontools' -f $nW, $(if ($nW -eq 1) { 'Datei' } else { 'Dateien' })) }
     $res.Kurz = $(if ($parts.Count) { '{0} {1}{2}' -f ($parts -join ', '), $(if ($NurPlan) { 'würden ins Archiv verschoben' } else { 'ins Archiv verschoben' }), $(if ($res.Fehler) { ', {0} nicht möglich' -f $res.Fehler } else { '' }) } else { 'nichts zu archivieren' })
@@ -1535,9 +1391,8 @@ function Invoke-Datenpflege {
 if ($Datenpflege) {
     $dp = Invoke-Datenpflege -DataDir $script:DataDir -ArchivDir $ArchivDir
     foreach ($z in $dp.Zeilen) { Write-Host ('  ' + $z) }
-    $cleanText = $(if ($dp.Geloescht -gt 0) { (' ({0} Temp-Dateien bereinigt, {1:N1} MB frei)' -f $dp.Geloescht, $dp.FreigegebenMB) } else { '' })
-    Write-Host ('Datenpflege: {0}{1}. Archiv: {2}' -f $dp.Kurz, $cleanText, $dp.Archiv)
-    Send-GuiEvent 'RESULT' ('{0}{1}' -f $dp.Kurz, $cleanText)
+    Write-Host ('Datenpflege: {0}. Archiv: {1}' -f $dp.Kurz, $dp.Archiv)
+    Send-GuiEvent 'RESULT' $dp.Kurz
     exit $(if ($dp.Fehler) { 1 } else { 0 })
 }
 #endregion
@@ -2408,26 +2263,13 @@ function Invoke-ChangeUndo([string]$Spec) {
 $script:ToolManifestFormat = 'Minibench-Tools/1'
 $script:ToolIssues = New-Object System.Collections.Generic.List[string]
 
-function Get-ToolsDir {
-    if ($script:ToolsDir) { return $script:ToolsDir }
-    if ($script:LocalDataDir) { return (Join-Path $script:LocalDataDir 'Tools') }
-    if ($script:DataDir -and $script:DataDir -notlike '\\*') { return (Join-Path $script:DataDir 'Tools') }
-    if ($script:DataDir) { return (Join-Path $script:DataDir 'Tools') }
-    return ''
-}
+function Get-ToolsDir { if ($script:DataDir) { return (Join-Path $script:DataDir 'Tools') } else { return '' } }
 
 function Get-FileSha256([string]$Path) {
-    if (-not $Path) { return '' }
-    try {
-        $norm = [System.IO.Path]::GetFullPath($Path)
-        if (-not [System.IO.File]::Exists($norm)) { return '' }
-        $sha = [Security.Cryptography.SHA256]::Create()
-        $fs = [IO.File]::OpenRead($norm)
-        try { return (-join ($sha.ComputeHash($fs) | ForEach-Object { $_.ToString('x2') })) }
-        finally { $fs.Dispose(); $sha.Dispose() }
-    } catch {
-        return ''
-    }
+    $sha = [Security.Cryptography.SHA256]::Create()
+    $fs = [IO.File]::OpenRead($Path)
+    try { return (-join ($sha.ComputeHash($fs) | ForEach-Object { $_.ToString('x2') })) }
+    finally { $fs.Dispose(); $sha.Dispose() }
 }
 
 function Read-ToolManifest([string]$ToolsDir = (Get-ToolsDir)) {
@@ -4895,8 +4737,8 @@ public partial class DiagGui : Form
         BackColor = UI.Bg; ForeColor = UI.Text;
         StartPosition = FormStartPosition.CenterScreen;
         Rectangle workArea = Screen.FromPoint(Cursor.Position).WorkingArea;
-        int startW = Math.Min(UI.S(1320), (int)(workArea.Width * 0.96));
-        int startH = Math.Min(UI.S(860), (int)(workArea.Height * 0.95));
+        int startW = Math.Min(UI.S(1220), (int)(workArea.Width * 0.95));
+        int startH = Math.Min(UI.S(740), (int)(workArea.Height * 0.92));
         ClientSize = new Size(startW, startH);
         MinimumSize = new Size(UI.S(880), UI.S(560));
         try { Icon ic = AppSymbol.Get(); if (ic != null) Icon = ic; else Icon = Icon.ExtractAssociatedIcon(psExe); } catch { }
@@ -5448,6 +5290,7 @@ public partial class DiagGui : Form
         Tip(chkGpuWahl, "Bei Notebooks mit zwei Grafikeinheiten misst WinSAT nur die Einheit, die den Desktop ausgibt. Mit diesem Haken wird WinSAT kurz auf die Grafikkarte gestellt und gleich wieder zurück (steht im Änderungsprotokoll).");
         Tip(cmbBenchDur, "Normal: 5 Sekunden je Messung, stabile Werte. Kurz: 2 Sekunden, etwa halbe Dauer; Kurzläufe werden nur mit Kurzläufen verglichen.");
         Tip(cmbRef, "Bezug für die Prozentwerte (100 %): die gespeicherte Referenz (Referenz.json, gesetzt mit dem Haken unten), der Median aller Systeme der Datenbank oder ein einzelner gespeicherter Lauf.");
+        Tip(clbCompare, "Diese Systeme erscheinen zusätzlich im Bericht, in der KI-Datei und im Reiter Leistung.");
         Tip(chkDbSave, "Legt die Werte dieses Laufs als Eintrag in Minibench-Daten\\Datenbank ab (Verlauf auf diesem PC, Vergleiche, Rang).");
         Tip(chkRefSave, "Speichert die Werte dieses Laufs als Referenz.json im Datenordner. Alle PCs, die mit diesem Datenordner messen, werden dann in Prozent dieses Systems angegeben.");
         // Lasttest
@@ -5574,49 +5417,6 @@ public partial class DiagGui : Form
         return l;
     }
 
-    static Panel OptionCard(string categoryTitle, string icon, Control[] controls)
-    {
-        Panel card = new Panel();
-        card.BackColor = UI.Panel;
-        card.Padding = new Padding(UI.S(14), UI.S(10), UI.S(14), UI.S(10));
-        card.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(8));
-        card.Width = UI.S(840);
-        card.AutoSize = true;
-        card.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-
-        FlowLayoutPanel inner = new FlowLayoutPanel();
-        inner.FlowDirection = FlowDirection.TopDown;
-        inner.WrapContents = false;
-        inner.AutoSize = true;
-        inner.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        inner.BackColor = UI.Panel;
-        inner.Margin = new Padding(0);
-        inner.Dock = DockStyle.Fill;
-
-        Label header = Lbl((icon != null && icon.Length > 0 ? icon + "  " : "") + categoryTitle, 9.75f, true, UI.Text);
-        header.Margin = new Padding(0, 0, 0, UI.S(6));
-        inner.Controls.Add(header);
-
-        if (controls != null)
-        {
-            foreach (Control c in controls)
-            {
-                if (c != null) inner.Controls.Add(c);
-            }
-        }
-
-        card.Controls.Add(inner);
-        card.Paint += delegate(object sender, PaintEventArgs e)
-        {
-            Rectangle r = card.ClientRectangle; r.Width--; r.Height--;
-            using (Pen pen = new Pen(UI.Line, 1f))
-            {
-                e.Graphics.DrawRectangle(pen, r);
-            }
-        };
-        return card;
-    }
-
     Control BuildDiagPage()
     {
         FlowLayoutPanel f = Page("Diagnose", "Liest Hardware, Treiber, Sicherheit und Ereignisprotokolle aus, führt die gewählten Prüfungen durch und bewertet alles in einem Bericht. Prüfungen verändern nichts am System.", 0);
@@ -5665,17 +5465,15 @@ public partial class DiagGui : Form
         Label cpuHint = Lbl("Die CPU-Stabilität prüft ab v2.7 das Modul Lasttest (Prozessor, ab 2 Minuten): eigener Lastprozess, Rechenfehler, Takt- und Temperaturverlauf und Drosselnachweis.", 8.5f, false, UI.Muted);
         cpuHint.MaximumSize = new Size(UI.S(820), 0); cpuHint.Margin = new Padding(UI.S(24), UI.S(2), 0, UI.S(4)); f.Controls.Add(cpuHint);
         f.Controls.Add(Section("Optionen"));
-        chkInstall = Chk("smartmontools bei Bedarf installieren (winget) oder aus dem Datenordner verwenden", true);
-        chkMem = Chk("Windows-Speicherdiagnose beim nächsten Neustart einplanen", false);
-        f.Controls.Add(OptionCard("Zusatzwerkzeuge & Speicherdiagnose", UI.IcoTools, new Control[] { chkInstall, chkMem }));
-
+        chkInstall = Chk("smartmontools bei Bedarf installieren (winget) oder aus dem Datenordner verwenden", true); f.Controls.Add(chkInstall);
+        chkMem = Chk("Windows-Speicherdiagnose beim nächsten Neustart einplanen", false); f.Controls.Add(chkMem);
         FlowLayoutPanel r = Row(); r.Controls.Add(RowLabel("Ereignisse der letzten", 150));
-        cmbDays = Combo(110, new string[] { "3 Tage", "7 Tage", "14 Tage", "30 Tage", "60 Tage" }, 2); r.Controls.Add(cmbDays);
+        cmbDays = Combo(110, new string[] { "3 Tage", "7 Tage", "14 Tage", "30 Tage", "60 Tage" }, 2); r.Controls.Add(cmbDays); f.Controls.Add(r);
         FlowLayoutPanel rs = Row(); rs.Controls.Add(RowLabel("SMART-Langtest", 150));
         string[] sm = new string[smartMinutes.Length]; for (int i = 0; i < sm.Length; i++) sm[i] = "höchstens " + smartMinutes[i] + " Min. warten";
         cmbSmartMax = Combo(220, sm, 3); cmbSmartMax.SelectedIndexChanged += delegate { UpdateSummary(); }; rs.Controls.Add(cmbSmartMax);
         Label lsm = Lbl("danach wird der Bericht ohne Ergebnis des Langtests erstellt; der Test läuft im Laufwerk weiter", 8.75f, false, UI.Muted); lsm.Margin = new Padding(0, UI.S(5), 0, 0); rs.Controls.Add(lsm);
-        f.Controls.Add(OptionCard("Prüfzeiträume & Schwellenwerte", UI.IcoDiag, new Control[] { r, rs }));
+        f.Controls.Add(rs);
         rbVoll.Checked = true;
         return f;
     }
@@ -5747,7 +5545,10 @@ public partial class DiagGui : Form
         cmbBenchDur = Combo(260, new string[] { "Normal (stabile Werte)", "Kurz (etwa halbe Dauer)" }, 0); cmbBenchDur.SelectedIndexChanged += delegate { UpdateSummary(); }; r1.Controls.Add(cmbBenchDur); f.Controls.Add(r1);
         FlowLayoutPanel r2 = Row(); r2.Controls.Add(RowLabel("Referenz (100 %)", 150));
         cmbRef = Combo(520, new string[0], 0); r2.Controls.Add(cmbRef); f.Controls.Add(r2);
-        clbCompare = new CheckedListBox(); clbCompare.BackColor = UI.Panel; clbCompare.ForeColor = UI.Text;
+        f.Controls.Add(Section("Bereits geprüfte Systeme einblenden"));
+        clbCompare = new CheckedListBox(); clbCompare.CheckOnClick = true; clbCompare.Width = UI.S(640); clbCompare.BorderStyle = BorderStyle.FixedSingle; clbCompare.IntegralHeight = false; clbCompare.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4)); clbCompare.BackColor = UI.Panel; clbCompare.ForeColor = UI.Text;
+        f.Controls.Add(clbCompare);
+        Label ch = Lbl("Die gewählten Systeme erscheinen im Bericht, in der KI-Datei und im Reiter Leistung als zusätzliche Vergleichswerte.", 8.75f, false, UI.Muted); ch.Margin = new Padding(UI.S(4), UI.S(3), 0, 0); ch.MaximumSize = new Size(UI.S(820), 0); f.Controls.Add(ch);
         f.Controls.Add(Section("Speichern"));
         chkDbSave = Chk("Ergebnis in der Vergleichsdatenbank speichern", dbDir.Length > 0); chkDbSave.Enabled = dbDir.Length > 0; f.Controls.Add(chkDbSave);
         chkRefSave = Chk("Dieses System als Referenz (100 %) festlegen", false); f.Controls.Add(chkRefSave);
@@ -10798,12 +10599,6 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
-        new Eintrag("3.52", "07.10.2026", "Netzlaufwerk-Härtung, Dashboard-Link-Fix, optimierte Datenpflege, aufgeräumte Optionen und vollständige Historie",
-            "Netzlaufwerk- und NAS-Härtung: Klare Trennung zwischen Berichten/Datenbank auf dem Netzlaufwerk und strikt lokalen Binaries/Caches auf dem USB-Stick oder im lokalen Temp-Verzeichnis. Ausnahme 'Pfadformat nicht unterstützt' und CAS-Sicherheitsblockaden bei OpenRead und externen Treibern (smartctl, PawnIO, LibreHardwareMonitor) behoben. " +
-            "Dashboard-Link-Korrektur: Relative Pfadauflösung von Berichts-Links im interaktiven Multi-System-Dashboard (Dashboard.html) bereinigt; Auflösung auf <Lauf-Ordner>/Diagnosebericht.html mit Vorwärtsslash ohne doppeltes Berichte-Präfix (ERR_FILE_NOT_FOUND behoben). " +
-            "Erweiterte Datenpflege: Verwaiste und beschädigte Datenbankeinträge (ohne Berichtsordner oder leere JSON-Dateien) werden automatisch ins Archiv verschoben; verwaiste Locks, Checkpoints und temporäre Reste im Laufzeitordner werden bereinigt und freigegebener Speicherplatz detailliert protokolliert. " +
-            "Oberflächen-Verfeinerung: Redundante Vergleichs-Checkliste auf der Benchmark-Startseite entfernt; Diagnose-Optionen in moderne Fluent-Karten mit Icons kategorisiert; Startfenstergröße weiter vergrößert für scrollbalkenfreie Darstellung. " +
-            "Vollständige Versionshistorie: Dokumentation aller Einzelversionen von 1.0 bis 1.8 mit konkreten Changelogs nachgepflegt."),
         new Eintrag("3.51", "07.10.2026", "Dashboard-Berichtsverlinkung, Referenz-Deduplizierung & persistente Netzlaufwerke",
             "Dashboard-Berichtsverlinkung: Vollständige Diagnoseberichte können im Multi-System-Dashboard (Dashboard.html) direkt durch Klick auf Systemnamen oder über die neuen Bericht-Schaltflächen geöffnet werden. Auf der Vergleichsseite in der Benutzeroberfläche steht zusätzlich ein Button 'Bericht öffnen' bereit. " +
             "Bereinigung der Referenzprofile: Referenzsysteme erscheinen im Dashboard sauber und ausschließlich einmalig unter 'Referenzprofile (Eingebettet)' mit Stern-Symbol (⭐) statt fälschlich zusätzlich in der regulären Datenbankliste. " +
@@ -10890,28 +10685,8 @@ public static class Versionshistorie
             "Quelltext in Teilen (src) mit Bauen.cmd, Modulvertrag je Modul, Risikostufen (Lesen, Ändern, Eingriff, Zerstörend), Änderungsprotokoll mit Rückgängig, Werkzeug-Manifest mit SHA-256, Datenbankformat 2 mit Geräteidentität, Pester-Tests und Testmatrix. Bedienung, Berichte und Ablage blieben wie in 2.1."),
         new Eintrag("2.0 bis 2.1", "bis 01.10.2026", "Leos Minibench",
             "Neuer Name Leos Minibench, Start als LeosMinibench.exe vom Stick, Datenordner Minibench-Daten neben der exe (ein Ordner PC-Diagnose-Daten wird übernommen). Oberfläche mit den Modulen Diagnose, Benchmark, Lasttest und Reparatur, Vergleichsdatenbank (Format 1), HTML- und Textbericht, KI-Datei. smartctl lag im Tools-Ordner noch ohne Manifest. Stand 2.1 ist die Grundlage, die 2.2 in Teile zerlegt hat."),
-        new Eintrag("1.8", "30.09.2026", "Gruppierter Benchmark und Referenz",
-            "Der Benchmark ist in vier ausklappbare Blöcke gegliedert, im Bericht und in der Oberfläche. Laufwerke stehen kompakt in einer Zeile pro Laufwerk. Neue Messungen:\r\n" +
-            "· CPU: AES-256, SHA-256, Kompression\r\n" +
-            "· RAM: Kopieren\r\n" +
-            "· GPU: PCIe-Anbindung, Grafikspeicher\r\n" +
-            "· Laufwerke: 4K schreiben"),
-        new Eintrag("1.7", "29.09.2026", "Benchmark-Korrektur und schlankere Ausgabe",
-            "Fehler behoben, durch den nur die CPU gemessen wurde. Jeder Teil des Benchmarks läuft jetzt abgesichert für sich. Die Ausgabe ist entschlackt: Im Ordner liegen nur noch der HTML- und der Textbericht, alles andere steckt in Anhang.zip."),
-        new Eintrag("1.6", "28.09.2026", "Benchmark und Lasttest",
-            "Benchmark für CPU (Einzel- und Mehrkern, Takt), RAM (Lesen, Schreiben, Latenz), GPU (WinSAT) und Laufwerke (sequentiell und 4K, ohne Windows-Cache). Jeder Wert bekommt einen Index für seine Hardwareklasse und wird mit früheren Läufen verglichen. PCIe-Anbindung von Grafikkarte und NVMe wird geprüft. Lasttest mit wählbarer Dauer, Takt- und Temperaturkurve, Drosselungserkennung und Abbruchknopf."),
-        new Eintrag("1.5", "27.09.2026", "Kurztest und neues Design",
-            "Kurztest-Modus, der alles Langwierige überspringt. Die Oberfläche ist komplett überarbeitet, mit Kacheln, Statuskarten und Reitern, und öffnet sich im Vordergrund. Die exe fordert Administratorrechte selbst an. Dazu Korrekturen aus dem Code-Review."),
-        new Eintrag("1.4", "26.09.2026", "Oberfläche und HTML-Bericht",
-            "Optionale grafische Oberfläche mit Live-Befunden, Testergebnissen und Protokoll. Grafischer Endbericht als HTML mit Hell- und Dunkelmodus. Ein Build-Skript kompiliert die exe direkt auf dem Desktop, ganz ohne Download."),
-        new Eintrag("1.3", "25.09.2026", "Absturzsicherheit und Korrekturen",
-            "Checkpoints werden direkt auf die Platte geschrieben, damit sie auch einen Absturz überstehen. Nach einem abgebrochenen Lauf startet eine Absturzanalyse: Bluescreen-Stoppcode, Kernel-Power 41, WHEA-Fehler und der Schritt, in dem der PC ausfiel. Neue Option Absturzanalyse (-AnalyzeLastRun). Behoben wurden die Fehler aus dem ersten Praxislauf: Auswertung von SFC, Fehlalarme bei NTFS und Store-Apps, SMART-Meldung, Firmwaretyp und Konsolenkodierung."),
-        new Eintrag("1.2", "24.09.2026", "Kodierung",
-            "Das Skript repariert sich selbst, wenn die UTF-8-Kennung (BOM) beim Kopieren verloren geht. Hashtable-Schlüssel mit Umlauten stehen jetzt in Anführungszeichen."),
-        new Eintrag("1.1", "23.09.2026", "Starten und Fortschritt",
-            "Start-CMD mit Menü und eine exe als Starter. Die Administratorrechte holt sich die CMD selbst, und das Fenster bleibt bei Fehlern offen. Klare Fortschrittsbalken für den Gesamtlauf und den einzelnen Schritt."),
-        new Eintrag("1.0", "22.09.2026", "Grundversion",
-            "Diagnoseskript für Windows 11. Es erfasst die Hardware und das System: Firmware, TPM, BitLocker, CPU, RAM-Module, GPU, Datenträger, SMART, Akku, Netzwerk, Treiber, Updates, Sicherheit, Autostart und Software. Dazu kommen Tests: WinSAT, chkdsk-Onlinescan, DISM und SFC, Defender-Schnellscan, SMART-Langtest, RAM-Mustertest, CPU-Stabilitätstest, Netzwerk- und Energieanalyse sowie die Auswertung der Ereignisprotokolle. Der komplette Bericht landet in der Zwischenablage und als Textdatei auf dem Desktop.")
+        new Eintrag("1.0 bis 1.8", "bis 30.09.2026", "PC-Diagnose",
+            "Diagnose- und Benchmark-Skript unter dem Namen PC-Diagnose, Ausgabe in Ordnern PC-Diagnose_<PC> mit Diagnosebericht und Benchmark.csv. Aus Läufen mit 1.8 vom 30.09.2026 stammen die ersten Einträge der Vergleichsdatenbank (TORRENT, AlexPC, LizPC); die Werte von TORRENT dienten bis 2.6 als eingebaute Referenz. Einzelne Stände 1.0 bis 1.7 sind nicht mehr dokumentiert.")
     };
 }
 '@
@@ -13314,49 +13089,25 @@ function Export-BenchDashboardData {
             })
         }
 
-        # Ermittlung des Berichts-Pfads für Direktverlinkung (v3.52)
+        # Ermittlung des Berichts-Pfads für Direktverlinkung (v3.51)
         $reportUrl = ''
         if ($j.BerichtPfad) {
             $reportUrl = [string]$j.BerichtPfad
-        } elseif ($j.Ordner) {
-            $pOrd = [string]$j.Ordner
-            $pNorm = $pOrd -replace '\\', '/'
-            if ($pNorm -match 'Diagnosebericht\.html$') {
-                $reportUrl = $pNorm
-            } else {
-                $reportUrl = $pNorm.TrimEnd('/') + '/Diagnosebericht.html'
-            }
         } elseif ($FilePath) {
             $parentDir = Split-Path $FilePath -Parent
             $candRel = Join-Path (Split-Path $parentDir -Parent) ('Berichte\' + (Split-Path $parentDir -Leaf) + '\Diagnosebericht.html')
-            if (Test-Path -LiteralPath $candRel) {
-                $reportUrl = (Split-Path $parentDir -Leaf) + '/Diagnosebericht.html'
-            } else {
+            if (Test-Path -LiteralPath $candRel) { $reportUrl = $candRel }
+            else {
                 # Suche nach Diagnosebericht.html im Geschwister-Ordner Berichte
                 $candRep = Join-Path (Split-Path (Split-Path $FilePath -Parent) -Parent) 'Berichte'
                 if (Test-Path -LiteralPath $candRep) {
                     $found = @(Get-ChildItem -LiteralPath $candRep -Filter 'Diagnosebericht.html' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*$($j.Computer)*" })
-                    if ($found.Count) {
-                        $folderLeaf = Split-Path (Split-Path $found[0].FullName -Parent) -Leaf
-                        $reportUrl = $folderLeaf + '/Diagnosebericht.html'
-                    }
+                    if ($found.Count) { $reportUrl = $found[0].FullName }
                 }
             }
         }
         if (-not $reportUrl -and $j.Datum -and $j.Computer) {
-            $reportUrl = ('{0}_{1}/Diagnosebericht.html' -f ($j.Datum -replace '[- :]', ''), $j.Computer)
-        }
-
-        # URL-Pfad normalisieren: Relative Links relativ zu Dashboard.html (in Berichte/ gelegen)
-        if ($reportUrl) {
-            $reportUrl = $reportUrl -replace '\\', '/'
-            $idx = $reportUrl.IndexOf('/Berichte/', [StringComparison]::OrdinalIgnoreCase)
-            if ($idx -ge 0) {
-                $reportUrl = $reportUrl.Substring($idx + 10)
-            } else {
-                $reportUrl = $reportUrl -replace '^Berichte/', ''
-            }
-            $reportUrl = $reportUrl.TrimStart('/')
+            $reportUrl = ('Berichte\{0}_{1}\Diagnosebericht.html' -f ($j.Datum -replace '[- :]', ''), $j.Computer)
         }
 
         return [ordered]@{

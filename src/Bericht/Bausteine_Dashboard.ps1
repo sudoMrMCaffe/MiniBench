@@ -415,25 +415,49 @@ function Export-BenchDashboardData {
             })
         }
 
-        # Ermittlung des Berichts-Pfads für Direktverlinkung (v3.51)
+        # Ermittlung des Berichts-Pfads für Direktverlinkung (v3.52)
         $reportUrl = ''
         if ($j.BerichtPfad) {
             $reportUrl = [string]$j.BerichtPfad
+        } elseif ($j.Ordner) {
+            $pOrd = [string]$j.Ordner
+            $pNorm = $pOrd -replace '\\', '/'
+            if ($pNorm -match 'Diagnosebericht\.html$') {
+                $reportUrl = $pNorm
+            } else {
+                $reportUrl = $pNorm.TrimEnd('/') + '/Diagnosebericht.html'
+            }
         } elseif ($FilePath) {
             $parentDir = Split-Path $FilePath -Parent
             $candRel = Join-Path (Split-Path $parentDir -Parent) ('Berichte\' + (Split-Path $parentDir -Leaf) + '\Diagnosebericht.html')
-            if (Test-Path -LiteralPath $candRel) { $reportUrl = $candRel }
-            else {
+            if (Test-Path -LiteralPath $candRel) {
+                $reportUrl = (Split-Path $parentDir -Leaf) + '/Diagnosebericht.html'
+            } else {
                 # Suche nach Diagnosebericht.html im Geschwister-Ordner Berichte
                 $candRep = Join-Path (Split-Path (Split-Path $FilePath -Parent) -Parent) 'Berichte'
                 if (Test-Path -LiteralPath $candRep) {
                     $found = @(Get-ChildItem -LiteralPath $candRep -Filter 'Diagnosebericht.html' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*$($j.Computer)*" })
-                    if ($found.Count) { $reportUrl = $found[0].FullName }
+                    if ($found.Count) {
+                        $folderLeaf = Split-Path (Split-Path $found[0].FullName -Parent) -Leaf
+                        $reportUrl = $folderLeaf + '/Diagnosebericht.html'
+                    }
                 }
             }
         }
         if (-not $reportUrl -and $j.Datum -and $j.Computer) {
-            $reportUrl = ('Berichte\{0}_{1}\Diagnosebericht.html' -f ($j.Datum -replace '[- :]', ''), $j.Computer)
+            $reportUrl = ('{0}_{1}/Diagnosebericht.html' -f ($j.Datum -replace '[- :]', ''), $j.Computer)
+        }
+
+        # URL-Pfad normalisieren: Relative Links relativ zu Dashboard.html (in Berichte/ gelegen)
+        if ($reportUrl) {
+            $reportUrl = $reportUrl -replace '\\', '/'
+            $idx = $reportUrl.IndexOf('/Berichte/', [StringComparison]::OrdinalIgnoreCase)
+            if ($idx -ge 0) {
+                $reportUrl = $reportUrl.Substring($idx + 10)
+            } else {
+                $reportUrl = $reportUrl -replace '^Berichte/', ''
+            }
+            $reportUrl = $reportUrl.TrimStart('/')
         }
 
         return [ordered]@{

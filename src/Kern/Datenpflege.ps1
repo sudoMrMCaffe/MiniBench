@@ -77,7 +77,7 @@ function Get-DatenpflegeZiel([string]$Dir, [string]$Leaf, [switch]$Ordner) {
 # Rückgabe: Objekt mit Verschoben, Geloescht, Fehler, Zeilen (Text je Eintrag) und Kurz (eine Zeile für die Oberfläche).
 function Invoke-Datenpflege {
     param([string]$DataDir = $script:DataDir, [string]$ArchivDir = '', [switch]$NurPlan, [int]$MindestAlterMin = 0)
-    $res = [pscustomobject]@{ Verschoben = 0; Geloescht = 0; Fehler = 0; Zeilen = (New-Object System.Collections.Generic.List[string]); Kurz = ''; Archiv = '' }
+    $res = [pscustomobject]@{ Verschoben = 0; Geloescht = 0; Fehler = 0; Zeilen = (New-Object System.Collections.Generic.List[string]); Kurz = ''; Archiv = ''; BytesGeloescht = 0L; BytesVerschoben = 0L; FreigegebenMB = 0.0 }
     if (-not $DataDir -or -not (Test-Path -LiteralPath $DataDir)) { $res.Kurz = 'kein Datenordner'; return $res }
     if (-not $ArchivDir) { $ArchivDir = Join-Path $DataDir 'Archiv' }
     $res.Archiv = $ArchivDir
@@ -86,6 +86,18 @@ function Invoke-Datenpflege {
     $plan = New-Object System.Collections.Generic.List[object]
     $add = { param($Pfad, $Unterordner, $Grund, $Art) $plan.Add([pscustomobject]@{ Pfad = $Pfad; Unterordner = $Unterordner; Grund = $Grund; Art = $Art }) }
     $alt = { param($p) try { $i = Get-Item -LiteralPath $p -Force -ErrorAction Stop; return (($now - $i.LastWriteTime).TotalMinutes -ge $MindestAlterMin) } catch { return $false } }
+    $getSize = {
+        param($p)
+        try {
+            if (-not (Test-Path -LiteralPath $p)) { return 0L }
+            if (Test-Path -LiteralPath $p -PathType Leaf) { return (Get-Item -LiteralPath $p -Force).Length }
+            $sum = 0L
+            foreach ($item in @(Get-ChildItem -LiteralPath $p -Recurse -File -Force -ErrorAction SilentlyContinue)) {
+                $sum += $item.Length
+            }
+            return $sum
+        } catch { return 0L }
+    }
 
     # Läufe, deren Absturzanalyse noch aussteht (laufend.json), bleiben unangetastet
     $busy = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
@@ -99,12 +111,28 @@ function Invoke-Datenpflege {
     $keep = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
     foreach ($f in @(Get-ChildItem -LiteralPath $dbDir -Filter '*.json' -File -ErrorAction SilentlyContinue | Sort-Object Name)) {
         $e = Read-DatenpflegeJson $f.FullName
-        if (-not $e) { continue }
+        if (-not $e) {
+            # 0-Byte oder beschädigte JSON-Datei ins Archiv verschieben
+            if (& $alt $f.FullName) {
+                & $add $f.FullName (Join-Path 'Beschaedigt' 'Datenbank') 'beschädigte oder leere JSON-Datei' 'Beschädigt'
+            }
+            continue
+        }
         $ein = Get-DatenpflegeEinordnung $e
         # Ordner relativ zum Datenordner (Berichte\<Lauf>) oder absolut; Trenner \ oder /
         $leaf = $(if ($e.Ordner) { @(([string]$e.Ordner).TrimEnd('\', '/') -split '[\\/]')[-1] } else { '' })
+        if ($leaf -and $busy.Contains($leaf)) { [void]$keep.Add($f.Name); continue }
+
+        # Verwaister Datenbankeintrag: Ordner war benannt, existiert aber im Berichtsordner nicht mehr
+        if (-not $ein -and $leaf -and (& $alt $f.FullName)) {
+            $rd = Join-Path $repDir $leaf
+            if (-not (Test-Path -LiteralPath $rd -PathType Container)) {
+                $ein = [pscustomobject]@{ Ziel = 'Verwaist'; Art = 'Verwaist'; Grund = ('zugehöriger Berichtsordner nicht mehr vorhanden ({0})' -f $leaf) }
+            }
+        }
+
         if (-not $ein) { [void]$keep.Add($f.Name); continue }
-        if (($leaf -and $busy.Contains($leaf)) -or ($ein.Art -eq 'Kurz' -and -not (& $alt $f.FullName))) { [void]$keep.Add($f.Name); continue }
+        if ($ein.Art -eq 'Kurz' -and -not (& $alt $f.FullName)) { [void]$keep.Add($f.Name); continue }
         & $add $f.FullName (Join-Path $ein.Ziel 'Datenbank') $ein.Grund $ein.Art
         if ($leaf) {
             $rd = Join-Path $repDir $leaf
@@ -153,31 +181,84 @@ function Invoke-Datenpflege {
         $line = ('{0} -> {1}: {2}' -f $rel, $p.Unterordner, $p.Grund)
         if ($NurPlan) { $res.Zeilen.Add('geplant: ' + $line); continue }
         try {
+            $sz = & $getSize $p.Pfad
             New-Item -ItemType Directory -Path $zielDir -Force -ErrorAction Stop | Out-Null
             $ziel = Get-DatenpflegeZiel $zielDir (Split-Path $p.Pfad -Leaf) -Ordner:(Test-Path -LiteralPath $p.Pfad -PathType Container)
             Move-Item -LiteralPath $p.Pfad -Destination $ziel -ErrorAction Stop
             $res.Verschoben++
+            $res.BytesVerschoben += $sz
             $res.Zeilen.Add($line)
         } catch { $res.Fehler++; $res.Zeilen.Add(('nicht verschoben: {0} ({1})' -f $line, $_.Exception.Message)) }
     }
 
-    # 6. Reste ohne Wert löschen: ältere Übersetzungen im Cache (sie entstehen bei Bedarf neu) und alte Stoppdateien
+    # 6. Reste ohne Wert löschen: ältere Übersetzungen im Cache (sie entstehen bei Bedarf neu) und verwaiste Laufzeitdaten
     if (-not $NurPlan) {
         $cache = Join-Path $DataDir 'Cache'
         $groups = @(Get-ChildItem -LiteralPath $cache -Filter 'LeosMinibench-*.dll' -File -ErrorAction SilentlyContinue | Group-Object { $_.Name -replace '-[0-9a-f]{12}\.dll$', '' })
         foreach ($g in $groups) {
             foreach ($x in @($g.Group | Sort-Object LastWriteTime -Descending | Select-Object -Skip 1)) {
-                try { Remove-Item -LiteralPath $x.FullName -Force -ErrorAction Stop; $res.Geloescht++; $res.Zeilen.Add(('Cache\{0} gelöscht: ältere Übersetzung' -f $x.Name)) } catch { }
+                try {
+                    $sz = & $getSize $x.FullName
+                    Remove-Item -LiteralPath $x.FullName -Force -ErrorAction Stop
+                    $res.Geloescht++
+                    $res.BytesGeloescht += $sz
+                    $res.Zeilen.Add(('Cache\{0} gelöscht: ältere Übersetzung' -f $x.Name))
+                } catch { }
             }
         }
-        foreach ($pc in @(Get-ChildItem -LiteralPath (Join-Path $DataDir 'Laufzeit') -Directory -ErrorAction SilentlyContinue)) {
-            if (Test-Path -LiteralPath (Join-Path $pc.FullName 'laufend.json')) { continue }
-            foreach ($s in @(Get-ChildItem -LiteralPath $pc.FullName -Filter 'sensor.stop' -File -ErrorAction SilentlyContinue | Where-Object { ($now - $_.LastWriteTime).TotalHours -ge 1 })) {
-                try { Remove-Item -LiteralPath $s.FullName -Force -ErrorAction Stop; $res.Geloescht++; $res.Zeilen.Add(('Laufzeit\{0}\sensor.stop gelöscht: Rest der Live-Ansicht' -f $pc.Name)) } catch { }
+        $lz = Join-Path $DataDir 'Laufzeit'
+        if (Test-Path -LiteralPath $lz) {
+            # Stoppdateien, verwaiste Locks und abgebrochene Checkpoints im Laufzeitordner
+            foreach ($pc in @(Get-ChildItem -LiteralPath $lz -Directory -ErrorAction SilentlyContinue)) {
+                $hasActiveRun = $false
+                $lf = Join-Path $pc.FullName 'laufend.json'
+                if (Test-Path -LiteralPath $lf) {
+                    $fi = Get-Item -LiteralPath $lf -Force -ErrorAction SilentlyContinue
+                    if ($fi -and ($now - $fi.LastWriteTime).TotalDays -lt 7) { $hasActiveRun = $true }
+                    else {
+                        try {
+                            $sz = & $getSize $lf
+                            Remove-Item -LiteralPath $lf -Force -ErrorAction Stop
+                            $res.Geloescht++; $res.BytesGeloescht += $sz
+                            $res.Zeilen.Add(('Laufzeit\{0}\laufend.json gelöscht: veralteter Laufzeit-Marker' -f $pc.Name))
+                        } catch { }
+                    }
+                }
+                if (-not $hasActiveRun) {
+                    foreach ($s in @(Get-ChildItem -LiteralPath $pc.FullName -Filter 'sensor.stop' -File -ErrorAction SilentlyContinue | Where-Object { ($now - $_.LastWriteTime).TotalMinutes -ge 30 })) {
+                        try {
+                            $sz = & $getSize $s.FullName
+                            Remove-Item -LiteralPath $s.FullName -Force -ErrorAction Stop
+                            $res.Geloescht++; $res.BytesGeloescht += $sz
+                            $res.Zeilen.Add(('Laufzeit\{0}\sensor.stop gelöscht: Rest der Live-Ansicht' -f $pc.Name))
+                        } catch { }
+                    }
+                    foreach ($tmp in @(Get-ChildItem -LiteralPath $pc.FullName -Include '*.tmp', '*.lock', 'checkpoint*.json' -File -ErrorAction SilentlyContinue | Where-Object { ($now - $_.LastWriteTime).TotalHours -ge 2 })) {
+                        try {
+                            $sz = & $getSize $tmp.FullName
+                            Remove-Item -LiteralPath $tmp.FullName -Force -ErrorAction Stop
+                            $res.Geloescht++; $res.BytesGeloescht += $sz
+                            $res.Zeilen.Add(('Laufzeit\{0}\{1} gelöscht: verwaiste temporäre Datei' -f $pc.Name, $tmp.Name))
+                        } catch { }
+                    }
+                }
+                if (-not @(Get-ChildItem -LiteralPath $pc.FullName -Force -ErrorAction SilentlyContinue).Count) {
+                    try { Remove-Item -LiteralPath $pc.FullName -Force -ErrorAction Stop } catch { }
+                }
             }
-            if (-not @(Get-ChildItem -LiteralPath $pc.FullName -Force -ErrorAction SilentlyContinue).Count) { try { Remove-Item -LiteralPath $pc.FullName -Force -ErrorAction Stop } catch { } }
+            # Wurzel-Dateien im Laufzeitordner
+            foreach ($rt in @(Get-ChildItem -LiteralPath $lz -File -ErrorAction SilentlyContinue | Where-Object { ($now - $_.LastWriteTime).TotalHours -ge 2 })) {
+                try {
+                    $sz = & $getSize $rt.FullName
+                    Remove-Item -LiteralPath $rt.FullName -Force -ErrorAction Stop
+                    $res.Geloescht++; $res.BytesGeloescht += $sz
+                    $res.Zeilen.Add(('Laufzeit\{0} gelöscht: temporärer Rest' -f $rt.Name))
+                } catch { }
+            }
         }
     }
+
+    $res.FreigegebenMB = [math]::Round($res.BytesGeloescht / 1MB, 2)
 
     # 7. Protokoll im Archiv
     if (-not $NurPlan -and ($res.Verschoben -or $res.Geloescht -or $res.Fehler)) {
@@ -185,6 +266,7 @@ function Invoke-Datenpflege {
             New-Item -ItemType Directory -Path $ArchivDir -Force -ErrorAction Stop | Out-Null
             $log = New-Object System.Text.StringBuilder
             [void]$log.AppendLine(('{0:yyyy-MM-dd HH:mm} Datenpflege v{1}, Datenordner {2}' -f $now, $ScriptVersion, $DataDir))
+            [void]$log.AppendLine(('  Status: {0} Läufe/Einträge verschoben, {1} temporäre Dateien/Reste bereinigt, {2:N2} MB freigegeben' -f $res.Verschoben, $res.Geloescht, $res.FreigegebenMB))
             foreach ($z in $res.Zeilen) { [void]$log.AppendLine('  ' + $z) }
             [IO.File]::AppendAllText((Join-Path $ArchivDir 'Datenpflege.log'), $log.ToString(), (New-Object Text.UTF8Encoding($true)))
         } catch { }
@@ -192,10 +274,12 @@ function Invoke-Datenpflege {
     $nM = @($plan | Where-Object { $_.Art -eq 'Messreihe' -and $_.Pfad -like '*.json' -and $_.Pfad -like ($dbDir + '*') }).Count
     $nU = @($plan | Where-Object { $_.Art -eq 'Unvollständig' }).Count
     $nK = @($plan | Where-Object { $_.Art -eq 'Kurz' -and $_.Pfad -like ($dbDir + '*') }).Count
+    $nV = @($plan | Where-Object { $_.Art -in 'Verwaist', 'Beschädigt' }).Count
     $parts = @()
     if ($nM) { $parts += ('{0} {1} vor v{2}' -f $nM, $(if ($nM -eq 1) { 'Lasttest' } else { 'Lasttests' }), $script:MessreiheAb) }
     if ($nK) { $parts += ('{0} {1}' -f $nK, $(if ($nK -eq 1) { 'kurzer Lauf' } else { 'kurze Läufe' })) }
     if ($nU) { $parts += ('{0} {1}' -f $nU, $(if ($nU -eq 1) { 'unvollständiger Lauf' } else { 'unvollständige Läufe' })) }
+    if ($nV) { $parts += ('{0} verwaiste {1}' -f $nV, $(if ($nV -eq 1) { 'Eintrag' } else { 'Einträge' })) }
     $nW = @($plan | Where-Object { $_.Art -eq 'Werkzeug' }).Count
     if ($nW) { $parts += ('{0} ungenutzte {1} von smartmontools' -f $nW, $(if ($nW -eq 1) { 'Datei' } else { 'Dateien' })) }
     $res.Kurz = $(if ($parts.Count) { '{0} {1}{2}' -f ($parts -join ', '), $(if ($NurPlan) { 'würden ins Archiv verschoben' } else { 'ins Archiv verschoben' }), $(if ($res.Fehler) { ', {0} nicht möglich' -f $res.Fehler } else { '' }) } else { 'nichts zu archivieren' })
@@ -206,8 +290,9 @@ function Invoke-Datenpflege {
 if ($Datenpflege) {
     $dp = Invoke-Datenpflege -DataDir $script:DataDir -ArchivDir $ArchivDir
     foreach ($z in $dp.Zeilen) { Write-Host ('  ' + $z) }
-    Write-Host ('Datenpflege: {0}. Archiv: {1}' -f $dp.Kurz, $dp.Archiv)
-    Send-GuiEvent 'RESULT' $dp.Kurz
+    $cleanText = $(if ($dp.Geloescht -gt 0) { (' ({0} Temp-Dateien bereinigt, {1:N1} MB frei)' -f $dp.Geloescht, $dp.FreigegebenMB) } else { '' })
+    Write-Host ('Datenpflege: {0}{1}. Archiv: {2}' -f $dp.Kurz, $cleanText, $dp.Archiv)
+    Send-GuiEvent 'RESULT' ('{0}{1}' -f $dp.Kurz, $cleanText)
     exit $(if ($dp.Fehler) { 1 } else { 0 })
 }
 #endregion

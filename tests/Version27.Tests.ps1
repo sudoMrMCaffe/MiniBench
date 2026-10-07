@@ -90,7 +90,8 @@ Describe 'Versionshistorie' {
     }
     It 'reicht von 1.0 bis heute, jede Version mit Änderungsdatei hat einen Eintrag' {
         $vs = @([regex]::Matches($global:V27Ver, 'new Eintrag\("([^"]+)"') | ForEach-Object { $_.Groups[1].Value })
-        $vs | Should -Contain '1.0 bis 1.8'
+        $vs | Should -Contain '1.0'
+        $vs | Should -Contain '1.8'
         $vs | Should -Contain '2.0 bis 2.1'
         foreach ($f in @(Get-ChildItem (Join-Path $global:MinibenchRepoRoot 'Doku') -Filter 'Änderungen_v*.txt')) {
             $x = $f.BaseName -replace '^Änderungen_v', ''

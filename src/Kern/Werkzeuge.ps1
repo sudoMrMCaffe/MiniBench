@@ -7,13 +7,26 @@
 $script:ToolManifestFormat = 'Minibench-Tools/1'
 $script:ToolIssues = New-Object System.Collections.Generic.List[string]
 
-function Get-ToolsDir { if ($script:DataDir) { return (Join-Path $script:DataDir 'Tools') } else { return '' } }
+function Get-ToolsDir {
+    if ($script:ToolsDir) { return $script:ToolsDir }
+    if ($script:LocalDataDir) { return (Join-Path $script:LocalDataDir 'Tools') }
+    if ($script:DataDir -and $script:DataDir -notlike '\\*') { return (Join-Path $script:DataDir 'Tools') }
+    if ($script:DataDir) { return (Join-Path $script:DataDir 'Tools') }
+    return ''
+}
 
 function Get-FileSha256([string]$Path) {
-    $sha = [Security.Cryptography.SHA256]::Create()
-    $fs = [IO.File]::OpenRead($Path)
-    try { return (-join ($sha.ComputeHash($fs) | ForEach-Object { $_.ToString('x2') })) }
-    finally { $fs.Dispose(); $sha.Dispose() }
+    if (-not $Path) { return '' }
+    try {
+        $norm = [System.IO.Path]::GetFullPath($Path)
+        if (-not [System.IO.File]::Exists($norm)) { return '' }
+        $sha = [Security.Cryptography.SHA256]::Create()
+        $fs = [IO.File]::OpenRead($norm)
+        try { return (-join ($sha.ComputeHash($fs) | ForEach-Object { $_.ToString('x2') })) }
+        finally { $fs.Dispose(); $sha.Dispose() }
+    } catch {
+        return ''
+    }
 }
 
 function Read-ToolManifest([string]$ToolsDir = (Get-ToolsDir)) {

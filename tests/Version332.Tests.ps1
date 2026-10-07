@@ -16,12 +16,12 @@ BeforeAll {
 Describe 'Version 3.32 Deklaration und Dokumentation' {
     It 'Version.ps1 definiert Version 3.32 oder höher' {
         $vPs1 = [IO.File]::ReadAllText((Join-Path $global:MinibenchSrcRoot 'Kern/Version.ps1'))
-        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''3\.(32|4|5|51)'''
+        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''3\.(32|4|5|51|52)'''
     }
 
     It 'Versionen.cs enthält den Eintrag für 3.32 oder höher an oberster Stelle' {
         $firstVer = [regex]::Match($global:V332Ver, 'new Eintrag\("([^"]+)"').Groups[1].Value
-        $firstVer | Should -Match '3\.(32|4|5|51)'
+        $firstVer | Should -Match '3\.(32|4|5|51|52)'
     }
 
     It 'Doku/Versionshistorie.txt enthÃ¤lt den Eintrag fÃ¼r 3.32' {

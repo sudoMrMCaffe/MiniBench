@@ -22,12 +22,12 @@ BeforeAll {
 Describe 'Version 3.5 Deklaration und Dokumentation' {
     It 'Version.ps1 definiert Version 3.5 oder höher' {
         $vPs1 = [IO.File]::ReadAllText((Join-Path $global:MinibenchSrcRoot 'Kern/Version.ps1'), [System.Text.Encoding]::UTF8)
-        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''3\.5(1)?'''
+        $vPs1 | Should -Match '\$ScriptVersion\s*=\s*''3\.5(1|2)?'''
     }
 
     It 'Versionen.cs enthält den Eintrag für 3.5 oder höher an oberster Stelle' {
         $firstVer = [regex]::Match($global:V35Ver, 'new Eintrag\("([^"]+)"').Groups[1].Value
-        $firstVer | Should -Match '^3\.5(1)?$'
+        $firstVer | Should -Match '^3\.5(1|2)?$'
     }
 
     It 'Doku/Versionshistorie.txt enthält den Eintrag für 3.5 an oberster Stelle' {
@@ -99,8 +99,8 @@ Describe 'Fehlerbehebung Taskleiste & Optimierungs-Presets' {
 
 Describe 'Responsives Fensterlayout' {
     It 'Startfenstergröße nutzt responsive 1220x740 Formeln mit 880x560 Minimum' {
-        $global:V35Gui | Should -Match 'Math\.Min\(UI\.S\(1220\),\s*\(int\)\((workArea|Screen\.FromPoint\(Cursor\.Position\)\.WorkingArea)\.Width\s*\*\s*0\.95\)\)'
-        $global:V35Gui | Should -Match 'Math\.Min\(UI\.S\(740\),\s*\(int\)\((workArea|Screen\.FromPoint\(Cursor\.Position\)\.WorkingArea)\.Height\s*\*\s*0\.92\)\)'
+        $global:V35Gui | Should -Match 'Math\.Min\(UI\.S\((1220|1320)\),\s*\(int\)\((workArea|Screen\.FromPoint\(Cursor\.Position\)\.WorkingArea)\.Width\s*\*\s*0\.(95|96)\)\)'
+        $global:V35Gui | Should -Match 'Math\.Min\(UI\.S\((740|860)\),\s*\(int\)\((workArea|Screen\.FromPoint\(Cursor\.Position\)\.WorkingArea)\.Height\s*\*\s*0\.(92|95)\)\)'
         $global:V35Gui | Should -Match 'MinimumSize\s*=\s*new\s+Size\(UI\.S\(880\),\s*UI\.S\(560\)\)'
     }
 }

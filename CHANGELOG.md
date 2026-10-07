@@ -2,6 +2,25 @@
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
 
+## v3.52 (07.10.2026)
+
+* **Sensorwerkzeuge, Binaries & Cache strikt lokal gebunden (NAS-Härtung):**
+  * **Trennung von Daten und Code:** Berichte ($script:ReportDir) und Datenbanken ($script:DbDir) dürfen auf konfigurierte Netzlaufwerke/NAS-Pfade zeigen. Ausführbare Dateien, Treiber und temporäre Caches ($script:LocalDataDir, $script:CacheDir, $script:ToolsDir, $script:CpDir) werden strikt lokal (auf dem USB-Stick bzw. im lokalen %TEMP% / %LOCALAPPDATA%) isoliert.
+  * **Behebung von Pfadformat- & CAS-Fehlern:** Löst Ausnahmen ("Das angegebene Pfadformat wird nicht unterstützt.") und .NET Code Access Security-Blockaden beim Zugriff auf externe Werkzeuge (LibreHardwareMonitor, PawnIO, smartctl, Add-CachedType).
+  * **Härtung von Get-FileSha256:** Vollständige Pfadnormalisierung via [System.IO.Path]::GetFullPath und robuste Fehlerabfangung bei Datei-Hashprüfungen.
+* **Fix: Verlinkung im Dashboard auf Diagnoseberichte:**
+  * **Relative Pfadauflösung:** Verlinkungen aus Dashboard.html auf Diagnosebericht.html werden relativ zu Dashboard.html aufgelöst (<Lauf-Ordner>/Diagnosebericht.html) mit standardkonformen Vorwärtsslashes (/), wodurch ERR_FILE_NOT_FOUND und doppelte Berichte/-Präfixe behoben werden.
+* **Optimierte Datenpflege & Bereinigung alter/verwaister Einträge:**
+  * **Archivierung verwaister DB-Einträge:** Datenbankeinträge ohne zugehörigen Berichtsordner oder mit beschädigter/leerer (0 Byte) JSON-Datei werden sauber nach Archiv\Verwaist\Datenbank bzw. Archiv\Beschaedigt\Datenbank verschoben.
+  * **Gründliche Laufzeit-Bereinigung:** Verwaiste Locks (*.lock), abgebrochene Checkpoints (checkpoint*.json), temporäre Dateien (*.tmp) und Signaldaten im Verzeichnis Laufzeit/ werden rückstandslos bereinigt.
+  * **Detaillierte Statusmeldung & Protokoll:** Berechnung und Anzeige des freigegebenen Speicherplatzes in Megabyte in der Benutzeroberfläche und im Protokoll Archiv\Datenpflege.log.
+* **Oberflächen-Bereinigung & optimiertes Layout:**
+  * **Redundante Benchmark-Checkliste entfernt:** Die veraltete Kontrollkästchen-Liste ("Bereits geprüfte Systeme einblenden") auf der Benchmark-Startseite wurde entfernt; Vergleichsaufgaben werden vollständig durch das moderne Dashboard und die Vergleichsdatenbank abgedeckt.
+  * **Kategorisierte Optionen in Fluent-Karten:** Diagnose-Optionen auf der Startseite in zwei übersichtliche Karten gegliedert ("Zusatzwerkzeuge & Speicherdiagnose" und "Prüfzeiträume & Schwellenwerte").
+  * **Vergrößerte Startfenstergröße:** Auf 1320x860 erweitert, um störende Scrollbalken beim ersten Starten der Anwendung vollständig zu vermeiden.
+* **Vollständige Versionshistorie (1.0 bis 1.8):**
+  * Lückenlose Dokumentation aller 9 Ur-Versionen von 1.0 bis 1.8 mit konkreten Changelogs und Neuerungen nachgepflegt.
+
 ## v3.51 (07.10.2026)
 
 * **Dashboard-Berichtsverlinkung & Schnellzugriff:**
@@ -223,6 +242,51 @@ Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festge
 
 * **Leos Minibench:** Einführung des Namens, Single-File-EXE für USB-Betrieb, Diagnose-, Benchmark-, Lasttest- und Reparaturmodule sowie HTML-/KI-Berichte.
 
-## v1.0 - v1.8 (bis 30.09.2026)
+## v1.8 (30.09.2026)
 
-* **PC-Diagnose:** Ursprüngliche Skriptsammlung zur automatisierten Hardware-Bestandsaufnahme und Benchmark-Auswertung.
+* **Gruppierter Benchmark und Referenz:**
+  * Der Benchmark ist in vier ausklappbare Blöcke gegliedert, im Bericht und in der Oberfläche. Laufwerke stehen kompakt in einer Zeile pro Laufwerk. Neue Messungen:
+  * CPU: AES-256, SHA-256, Kompression
+  * RAM: Kopieren
+  * GPU: PCIe-Anbindung, Grafikspeicher
+  * Laufwerke: 4K schreiben
+
+## v1.7 (29.09.2026)
+
+* **Benchmark-Korrektur und schlankere Ausgabe:**
+  * Fehler behoben, durch den nur die CPU gemessen wurde. Jeder Teil des Benchmarks läuft jetzt abgesichert für sich. Die Ausgabe ist entschlackt: Im Ordner liegen nur noch der HTML- und der Textbericht, alles andere steckt in Anhang.zip.
+
+## v1.6 (28.09.2026)
+
+* **Benchmark und Lasttest:**
+  * Benchmark für CPU (Einzel- und Mehrkern, Takt), RAM (Lesen, Schreiben, Latenz), GPU (WinSAT) und Laufwerke (sequentiell und 4K, ohne Windows-Cache). Jeder Wert bekommt einen Index für seine Hardwareklasse und wird mit früheren Läufen verglichen. PCIe-Anbindung von Grafikkarte und NVMe wird geprüft. Lasttest mit wählbarer Dauer, Takt- und Temperaturkurve, Drosselungserkennung und Abbruchknopf.
+
+## v1.5 (27.09.2026)
+
+* **Kurztest und neues Design:**
+  * Kurztest-Modus, der alles Langwierige überspringt. Die Oberfläche ist komplett überarbeitet, mit Kacheln, Statuskarten und Reitern, und öffnet sich im Vordergrund. Die exe fordert Administratorrechte selbst an. Dazu Korrekturen aus dem Code-Review.
+
+## v1.4 (26.09.2026)
+
+* **Oberfläche und HTML-Bericht:**
+  * Optionale grafische Oberfläche mit Live-Befunden, Testergebnissen und Protokoll. Grafischer Endbericht als HTML mit Hell- und Dunkelmodus. Ein Build-Skript kompiliert die exe direkt auf dem Desktop, ganz ohne Download.
+
+## v1.3 (25.09.2026)
+
+* **Absturzsicherheit und Korrekturen:**
+  * Checkpoints werden direkt auf die Platte geschrieben, damit sie auch einen Absturz überstehen. Nach einem abgebrochenen Lauf startet eine Absturzanalyse: Bluescreen-Stoppcode, Kernel-Power 41, WHEA-Fehler und der Schritt, in dem der PC ausfiel. Neue Option Absturzanalyse (-AnalyzeLastRun). Behoben wurden die Fehler aus dem ersten Praxislauf: Auswertung von SFC, Fehlalarme bei NTFS und Store-Apps, SMART-Meldung, Firmwaretyp und Konsolenkodierung.
+
+## v1.2 (24.09.2026)
+
+* **Kodierung:**
+  * Das Skript repariert sich selbst, wenn die UTF-8-Kennung (BOM) beim Kopieren verloren geht. Hashtable-Schlüssel mit Umlauten stehen jetzt in Anführungszeichen.
+
+## v1.1 (23.09.2026)
+
+* **Starten und Fortschritt:**
+  * Start-CMD mit Menü und eine exe als Starter. Die Administratorrechte holt sich die CMD selbst, und das Fenster bleibt bei Fehlern offen. Klare Fortschrittsbalken für den Gesamtlauf und den einzelnen Schritt.
+
+## v1.0 (22.09.2026)
+
+* **Grundversion:**
+  * Diagnoseskript für Windows 11. Es erfasst die Hardware und das System: Firmware, TPM, BitLocker, CPU, RAM-Module, GPU, Datenträger, SMART, Akku, Netzwerk, Treiber, Updates, Sicherheit, Autostart und Software. Dazu kommen Tests: WinSAT, chkdsk-Onlinescan, DISM und SFC, Defender-Schnellscan, SMART-Langtest, RAM-Mustertest, CPU-Stabilitätstest, Netzwerk- und Energieanalyse sowie die Auswertung der Ereignisprotokolle. Der komplette Bericht landet in der Zwischenablage und als Textdatei auf dem Desktop.
