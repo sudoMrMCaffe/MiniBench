@@ -1,4 +1,5 @@
-﻿# Modulverträge: vollständig, widerspruchsfrei und mit Skript und Oberfläche abgestimmt
+﻿# Modulverträge: vollständig, widerspruchsfrei und mit Skript und Oberfläche abgestimmt; schneller Modus (parallele und
+# exklusive Schritte) und die Diagnose ohne CPU-Stabilitätstest (CPU-Last nur im Lasttest).
 BeforeAll {
     . (Join-Path $PSScriptRoot 'Hilfen.ps1')
     Import-MinibenchTestModule -Parts 'Kern\Risiko.ps1', 'Kern\Modulvertrag.ps1'
@@ -16,7 +17,7 @@ BeforeAll {
     }
     function ConvertTo-SortedJson($o) { (ConvertTo-Sorted $o) | ConvertTo-Json -Depth 8 -Compress }
     # Allgemeine Parameter, die zu keinem Modul gehören
-    $general = @('Module', 'KiOhneAnonymisierung', 'DatenDir', 'OutputDir', 'ImportOrdner', 'Vergleich', 'Rueckgaengig', 'EventMode', 'WerkzeugeBehalten', 'GpuAufloesung', 'GpuAnzeige', 'GpuAuswahl', 'StartAuswertung', 'Datenpflege', 'ArchivDir', 'Dashboard', 'DashboardExport', 'DashboardSysteme')
+    $general = @('Module', 'KiOhneAnonymisierung', 'DatenDir', 'OutputDir', 'ImportOrdner', 'Vergleich', 'Rueckgaengig', 'EventMode', 'WerkzeugeBehalten', 'GpuAufloesung', 'GpuAnzeige', 'GpuAuswahl', 'StartAuswertung', 'Datenpflege', 'ArchivDir', 'Dashboard', 'DashboardExport', 'DashboardSysteme', 'SoftwareInstallieren')
 }
 
 Describe 'Verträge im Skript' {
@@ -75,6 +76,50 @@ Describe 'Prüfung der Verträge erkennt Fehler' {
     It 'Text mit senkrechtem Strich' { $base.Schritte[0].Text = 'A|B'; (MinibenchTest\Test-ModuleContract $base) -join ' ' | Should -Match '\|' }
 }
 
+Describe 'Schneller Modus im Modulvertrag' {
+    It 'Diagnose: Updatesuche, Defender, SMART-Start und Energieanalyse parallel, Messungen exklusiv, Energieanalyse nach Defender' {
+        $s = @{}; foreach ($x in (MinibenchTest\Get-ModuleContract 'Diagnose').Schritte) { $s[$x.Key] = $x }
+        foreach ($k in 'Updatesuche', 'Defender', 'SmartLang', 'Energieanalyse') { $s[$k].Parallel | Should -BeTrue -Because $k }
+        foreach ($k in 'RamTest', 'Netzwerk') { $s[$k].Exklusiv | Should -BeTrue -Because $k }
+        $s['Energieanalyse'].Nach | Should -Contain 'Defender'
+    }
+    It 'Benchmark und Lasttest: jeder Schritt außer Optionen exklusiv (Messungen nie parallel zu anderer Last)' {
+        foreach ($n in 'Benchmark', 'Lasttest') {
+            foreach ($x in (MinibenchTest\Get-ModuleContract $n).Schritte) { if ($x.Typ -ne 'Option') { $x.Exklusiv | Should -BeTrue -Because ('{0}/{1}' -f $n, $x.Key) } }
+        }
+    }
+    It 'Prüfung meldet <Fall>' -ForEach @(
+        @{ Fall = 'unbekannte Abhängigkeit'; Steps = @(@{ Key = 'A'; Typ = 'Pruefung'; Titel = 'A'; Risiko = 'Lesen'; Neustart = 'nie'; Rueckgaengig = 'keins'; Parallel = $true; Nach = @('X') }); Muster = 'unbekannten Schritt X' }
+        @{ Fall = 'Kreis'; Steps = @(@{ Key = 'A'; Typ = 'Pruefung'; Titel = 'A'; Risiko = 'Lesen'; Neustart = 'nie'; Rueckgaengig = 'keins'; Nach = @('B') }, @{ Key = 'B'; Typ = 'Pruefung'; Titel = 'B'; Risiko = 'Lesen'; Neustart = 'nie'; Rueckgaengig = 'keins'; Nach = @('A') }); Muster = 'Kreis' }
+        @{ Fall = 'parallel und exklusiv'; Steps = @(@{ Key = 'A'; Typ = 'Pruefung'; Titel = 'A'; Risiko = 'Lesen'; Neustart = 'nie'; Rueckgaengig = 'keins'; Parallel = $true; Exklusiv = $true }); Muster = 'zugleich parallel und exklusiv' }
+        @{ Fall = 'parallel mit Änderung'; Steps = @(@{ Key = 'A'; Typ = 'Pruefung'; Titel = 'A'; Risiko = 'Aendern'; Neustart = 'nie'; Rueckgaengig = 'Protokoll'; Parallel = $true }); Muster = 'nur lesende Schritte' }
+    ) {
+        $c = @{ Vertrag = 1; Name = 'Probe'; Seite = @{ Titel = 'P'; Kurz = 'p' }; Admin = $true; Risiko = $(if (@($Steps | Where-Object { $_.Risiko -eq 'Aendern' }).Count) { 'Aendern' } else { 'Lesen' }); Neustart = 'nie'; Parameter = @(); Datenbankfelder = @(); Schritte = $Steps }
+        (@(MinibenchTest\Test-ModuleContract $c) -join ' ') | Should -Match $Muster
+    }
+}
+
+Describe 'Diagnose ohne CPU-Stabilitätstest (CPU-Last nur im Lasttest)' {
+    It 'Vertrag, Skriptparameter und Skript kennen CpuTest und CpuStressSeconds nicht' {
+        $d = MinibenchTest\Get-ModuleContract 'Diagnose'
+        @($d.Schritte | Where-Object { $_.Key -eq 'CpuTest' }).Count | Should -Be 0
+        $d.Parameter | Should -Not -Contain 'CpuStressSeconds'
+        $params | Should -Not -Contain 'CpuStressSeconds'
+        (Get-MinibenchBuild).Text | Should -Not -Match '\$script:Opt\[.CpuTest.\]'
+        (Get-MinibenchBuild).Text | Should -Not -Match 'CpuStressSeconds'
+    }
+    It 'der Lasttest hat die CPU-Last als exklusiven Schritt' {
+        $c = @((MinibenchTest\Get-ModuleContract 'Lasttest').Schritte | Where-Object { $_.Key -eq 'CPU' })
+        $c.Count | Should -Be 1
+        $c[0].Exklusiv | Should -BeTrue
+    }
+    It 'der Ablauf der Diagnose startet keine CPU-Last' {
+        $t = Get-SrcText 'Module/Diagnose/Ablauf.ps1'
+        $t | Should -Not -Match 'Start-LoadJob'
+        $t | Should -Not -Match '\[DiagCpu\]::RunAsync'
+    }
+}
+
 Describe 'Modulauswahl' {
     It 'übersetzt Namen unabhängig von Groß- und Kleinschreibung und meldet Unbekanntes' {
         $r = MinibenchTest\Resolve-ModuleList 'diagnose, REPARATUR;Foo;Diagnose'
@@ -111,6 +156,30 @@ Describe 'Abgleich mit der Oberfläche' {
     }
     It 'Prüfungen der Seite Diagnose = Prüfungen im Vertrag' {
         Get-CsArray 'diagKeys' | Should -Be @((MinibenchTest\Get-ModuleContract 'Diagnose').Schritte | Where-Object { $_.Typ -eq 'Pruefung' } | ForEach-Object { $_.Key })
+    }
+    It 'Texte, Voreinstellungen und Zeitschätzung der Seite Diagnose haben je Prüfung genau einen Wert' {
+        $n = @((MinibenchTest\Get-ModuleContract 'Diagnose').Schritte | Where-Object { $_.Typ -eq 'Pruefung' }).Count
+        @(Get-CsArray 'diagText').Count | Should -Be $n
+        foreach ($p in 'voll', 'schnell', 'test', 'none') {
+            ($gui -match ('bool\[\] {0} = new bool\[\] \{{([^}}]+)\}};' -f $p)) | Should -BeTrue -Because $p
+            @($Matches[1] -split ',').Count | Should -Be $n -Because $p
+        }
+        ($gui -match 'int\[\] add = new int\[\] \{([^}]+)\};') | Should -BeTrue
+        @($Matches[1] -split ',').Count | Should -Be $n
+    }
+    It 'feste Plätze der Seite Diagnose zeigen auf die passenden Prüfungen des Vertrags' {
+        $keys = @(Get-CsArray 'diagKeys')
+        $steps = @{}; foreach ($x in (MinibenchTest\Get-ModuleContract 'Diagnose').Schritte) { $steps[$x.Key] = $x }
+        $idx = @([regex]::Matches($gui, 'diagChk\[(\d+)\]') | ForEach-Object { [int]$_.Groups[1].Value } | Sort-Object -Unique)
+        $idx.Count | Should -BeGreaterThan 0
+        foreach ($i in $idx) { $i | Should -BeLessThan $keys.Count }
+        # schneller Modus: die Zeitschätzung zieht nur parallel laufende Prüfungen ab
+        $fast = @($gui -split "`r?`n" | Where-Object { $_ -match 'chkFast\.Checked' -and $_ -match 'diagChk\[\d+\]' })
+        $fast.Count | Should -BeGreaterThan 0
+        foreach ($i in @([regex]::Matches(($fast -join ' '), 'diagChk\[(\d+)\]') | ForEach-Object { [int]$_.Groups[1].Value })) { $steps[$keys[$i]].Parallel | Should -BeTrue -Because $keys[$i] }
+        # SMART-Höchstdauer nur mit dem SMART-Langtest
+        ($gui -match 'diagChk\[(\d+)\]\.Checked\) a\.Append\(" -SmartTimeoutMinutes "\)') | Should -BeTrue
+        $keys[[int]$Matches[1]] | Should -Be 'SmartLang'
     }
     It 'Messungen der Seite Benchmark = Schritte im Vertrag' {
         Get-CsArray 'benchKeys' | Should -Be @((MinibenchTest\Get-ModuleContract 'Benchmark').Schritte | Where-Object { $_.Typ -eq 'Messung' } | ForEach-Object { $_.Key })

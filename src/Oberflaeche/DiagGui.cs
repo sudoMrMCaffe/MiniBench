@@ -80,6 +80,20 @@ public partial class DiagGui : Form
     // GPU-Rendertest (ab v2.6): Auflösung und Anzeige, auf den Seiten Benchmark und Lasttest gleich eingestellt
     ComboBox cmbGpuRes, cmbGpuShow, cmbLGpuRes, cmbLGpuShow;
     bool syncGpu;
+    // Auflösung, Anzeige und Grafikeinheit des Rendertests, je Seite in derselben Reihenfolge (einzelne können null sein)
+    ComboBox[] GpuCombosBench() { return new ComboBox[] { cmbGpuRes, cmbGpuShow, cmbGpuSel }; }
+    ComboBox[] GpuCombosLast() { return new ComboBox[] { cmbLGpuRes, cmbLGpuShow, cmbLGpuSel }; }
+    // Auswahl paarweise übernehmen: nach[i] bekommt den Index von von[i]; fehlende Listen und ungültige Indizes bleiben unberührt
+    public static void CopySelection(ComboBox[] von, ComboBox[] nach)
+    {
+        if (von == null || nach == null) return;
+        for (int i = 0; i < von.Length && i < nach.Length; i++)
+        {
+            ComboBox a = von[i], b = nach[i];
+            if (a == null || b == null || a.SelectedIndex < 0 || a.SelectedIndex >= b.Items.Count) continue;
+            if (b.SelectedIndex != a.SelectedIndex) b.SelectedIndex = a.SelectedIndex;
+        }
+    }
     // ab v2.65: Auswahl der Grafikeinheiten (Benchmark und Lasttest gleich), Liste vom Startskript (Win32_VideoController)
     public static string[] GpuNames = new string[0];
     // ab v2.8: Katalog des Moduls Optimierung (Zeilen K|... und E|... aus Get-OptGuiLines) und Domänenmitgliedschaft
@@ -852,6 +866,8 @@ public partial class DiagGui : Form
         Tip(cmbLDiskDrive, "Laufwerk für den Datenträgertest; es braucht mindestens 2 GB freien Platz.");
         foreach (ComboBox c in new ComboBox[] { cmbLCpu, cmbLRam, cmbLGpu, cmbLDisk }) Tip(c, "Dauer dieser Komponente. Alle gewählten Komponenten starten gleichzeitig, jede endet nach ihrer eigenen Dauer.");
         Tip(cmbLGpuSel, "Welche Grafikeinheiten der Rendertest belastet (gleich eingestellt wie im Benchmark).");
+        Tip(cmbLGpuRes, "Auflösung des Rendertests (gleich eingestellt wie im Benchmark).");
+        Tip(cmbLGpuShow, "Fenster, Vollbild oder ohne Anzeige für den Rendertest (gleich eingestellt wie im Benchmark).");
         Tip(cmbLAbortCpu, "Liegt die CPU-Temperatur über dieser Schwelle, endet der Test mit einem Befund. Automatisch: TjMax der CPU nach rund einer Minute (viele Notebooks laufen planmäßig an TjMax), sonst 100 °C. Feste Werte greifen nach rund 10 Sekunden.");
         Tip(cmbLAbortGpu, "Liegt die GPU-Temperatur rund 10 Sekunden über dieser Schwelle, endet der Test mit einem Befund.");
         // Reparatur
@@ -1188,9 +1204,10 @@ public partial class DiagGui : Form
         f.Controls.Add(r3);
         FlowLayoutPanel r3b = Row(); Label lsel = RowLabel("Grafikeinheit", 332); lsel.Margin = new Padding(UI.S(22), UI.S(1), UI.S(6), UI.S(1)); r3b.Controls.Add(lsel);
         cmbLGpuSel = Combo(420, GpuChoiceTexts(), 0); r3b.Controls.Add(cmbLGpuSel); f.Controls.Add(r3b);
-        // Einstellungen des Rendertests auf beiden Seiten gleich halten
-        EventHandler sync1 = delegate { if (syncGpu || cmbGpuRes == null) return; syncGpu = true; cmbLGpuRes.SelectedIndex = cmbGpuRes.SelectedIndex; cmbLGpuShow.SelectedIndex = cmbGpuShow.SelectedIndex; if (cmbGpuSel != null) cmbLGpuSel.SelectedIndex = cmbGpuSel.SelectedIndex; syncGpu = false; };
-        EventHandler sync2 = delegate { if (syncGpu || cmbGpuRes == null) return; syncGpu = true; cmbGpuRes.SelectedIndex = cmbLGpuRes.SelectedIndex; cmbGpuShow.SelectedIndex = cmbLGpuShow.SelectedIndex; if (cmbGpuSel != null) cmbLGpuSel.SelectedIndex = cmbGpuSel.SelectedIndex; syncGpu = false; };
+        // Einstellungen des Rendertests auf beiden Seiten gleich halten: Benchmark -> Lasttest und Lasttest -> Benchmark
+        // (ab 3.53 über CopySelection; vorher setzte sync2 die Grafikeinheit des Lasttests auf den Wert des Benchmarks zurück)
+        EventHandler sync1 = delegate { if (syncGpu || cmbGpuRes == null) return; syncGpu = true; try { CopySelection(GpuCombosBench(), GpuCombosLast()); } finally { syncGpu = false; } };
+        EventHandler sync2 = delegate { if (syncGpu || cmbGpuRes == null) return; syncGpu = true; try { CopySelection(GpuCombosLast(), GpuCombosBench()); } finally { syncGpu = false; } };
         if (cmbGpuRes != null) { cmbGpuRes.SelectedIndexChanged += sync1; cmbGpuShow.SelectedIndexChanged += sync1; }
         if (cmbGpuSel != null) cmbGpuSel.SelectedIndexChanged += sync1;
         cmbLGpuRes.SelectedIndexChanged += sync2; cmbLGpuShow.SelectedIndexChanged += sync2; cmbLGpuSel.SelectedIndexChanged += sync2;

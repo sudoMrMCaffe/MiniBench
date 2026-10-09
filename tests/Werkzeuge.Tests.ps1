@@ -16,6 +16,14 @@ Describe 'SHA-256' {
         $f = Join-Path $TestDrive 'abc.txt'; [IO.File]::WriteAllText($f, 'abc')
         MinibenchTest\Get-FileSha256 $f | Should -Be 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
     }
+    It 'normalisiert Pfade mit .. und liefert für fehlende Dateien einen leeren Wert statt eines Fehlers' {
+        $d = Join-Path $TestDrive 'sha'; New-Item -ItemType Directory -Path (Join-Path $d 'unter') -Force | Out-Null
+        $f = Join-Path $d 'abc.txt'; [IO.File]::WriteAllText($f, 'abc')
+        MinibenchTest\Get-FileSha256 (Join-Path (Join-Path $d 'unter') (Join-Path '..' 'abc.txt')) | Should -Be 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+        { MinibenchTest\Get-FileSha256 (Join-Path $d 'fehlt.exe') } | Should -Not -Throw
+        MinibenchTest\Get-FileSha256 (Join-Path $d 'fehlt.exe') | Should -Be ''
+        MinibenchTest\Get-FileSha256 '' | Should -Be ''
+    }
 }
 
 Describe 'Manifest' {
@@ -43,6 +51,12 @@ Describe 'Manifest' {
     }
     It 'gibt ohne Manifesteintrag nichts frei' {
         MinibenchTest\Get-VerifiedTool 'smartctl' $tools | Should -BeNullOrEmpty
+    }
+    It 'gibt ohne Tools-Ordner nichts frei und wirft keinen Fehler' {
+        $fehlt = Join-Path $TestDrive ('gibtsnicht_' + [guid]::NewGuid().ToString('N'))
+        { MinibenchTest\Get-VerifiedTool 'NichtVorhandenesTool' -ToolsDir $fehlt } | Should -Not -Throw
+        MinibenchTest\Get-VerifiedTool 'NichtVorhandenesTool' -ToolsDir $fehlt | Should -BeNullOrEmpty
+        $fehlt | Should -Not -Exist
     }
     It 'gibt bei beschädigtem Manifest nichts frei' {
         [void](MinibenchTest\Register-Tool -Name 'smartctl' -Path $exe -ToolsDir $tools)

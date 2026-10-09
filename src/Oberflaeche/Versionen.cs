@@ -11,6 +11,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.53", "09.10.2026", "Testsuite nach Fachgebieten, winget mit Änderungsprotokoll, Grafikauswahl im Lasttest",
+            "Softwarepakete der Seite Tools: winget läuft jetzt im Arbeitsprozess mit Frist je Paket und vollständig gelesener Ausgabe (vorher konnte die Installation unbegrenzt hängen). Jede Installation steht als Eingriff auf der Seite Änderungen und lässt sich dort mit winget uninstall zurücknehmen; schon vorhandene Programme bleiben unberührt. Vor dem Start fragt die Oberfläche nach. " +
+            "Grafikauswahl im Lasttest: Die Wahl der Grafikeinheit auf der Seite Lasttest sprang auf den Wert des Benchmarks zurück; beide Seiten gleichen sich jetzt in beide Richtungen ab. " +
+            "Absturzabbilder: Parameter mit Kerneladressen (ab 0x8000000000000000) brachen das Lesen eines Minidumps ab; behoben. " +
+            "Tests: Die 17 Testdateien je Version sind in Dateien nach Fachgebieten aufgegangen (Oberfläche, Sensoren, Messung, Datenbank, Bericht, Ablauf, Optimierung, Aufbau, Release). Die Oberfläche wird je Testlauf nur noch einmal übersetzt und mit einem Selbsttest geprüft; Testen.cmd -Datei Name startet einzelne Dateien. " +
+            "Bauen.cmd: Commit-Nachricht aus dieser Versionshistorie statt fester Liste, Commit nur nach bestandenen Tests, ohne BOM am Dateianfang."),
         new Eintrag("3.52", "07.10.2026", "Netzlaufwerk-Härtung, Dashboard-Link-Fix, optimierte Datenpflege, aufgeräumte Optionen und vollständige Historie",
             "Netzlaufwerk- und NAS-Härtung: Klare Trennung zwischen Berichten/Datenbank auf dem Netzlaufwerk und strikt lokalen Binaries/Caches auf dem USB-Stick oder im lokalen Temp-Verzeichnis. Ausnahme 'Pfadformat nicht unterstützt' und CAS-Sicherheitsblockaden bei OpenRead und externen Treibern (smartctl, PawnIO, LibreHardwareMonitor) behoben. " +
             "Dashboard-Link-Korrektur: Relative Pfadauflösung von Berichts-Links im interaktiven Multi-System-Dashboard (Dashboard.html) bereinigt; Auflösung auf <Lauf-Ordner>/Diagnosebericht.html mit Vorwärtsslash ohne doppeltes Berichte-Präfix (ERR_FILE_NOT_FOUND behoben). " +

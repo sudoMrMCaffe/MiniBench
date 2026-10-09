@@ -1,4 +1,4 @@
-﻿<# : batch
+<# : batch
 @echo off
 setlocal
 title Leos Minibench bauen
@@ -293,6 +293,7 @@ try {
 
     # 2. Tests
     $testInfo = ''
+    $testsOk = $false   # nur nach bestandenen Tests wird committet (Schritt 6)
     if ($ohneTests) {
         $testInfo = 'nicht ausgeführt (Bauen.cmd ohnetests)'
         Write-Host '  Tests    : übersprungen (ohnetests)' -ForegroundColor Yellow
@@ -304,7 +305,7 @@ try {
         $sum = ''; if (Test-Path -LiteralPath $sumFile) { $sum = ([IO.File]::ReadAllText($sumFile)).Trim(); Remove-Item -LiteralPath $sumFile -Force -ErrorAction SilentlyContinue }
         if ($tc -eq 99) { $testInfo = 'nicht ausgeführt (Pester 5 fehlt)'; Write-Host '  Tests    : Pester 5 fehlt, Tests übersprungen (siehe oben)' -ForegroundColor Yellow }
         elseif ($tc -ne 0) { throw ('{0} Tests sind fehlgeschlagen. Der Aktuelle Build bleibt unverändert (Bauen.cmd ohnetests erzwingt den Bau).' -f $tc) }
-        else { $testInfo = $(if ($sum) { $sum } else { 'alle bestanden' }); Write-Host ('  Tests    : {0}' -f $testInfo) -ForegroundColor Green }
+        else { $testsOk = $true; $testInfo = $(if ($sum) { $sum } else { 'alle bestanden' }); Write-Host ('  Tests    : {0}' -f $testInfo) -ForegroundColor Green }
     }
 
     # 3. exe in einem Arbeitsordner bauen
@@ -422,22 +423,31 @@ try {
         } catch { Write-Host ('  Hinweis  : Datenpflege nicht möglich: {0}' -f $_.Exception.Message) -ForegroundColor Yellow }
     }
 
-    # 6. Git-Automatisierung (ab v3.31): Nach erfolgreichem Bau und bestandenen Tests lokalen Commit erzeugen
+    # 6. Git (ab v3.31, ab v3.53 überarbeitet): nach erfolgreichem Bau UND bestandenen Tests ein lokaler Commit.
+    #    Die Nachricht kommt aus dem Titel des Eintrags in src\Oberflaeche\Versionen.cs ("Release vX.Y: <Titel>"),
+    #    nicht aus einer Liste in dieser Datei. Gepusht wird von Hand (git push).
     $gitCmd = Get-Command git.exe -ErrorAction SilentlyContinue
     $isGitRepo = Test-Path -LiteralPath (Join-Path $Here '.git')
-    if ($gitCmd -and $isGitRepo) {
-        Write-Host '  Git      : Automatische Aktualisierung ...'
+    if ($gitCmd -and $isGitRepo -and -not $testsOk) {
+        Write-Host '  Git      : kein Commit, weil die Tests nicht gelaufen sind.' -ForegroundColor Yellow
+    } elseif ($gitCmd -and $isGitRepo) {
         try {
-            $stageFiles = @('src', 'Doku', 'tests', 'Bauen.cmd', 'README.md', 'CHANGELOG.md', 'Aktueller Build', 'Archiv')
-            & git.exe -C $Here add $stageFiles 2>&1 | Out-Null
-            $status = & git.exe -C $Here status --porcelain 2>&1
-            if ($status) {
-                $commitMsg = if ($ver -eq '3.52') { ('Release v{0}: Netzlaufwerk-Härtung, Dashboard-Link-Fix, optimierte Datenpflege & Historie 1.0–1.8' -f $ver) } elseif ($ver -eq '3.51') { ('Release v{0}: Dashboard-Berichte, Referenz-Fix & persistente NAS-Verbindung' -f $ver) } elseif ($ver -eq '3.5') { ('Release v{0}: Taskleisten-Bugfix, Minimal-Preset, winget & NAS-Integration' -f $ver) } elseif ($ver -eq '3.4') { ('Release v{0}: Modul Tools, Task beenden & interaktiver Hauptbericht' -f $ver) } elseif ($ver -eq '3.32') { ('Release v{0}: Dark-Mode-Feinschliff & Konsolidierung des Systemvergleichs' -f $ver) } else { ('Release v{0}: Multi-System Dashboard, nativer GUI Dark Mode & Build-Sync' -f $ver) }
-                $commitOut = & git.exe -C $Here commit -m $commitMsg 2>&1
-                Write-Host ('  Git      : Stand lokal committed ({0})' -f $commitMsg) -ForegroundColor Green
-                Write-Host '  Git      : Bereit zur Übertragung mit "git push".' -ForegroundColor Cyan
+            $stageFiles = @('src', 'Doku', 'tests', 'Bauen.cmd', 'Testen.cmd', 'README.md', 'CHANGELOG.md', 'AGENTS.md', 'Aktueller Build', 'Archiv') | Where-Object { Test-Path -LiteralPath (Join-Path $Here $_) }
+            & git.exe -C $Here add -- $stageFiles 2>&1 | Out-Null
+            & git.exe -C $Here diff --cached --quiet
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host '  Git      : nichts zu committen.' -ForegroundColor Gray
             } else {
-                Write-Host '  Git      : Keine uncommitteten Änderungen vorhanden.' -ForegroundColor Gray
+                $verText = [IO.File]::ReadAllText((Join-Path $Here 'src\Oberflaeche\Versionen.cs'), [Text.Encoding]::UTF8)
+                $titel = [regex]::Match($verText, ('new Eintrag\("{0}", "[^"]*", "([^"]+)"' -f [regex]::Escape($ver))).Groups[1].Value
+                $commitMsg = $(if ($titel) { 'Release v{0}: {1}' -f $ver, $titel } else { 'Release v{0}' -f $ver })
+                $commitOut = & git.exe -C $Here commit -m $commitMsg 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host ('  Git      : lokal committed ({0})' -f $commitMsg) -ForegroundColor Green
+                    Write-Host '  Git      : zum Übertragen "git push" ausführen.' -ForegroundColor Cyan
+                } else {
+                    Write-Host ('  Hinweis  : git commit fehlgeschlagen: {0}' -f ((@($commitOut) | Select-Object -Last 3) -join ' ')) -ForegroundColor Yellow
+                }
             }
         } catch {
             Write-Host ('  Hinweis  : Git-Commit nicht möglich: {0}' -f $_.Exception.Message) -ForegroundColor Yellow

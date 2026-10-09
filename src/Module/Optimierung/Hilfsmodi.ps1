@@ -1,5 +1,5 @@
 ﻿# =====================================================================================
-#                 OPTIMIERUNG: Hilfsmodi der Oberfläche (ab v2.8, kein Bericht)
+#        OPTIMIERUNG UND TOOLS: Hilfsmodi der Oberfläche (ab v2.8, Softwarepakete ab v3.53, kein Bericht)
 # =====================================================================================
 # Zustand aller Einträge: @@OPTZ|Id|Zustand|Text je Eintrag, @@RESULT|Anzahl
 if ($OptimierungZustand) {
@@ -15,6 +15,12 @@ if ($OptimierungZustand) {
     }
     Send-GuiEvent 'RESULT' $n
     exit 0
+}
+# Seite Tools (ab v3.53): Softwarepakete über winget, je Paket @@PAKET, am Ende @@RESULT|installiert|bereits|fehlgeschlagen
+if ($SoftwareInstallieren) {
+    $r = Invoke-SoftwarePakete $SoftwareInstallieren
+    Send-GuiEvent 'RESULT' $r.Installiert $r.Bereits $r.Fehler
+    exit $(if ($r.Fehler) { 1 } else { 0 })
 }
 if ($OptWerkzeugeHolen) {
     $r = Install-OptTools

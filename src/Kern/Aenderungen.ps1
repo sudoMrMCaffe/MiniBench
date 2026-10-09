@@ -211,6 +211,8 @@ function Undo-ChangeRecord($Record, [string]$FilesDir) {
             return [pscustomobject]@{ Status = $(if ($bad) { 'fehlgeschlagen' } else { 'rückgängig' }); Text = ($msgs -join '; ') }
         }
     }
+    # ab v3.53: Softwarepakete der Seite Tools (winget uninstall, nur wenn noch installiert)
+    if ([string]$Record.Art -eq 'Softwarepaket') { return (Undo-SoftwarePaket $Record) }
     # ab v2.8: Arten des Moduls Optimierung (geplante Aufgaben, Windows-Funktionen, Laufwerke, Energie, Defender, DNS ...)
     if (Get-Command Undo-OptChange -ErrorAction SilentlyContinue) { $r = Undo-OptChange $Record; if ($r) { return $r } }
     return [pscustomobject]@{ Status = [string]$Record.Status; Text = ('Für {0} gibt es kein automatisches Rückgängig: {1}' -f $Record.Art, $Record.Gegenbefehl) }

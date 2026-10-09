@@ -2,6 +2,14 @@
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
 
+## v3.53 (09.10.2026)
+
+* **Softwarepakete (Seite Tools) über das Änderungsprotokoll:** winget läuft im Arbeitsprozess (`-SoftwareInstallieren`) mit Frist je Paket (20 Minuten) und vollständig gelesener Ausgabe. Vorher konnte die Installation unbegrenzt hängen, weil die umgeleitete Ausgabe nie gelesen wurde. Jede Installation ist ein Eingriff im Änderungsprotokoll mit Gegenbefehl `winget uninstall`; die Seite Änderungen nimmt sie zurück. Schon vorhandene Programme werden weder angefasst noch protokolliert. Vor dem Start fragt die Oberfläche nach.
+* **Grafikauswahl im Lasttest:** Die Wahl auf der Seite Lasttest sprang auf den Wert des Benchmarks zurück (vertauschte Zuweisung). Beide Seiten gleichen Auflösung, Anzeige und Grafikeinheit jetzt über `CopySelection` in beide Richtungen ab.
+* **Absturzabbilder:** Parameter ab 0x8000000000000000 (Kerneladressen) brachen das Lesen eines Minidumps ab.
+* **Testsuite nach Fachgebieten:** Die Dateien `Version26.Tests.ps1` bis `Version352.Tests.ps1` und `Dashboard.Tests.ps1` sind aufgelöst. Neu: `Ablauf`, `Bericht`, `Messung`, `Optimierung`, `Release`; erweitert: `Oberflaeche`, `Sensoren`, `Datenbank`, `Aufbau`, `Auswertung`, `Modulvertrag`, `Werkzeuge`, `Aenderungen`. Die Oberfläche wird je Testlauf einmal übersetzt und mit einem Selbsttest geprüft. `Testen.cmd -Datei Oberflaeche,Release` startet einzelne Dateien.
+* **Bauen.cmd:** Commit-Nachricht aus `Versionen.cs`, Commit nur nach bestandenen Tests, Ergebnis von `git commit` wird geprüft, keine BOM mehr am Dateianfang.
+
 ## v3.52 (07.10.2026)
 
 * **Sensorwerkzeuge, Binaries & Cache strikt lokal gebunden (NAS-Härtung):**

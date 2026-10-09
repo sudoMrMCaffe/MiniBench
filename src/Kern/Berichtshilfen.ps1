@@ -135,7 +135,7 @@ function Repair-Utf8AsOem([string]$Text) {
 }
 
 function Invoke-External {
-    param([string]$File, [string]$Arguments = '', [int]$TimeoutSec = 600, [Text.Encoding]$Encoding = $script:OemEnc, [string]$Progress = '', [int]$ExpectedSec = 0)
+    param([string]$File, [string]$Arguments = '', [int]$TimeoutSec = 600, [Text.Encoding]$Encoding = $script:OemEnc, [string]$Progress = '', [int]$ExpectedSec = 0, [switch]$OhneUeberspringen)
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $File; $psi.Arguments = $Arguments
     $psi.UseShellExecute = $false; $psi.CreateNoWindow = $true
@@ -149,7 +149,8 @@ function Invoke-External {
     $o = $p.StandardOutput.ReadToEndAsync(); $e = $p.StandardError.ReadToEndAsync()
     $sw = [Diagnostics.Stopwatch]::StartNew(); $timedOut = $false
     while (-not $p.WaitForExit(500)) {
-        if ((Get-Command Test-SkipRequested -ErrorAction SilentlyContinue) -and (Test-SkipRequested)) {
+        # -OhneUeberspringen: Hilfsmodi außerhalb eines Laufs (winget der Seite Tools) reagieren nicht auf skip.flag eines laufenden Laufs
+        if (-not $OhneUeberspringen -and (Get-Command Test-SkipRequested -ErrorAction SilentlyContinue) -and (Test-SkipRequested)) {
             try { $p.Kill() } catch { }
             throw (New-Object System.OperationCanceledException 'Vom Benutzer übersprungen')
         }

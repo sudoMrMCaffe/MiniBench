@@ -118,7 +118,7 @@ function Test-StepEnabled([string]$Key) {
     return $false
 }
 
-if (-not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $Dashboard -and -not $DashboardExport) {
+if (-not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport) {
     # Berichte landen ausschließlich im Datenordner neben dem Programm (z. B. auf dem USB-Stick)
     if (-not $OutputDir) {
         $base = $(if ($script:DataDir) { Join-Path $script:DataDir 'Berichte' } else { Join-Path $env:TEMP 'LeosMinibench-Berichte' })

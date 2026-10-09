@@ -15,6 +15,7 @@ Kern\Modulvertrag.ps1
 Kern\Geraeteidentitaet.ps1
 Kern\Aenderungen.ps1
 Kern\Werkzeuge.ps1
+Kern\Softwarepakete.ps1
 Module\Optimierung\Funktionen.ps1
 Oberflaeche\Oberflaeche.ps1
 Kern\Grundgeruest.ps1

@@ -1,8 +1,69 @@
-﻿# Sensoren: Zugriff auf LibreHardwareMonitor über Reflexion (mit nachgebauter Bibliothek), Leitwerte, Abbruchschwelle,
-# Drosselnachweis, Werkzeuge mit festen Prüfsummen und der Lebenszyklus des PawnIO-Treibers (mit Attrappen).
+﻿# Sensoren: Zugriff auf LibreHardwareMonitor über Reflexion (mit nachgebauter Bibliothek), Zeitlimits und verspätete
+# Abfragen, Leitwerte, Plausibilität, Abbruchschwelle, Drosselnachweis, Ersatzwerte ohne LibreHardwareMonitor
+# (Grafiktreiber, Energiezähler), ARM64-Erkennung, zwischengespeicherte CIM-Abfragen, Werkzeuge mit festen Prüfsummen
+# und der Lebenszyklus des PawnIO-Treibers (mit Attrappen).
+#
+# Kern\Sensoren.cs wird je Testlauf höchstens einmal übersetzt (Get-KernUebersetzung wie in Messung.Tests.ps1,
+# gemeinsames Ergebnis in einer globalen Variablen): Windows im Kindprozess (Windows PowerShell 5.1, C# 5), sonst mit
+# mcs -langversion:5. Die Bibliothek liegt in einem Ordner je Testprozess unter TEMP\LeosMinibench-Tests-Kern.
 BeforeAll {
     . (Join-Path $PSScriptRoot 'Hilfen.ps1')
-    Import-MinibenchTestModule -Parts 'Kern\Werkzeuge.ps1', 'Kern\Sensoren.ps1' -Functions 'Get-SafeName', 'Show-Sub', 'Hide-Sub', 'Write-Heartbeat', 'Send-GuiEvent' -Setup @'
+
+    # Arbeitsordner dieses Testprozesses für übersetzte Bibliotheken (gleiche Fassung wie in Messung.Tests.ps1)
+    function Get-KernOrdner {
+        if ($global:MinibenchKernOrdner -and (Test-Path -LiteralPath $global:MinibenchKernOrdner)) { return $global:MinibenchKernOrdner }
+        $base = Join-Path ([IO.Path]::GetTempPath()) 'LeosMinibench-Tests-Kern'
+        foreach ($d in @(Get-ChildItem -LiteralPath $base -Directory -ErrorAction SilentlyContinue)) {
+            $p = 0
+            if ($d.Name -match '^(\d+)_') { $p = [int]$Matches[1] }
+            if ($p -eq $PID) { continue }
+            if ($p -gt 0 -and (Get-Process -Id $p -ErrorAction SilentlyContinue)) { continue }
+            Remove-Item -LiteralPath $d.FullName -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        $dir = Join-Path $base ('{0}_{1}' -f $PID, [guid]::NewGuid().ToString('N').Substring(0, 8))
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        $global:MinibenchKernOrdner = $dir
+        return $dir
+    }
+
+    # Eine C#-Datei aus src als Bibliothek übersetzen, je Testlauf einmal (gleiche Fassung wie in Messung.Tests.ps1)
+    function Get-KernUebersetzung([string]$Datei) {
+        if (-not $global:MinibenchKernUebersetzung) { $global:MinibenchKernUebersetzung = @{} }
+        if ($global:MinibenchKernUebersetzung.ContainsKey($Datei)) { return $global:MinibenchKernUebersetzung[$Datei] }
+        $src = Join-Path $global:MinibenchSrcRoot $Datei
+        $dll = Join-Path (Get-KernOrdner) ([IO.Path]::GetFileNameWithoutExtension($Datei) + '.dll')
+        $winforms = ([IO.File]::ReadAllText($src, [Text.Encoding]::UTF8) -match 'using System\.Windows\.Forms;')
+        $res = [pscustomobject]@{ Datei = $Datei; Ok = $false; Dll = $dll; Compiler = ''; Meldung = '' }
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        if (Test-IstWindows) {
+            $res.Compiler = 'Add-Type (.NET Framework, C# 5, Kindprozess)'
+            $refs = $(if ($winforms) { 'Add-Type -AssemblyName System.Windows.Forms, System.Drawing; $p.ReferencedAssemblies = @([Windows.Forms.Form].Assembly.Location, [Drawing.Color].Assembly.Location); ' } else { '' })
+            $code = ('$p = @{{ TypeDefinition = [IO.File]::ReadAllText(''{0}'', [Text.Encoding]::UTF8); OutputAssembly = ''{1}''; OutputType = ''Library''; IgnoreWarnings = $true; ErrorAction = ''Stop'' }}; ' -f $src.Replace("'", "''"), $dll.Replace("'", "''")) +
+                $refs + 'try { Add-Type @p; exit 0 } catch { Write-Output $_.Exception.Message; exit 1 }'
+            $msg = & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command $code
+            $res.Ok = ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $dll)); $res.Meldung = (@($msg) -join ' ')
+        } elseif (Get-Command mcs -ErrorAction SilentlyContinue) {
+            $res.Compiler = 'mcs -langversion:5'
+            $r = @(); if ($winforms) { $r = @('-r:System.Windows.Forms.dll', '-r:System.Drawing.dll') }
+            $msg = & mcs -langversion:5 -target:library -nowarn:414,169,649,0219,1635 @r ('-out:' + $dll) $src 2>&1
+            $res.Ok = ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $dll)); $res.Meldung = (@($msg | Where-Object { "$_" -match 'error' }) -join ' ')
+        } else {
+            $res.Meldung = 'kein C#-5-Compiler verfügbar (Windows PowerShell oder mcs)'
+        }
+        Write-Host ('    {0} übersetzt in {1:N1} s ({2}): {3}' -f $Datei, $sw.Elapsed.TotalSeconds, $res.Compiler, $(if ($res.Ok) { 'fehlerfrei' } else { 'FEHLER' }))
+        $global:MinibenchKernUebersetzung[$Datei] = $res
+        return $res
+    }
+
+    # DiagSensors, DiagPdh und DiagGpuKmt
+    $script:SensorenCs = Get-KernUebersetzung 'Kern/Sensoren.cs'
+    if ($script:SensorenCs.Ok -and -not ('DiagSensors' -as [type])) { Add-Type -Path $script:SensorenCs.Dll }
+
+    Import-MinibenchTestModule -Parts 'Kern\Werkzeuge.ps1', 'Kern\Sensoren.ps1' -Functions 'Get-SafeName', 'Show-Sub', 'Hide-Sub', 'Write-Heartbeat', 'Send-GuiEvent', 'Get-CimCached' -Setup @'
+$script:CimCache = @{}
+$script:TestFindings = New-Object System.Collections.Generic.List[object]
+function Add-Finding { param([string]$Level, [string]$Area, [string]$Text) $script:TestFindings.Add([pscustomobject]@{ Stufe = $Level; Bereich = $Area; Befund = $Text }) }
+function Write-Checkpoint { param([string]$Kind, [string]$Text) }
 function Add-ChangeRecord { param([string]$Modul, [string]$Schritt, [string]$Titel, [string]$Risiko, [string]$Art, [string]$Ziel, [string]$Vorher = '', [string]$Nachher = '', $Daten = $null, [string]$Gegenbefehl = '', [switch]$NurHinweis)
     $script:TestChanges += [pscustomobject]@{ Titel = $Titel; Risiko = $Risiko; NurHinweis = [bool]$NurHinweis } }
 function Invoke-External { param([string]$File, [string]$Arguments = '', [int]$TimeoutSec = 600, $Encoding = $null, [string]$Progress = '', [int]$ExpectedSec = 0) [pscustomobject]@{ ExitCode = 0; Output = ''; Error = ''; TimedOut = $false } }
@@ -91,17 +152,24 @@ namespace LibreHardwareMonitor.Hardware {
 namespace LibreHardwareMonitor.PawnIo { public class PawnIo { public static bool IsInstalled { get { return true; } } public static Version Version { get { return new Version(2, 2, 0, 0); } } } }
 '@
         # nicht in TestDrive: Windows sperrt eine geladene DLL bis zum Prozessende, Pester könnte TestDrive nicht löschen.
-        # Ordner früherer Testläufe (dann nicht mehr gesperrt) werden hier entfernt.
-        $fakeBase = Join-Path ([IO.Path]::GetTempPath()) 'LeosMinibench-Tests-LHM'
-        Get-ChildItem -LiteralPath $fakeBase -Directory -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-        $script:fakeDir = Join-Path $fakeBase ([guid]::NewGuid().ToString('N').Substring(0, 8))
+        # Eigener Ordner dieses Testprozesses (Get-KernOrdner); Ordner beendeter Testläufe entfernt der nächste Lauf.
+        $script:fakeDir = Join-Path (Get-KernOrdner) ('LHM_' + [guid]::NewGuid().ToString('N').Substring(0, 8))
         New-Item -ItemType Directory -Path $script:fakeDir -Force | Out-Null
         $script:fakeDll = Join-Path $script:fakeDir 'LibreHardwareMonitorLib.dll'
         Add-Type -TypeDefinition $fake -OutputAssembly $script:fakeDll -OutputType Library
-        if (-not ('DiagSensors' -as [type])) {
-            $cs = [IO.File]::ReadAllText((Join-Path $global:MinibenchSrcRoot 'Kern/Sensoren.cs'))
-            Add-Type -TypeDefinition $cs
-        }
+        if (-not ('DiagSensors' -as [type])) { throw ('Sensoren.cs nicht geladen: ' + $script:SensorenCs.Meldung) }
+    }
+    It 'Grundwerte: alte Werte höchstens 10 s, Ausfall erst nach 30 s, Datenträger höchstens alle 30 s und ohne Warten' {
+        [DiagSensors]::StaleMaxMs | Should -Be 10000
+        [DiagSensors]::HangAfterMs | Should -Be 30000
+        [DiagSensors]::StorageIntervalMs | Should -Be 30000
+        [DiagSensors]::StorageWaitMs | Should -Be 0
+    }
+    It 'das Skript ruft die Bibliothek nur mit Zeitlimit auf' {
+        $ps = Get-PartText 'Kern\Sensoren.ps1'
+        $ps | Should -Match '\[DiagSensors\]::OpenTimed\('
+        $ps | Should -Match '\[DiagSensors\]::ReadTimed\('
+        $ps | Should -Not -Match '\[DiagSensors\]::(Open|Read)\('
     }
     It 'meldet eine fehlende Bibliothek als Fehler statt abzubrechen' {
         [DiagSensors]::Open((Join-Path $TestDrive 'fehlt/LibreHardwareMonitorLib.dll'), $true, $true, $true, $true, $true, $true, $false) | Should -BeFalse
@@ -140,7 +208,7 @@ namespace LibreHardwareMonitor.PawnIo { public class PawnIo { public static bool
         [LibreHardwareMonitor.Hardware.Computer]::Closed | Should -Be 1
         @([DiagSensors]::Read()).Count | Should -Be 0
     }
-    It 'eine verspätete Abfrage liefert die letzten Werte statt die Sensoren abzuschalten (Praxistest Ryzen 5 5600, ab v2.66)' {
+    It 'eine verspätete Abfrage liefert die letzten Werte statt die Sensoren abzuschalten (Praxistest Ryzen 5 5600)' {
         [DiagSensors]::OpenTimed($script:fakeDll, $true, $true, $true, $true, $false, $true, $false, 5000) | Should -BeTrue
         $n0 = @([DiagSensors]::ReadTimed(5000)).Count
         $n0 | Should -BeGreaterThan 0
@@ -163,6 +231,16 @@ namespace LibreHardwareMonitor.PawnIo { public class PawnIo { public static bool
         @([DiagSensors]::ReadTimed(5000)).Count | Should -Be $n0
         [DiagSensors]::LastStale | Should -BeFalse
         [DiagSensors]::MaxReadMs | Should -BeGreaterThan 1500
+    }
+    It 'verzögerte Abfragen stehen mit Anzahl und längster Dauer im Bericht' {
+        Set-ModuleVar 'Sens' ([pscustomobject]@{ LhmVersion = '0.9.4' })
+        try {
+            MinibenchTest\Get-SensorDelayText | Should -Match '^LibreHardwareMonitor antwortete \d+x verzögert \(längste Abfrage \d'
+            $l = @(MinibenchTest\Get-SensorSeriesLines (MinibenchTest\Get-SensorSeriesStats @()) $null)
+            ($l -join "`n") | Should -Match '  Sensoren: LibreHardwareMonitor antwortete \d+x verzögert'
+            Set-ModuleVar 'Sens' ([pscustomobject]@{ LhmVersion = '' })
+            MinibenchTest\Get-SensorDelayText | Should -BeNullOrEmpty
+        } finally { Set-ModuleVar 'Sens' $null }
     }
     It 'eine längst fertige verspätete Abfrage gilt als zu alt: neu lesen, Dauer bis zum Ende der Abfrage gemessen' {
         [DiagSensors]::ResetStats()
@@ -221,6 +299,26 @@ namespace LibreHardwareMonitor.PawnIo { public class PawnIo { public static bool
         [DiagSensors]::StorageWaitMs = 0; [DiagSensors]::StorageIntervalMs = 30000
         [LibreHardwareMonitor.Hardware.Computer]::StorageDelay = 0
         [DiagSensors]::Close()
+    }
+    It 'Momentaufnahme (-MitDatentraeger) wartet auf die erste Abfrage der Datenträger, danach wieder ohne Warten' {
+        Mock -ModuleName MinibenchTest Get-AcpiReadings { @() }
+        Mock -ModuleName MinibenchTest Get-BatteryReadings { @() }
+        Mock -ModuleName MinibenchTest Get-StorageTempReadings { @() }
+        [LibreHardwareMonitor.Hardware.Computer]::StorageDelay = 1500
+        try {
+            [DiagSensors]::OpenTimed($script:fakeDll, $true, $true, $true, $true, $true, $true, $false, 5000) | Should -BeTrue
+            Set-ModuleVar 'Sens' ([pscustomobject]@{ Lhm = $true; LhmFehler = ''; LhmVerzoegert = $false; NvSmi = ''; Hinweise = (New-Object System.Collections.Generic.List[string]); StorageCache = @(); StorageZeit = [datetime]::MinValue; GpuLimits = @{} })
+            $r = MinibenchTest\Get-SensorReadings -MitDatentraeger -CpuSample ([pscustomobject]@{ MHz = 3600; Last = 5; MaxFreq = 100 })
+            @($r | Where-Object { $_.Gruppe -eq 'Datenträger' -and $_.Quelle -eq 'LHM' }).Count | Should -Be 1
+            @($r | Where-Object { $_.Gruppe -eq 'Datenträger' -and $_.Quelle -eq 'LHM' })[0].Wert | Should -Be 41
+            @($r | Where-Object { $_.Gruppe -eq 'CPU' -and $_.Quelle -eq 'LHM' }).Count | Should -BeGreaterThan 0
+            [DiagSensors]::StorageWaitMs | Should -Be 0
+            [DiagSensors]::LastStale | Should -BeFalse
+        } finally {
+            [LibreHardwareMonitor.Hardware.Computer]::StorageDelay = 0
+            [DiagSensors]::Close()
+            Set-ModuleVar 'Sens' $null
+        }
     }
     It 'Gruppen und Arten decken alle Hardwaretypen ab' {
         foreach ($h in 'Cpu', 'GpuNvidia', 'GpuAmd', 'GpuIntel', 'Motherboard', 'SuperIO', 'EmbeddedController', 'Memory', 'Storage', 'Battery', 'Cooler', 'Psu') { [DiagSensors]::Group($h) | Should -Not -BeNullOrEmpty -Because $h }
@@ -561,6 +659,249 @@ Describe 'PawnIO nur vorübergehend' {
         @($script:Calls).Count | Should -Be 0
         MinibenchTest\Close-SensorSession
         @($script:Calls).Count | Should -Be 0
+    }
+}
+
+Describe 'Unplausible Sensorwerte zählen' {
+    BeforeEach { $script:seen = @{} }
+    It 'zählt je Sensor und behält den höchsten Rohwert' {
+        $r1 = MinibenchTest\New-SensorReading 'k1' 'LHM' 'GPU' 'Intel(R) Iris(R) Xe Graphics' 'Leistung' 'GPU Package' 'W' 590
+        $r1.Status = 'unplausibel'; $r1.Roh = 590; $r1.Wert = [double]::NaN
+        $r2 = MinibenchTest\New-SensorReading 'k1' 'LHM' 'GPU' 'Intel(R) Iris(R) Xe Graphics' 'Leistung' 'GPU Package' 'W' 610
+        $r2.Status = 'unplausibel'; $r2.Roh = 610; $r2.Wert = [double]::NaN
+        $ok = MinibenchTest\New-SensorReading 'k2' 'LHM' 'CPU' 'CPU' 'Temperatur' 'CPU Package' '°C' 55
+        MinibenchTest\Register-BadReadings @($r1, $ok) $script:seen
+        MinibenchTest\Register-BadReadings @($r2) $script:seen
+        $script:seen.Count | Should -Be 1
+        $e = @($script:seen.Values)[0]
+        $e.Anzahl | Should -Be 2; $e.Max | Should -Be 610; $e.Geraet | Should -Be 'Intel(R) Iris(R) Xe Graphics'
+    }
+    It 'übersteht Einträge ohne Gerät, ohne Namen und ohne Rohwert' {
+        $r = [pscustomobject]@{ Geraet = $null; Name = $null; Art = 'Leistung'; Hinweis = ''; Status = 'unplausibel'; Roh = $null }
+        { MinibenchTest\Register-BadReadings @($r, $r, $null) $script:seen } | Should -Not -Throw
+        @($script:seen.Values)[0].Anzahl | Should -Be 2
+    }
+    It 'eine unplausible GPU-Leistung der Prozessorgrafik wird erkannt und je Sensor gezählt' {
+        $l = New-Object System.Collections.Generic.List[object]
+        $l.Add((New-Rd 'GPU' 'Leistung' 'GPU Package' 48.5 'NVIDIA RTX 3000 Ada Generation Laptop GPU'))
+        $l.Add((New-Rd 'GPU' 'Leistung' 'GPU Power' 590 'Intel(R) Iris(R) Xe Graphics'))
+        MinibenchTest\Set-SensorClassification $l $null
+        MinibenchTest\Register-BadReadings @(, [object[]]$l.ToArray()) $script:seen
+        $script:seen.Count | Should -Be 1
+        $e = @($script:seen.Values)[0]
+        $e.Geraet | Should -Be 'Intel(R) Iris(R) Xe Graphics'; $e.Name | Should -Be 'GPU Power'; $e.Max | Should -Be 590
+    }
+}
+
+Describe 'Messwerte für Lasttest und Bericht' {
+    BeforeAll {
+        $script:SensKultur = [Threading.Thread]::CurrentThread.CurrentCulture
+        [Threading.Thread]::CurrentThread.CurrentCulture = 'de-DE'
+        # so wie Get-SensorReadings zurückgibt: ein Array, mit Komma vor dem Auspacken geschützt
+        function Get-Fake {
+            $l = New-Object System.Collections.Generic.List[object]
+            $l.Add((New-Rd 'CPU' 'Temperatur' 'CPU Package' 71 '13th Gen Intel Core i9-13900H'))
+            $l.Add((New-Rd 'GPU' 'Temperatur' 'GPU Core' 66 'NVIDIA RTX 3000 Ada Generation Laptop GPU'))
+            $l.Add((New-Rd 'GPU' 'Takt' 'GPU Core' 1755 'NVIDIA RTX 3000 Ada Generation Laptop GPU'))
+            $l.Add((New-Rd 'GPU' 'Leistung' 'GPU Package' 48.5 'NVIDIA RTX 3000 Ada Generation Laptop GPU'))
+            $l.Add((New-Rd 'GPU' 'Takt' 'GPU Core' 1300 'Intel(R) Iris(R) Xe Graphics'))
+            MinibenchTest\Set-SensorClassification $l $null
+            return , [object[]]$l.ToArray()
+        }
+    }
+    AfterAll { [Threading.Thread]::CurrentThread.CurrentCulture = $script:SensKultur }
+    It 'doppelt verpackte Liste ergibt dieselben Leitwerte wie die flache (Praxistest: alle Leitwerte leer)' {
+        $flat = Get-Fake
+        $nested = @(Get-Fake)
+        $nested.Count | Should -Be 1
+        $a = MinibenchTest\Get-SensorLead $flat
+        $b = MinibenchTest\Get-SensorLead $nested
+        $b.GpuTemp | Should -Be 66; $b.GpuMHz | Should -Be 1755; $b.GpuW | Should -Be 48.5
+        $b.CpuTemp | Should -Be 71
+        $b.IGpuMHz | Should -Be 1300
+        $b.GpuTemp | Should -Be $a.GpuTemp
+    }
+    It 'flache Liste bleibt flach, null wird übergangen' {
+        @(MinibenchTest\ConvertTo-FlatReadings @($null, (New-Rd 'CPU' 'Takt' 'Core #1' 4000))).Count | Should -Be 1
+        @(MinibenchTest\ConvertTo-FlatReadings $null).Count | Should -Be 0
+    }
+    It 'Takt der Windows-Leistungszähler heißt CPU gesamt, der Leitwert findet ihn' {
+        $rd = @(MinibenchTest\ConvertFrom-CpuSampleReadings ([pscustomobject]@{ MHz = 2450; Last = 30; MaxFreq = 100 }))
+        @($rd | Where-Object { $_.Art -eq 'Takt' })[0].Name | Should -Be 'CPU gesamt'
+        (MinibenchTest\Get-SensorLead $rd).CpuMHz | Should -Be 2450
+    }
+    It 'GPU-Zeile für den Bericht mit Takt, Temperatur und Leistung' {
+        $m = [pscustomobject]@{ Average = 1712.4; Maximum = 1800 }
+        MinibenchTest\Get-GpuLoadLine 'NVIDIA RTX 3000' $m 74 ([double]51.2) | Should -Be 'NVIDIA RTX 3000: Takt Ø 1.712 / max 1.800 MHz, Temperatur max 74 °C, Leistung max 51,2 W'
+        MinibenchTest\Get-GpuLoadLine 'X' $null $null $null | Should -BeNullOrEmpty
+    }
+    It 'Zuverlässigkeitszähler mit Zeitlimit: ein hängender Aufruf hält den Lauf nicht an' {
+        $mod = Get-Module MinibenchTest
+        $orig = & $mod { ${function:Get-StorageTempRaw}.ToString() }
+        try {
+            & $mod {
+                function script:Get-StorageTempRaw { Start-Sleep -Seconds 20; @() }
+                $script:Sens = [pscustomobject]@{ StorageTimeout = $false; Hinweise = New-Object System.Collections.Generic.List[string] }
+            }
+            $sw = [Diagnostics.Stopwatch]::StartNew()
+            @(MinibenchTest\Get-StorageTempReadings 1).Count | Should -Be 0
+            $sw.Elapsed.TotalSeconds | Should -BeLessThan 8
+            (Get-ModuleVar 'Sens').StorageTimeout | Should -BeTrue
+            ((Get-ModuleVar 'Sens').Hinweise -join ' ') | Should -Match 'antworten nicht innerhalb von 1 Sekunden'
+            $sw.Restart()
+            @(MinibenchTest\Get-StorageTempReadings 1).Count | Should -Be 0
+            $sw.Elapsed.TotalSeconds | Should -BeLessThan 1
+        } finally {
+            & $mod { param($t) . ([scriptblock]::Create('function script:Get-StorageTempRaw {' + $t + '}')); $script:Sens = $null } $orig
+        }
+    }
+}
+
+Describe 'Sensoren ohne LibreHardwareMonitor' {
+    BeforeAll {
+        function New-Sitzung([bool]$Lhm) {
+            [pscustomobject]@{ Lhm = $Lhm; LhmFehler = ''; LhmVerzoegert = $false; NvSmi = ''; Hinweise = (New-Object System.Collections.Generic.List[string]); StorageCache = @(); StorageZeit = [datetime]::MinValue; GpuLimits = @{} }
+        }
+    }
+    AfterEach { Set-ModuleVar 'Sens' $null }
+    It 'Sensoren.cs mit DiagGpuKmt (Grafiktreiber, Energiezähler) lässt sich mit C# 5 übersetzen' {
+        if (-not $script:SensorenCs.Compiler) { Set-ItResult -Skipped -Because $script:SensorenCs.Meldung; return }
+        $script:SensorenCs.Ok | Should -BeTrue -Because $script:SensorenCs.Meldung
+        ('DiagGpuKmt' -as [type]) | Should -Not -BeNullOrEmpty
+    }
+    It 'Windows-Grafiktreiber liefert Temperatur, Takt, Lüfter und Auslastung je Karte' {
+        $a = @([pscustomobject]@{ Name = 'AMD Radeon RX 6800'; TempC = 55.5; CoreMhz = 2105; MemMhz = 1000; FanRpm = [double]::NaN; Load = 97.3 })
+        $r = @(MinibenchTest\ConvertFrom-KmtAdapters $a @())
+        @($r | Where-Object { $_.Art -eq 'Temperatur' }).Wert | Should -Be 55.5
+        @($r | Where-Object { $_.Name -eq 'GPU Core' -and $_.Art -eq 'Takt' }).Wert | Should -Be 2105
+        @($r | Where-Object { $_.Name -eq 'GPU Memory' }).Wert | Should -Be 1000
+        @($r | Where-Object { $_.Art -eq 'Lüfter' }).Count | Should -Be 0
+        @($r | ForEach-Object { $_.Quelle } | Select-Object -Unique) | Should -Be @('Windows')
+        $lead = MinibenchTest\Get-SensorLead $r
+        $lead.GpuTemp | Should -Be 55.5
+        $lead.GpuLoad | Should -Be 97
+    }
+    It 'überschreibt keine Werte anderer Quellen, verwirft unplausible und virtuelle Adapter' {
+        $ex = @(MinibenchTest\New-SensorReading 'nvsmi/0/temp' 'nvidia-smi' 'GPU' 'NVIDIA GeForce RTX 3060' 'Temperatur' 'GPU Core' '°C' 61 'GpuNvidia')
+        $a = @([pscustomobject]@{ Name = 'NVIDIA GeForce RTX 3060'; TempC = 60; CoreMhz = 99999; MemMhz = [double]::NaN; FanRpm = 1500; Load = 40 },
+               [pscustomobject]@{ Name = 'Microsoft Remote Display Adapter'; TempC = 40; CoreMhz = 1000; MemMhz = 1000; FanRpm = 1000; Load = 1 })
+        $r = @(MinibenchTest\ConvertFrom-KmtAdapters $a $ex)
+        @($r | Where-Object { $_.Art -eq 'Temperatur' }).Count | Should -Be 0
+        @($r | Where-Object { $_.Art -eq 'Takt' }).Count | Should -Be 0
+        @($r | Where-Object { $_.Geraet -match 'Remote' }).Count | Should -Be 0
+        @($r | Where-Object { $_.Art -eq 'Lüfter' }).Wert | Should -Be 1500
+    }
+    It 'nennt den Grund, warum Werte fehlen, statt PawnIO zu vermuten' {
+        Mock -ModuleName MinibenchTest Test-IsArm64 { $false }
+        Set-ModuleVar 'Sens' ([pscustomobject]@{ Lhm = $false; LhmLief = $false; LhmGrund = 'fehlt'; LhmFehler = ''; TreiberOk = $false; Treiber = 'nicht verwendet' })
+        MinibenchTest\Get-SensorGapText | Should -Match 'LibreHardwareMonitor fehlt im Tools-Ordner'
+        MinibenchTest\Get-SensorGapText | Should -Not -Match 'PawnIO'
+        Set-ModuleVar 'Sens' ([pscustomobject]@{ Lhm = $true; LhmLief = $true; LhmGrund = ''; LhmFehler = ''; TreiberOk = $false; Treiber = 'ohne PawnIO' })
+        MinibenchTest\Get-SensorGapText | Should -Match 'ohne PawnIO-Treiber'
+    }
+    It 'Ersatzquellen (Grafiktreiber, Energiezähler) werden nur ohne LibreHardwareMonitor abgefragt' {
+        Mock -ModuleName MinibenchTest Get-AcpiReadings { @() }
+        Mock -ModuleName MinibenchTest Get-BatteryReadings { @() }
+        Mock -ModuleName MinibenchTest Get-StorageTempReadings { @() }
+        Mock -ModuleName MinibenchTest Get-WindowsGpuAdapters { @([pscustomobject]@{ Name = 'AMD Radeon RX 6800'; TempC = 55; CoreMhz = 2100; MemMhz = 1000; FanRpm = [double]::NaN; Load = 90 }) }
+        Mock -ModuleName MinibenchTest Get-WindowsCpuPowerReading { MinibenchTest\New-SensorReading 'win/cpu/power' 'Windows' 'CPU' 'CPU' 'Leistung' 'CPU Package' 'W' 42 'CpuWindows' }
+        $cpu = [pscustomobject]@{ MHz = 3600; Last = 5; MaxFreq = 100 }
+        Set-ModuleVar 'Sens' (New-Sitzung $false)
+        $r = MinibenchTest\Get-SensorReadings -CpuSample $cpu
+        Should -Invoke -ModuleName MinibenchTest Get-WindowsGpuAdapters -Times 1 -Exactly
+        Should -Invoke -ModuleName MinibenchTest Get-WindowsCpuPowerReading -Times 1 -Exactly
+        @($r | Where-Object { $_.Gruppe -eq 'GPU' -and $_.Art -eq 'Temperatur' -and $_.Quelle -eq 'Windows' })[0].Wert | Should -Be 55
+        @($r | Where-Object { $_.Gruppe -eq 'CPU' -and $_.Art -eq 'Leistung' })[0].Wert | Should -Be 42
+        # mit LibreHardwareMonitor (hier ohne geöffnete Bibliothek): keine Ersatzquellen
+        Set-ModuleVar 'Sens' (New-Sitzung $true)
+        $r = MinibenchTest\Get-SensorReadings -CpuSample $cpu
+        Should -Invoke -ModuleName MinibenchTest Get-WindowsGpuAdapters -Times 1 -Exactly
+        Should -Invoke -ModuleName MinibenchTest Get-WindowsCpuPowerReading -Times 1 -Exactly
+        @($r | Where-Object { $_.Gruppe -eq 'GPU' }).Count | Should -Be 0
+    }
+}
+
+Describe 'ARM64-Erkennung' {
+    BeforeEach {
+        $script:ArchAlt = @($env:PROCESSOR_ARCHITECTURE, $env:PROCESSOR_ARCHITEW6432)
+        $env:PROCESSOR_ARCHITECTURE = 'AMD64'; $env:PROCESSOR_ARCHITEW6432 = $null
+        $script:Cpu = [pscustomobject]@{ Name = 'Intel(R) Core(TM) i7-12700'; Architecture = 9 }
+        $script:Os = [pscustomobject]@{ OSArchitecture = '64-Bit' }
+        Mock -ModuleName MinibenchTest Get-CimCached { }
+        Mock -ModuleName MinibenchTest Get-CimCached { $script:Cpu } -ParameterFilter { $Class -eq 'Win32_Processor' }
+        Mock -ModuleName MinibenchTest Get-CimCached { $script:Os } -ParameterFilter { $Class -eq 'Win32_OperatingSystem' }
+        Set-ModuleVar 'SensorGapReported' $false
+        & (Get-Module MinibenchTest) { $script:TestFindings.Clear() }
+    }
+    AfterEach {
+        $env:PROCESSOR_ARCHITECTURE = $script:ArchAlt[0]; $env:PROCESSOR_ARCHITEW6432 = $script:ArchAlt[1]
+        Set-ModuleVar 'Sens' $null
+        Set-ModuleVar 'SensorGapReported' $false
+    }
+    It 'x64-Prozessor und x64-Windows: kein ARM64' { MinibenchTest\Test-IsArm64 | Should -BeFalse }
+    It 'Umgebungsvariable <V> = ARM64' -ForEach @(@{ V = 'PROCESSOR_ARCHITECTURE' }, @{ V = 'PROCESSOR_ARCHITEW6432' }) {
+        Set-Item -Path ('env:' + $V) -Value 'ARM64'
+        MinibenchTest\Test-IsArm64 | Should -BeTrue
+    }
+    It 'Prozessor <Fall>' -ForEach @(
+        @{ Fall = 'mit Architektur 12 (ARM64)'; Name = 'Prozessor'; Arch = 12 }
+        @{ Fall = 'mit Architektur 5 (ARM)'; Name = 'Prozessor'; Arch = 5 }
+        @{ Fall = 'Snapdragon im Namen'; Name = 'Snapdragon(R) X Elite - X1E78100 - Qualcomm(R) Oryon(TM) CPU'; Arch = 9 }
+    ) {
+        $script:Cpu = [pscustomobject]@{ Name = $Name; Architecture = $Arch }
+        MinibenchTest\Test-IsArm64 | Should -BeTrue
+    }
+    It 'Windows für ARM' {
+        $script:Os = [pscustomobject]@{ OSArchitecture = 'ARM 64-Bit-Prozessor' }
+        MinibenchTest\Test-IsArm64 | Should -BeTrue
+    }
+    It 'ohne Systemdaten: kein ARM64 statt Fehler' {
+        # mit Filter, damit diese Attrappe vor denen aus BeforeEach greift (Pester wertet Attrappen mit Filter zuerst aus)
+        Mock -ModuleName MinibenchTest Get-CimCached { throw 'WMI nicht erreichbar' } -ParameterFilter { $true }
+        MinibenchTest\Test-IsArm64 | Should -BeFalse
+    }
+    It 'auf ARM64: Sitzung nennt ARM64 als Grund, Hinweis, Lücke und Befund statt LibreHardwareMonitor zu laden' {
+        Mock -ModuleName MinibenchTest Test-IsArm64 { $true }
+        Mock -ModuleName MinibenchTest Find-NvidiaSmi { '' }
+        Mock -ModuleName MinibenchTest Remove-PawnIoLeftover { }
+        Mock -ModuleName MinibenchTest Get-SensorToolState { [pscustomobject]@{ LhmDll = 'x'; LhmBereit = $true; Fehlend = @(); PawnIoSetup = '' } }
+        Set-ModuleVar 'Sens' $null
+        $s = MinibenchTest\Open-SensorSession
+        $s.LhmGrund | Should -Be 'ARM64'
+        $s.Lhm | Should -BeFalse
+        ($s.Hinweise -join ' ') | Should -Match 'ARM64-Architektur erkannt'
+        MinibenchTest\Get-SensorGapText | Should -Match '^ARM64-Architektur erkannt'
+        MinibenchTest\Add-SensorGapFinding 'Lasttest'
+        MinibenchTest\Add-SensorGapFinding 'Benchmark'
+        @(Get-ModuleVar 'TestFindings').Count | Should -Be 1
+        @(Get-ModuleVar 'TestFindings')[0].Stufe | Should -Be 'INFO'
+        @(MinibenchTest\Get-SensorSnapshotFindings @() ([pscustomobject]@{ CpuTemp = $null; CpuTempQ = ''; GpuTemp = $null }))[0].Text | Should -Match 'ARM64-Architektur erkannt'
+    }
+    It 'die Diagnose prüft auf ARM64' {
+        Get-SrcText 'Module/Diagnose/Ablauf.ps1' | Should -Match 'if \(Test-IsArm64\)'
+    }
+}
+
+Describe 'CIM-Abfragen zwischenspeichern' {
+    BeforeEach {
+        Set-ModuleVar 'CimCache' @{}
+        Mock -ModuleName MinibenchTest Get-CimInstance { [pscustomobject]@{ Caption = 'Testsystem' } }
+    }
+    AfterEach { Set-ModuleVar 'CimCache' @{} }
+    It 'fragt jede Klasse einmal je Lauf ab und liefert danach dasselbe Ergebnis' {
+        $a = MinibenchTest\Get-CimCached 'Win32_OperatingSystem'
+        $b = MinibenchTest\Get-CimCached 'Win32_OperatingSystem'
+        $a.Caption | Should -Be 'Testsystem'
+        [object]::ReferenceEquals($a, $b) | Should -BeTrue
+        Should -Invoke -ModuleName MinibenchTest Get-CimInstance -Times 1 -Exactly
+    }
+    It 'Klassen und Namensräume werden getrennt zwischengespeichert' {
+        [void](MinibenchTest\Get-CimCached 'Win32_Processor')
+        [void](MinibenchTest\Get-CimCached 'BatteryStatus' 'root\wmi')
+        [void](MinibenchTest\Get-CimCached 'BatteryStatus' 'root\wmi')
+        [void](MinibenchTest\Get-CimCached 'Win32_Processor')
+        Should -Invoke -ModuleName MinibenchTest Get-CimInstance -Times 2 -Exactly
+        @((Get-ModuleVar 'CimCache').Keys | Sort-Object) | Should -Be @('root\wmi:BatteryStatus', 'Win32_Processor')
     }
 }
 

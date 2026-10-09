@@ -125,11 +125,11 @@ public partial class DiagGui
         StringBuilder sb = new StringBuilder(); List<string> spec = new List<string>();
         foreach (ChangeEntry c in sel) { sb.AppendLine("·  " + c.Titel + ": " + c.Ziel + " wieder " + c.Vorher); spec.Add(c.FilePath + "*" + c.Id); }
         if (MessageBox.Show(this, "Diese Änderungen zurücknehmen?\r\n\r\n" + sb.ToString(), "Rückgängig machen", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-        Cursor = Cursors.WaitCursor;
+        // ab 3.53 ohne Einfrieren der Oberfläche: Softwarepakete brauchen für winget uninstall bis zu 20 Minuten je Paket
+        int pakete = 0; foreach (ChangeEntry c in sel) if (c.Art == "Softwarepaket") pakete++;
         List<string> lines = new List<string>();
-        try { RunHelper("-Rueckgaengig \"" + String.Join(";", spec.ToArray()) + "\"", out lines); }
+        try { RunHelperPumped("-Rueckgaengig \"" + String.Join(";", spec.ToArray()) + "\"", out lines, 300 + pakete * WingetFristPaketSek); }
         catch (Exception ex) { lines.Add("Rückgängig fehlgeschlagen: " + ex.Message); }
-        Cursor = Cursors.Default;
         ReloadDb();
         MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Keine Rückmeldung vom Arbeitsprozess.", "Rückgängig", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
@@ -405,7 +405,7 @@ public partial class DiagGui
             }
             else
             {
-                Tip(btnInstallWg, "Führt 'winget install' für alle markierten Programme still im Hintergrund aus.");
+                Tip(btnInstallWg, "Installiert die markierten Programme über winget im Hintergrund. Jede Installation steht danach auf der Seite Änderungen und lässt sich dort wieder entfernen; schon vorhandene Programme bleiben unberührt.");
                 btnInstallWg.Click += delegate {
                     List<int> selIndices = new List<int>();
                     for (int i = 0; i < allWgBoxes.Length; i++) {
@@ -415,7 +415,7 @@ public partial class DiagGui
                         MessageBox.Show(this, "Bitte wählen Sie mindestens ein Programm zur Installation aus.", "Softwarepakete installieren", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
                     }
-                    InstallWingetPackagesAsync(wingetPath, selIndices, allWgIds, allWgNames, lblWgStatus, btnInstallWg, allWgBoxes, lnkWgAll, lnkWgNone);
+                    InstallWingetPackagesAsync(selIndices, allWgIds, allWgNames, lblWgStatus, btnInstallWg, allWgBoxes, lnkWgAll, lnkWgNone);
                 };
             }
 
@@ -660,57 +660,112 @@ public partial class DiagGui
         return null;
     }
 
-    public void InstallWingetPackagesAsync(string exeToRun, List<int> selIndices, string[] allWgIds, string[] allWgNames, Label lblWgStatus, Button btnInstallWg, CheckBox[] allWgBoxes, LinkLabel lnkWgAll, LinkLabel lnkWgNone)
+    // Softwarepakete über winget (ab 3.53): Installation im Arbeitsprozess (-SoftwareInstallieren), dort mit Frist je Paket,
+    // vollständig gelesener Ausgabe und Eintrag im Änderungsprotokoll (Risikostufe Eingriff, Gegenbefehl winget uninstall).
+    // Vorher lief winget direkt aus der Oberfläche: Ausgabe umgeleitet, aber nie gelesen, WaitForExit ohne Frist (Hänger),
+    // und nichts stand im Änderungsprotokoll.
+    public static string WingetSpec(List<int> selIndices, string[] ids, string[] names)
     {
+        List<string> parts = new List<string>();
+        foreach (int i in selIndices)
+        {
+            if (i < 0 || i >= ids.Length) continue;
+            string n = (i < names.Length ? names[i] : ids[i]).Replace(";", ",").Replace("=", "-").Replace("\"", "'");
+            parts.Add(ids[i] + "=" + n);
+        }
+        return String.Join(";", parts.ToArray());
+    }
+
+    // Frist für den ganzen Hilfsprozess: je Paket die Fristen des Arbeitsprozesses (Kern\Softwarepakete.ps1: list 120 s vorher,
+    // install 1200 s, list 120 s nachher) plus Reserve, dazu der Start von PowerShell
+    public const int WingetFristPaketSek = 120 + 1200 + 120 + 60;
+    public static int WingetTimeoutSec(int count) { return Math.Max(1, count) * WingetFristPaketSek + 120; }
+
+    // @@PAKET|Nr|Anzahl|Id|Status|Text -> Status und Text; false, wenn die Zeile kein Paketereignis ist
+    public static bool ParseWingetEvent(string line, out string status, out string text)
+    {
+        status = ""; text = "";
+        if (line == null || !line.StartsWith("@@PAKET|")) return false;
+        string[] x = line.Split(new char[] { '|' }, 6);
+        if (x.Length < 6) return false;
+        status = x[4]; text = x[5].Replace("¦", "|");
+        return true;
+    }
+
+    public void InstallWingetPackagesAsync(List<int> selIndices, string[] allWgIds, string[] allWgNames, Label lblWgStatus, Button btnInstallWg, CheckBox[] allWgBoxes, LinkLabel lnkWgAll, LinkLabel lnkWgNone)
+    {
+        StringBuilder m = new StringBuilder();
+        m.AppendLine("Diese Programme werden über winget installiert (Risikostufe Eingriff):");
+        m.AppendLine();
+        foreach (int i in selIndices) m.AppendLine("·  " + allWgNames[i] + " (" + allWgIds[i] + ")");
+        m.AppendLine();
+        m.AppendLine("Jede Installation steht danach auf der Seite Änderungen und lässt sich dort wieder entfernen. Schon vorhandene Programme bleiben unberührt. Je Programm gilt eine Frist von 20 Minuten.");
+        if (MessageBox.Show(this, m.ToString(), "Softwarepakete installieren", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
         btnInstallWg.Enabled = false;
         foreach (CheckBox cb in allWgBoxes) cb.Enabled = false;
         lnkWgAll.Enabled = false; lnkWgNone.Enabled = false;
+        lblWgStatus.Text = "winget wird gestartet ..."; lblWgStatus.ForeColor = UI.Accent;
+
+        string spec = WingetSpec(selIndices, allWgIds, allWgNames);
+        int timeoutSec = WingetTimeoutSec(selIndices.Count);
+        string args = "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\" -EventMode -SoftwareInstallieren \"" + spec + "\"" + (dataDir.Length > 0 ? " -DatenDir \"" + dataDir.TrimEnd('\\') + "\"" : "");
 
         System.Threading.Thread t = new System.Threading.Thread(delegate() {
-            int okCount = 0;
-            int failCount = 0;
-            int total = selIndices.Count;
-            for (int s = 0; s < total; s++) {
-                int idx = selIndices[s];
-                string pkgId = allWgIds[idx];
-                string pkgName = allWgNames[idx];
-                string statusTxt = String.Format("Installiere ({0} von {1}): {2} ...", s + 1, total, pkgName);
-                try {
-                    this.BeginInvoke(new MethodInvoker(delegate {
-                        lblWgStatus.Text = statusTxt;
-                        lblWgStatus.ForeColor = UI.Accent;
-                    }));
-                } catch { }
-
-                try {
-                    ProcessStartInfo psi = new ProcessStartInfo();
-                    psi.FileName = exeToRun;
-                    psi.Arguments = "install --id " + pkgId + " -e --silent --accept-package-agreements --accept-source-agreements";
-                    psi.UseShellExecute = false;
-                    psi.CreateNoWindow = true;
-                    psi.RedirectStandardOutput = true;
-                    psi.RedirectStandardError = true;
-                    using (Process proc = Process.Start(psi)) {
-                        proc.WaitForExit();
-                        if (proc.ExitCode == 0) okCount++; else failCount++;
+            List<string> texte = new List<string>();
+            string result = "";
+            bool eof = false;
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo(psExe, args);
+                psi.UseShellExecute = false; psi.CreateNoWindow = true;
+                psi.RedirectStandardOutput = true; psi.StandardOutputEncoding = new UTF8Encoding(false);
+                using (Process p = new Process())
+                {
+                    p.StartInfo = psi;
+                    p.OutputDataReceived += delegate(object s, DataReceivedEventArgs e) {
+                        string st, tx;
+                        if (e.Data == null) { eof = true; return; }
+                        if (e.Data.StartsWith("@@RESULT|")) { result = e.Data.Substring(9); return; }
+                        if (!ParseWingetEvent(e.Data, out st, out tx)) return;
+                        if (st != "läuft") lock (texte) texte.Add(tx);
+                        Color c = st == "läuft" ? UI.Accent : (st == "installiert" || st == "bereits installiert") ? UI.Ok : UI.Warn;
+                        try { BeginInvoke(new MethodInvoker(delegate { lblWgStatus.Text = tx; lblWgStatus.ForeColor = c; })); } catch { }
+                    };
+                    p.Start(); p.BeginOutputReadLine();
+                    if (!p.WaitForExit(timeoutSec * 1000))
+                    {
+                        KillProc(p);
+                        lock (texte) texte.Add("Abgebrochen: keine Rückmeldung nach " + (timeoutSec / 60) + " Minuten.");
                     }
-                } catch { failCount++; }
+                    // letzte Ausgabezeilen abholen, höchstens 5 s (hält ein Kindprozess die Ausgabe offen, nicht ewig warten)
+                    DateTime eu = DateTime.Now.AddSeconds(5);
+                    while (!eof && DateTime.Now < eu) System.Threading.Thread.Sleep(20);
+                }
             }
+            catch (Exception ex) { lock (texte) texte.Add("Arbeitsprozess nicht gestartet: " + ex.Message); }
 
-            try {
-                this.BeginInvoke(new MethodInvoker(delegate {
+            try
+            {
+                BeginInvoke(new MethodInvoker(delegate {
                     btnInstallWg.Enabled = true;
                     foreach (CheckBox cb in allWgBoxes) cb.Enabled = true;
                     lnkWgAll.Enabled = true; lnkWgNone.Enabled = true;
-                    if (failCount == 0) {
-                        lblWgStatus.Text = String.Format("Installation abgeschlossen: {0} Programme erfolgreich installiert.", okCount);
-                        lblWgStatus.ForeColor = UI.Ok;
-                    } else {
-                        lblWgStatus.Text = String.Format("Abgeschlossen: {0} erfolgreich, {1} fehlgeschlagen.", okCount, failCount);
-                        lblWgStatus.ForeColor = UI.Warn;
+                    string[] r = result.Split('|');
+                    int ok = 0, da = 0, bad = 0;
+                    if (r.Length >= 3) { int.TryParse(r[0], out ok); int.TryParse(r[1], out da); int.TryParse(r[2], out bad); }
+                    else bad = selIndices.Count;
+                    lblWgStatus.Text = String.Format("Abgeschlossen: {0} installiert, {1} schon vorhanden, {2} fehlgeschlagen.", ok, da, bad);
+                    lblWgStatus.ForeColor = bad == 0 ? UI.Ok : UI.Warn;
+                    ReloadDb();
+                    if (bad > 0)
+                    {
+                        string all; lock (texte) all = String.Join("\r\n", texte.ToArray());
+                        MessageBox.Show(this, all.Length > 0 ? all : "Keine Rückmeldung vom Arbeitsprozess.", "Softwarepakete installieren", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
                 }));
-            } catch { }
+            }
+            catch { }
         });
         t.IsBackground = true;
         t.Start();

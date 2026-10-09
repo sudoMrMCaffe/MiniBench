@@ -232,3 +232,139 @@ Describe 'Vorübergehende Änderung eines abgebrochenen Laufs (GPU-Wahl für win
         MinibenchTest\Restore-TemporaryChanges | Should -BeNullOrEmpty
     }
 }
+
+# Seite Tools (ab v3.53): Softwarepakete über winget im Arbeitsprozess, mit Frist, Änderungsprotokoll und Rückgängig.
+# winget selbst ist eine Attrappe (Invoke-Winget); sie merkt sich, was "installiert" ist.
+Describe 'Softwarepakete über winget' {
+    BeforeAll {
+        Import-MinibenchTestModule -Parts 'Kern\Risiko.ps1', 'Kern\Geraeteidentitaet.ps1', 'Kern\Aenderungen.ps1', 'Kern\Softwarepakete.ps1' -Functions 'Get-SafeName', 'Invoke-External', 'Show-Sub', 'Hide-Sub', 'Write-Heartbeat', 'Send-GuiEvent'
+        Mock -ModuleName MinibenchTest Write-Host { }
+        $script:NichtGefunden = -1978335212   # 0x8A150014
+    }
+    BeforeEach {
+        $null = New-Run
+        $script:Inst = @{}
+        $script:InstallErgebnis = $null
+        $script:ListErgebnis = $null
+        Mock -ModuleName MinibenchTest Find-Winget { 'winget.exe' }
+        Mock -ModuleName MinibenchTest Invoke-Winget {
+            $id = ([string]$Arguments -split ' ')[2]
+            if ($Arguments -like 'list *') {
+                if ($script:ListErgebnis) { return $script:ListErgebnis }
+                if ($script:Inst.ContainsKey($id)) { return [pscustomobject]@{ ExitCode = 0; Output = ('Name  Id  Version`n7-Zip {0} 24.08' -f $id); Error = ''; TimedOut = $false } }
+                return [pscustomobject]@{ ExitCode = $script:NichtGefunden; Output = 'Kein installiertes Paket gefunden'; Error = ''; TimedOut = $false }
+            }
+            if ($Arguments -like 'install *') {
+                if ($script:InstallErgebnis) { return $script:InstallErgebnis }
+                $script:Inst[$id] = $true; return [pscustomobject]@{ ExitCode = 0; Output = 'Erfolgreich installiert'; Error = ''; TimedOut = $false }
+            }
+            if ($Arguments -like 'uninstall *') { $script:Inst.Remove($id); return [pscustomobject]@{ ExitCode = 0; Output = 'Erfolgreich deinstalliert'; Error = ''; TimedOut = $false } }
+            throw ('unerwarteter Aufruf: ' + $Arguments)
+        }
+    }
+    It 'installiert, protokolliert als Eingriff mit Gegenbefehl und nimmt die Installation über Rückgängig wieder heraus' {
+        $r = MinibenchTest\Invoke-SoftwarePakete '7zip.7zip=7-Zip'
+        $r.Installiert | Should -Be 1
+        $r.Fehler | Should -Be 0
+        $script:Inst.ContainsKey('7zip.7zip') | Should -BeTrue
+        $e = @((Read-Run).Eintraege)
+        $e.Count | Should -Be 1
+        $e[0].Art | Should -Be 'Softwarepaket'
+        $e[0].Risiko | Should -Be 'Eingriff'
+        $e[0].Modul | Should -Be 'Tools'
+        $e[0].Gegenbefehl | Should -Be 'winget uninstall --id 7zip.7zip -e'
+        $e[0].Daten.PaketId | Should -Be '7zip.7zip'
+        $e[0].Status | Should -Be 'aktiv'
+        $u = MinibenchTest\Invoke-ChangeUndo ('{0}*1' -f (Get-RunFile))
+        $u.Rueckgaengig | Should -Be 1
+        $script:Inst.ContainsKey('7zip.7zip') | Should -BeFalse
+        (Read-Run).Eintraege[0].Status | Should -Be 'rückgängig'
+    }
+    It 'lässt ein schon installiertes Programm unberührt und protokolliert nichts' {
+        $script:Inst['Mozilla.Firefox'] = $true
+        $r = MinibenchTest\Invoke-SoftwarePakete 'Mozilla.Firefox=Mozilla Firefox'
+        $r.Bereits | Should -Be 1
+        $r.Installiert | Should -Be 0
+        Should -Invoke -ModuleName MinibenchTest Invoke-Winget -Times 0 -ParameterFilter { $Arguments -like 'install *' }
+        Get-RunFile | Should -Not -Exist
+    }
+    It 'meldet Zeitüberschreitung und Fehlercodes und protokolliert dann nichts' {
+        $script:InstallErgebnis = [pscustomobject]@{ ExitCode = -2; Output = ''; Error = ''; TimedOut = $true }
+        $a = MinibenchTest\Invoke-SoftwarePakete 'Valve.Steam=Steam'
+        $a.Ergebnisse[0].Status | Should -Be 'Zeitüberschreitung'
+        $script:InstallErgebnis = [pscustomobject]@{ ExitCode = [int]-1978335217; Output = 'Fehler beim Öffnen der Quelle'; Error = ''; TimedOut = $false }
+        $b = MinibenchTest\Invoke-SoftwarePakete 'Discord.Discord=Discord'
+        $b.Ergebnisse[0].Status | Should -Be 'fehlgeschlagen'
+        $b.Ergebnisse[0].Text | Should -Match '0x8A15000F'
+        ($a.Fehler + $b.Fehler) | Should -Be 2
+        Get-RunFile | Should -Not -Exist
+    }
+    It 'installiert nicht, wenn winget den Zustand nicht feststellen kann (defekte Quelle, Frist)' {
+        $script:ListErgebnis = [pscustomobject]@{ ExitCode = [int]-1978335217; Output = 'Fehler beim Öffnen der Quelle'; Error = ''; TimedOut = $false }
+        $a = MinibenchTest\Invoke-SoftwarePakete 'Google.Chrome=Google Chrome'
+        $script:ListErgebnis = [pscustomobject]@{ ExitCode = -2; Output = ''; Error = ''; TimedOut = $true }
+        $b = MinibenchTest\Invoke-SoftwarePakete 'Mozilla.Firefox=Mozilla Firefox'
+        $a.Ergebnisse[0].Status | Should -Be 'fehlgeschlagen'
+        $b.Ergebnisse[0].Status | Should -Be 'fehlgeschlagen'
+        Should -Invoke -ModuleName MinibenchTest Invoke-Winget -Times 0 -ParameterFilter { $Arguments -like 'install *' }
+        Get-RunFile | Should -Not -Exist
+    }
+    It 'installiert ohne Aktualisierung eines vorhandenen Programms; "schon installiert" von winget wird nicht protokolliert' {
+        $script:InstallErgebnis = [pscustomobject]@{ ExitCode = [int]-1978335135; Output = 'Ein vorhandenes Paket wurde bereits installiert'; Error = ''; TimedOut = $false }   # 0x8A150061
+        $r = MinibenchTest\Invoke-SoftwarePakete 'Notepad++.Notepad++=Notepad++'
+        $r.Ergebnisse[0].Status | Should -Be 'bereits installiert'
+        Should -Invoke -ModuleName MinibenchTest Invoke-Winget -Times 1 -ParameterFilter { $Arguments -like 'install *--no-upgrade*' }
+        Get-RunFile | Should -Not -Exist
+    }
+    It 'Neustart nötig (0x8A150109) gilt als installiert und wird protokolliert' {
+        $script:InstallErgebnis = [pscustomobject]@{ ExitCode = [int]-1978334967; Output = 'Neustart erforderlich'; Error = ''; TimedOut = $false }   # 0x8A150109
+        $r = MinibenchTest\Invoke-SoftwarePakete 'ONLYOFFICE.DesktopEditors=ONLYOFFICE'
+        $r.Installiert | Should -Be 1
+        $r.Ergebnisse[0].Text | Should -Match 'Neustart'
+        (Read-Run).Eintraege[0].Nachher | Should -Be 'installiert, Neustart nötig'
+    }
+    It 'Rückgängig lässt den Eintrag aktiv, wenn winget den Zustand nicht feststellen kann' {
+        [void](MinibenchTest\Invoke-SoftwarePakete 'VideoLAN.VLC=VLC')
+        $script:ListErgebnis = [pscustomobject]@{ ExitCode = [int]-1978335217; Output = ''; Error = ''; TimedOut = $false }
+        $u = MinibenchTest\Invoke-ChangeUndo ('{0}*1' -f (Get-RunFile))
+        $u.Rueckgaengig | Should -Be 0
+        (Read-Run).Eintraege[0].Status | Should -Be 'aktiv'
+        $script:Inst.ContainsKey('VideoLAN.VLC') | Should -BeTrue
+        Should -Invoke -ModuleName MinibenchTest Invoke-Winget -Times 0 -ParameterFilter { $Arguments -like 'uninstall *' }
+    }
+    It 'gibt ungültige Paketkennungen nicht an winget weiter' {
+        $r = MinibenchTest\Invoke-SoftwarePakete 'x" & calc.exe=böse;;Google.Chrome=Google Chrome'
+        $r.Ergebnisse[0].Status | Should -Be 'ungültig'
+        $r.Ergebnisse[1].Status | Should -Be 'installiert'
+        Should -Invoke -ModuleName MinibenchTest Invoke-Winget -Times 0 -ParameterFilter { $Arguments -like '*calc*' }
+        MinibenchTest\Test-WingetId 'Notepad++.Notepad++' | Should -BeTrue
+        MinibenchTest\Test-WingetId '-e --force' | Should -BeFalse
+    }
+    It 'ohne winget: jedes Paket fehlgeschlagen mit Begründung' {
+        Mock -ModuleName MinibenchTest Find-Winget { '' }
+        $r = MinibenchTest\Invoke-SoftwarePakete 'Google.Chrome=Google Chrome'
+        $r.Fehler | Should -Be 1
+        $r.Ergebnisse[0].Text | Should -Match 'nicht verfügbar'
+    }
+    It 'Rückgängig überspringt ein inzwischen von Hand entferntes Programm' {
+        [void](MinibenchTest\Invoke-SoftwarePakete 'VideoLAN.VLC=VLC')
+        $script:Inst.Remove('VideoLAN.VLC')
+        $u = MinibenchTest\Invoke-ChangeUndo ('{0}*1' -f (Get-RunFile))
+        $u.Rueckgaengig | Should -Be 0
+        (Read-Run).Eintraege[0].Status | Should -Be 'übersprungen'
+        Should -Invoke -ModuleName MinibenchTest Invoke-Winget -Times 0 -ParameterFilter { $Arguments -like 'uninstall *' }
+    }
+}
+
+Describe 'Aufruf von winget' {
+    BeforeAll {
+        Import-MinibenchTestModule -Parts 'Kern\Risiko.ps1', 'Kern\Geraeteidentitaet.ps1', 'Kern\Aenderungen.ps1', 'Kern\Softwarepakete.ps1' -Functions 'Get-SafeName', 'Invoke-External', 'Show-Sub', 'Hide-Sub', 'Write-Heartbeat', 'Send-GuiEvent'
+    }
+    It 'winget läuft mit Frist, gelesener Ausgabe und ohne Reaktion auf skip.flag eines Laufs' {
+        Mock -ModuleName MinibenchTest Invoke-External { [pscustomobject]@{ ExitCode = 0; Output = ''; Error = ''; TimedOut = $false } }
+        [void](& (Get-Module MinibenchTest) { Invoke-Winget 'winget.exe' 'list --id 7zip.7zip -e' 120 })
+        Should -Invoke -ModuleName MinibenchTest Invoke-External -Times 1 -ParameterFilter { $TimeoutSec -eq 120 -and $OhneUeberspringen -and $File -eq 'winget.exe' }
+        (Get-ModuleVar 'WingetFristSek') | Should -BeGreaterThan 0
+        (Get-ModuleVar 'WingetFristSek') | Should -BeLessOrEqual 3600
+    }
+}

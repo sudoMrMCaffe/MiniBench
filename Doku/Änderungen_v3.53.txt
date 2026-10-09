@@ -1,0 +1,112 @@
+﻿LEOS MINIBENCH 3.53: ÄNDERUNGEN
+===============================
+
+Version 3.53 ordnet die Testsuite nach Fachgebieten statt nach Versionen (Auftrag aus "Refactor promt.txt") und behebt
+zwei Fehler aus der Durchsicht von 3.52: Die Installation von Softwarepaketen über winget konnte unbegrenzt hängen und
+stand nicht im Änderungsprotokoll, und die Wahl der Grafikeinheit auf der Seite Lasttest sprang auf den Wert des
+Benchmarks zurück. Die Testsuite deckte dabei einen weiteren Fehler beim Lesen von Absturzabbildern auf.
+
+1. SOFTWAREPAKETE ÜBER WINGET (SEITE TOOLS)
+Bisher startete die Oberfläche winget selbst. Die Ausgabe war umgeleitet, wurde aber nie gelesen, und WaitForExit hatte
+keine Frist: Schreibt winget mehr als den Puffer voll (Fortschrittsbalken), blockiert es, und die Seite blieb gesperrt.
+Ins Änderungsprotokoll kam nichts, Rückgängig gab es nicht.
+  Arbeitsprozess      Die Installation läuft jetzt im Hilfsmodus -SoftwareInstallieren "Id=Name;Id=Name" (neu
+                      Kern\Softwarepakete.ps1, Aufruf in Module\Optimierung\Hilfsmodi.ps1). winget läuft über
+                      Invoke-External mit vollständig gelesener Ausgabe und Frist: 20 Minuten je Installation, 2 Minuten je
+                      Abfrage. Invoke-External hat dafür den Schalter -OhneUeberspringen (ein skip.flag eines laufenden
+                      Laufs bricht die Installation nicht ab).
+  Vorher prüfen       Vor der Installation fragt winget list, ob das Programm schon da ist. Installiert und protokolliert
+                      wird nur, wenn winget eindeutig "nicht gefunden" meldet (0x8A150014). Kann winget den Zustand nicht
+                      feststellen (defekte Quelle, Frist), wird nichts installiert. Dazu --no-upgrade, damit ein
+                      vorhandenes, nicht zugeordnetes Programm nicht still aktualisiert wird; 0x8A150061 und 0x8A15002B
+                      gelten als schon installiert.
+  Protokoll           Jede Installation ist ein Eintrag der Stufe Eingriff (Modul Tools, Art Softwarepaket) mit Gegenbefehl
+                      winget uninstall --id <Id> -e. 0x8A150109 (Neustart schließt die Installation ab) zählt als
+                      installiert und wird protokolliert.
+  Rückgängig          Die Seite Änderungen deinstalliert über winget, aber nur, was noch installiert ist. Ist das nicht
+                      feststellbar oder scheitert winget, bleibt der Eintrag aktiv und lässt sich später erneut
+                      zurücknehmen. Rückgängig läuft jetzt über RunHelperPumped, die Oberfläche friert nicht mehr ein.
+  Oberfläche          Vor dem Start eine Rückfrage mit der Liste der Programme und der Risikostufe. Fortschritt über das
+                      neue Ereignis @@PAKET|Nr|Anzahl|Id|Status|Text, am Ende @@RESULT|installiert|vorhanden|fehlgeschlagen.
+                      Die Frist der Oberfläche liegt über den Fristen des Arbeitsprozesses; danach wird der Prozess beendet.
+                      Die Seite Änderungen wird danach neu geladen.
+
+2. GRAFIKAUSWAHL IM LASTTEST
+In sync2 (Seite Lasttest) stand cmbLGpuSel.SelectedIndex = cmbGpuSel.SelectedIndex: Die Wahl auf der Seite Lasttest
+wurde sofort mit dem Wert des Benchmarks überschrieben, -GpuAuswahl bekam den falschen Wert. Das betraf Hybridgrafik
+(dGPU und iGPU). Beide Seiten gleichen Auflösung, Anzeige und Grafikeinheit jetzt über CopySelection(von, nach) mit
+derselben Reihenfolge der Listen ab (GpuCombosBench, GpuCombosLast); ungültige Indizes und fehlende Listen bleiben ohne
+Wirkung. Auflösung und Anzeige auf der Seite Lasttest haben jetzt auch einen Hinweis beim Überfahren.
+
+3. TESTSUITE NACH FACHGEBIETEN
+Die 17 Dateien Version26.Tests.ps1 bis Version352.Tests.ps1 und Dashboard.Tests.ps1 sind aufgelöst. Jeder Test wurde
+einzeln eingeordnet: Verhaltenstests übernommen, Regex-Prüfungen auf den Quelltext wo möglich durch Aufrufe der
+Funktionen ersetzt, Versionsdeklarationen, Testmatrix-Prüfungen, doppelte Tests und reine Textsuche gestrichen.
+  Neu                 Ablauf (Abschnitte, Überspringen, schneller Modus, Arbeitsordner, Rückstandskontrolle), Bericht
+                      (Text- und HTML-Bericht, Kurven, KI-Datei, Dashboard), Messung (Rendertest, Lastschleifen,
+                      Lastprozess, Unterbrechungen, Gewichtung), Optimierung (Katalog, Vorlagen, Ausführen und Rückgängig,
+                      Wartung), Release (Versionskonsistenz statt je Version ein Test).
+  Erweitert           Oberflaeche, Sensoren, Datenbank, Aufbau, Auswertung, Modulvertrag, Werkzeuge, Aenderungen.
+  Oberfläche          Bisher übersetzten zwölf Testdateien die Oberfläche je einmal in einem eigenen powershell.exe.
+                      Jetzt geschieht das einmal je Testlauf (Get-GuiUebersetzung in tests\Hilfen.ps1), zusammen mit
+                      tests\Daten\Oberflaeche\GuiSelbsttest.cs. Der Selbsttest läuft als eigene exe und prüft Skalierung,
+                      Farbschema, ToggleSwitch, FluentCard, Umbruch der Hinweise, Grafikauswahl, winget-Auswahl und
+                      -Ereignisse, das Lesen der Referenzprofile und eines Änderungseintrags. Dazu Verträge: jeder
+                      Parameter, den die Oberfläche übergibt, gibt es im Skript; jedes Bedienelement hat einen Hinweis.
+  Schneller           Testen.cmd -Datei Oberflaeche (oder mehrere: -Datei Oberflaeche,Release) startet einzelne Dateien.
+  Bekannte Fehler     Sechs Tests sind mit -Skip und Kommentar angelegt und halten offene Fehler fest (Datenpflege löscht
+                      Laufzeit-Dateien wie PawnIO_<PC>.txt, Datenpflege übersieht lokale laufend.json, -Include ohne
+                      -Recurse unter PS 5.1, Dashboard: falscher Ersatz-Ordnername, synthetische Kurve, fehlendes
+                      Escaping). Mit der Behebung entfällt jeweils das -Skip.
+  Testmatrix          Die Testmatrix-Dateien sind entfernt; es werden keine neuen mehr angelegt.
+
+4. BAUEN.CMD
+Commit nur nach bestandenen Tests (nicht bei ohnetests oder ohne Pester), Nachricht "Release vX.Y: <Titel>" aus dem
+Eintrag in Versionen.cs statt einer fest verdrahteten Liste je Version, Ergebnis von git commit wird geprüft.
+Testen.cmd und AGENTS.md werden mit committet. Bauen.cmd beginnt wieder ohne BOM (cmd.exe las sie als Zeichen der
+ersten Zeile und meldete einen Fehler).
+
+GEFUNDEN UND BEHOBEN (Tests und Codeprüfung)
+  1. Minidumps mit Kerneladressen als Parameter (ab 0x8000000000000000) wurden nicht gelesen: [int64]$reader.ReadUInt64()
+     löste einen Überlauf aus, der catch-Block lieferte nichts. Die meisten echten Kernel-Abbilder waren betroffen.
+     Jetzt bleiben die Werte UInt64 (Kern\Checkpoints_Absturzanalyse.ps1). Gefunden durch einen neuen Test in Auswertung.
+  2. Ohne Umgebungsvariable SystemRoot brach die Suche nach Minidumps mit einem Pfadfehler ab; jetzt C:\Windows als Rückfall.
+  3. Codeprüfung der winget-Umstellung: Fehler von winget list galten als "nicht installiert", ein vorhandenes Programm
+     hätte so als von Minibench installiert gelten und per Rückgängig entfernt werden können. Behoben (Abschnitt 1).
+  4. Rückgängig setzte einen Eintrag bei einem vorübergehenden winget-Fehler endgültig auf übersprungen; jetzt bleibt er aktiv.
+  5. Rückgängig für Softwarepakete hätte die Oberfläche bis zu 20 Minuten blockiert (RunHelper im UI-Thread).
+  6. Die Frist der Oberfläche war kürzer als die Summe der Fristen im Arbeitsprozess.
+  7. Test für das @@-Protokoll las nur DiagGui.cs; Ereignisse in den übrigen Teilen der Oberfläche fehlten. Jetzt alle Teile.
+  8. Tests der Datenbank luden Kern\Datenordner.ps1 als Ganzes; der Teil ruft beim Laden Resolve-DataDir auf und legte unter
+     Windows den Ordner Dokumente\Leos Minibench an. Jetzt nur einzelne Funktionen.
+  9. Ein Test der Lastprozesse löschte die Ordner paralleler Testläufe (fester Ordner im TEMP); jetzt je Prozess eigener Ordner.
+
+  10. Erster Lauf unter Windows (Pester 6.2, Windows PowerShell 5.1): 10 Fehlschläge, alle in Testdateien. Drei Tests in
+      Auswertung.Tests.ps1 lasen .Count auf einem einzelnen Objekt (unter PS 5.1 leer); jetzt $f = @(...). Sieben Tests in
+      Datenbank.Tests.ps1 hatten für Test-Path nur eine Attrappe mit -ParameterFilter; Pester 6 ruft dann nicht mehr den
+      echten Befehl, sondern bricht ab. Jetzt mit Vorgabe-Attrappe, ebenso vorbeugend für Get-WinEvent, Get-ChildItem,
+      Test-IsNetworkPath und Get-CimCached.
+  11. Der Pester-Nachbau der Sandbox fiel bei unpassenden Filtern auf den echten Befehl zurück und verdeckte Fehler 10.
+      Er verhält sich jetzt wie Pester 6; Aufbau.Tests.ps1 prüft zusätzlich, dass jede gefilterte Attrappe eine Vorgabe
+      hat und dass keine Testdateien je Version (und keine Dashboard.Tests.ps1) mehr im Ordner tests liegen.
+
+ÜBERGABE
+  Doku\Projektstand.md beschreibt den Stand, die offenen Befunde und die Fallstricke für den nächsten Agenten (Claude
+  oder Antigravity). AGENTS.md verweist darauf und enthält die Regeln für Tests (Pester 6, PS 5.1).
+
+GRENZEN
+  Unter Windows lief die Suite einmal mit Pester 6.2 (10 Fehlschläge, behoben, Nachlauf steht aus). Einige Tests laufen
+  nur unter Windows (JavaScriptSerializer, Ordner Dokumente) und sind in der Sandbox übersprungen.
+  winget installiert in dem Benutzerkonto, unter dem Leos Minibench läuft (meist als Administrator). Programme mit
+  Installationsbereich "Benutzer" landen dann im Profil dieses Kontos.
+  Die Frist von 20 Minuten je Paket bricht nur winget ab; ein bereits laufender Installer kann weiterlaufen.
+
+UMSTIEG
+  1. Im Ordner tests Dashboard.Tests.ps1 löschen (und alle Version*.Tests.ps1, falls noch vorhanden), dann Testen.cmd.
+  2. Bauen.cmd ausführen; nach bestandenen Tests entsteht der lokale Commit "Release v3.53: ...", danach git push.
+  3. Inhalt von "Aktueller Build" auf den USB-Stick kopieren. Daten und Änderungsprotokolle bleiben kompatibel.
+
+QUELLEN
+  winget-Rückgabecodes: github.com/microsoft/winget-cli, doc/windows/package-manager/winget/returnCodes.md
+  winget install (--no-upgrade, --disable-interactivity): learn.microsoft.com/windows/package-manager/winget/install
+  Pester 5 Mock und Set-ItResult: github.com/pester/Pester, src/functions/Mock.ps1 und Set-ItResult.ps1

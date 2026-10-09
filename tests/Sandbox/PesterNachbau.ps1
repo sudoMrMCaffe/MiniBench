@@ -2,6 +2,7 @@
 # Nur für Claude-Sitzungen; unter Windows laufen die Tests mit echtem Pester über Testen.cmd.
 # Aufruf: pwsh -NoProfile -File tests/Sandbox_Testen.ps1 [-Files Datei1.Tests.ps1,Datei2.Tests.ps1]
 # Stand 03.10.2026 (v2.7): ergibt mit 2.67 dieselben Zahlen wie in Änderungen_v2.67 (519 bestanden, 4 übersprungen).
+# Ab v3.53 verhält sich Mock wie Pester 6: ohne passende Attrappe kein Rückfall auf den echten Befehl.
 
 $global:__PS = [pscustomobject]@{ Passed = 0; Failed = 0; Skipped = 0; Fails = New-Object System.Collections.ArrayList; Stack = New-Object System.Collections.ArrayList; Calls = New-Object System.Collections.ArrayList; Mocks = @{}; ItStart = 0; Path = New-Object System.Collections.ArrayList; Quiet = $true }
 
@@ -168,6 +169,9 @@ $global:__ShimDispatch = {
             return (& { param($__p, $__b, $args) foreach ($__k in $__p.Keys) { Set-Variable -Name $__k -Value $__p[$__k] }; . $__b } $p $m.Body $Rest)
         }
     }
+    # wie Pester 6 (Leonardo nutzt 6.2): gibt es Attrappen, aber keine passt, wird nicht der echte Befehl gerufen, sondern
+    # abgebrochen. Jede Attrappe mit -ParameterFilter braucht daher eine Vorgabe-Attrappe ohne Filter. (ab v3.53)
+    if ($e.List.Count -gt 0) { throw ('Kein Mock für {0} passt (Filter ausgewertet, keine Vorgabe-Attrappe). Pester 6 ruft dann nicht den echten Befehl.' -f $e.Name) }
     if ($e.OrigSb) { return (& $e.OrigSb @p @Rest) }
     if ($e.Orig) { return (& $e.Orig @p @Rest) }
 }

@@ -358,10 +358,10 @@ function Read-MinidumpFile([string]$Path) {
                                 $exAddr = $reader.ReadUInt64()
                                 $paramCount = $reader.ReadUInt32()
                                 $unused = $reader.ReadUInt32()
-                                if ($paramCount -ge 1 -and ($stream.Position + 8) -le $stream.Length) { $p1 = [int64]$reader.ReadUInt64() }
-                                if ($paramCount -ge 2 -and ($stream.Position + 8) -le $stream.Length) { $p2 = [int64]$reader.ReadUInt64() }
-                                if ($paramCount -ge 3 -and ($stream.Position + 8) -le $stream.Length) { $p3 = [int64]$reader.ReadUInt64() }
-                                if ($paramCount -ge 4 -and ($stream.Position + 8) -le $stream.Length) { $p4 = [int64]$reader.ReadUInt64() }
+                                if ($paramCount -ge 1 -and ($stream.Position + 8) -le $stream.Length) { $p1 = $reader.ReadUInt64() }
+                                if ($paramCount -ge 2 -and ($stream.Position + 8) -le $stream.Length) { $p2 = $reader.ReadUInt64() }
+                                if ($paramCount -ge 3 -and ($stream.Position + 8) -le $stream.Length) { $p3 = $reader.ReadUInt64() }
+                                if ($paramCount -ge 4 -and ($stream.Position + 8) -le $stream.Length) { $p4 = $reader.ReadUInt64() }
                                 $stream.Position = $savePos
                             }
                             break
@@ -377,10 +377,10 @@ function Read-MinidumpFile([string]$Path) {
                         $stream.Position = 0x38
                         $code = [int64]$reader.ReadUInt32()
                         $stream.Position = 0x40
-                        $p1 = [int64]$reader.ReadUInt64()
-                        $p2 = [int64]$reader.ReadUInt64()
-                        $p3 = [int64]$reader.ReadUInt64()
-                        $p4 = [int64]$reader.ReadUInt64()
+                        $p1 = $reader.ReadUInt64()
+                        $p2 = $reader.ReadUInt64()
+                        $p3 = $reader.ReadUInt64()
+                        $p4 = $reader.ReadUInt64()
                     }
                 } elseif ($valid -eq 0x504D5544) { # DUMP
                     if ($stream.Length -ge 0x38) {
@@ -440,13 +440,14 @@ function Read-Minidumps {
             }
         }
     } else {
-        $dirs = @('C:\Windows\Minidump', (Join-Path $env:SystemRoot 'Minidump')) | Select-Object -Unique
+        $sysRoot = $(if ($env:SystemRoot) { $env:SystemRoot } else { 'C:\Windows' })
+        $dirs = @('C:\Windows\Minidump', (Join-Path $sysRoot 'Minidump')) | Select-Object -Unique
         foreach ($d in $dirs) {
             if (Test-Path -LiteralPath $d) {
                 $files += @(Get-ChildItem -LiteralPath $d -Filter '*.dmp' -ErrorAction SilentlyContinue)
             }
         }
-        $memDmp = Join-Path $env:SystemRoot 'MEMORY.DMP'
+        $memDmp = Join-Path $sysRoot 'MEMORY.DMP'
         if (Test-Path -LiteralPath $memDmp) {
             $files += @(Get-Item -LiteralPath $memDmp -ErrorAction SilentlyContinue)
         }

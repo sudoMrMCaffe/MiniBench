@@ -89,8 +89,6 @@ param(
     [switch]$OptOhneWiederherstellungspunkt,
     [switch]$OptimierungZustand,
     [switch]$OptWerkzeugeHolen,
-    # Seite Tools (ab v3.53): Softwarepakete über winget installieren, "Id=Name;Id=Name" (Hilfsmodus der Oberfläche)
-    [string]$SoftwareInstallieren = '',
     # Allgemein
     [switch]$KiOhneAnonymisierung,
     # Hilfswerkzeuge (PawnIO, smartmontools per winget) nach dem Lauf: entfernen oder auf diesem PC behalten; leer = gespeicherte Wahl
@@ -226,7 +224,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenp
 }
 #endregion
 
-$ScriptVersion = '3.53'
+$ScriptVersion = '3.52'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -2304,8 +2302,6 @@ function Undo-ChangeRecord($Record, [string]$FilesDir) {
             return [pscustomobject]@{ Status = $(if ($bad) { 'fehlgeschlagen' } else { 'rückgängig' }); Text = ($msgs -join '; ') }
         }
     }
-    # ab v3.53: Softwarepakete der Seite Tools (winget uninstall, nur wenn noch installiert)
-    if ([string]$Record.Art -eq 'Softwarepaket') { return (Undo-SoftwarePaket $Record) }
     # ab v2.8: Arten des Moduls Optimierung (geplante Aufgaben, Windows-Funktionen, Laufwerke, Energie, Defender, DNS ...)
     if (Get-Command Undo-OptChange -ErrorAction SilentlyContinue) { $r = Undo-OptChange $Record; if ($r) { return $r } }
     return [pscustomobject]@{ Status = [string]$Record.Status; Text = ('Für {0} gibt es kein automatisches Rückgängig: {1}' -f $Record.Art, $Record.Gegenbefehl) }
@@ -2581,125 +2577,6 @@ function Set-KeptTool([string]$Name, [bool]$Kept) {
     $id = ''; try { $id = (Get-DeviceIdentity).Id } catch { }
     $n = $Name; $kp = $Kept
     return (Update-DeviceSetting $id ({ param($e) $l = @($e.Behalten | Where-Object { $_ -and $_ -ne $n }); if ($kp) { $l += $n }; $e.Behalten = @($l) }.GetNewClosure()))
-}
-#endregion
-#region ---------- Softwarepakete über winget (Seite Tools, ab v3.53) ----------
-# Die Seite Tools bietet ausgewählte Programme zur Installation über winget an. Die Installation läuft im Arbeitsprozess
-# (Hilfsmodus -SoftwareInstallieren), nicht in der Oberfläche:
-#   * jedes Paket hat eine feste Frist; die Ausgabe von winget wird vollständig gelesen (kein Hänger bei vollem Puffer)
-#   * schon vorhandene Programme werden nicht angefasst und nicht protokolliert (Rückgängig entfernt nur, was Minibench installiert hat)
-#   * jede Installation landet als Eingriff im Änderungsprotokoll, mit winget uninstall als Gegenbefehl (Seite Änderungen)
-# Ereignisse: @@PAKET|Nr|Anzahl|Id|Status|Text je Schritt (Status: läuft, installiert, bereits installiert, fehlgeschlagen,
-# Zeitüberschreitung, ungültig), am Ende @@RESULT|installiert|bereits|fehlgeschlagen.
-
-$script:WingetFristSek       = 1200   # je Paket; große Pakete (Office, Steam) brauchen auf langsamen Leitungen lange
-$script:WingetFristListeSek  = 120
-$script:WingetFristEntfSek   = 900
-
-# Paketkennung prüfen (nur Zeichen, die winget-Ids haben; schützt die Befehlszeile)
-function Test-WingetId([string]$Id) { return ([string]$Id -match '^[A-Za-z0-9][A-Za-z0-9\.\+_\-]{1,99}$') }
-
-function Find-Winget {
-    $c = Get-Command winget.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($c) { return $c.Source }
-    if ($env:LOCALAPPDATA) {
-        $p = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\winget.exe'
-        if (Test-Path -LiteralPath $p) { return $p }
-    }
-    return ''
-}
-
-# winget aufrufen; Rückgabe wie Invoke-External (ExitCode, Output, Error, TimedOut)
-function Invoke-Winget([string]$Exe, [string]$Arguments, [int]$TimeoutSec) {
-    return (Invoke-External -File $Exe -Arguments $Arguments -TimeoutSec $TimeoutSec -Encoding ([Text.Encoding]::UTF8) -OhneUeberspringen)
-}
-
-function Format-WingetCode($Code) { return ('0x{0:X8}' -f ([int64]$Code -band 0xFFFFFFFFL)) }
-
-# Rückgabecodes von winget (https://github.com/microsoft/winget-cli/blob/master/doc/windows/package-manager/winget/returnCodes.md)
-$script:WingetNichtGefunden     = '0x8A150014'   # NO_APPLICATIONS_FOUND (list: nicht installiert)
-$script:WingetSchonInstalliert  = @('0x8A150061', '0x8A15002B')   # PACKAGE_ALREADY_INSTALLED, UPDATE_NOT_APPLICABLE
-$script:WingetNeustartFertig    = '0x8A150109'   # INSTALL_REBOOT_REQUIRED_TO_FINISH (installiert, Neustart schließt ab)
-
-# Ist das Paket installiert? $true: list nennt die Id; $false: nur bei "nichts gefunden" (0x8A150014);
-# $null: nicht feststellbar (Frist, defekte Quelle, unbekannter Fehler). Nur ein eindeutiges $false erlaubt eine
-# Installation mit Eintrag im Änderungsprotokoll, sonst könnte Rückgängig ein Programm entfernen, das schon da war.
-function Test-WingetPaketInstalliert([string]$Exe, [string]$Id) {
-    $r = Invoke-Winget $Exe ('list --id {0} -e --accept-source-agreements --disable-interactivity' -f $Id) $script:WingetFristListeSek
-    if ($r.TimedOut) { return $null }
-    if ([int64]$r.ExitCode -eq 0 -and ([string]$r.Output) -match [regex]::Escape($Id)) { return $true }
-    if ((Format-WingetCode $r.ExitCode) -eq $script:WingetNichtGefunden) { return $false }
-    return $null
-}
-
-function Get-WingetFehlerText($r) {
-    $tail = (@((([string]$r.Output) + "`n" + ([string]$r.Error)) -split "`r?`n" | ForEach-Object { ($_ -replace '[^\w\s\.,:;()\-/%]', '').Trim() } | Where-Object { $_.Length -gt 3 }) | Select-Object -Last 2) -join ' '
-    return ('winget meldet {0}{1}' -f (Format-WingetCode $r.ExitCode), $(if ($tail) { ' (' + $tail + ')' } else { '' }))
-}
-
-# Ein Paket installieren. Rückgabe: Id, Status, Text
-function Install-SoftwarePaket([string]$Exe, [string]$Id, [string]$Name = '') {
-    if (-not $Name) { $Name = $Id }
-    $vorher = Test-WingetPaketInstalliert $Exe $Id
-    if ($vorher -eq $true) { return [pscustomobject]@{ Id = $Id; Status = 'bereits installiert'; Text = ('{0} ist schon installiert; nichts geändert.' -f $Name) } }
-    if ($null -eq $vorher) { return [pscustomobject]@{ Id = $Id; Status = 'fehlgeschlagen'; Text = ('{0}: winget kann nicht feststellen, ob das Programm schon installiert ist; nichts installiert.' -f $Name) } }
-    # --no-upgrade: ein Programm, das winget nicht zuordnen konnte, wird nicht still aktualisiert
-    $r = Invoke-Winget $Exe ('install --id {0} -e --silent --no-upgrade --accept-package-agreements --accept-source-agreements --disable-interactivity' -f $Id) $script:WingetFristSek
-    if ($r.TimedOut) {
-        return [pscustomobject]@{ Id = $Id; Status = 'Zeitüberschreitung'; Text = ('{0}: keine Rückmeldung von winget nach {1} Minuten, abgebrochen. Ob das Programm installiert ist, zeigt die Systemsteuerung.' -f $Name, [int]($script:WingetFristSek / 60)) }
-    }
-    $code = Format-WingetCode $r.ExitCode
-    if ($script:WingetSchonInstalliert -contains $code) { return [pscustomobject]@{ Id = $Id; Status = 'bereits installiert'; Text = ('{0} ist schon installiert ({1}); nichts geändert.' -f $Name, $code) } }
-    $neustart = ($code -eq $script:WingetNeustartFertig)
-    $nachher = Test-WingetPaketInstalliert $Exe $Id
-    if ([int64]$r.ExitCode -eq 0 -or $neustart -or $nachher -eq $true) {
-        [void](Add-ChangeRecord -Modul 'Tools' -Schritt 'Softwarepaket' -Titel ('{0} installiert (winget)' -f $Name) -Risiko 'Eingriff' -Art 'Softwarepaket' `
-            -Ziel $Id -Vorher 'nicht installiert' -Nachher $(if ($neustart) { 'installiert, Neustart nötig' } else { 'installiert' }) -Daten ([ordered]@{ PaketId = $Id; Name = $Name }) -Gegenbefehl ('winget uninstall --id {0} -e' -f $Id))
-        return [pscustomobject]@{ Id = $Id; Status = 'installiert'; Text = ('{0} installiert{1}; rückgängig über die Seite Änderungen.' -f $Name, $(if ($neustart) { ', ein Neustart schließt die Installation ab' } else { '' })) }
-    }
-    return [pscustomobject]@{ Id = $Id; Status = 'fehlgeschlagen'; Text = ('{0}: {1}' -f $Name, (Get-WingetFehlerText $r)) }
-}
-
-# Hilfsmodus der Oberfläche: -SoftwareInstallieren "Id=Name;Id=Name" (Name optional)
-function Invoke-SoftwarePakete([string]$Spec) {
-    $liste = @(([string]$Spec) -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ } | ForEach-Object {
-        $p = $_ -split '=', 2
-        [pscustomobject]@{ Id = $p[0].Trim(); Name = $(if ($p.Count -eq 2 -and $p[1].Trim()) { $p[1].Trim() } else { $p[0].Trim() }) }
-    })
-    $sum = [ordered]@{ Installiert = 0; Bereits = 0; Fehler = 0; Ergebnisse = @() }
-    $exe = Find-Winget
-    $n = $liste.Count; $i = 0
-    foreach ($e in $liste) {
-        $i++
-        if (-not (Test-WingetId $e.Id)) { $r = [pscustomobject]@{ Id = $e.Id; Status = 'ungültig'; Text = ('Ungültige Paketkennung: {0}' -f $e.Id) } }
-        elseif (-not $exe) { $r = [pscustomobject]@{ Id = $e.Id; Status = 'fehlgeschlagen'; Text = 'winget ist auf diesem PC nicht verfügbar.' } }
-        else {
-            Send-GuiEvent 'PAKET' $i $n $e.Id 'läuft' ('Installiere ({0} von {1}): {2} ...' -f $i, $n, $e.Name)
-            try { $r = Install-SoftwarePaket $exe $e.Id $e.Name } catch { $r = [pscustomobject]@{ Id = $e.Id; Status = 'fehlgeschlagen'; Text = ('{0}: {1}' -f $e.Name, $_.Exception.Message) } }
-        }
-        switch ($r.Status) { 'installiert' { $sum.Installiert++ } 'bereits installiert' { $sum.Bereits++ } default { $sum.Fehler++ } }
-        $sum.Ergebnisse += $r
-        Send-GuiEvent 'PAKET' $i $n $r.Id $r.Status $r.Text
-        Write-Host $r.Text
-    }
-    return [pscustomobject]$sum
-}
-
-# Rückgängig (Seite Änderungen): nur deinstallieren, was noch installiert ist. Ist das nicht feststellbar oder scheitert
-# winget, bleibt der Eintrag aktiv (Status aktiv), damit ein späterer Versuch möglich ist.
-function Undo-SoftwarePaket($Record) {
-    $id = [string]$Record.Daten.PaketId
-    if (-not $id) { $id = [string]$Record.Ziel }
-    if (-not (Test-WingetId $id)) { return [pscustomobject]@{ Status = 'fehlgeschlagen'; Text = ('Ungültige Paketkennung im Protokoll: {0}' -f $id) } }
-    $exe = Find-Winget
-    if (-not $exe) { return [pscustomobject]@{ Status = 'aktiv'; Text = 'winget ist auf diesem PC nicht verfügbar; später erneut versuchen oder von Hand deinstallieren.' } }
-    $da = Test-WingetPaketInstalliert $exe $id
-    if ($da -eq $false) { return [pscustomobject]@{ Status = 'übersprungen'; Text = ('{0} ist nicht mehr installiert; nichts verändert.' -f $id) } }
-    if ($null -eq $da) { return [pscustomobject]@{ Status = 'aktiv'; Text = ('{0}: winget kann den Zustand nicht feststellen; nichts verändert, später erneut versuchen.' -f $id) } }
-    $r = Invoke-Winget $exe ('uninstall --id {0} -e --silent --accept-source-agreements --disable-interactivity' -f $id) $script:WingetFristEntfSek
-    if ($r.TimedOut) { return [pscustomobject]@{ Status = 'aktiv'; Text = ('{0}: Deinstallation nach {1} Minuten abgebrochen; später erneut versuchen.' -f $id, [int]($script:WingetFristEntfSek / 60)) } }
-    if ([int64]$r.ExitCode -eq 0 -or (Format-WingetCode $r.ExitCode) -eq $script:WingetNeustartFertig) { return [pscustomobject]@{ Status = 'rückgängig'; Text = ('{0} deinstalliert' -f $id) } }
-    return [pscustomobject]@{ Status = 'aktiv'; Text = ('{0}: Deinstallation fehlgeschlagen, {1}; später erneut versuchen.' -f $id, (Get-WingetFehlerText $r)) }
 }
 #endregion
 #region ---------- Modul Optimierung: Katalog, Zustand, Ausführung (ab v2.8) ----------
@@ -4696,7 +4573,7 @@ function Undo-OptChange($Record) {
 
 #endregion
 #region ---------- Grafische Oberfläche ----------
-if (-not $EventMode -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme) {
+if (-not $EventMode -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme) {
     Write-StartPhase 'Datenordner gefunden'
     # Hardwareabfragen für die Oberfläche (Datenträgerliste, Geräteidentität) laufen parallel zum Laden der Oberfläche
     $hwPs = $null; $hwHandle = $null
@@ -4810,20 +4687,6 @@ public partial class DiagGui : Form
     // GPU-Rendertest (ab v2.6): Auflösung und Anzeige, auf den Seiten Benchmark und Lasttest gleich eingestellt
     ComboBox cmbGpuRes, cmbGpuShow, cmbLGpuRes, cmbLGpuShow;
     bool syncGpu;
-    // Auflösung, Anzeige und Grafikeinheit des Rendertests, je Seite in derselben Reihenfolge (einzelne können null sein)
-    ComboBox[] GpuCombosBench() { return new ComboBox[] { cmbGpuRes, cmbGpuShow, cmbGpuSel }; }
-    ComboBox[] GpuCombosLast() { return new ComboBox[] { cmbLGpuRes, cmbLGpuShow, cmbLGpuSel }; }
-    // Auswahl paarweise übernehmen: nach[i] bekommt den Index von von[i]; fehlende Listen und ungültige Indizes bleiben unberührt
-    public static void CopySelection(ComboBox[] von, ComboBox[] nach)
-    {
-        if (von == null || nach == null) return;
-        for (int i = 0; i < von.Length && i < nach.Length; i++)
-        {
-            ComboBox a = von[i], b = nach[i];
-            if (a == null || b == null || a.SelectedIndex < 0 || a.SelectedIndex >= b.Items.Count) continue;
-            if (b.SelectedIndex != a.SelectedIndex) b.SelectedIndex = a.SelectedIndex;
-        }
-    }
     // ab v2.65: Auswahl der Grafikeinheiten (Benchmark und Lasttest gleich), Liste vom Startskript (Win32_VideoController)
     public static string[] GpuNames = new string[0];
     // ab v2.8: Katalog des Moduls Optimierung (Zeilen K|... und E|... aus Get-OptGuiLines) und Domänenmitgliedschaft
@@ -5596,8 +5459,6 @@ public partial class DiagGui : Form
         Tip(cmbLDiskDrive, "Laufwerk für den Datenträgertest; es braucht mindestens 2 GB freien Platz.");
         foreach (ComboBox c in new ComboBox[] { cmbLCpu, cmbLRam, cmbLGpu, cmbLDisk }) Tip(c, "Dauer dieser Komponente. Alle gewählten Komponenten starten gleichzeitig, jede endet nach ihrer eigenen Dauer.");
         Tip(cmbLGpuSel, "Welche Grafikeinheiten der Rendertest belastet (gleich eingestellt wie im Benchmark).");
-        Tip(cmbLGpuRes, "Auflösung des Rendertests (gleich eingestellt wie im Benchmark).");
-        Tip(cmbLGpuShow, "Fenster, Vollbild oder ohne Anzeige für den Rendertest (gleich eingestellt wie im Benchmark).");
         Tip(cmbLAbortCpu, "Liegt die CPU-Temperatur über dieser Schwelle, endet der Test mit einem Befund. Automatisch: TjMax der CPU nach rund einer Minute (viele Notebooks laufen planmäßig an TjMax), sonst 100 °C. Feste Werte greifen nach rund 10 Sekunden.");
         Tip(cmbLAbortGpu, "Liegt die GPU-Temperatur rund 10 Sekunden über dieser Schwelle, endet der Test mit einem Befund.");
         // Reparatur
@@ -5934,10 +5795,9 @@ public partial class DiagGui : Form
         f.Controls.Add(r3);
         FlowLayoutPanel r3b = Row(); Label lsel = RowLabel("Grafikeinheit", 332); lsel.Margin = new Padding(UI.S(22), UI.S(1), UI.S(6), UI.S(1)); r3b.Controls.Add(lsel);
         cmbLGpuSel = Combo(420, GpuChoiceTexts(), 0); r3b.Controls.Add(cmbLGpuSel); f.Controls.Add(r3b);
-        // Einstellungen des Rendertests auf beiden Seiten gleich halten: Benchmark -> Lasttest und Lasttest -> Benchmark
-        // (ab 3.53 über CopySelection; vorher setzte sync2 die Grafikeinheit des Lasttests auf den Wert des Benchmarks zurück)
-        EventHandler sync1 = delegate { if (syncGpu || cmbGpuRes == null) return; syncGpu = true; try { CopySelection(GpuCombosBench(), GpuCombosLast()); } finally { syncGpu = false; } };
-        EventHandler sync2 = delegate { if (syncGpu || cmbGpuRes == null) return; syncGpu = true; try { CopySelection(GpuCombosLast(), GpuCombosBench()); } finally { syncGpu = false; } };
+        // Einstellungen des Rendertests auf beiden Seiten gleich halten
+        EventHandler sync1 = delegate { if (syncGpu || cmbGpuRes == null) return; syncGpu = true; cmbLGpuRes.SelectedIndex = cmbGpuRes.SelectedIndex; cmbLGpuShow.SelectedIndex = cmbGpuShow.SelectedIndex; if (cmbGpuSel != null) cmbLGpuSel.SelectedIndex = cmbGpuSel.SelectedIndex; syncGpu = false; };
+        EventHandler sync2 = delegate { if (syncGpu || cmbGpuRes == null) return; syncGpu = true; cmbGpuRes.SelectedIndex = cmbLGpuRes.SelectedIndex; cmbGpuShow.SelectedIndex = cmbLGpuShow.SelectedIndex; if (cmbGpuSel != null) cmbLGpuSel.SelectedIndex = cmbGpuSel.SelectedIndex; syncGpu = false; };
         if (cmbGpuRes != null) { cmbGpuRes.SelectedIndexChanged += sync1; cmbGpuShow.SelectedIndexChanged += sync1; }
         if (cmbGpuSel != null) cmbGpuSel.SelectedIndexChanged += sync1;
         cmbLGpuRes.SelectedIndexChanged += sync2; cmbLGpuShow.SelectedIndexChanged += sync2; cmbLGpuSel.SelectedIndexChanged += sync2;
@@ -9488,11 +9348,11 @@ public partial class DiagGui
         StringBuilder sb = new StringBuilder(); List<string> spec = new List<string>();
         foreach (ChangeEntry c in sel) { sb.AppendLine("·  " + c.Titel + ": " + c.Ziel + " wieder " + c.Vorher); spec.Add(c.FilePath + "*" + c.Id); }
         if (MessageBox.Show(this, "Diese Änderungen zurücknehmen?\r\n\r\n" + sb.ToString(), "Rückgängig machen", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-        // ab 3.53 ohne Einfrieren der Oberfläche: Softwarepakete brauchen für winget uninstall bis zu 20 Minuten je Paket
-        int pakete = 0; foreach (ChangeEntry c in sel) if (c.Art == "Softwarepaket") pakete++;
+        Cursor = Cursors.WaitCursor;
         List<string> lines = new List<string>();
-        try { RunHelperPumped("-Rueckgaengig \"" + String.Join(";", spec.ToArray()) + "\"", out lines, 300 + pakete * WingetFristPaketSek); }
+        try { RunHelper("-Rueckgaengig \"" + String.Join(";", spec.ToArray()) + "\"", out lines); }
         catch (Exception ex) { lines.Add("Rückgängig fehlgeschlagen: " + ex.Message); }
+        Cursor = Cursors.Default;
         ReloadDb();
         MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Keine Rückmeldung vom Arbeitsprozess.", "Rückgängig", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
@@ -9768,7 +9628,7 @@ public partial class DiagGui
             }
             else
             {
-                Tip(btnInstallWg, "Installiert die markierten Programme über winget im Hintergrund. Jede Installation steht danach auf der Seite Änderungen und lässt sich dort wieder entfernen; schon vorhandene Programme bleiben unberührt.");
+                Tip(btnInstallWg, "Führt 'winget install' für alle markierten Programme still im Hintergrund aus.");
                 btnInstallWg.Click += delegate {
                     List<int> selIndices = new List<int>();
                     for (int i = 0; i < allWgBoxes.Length; i++) {
@@ -9778,7 +9638,7 @@ public partial class DiagGui
                         MessageBox.Show(this, "Bitte wählen Sie mindestens ein Programm zur Installation aus.", "Softwarepakete installieren", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
                     }
-                    InstallWingetPackagesAsync(selIndices, allWgIds, allWgNames, lblWgStatus, btnInstallWg, allWgBoxes, lnkWgAll, lnkWgNone);
+                    InstallWingetPackagesAsync(wingetPath, selIndices, allWgIds, allWgNames, lblWgStatus, btnInstallWg, allWgBoxes, lnkWgAll, lnkWgNone);
                 };
             }
 
@@ -10023,112 +9883,57 @@ public partial class DiagGui
         return null;
     }
 
-    // Softwarepakete über winget (ab 3.53): Installation im Arbeitsprozess (-SoftwareInstallieren), dort mit Frist je Paket,
-    // vollständig gelesener Ausgabe und Eintrag im Änderungsprotokoll (Risikostufe Eingriff, Gegenbefehl winget uninstall).
-    // Vorher lief winget direkt aus der Oberfläche: Ausgabe umgeleitet, aber nie gelesen, WaitForExit ohne Frist (Hänger),
-    // und nichts stand im Änderungsprotokoll.
-    public static string WingetSpec(List<int> selIndices, string[] ids, string[] names)
+    public void InstallWingetPackagesAsync(string exeToRun, List<int> selIndices, string[] allWgIds, string[] allWgNames, Label lblWgStatus, Button btnInstallWg, CheckBox[] allWgBoxes, LinkLabel lnkWgAll, LinkLabel lnkWgNone)
     {
-        List<string> parts = new List<string>();
-        foreach (int i in selIndices)
-        {
-            if (i < 0 || i >= ids.Length) continue;
-            string n = (i < names.Length ? names[i] : ids[i]).Replace(";", ",").Replace("=", "-").Replace("\"", "'");
-            parts.Add(ids[i] + "=" + n);
-        }
-        return String.Join(";", parts.ToArray());
-    }
-
-    // Frist für den ganzen Hilfsprozess: je Paket die Fristen des Arbeitsprozesses (Kern\Softwarepakete.ps1: list 120 s vorher,
-    // install 1200 s, list 120 s nachher) plus Reserve, dazu der Start von PowerShell
-    public const int WingetFristPaketSek = 120 + 1200 + 120 + 60;
-    public static int WingetTimeoutSec(int count) { return Math.Max(1, count) * WingetFristPaketSek + 120; }
-
-    // @@PAKET|Nr|Anzahl|Id|Status|Text -> Status und Text; false, wenn die Zeile kein Paketereignis ist
-    public static bool ParseWingetEvent(string line, out string status, out string text)
-    {
-        status = ""; text = "";
-        if (line == null || !line.StartsWith("@@PAKET|")) return false;
-        string[] x = line.Split(new char[] { '|' }, 6);
-        if (x.Length < 6) return false;
-        status = x[4]; text = x[5].Replace("¦", "|");
-        return true;
-    }
-
-    public void InstallWingetPackagesAsync(List<int> selIndices, string[] allWgIds, string[] allWgNames, Label lblWgStatus, Button btnInstallWg, CheckBox[] allWgBoxes, LinkLabel lnkWgAll, LinkLabel lnkWgNone)
-    {
-        StringBuilder m = new StringBuilder();
-        m.AppendLine("Diese Programme werden über winget installiert (Risikostufe Eingriff):");
-        m.AppendLine();
-        foreach (int i in selIndices) m.AppendLine("·  " + allWgNames[i] + " (" + allWgIds[i] + ")");
-        m.AppendLine();
-        m.AppendLine("Jede Installation steht danach auf der Seite Änderungen und lässt sich dort wieder entfernen. Schon vorhandene Programme bleiben unberührt. Je Programm gilt eine Frist von 20 Minuten.");
-        if (MessageBox.Show(this, m.ToString(), "Softwarepakete installieren", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-
         btnInstallWg.Enabled = false;
         foreach (CheckBox cb in allWgBoxes) cb.Enabled = false;
         lnkWgAll.Enabled = false; lnkWgNone.Enabled = false;
-        lblWgStatus.Text = "winget wird gestartet ..."; lblWgStatus.ForeColor = UI.Accent;
-
-        string spec = WingetSpec(selIndices, allWgIds, allWgNames);
-        int timeoutSec = WingetTimeoutSec(selIndices.Count);
-        string args = "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\" -EventMode -SoftwareInstallieren \"" + spec + "\"" + (dataDir.Length > 0 ? " -DatenDir \"" + dataDir.TrimEnd('\\') + "\"" : "");
 
         System.Threading.Thread t = new System.Threading.Thread(delegate() {
-            List<string> texte = new List<string>();
-            string result = "";
-            bool eof = false;
-            try
-            {
-                ProcessStartInfo psi = new ProcessStartInfo(psExe, args);
-                psi.UseShellExecute = false; psi.CreateNoWindow = true;
-                psi.RedirectStandardOutput = true; psi.StandardOutputEncoding = new UTF8Encoding(false);
-                using (Process p = new Process())
-                {
-                    p.StartInfo = psi;
-                    p.OutputDataReceived += delegate(object s, DataReceivedEventArgs e) {
-                        string st, tx;
-                        if (e.Data == null) { eof = true; return; }
-                        if (e.Data.StartsWith("@@RESULT|")) { result = e.Data.Substring(9); return; }
-                        if (!ParseWingetEvent(e.Data, out st, out tx)) return;
-                        if (st != "läuft") lock (texte) texte.Add(tx);
-                        Color c = st == "läuft" ? UI.Accent : (st == "installiert" || st == "bereits installiert") ? UI.Ok : UI.Warn;
-                        try { BeginInvoke(new MethodInvoker(delegate { lblWgStatus.Text = tx; lblWgStatus.ForeColor = c; })); } catch { }
-                    };
-                    p.Start(); p.BeginOutputReadLine();
-                    if (!p.WaitForExit(timeoutSec * 1000))
-                    {
-                        KillProc(p);
-                        lock (texte) texte.Add("Abgebrochen: keine Rückmeldung nach " + (timeoutSec / 60) + " Minuten.");
-                    }
-                    // letzte Ausgabezeilen abholen, höchstens 5 s (hält ein Kindprozess die Ausgabe offen, nicht ewig warten)
-                    DateTime eu = DateTime.Now.AddSeconds(5);
-                    while (!eof && DateTime.Now < eu) System.Threading.Thread.Sleep(20);
-                }
-            }
-            catch (Exception ex) { lock (texte) texte.Add("Arbeitsprozess nicht gestartet: " + ex.Message); }
+            int okCount = 0;
+            int failCount = 0;
+            int total = selIndices.Count;
+            for (int s = 0; s < total; s++) {
+                int idx = selIndices[s];
+                string pkgId = allWgIds[idx];
+                string pkgName = allWgNames[idx];
+                string statusTxt = String.Format("Installiere ({0} von {1}): {2} ...", s + 1, total, pkgName);
+                try {
+                    this.BeginInvoke(new MethodInvoker(delegate {
+                        lblWgStatus.Text = statusTxt;
+                        lblWgStatus.ForeColor = UI.Accent;
+                    }));
+                } catch { }
 
-            try
-            {
-                BeginInvoke(new MethodInvoker(delegate {
+                try {
+                    ProcessStartInfo psi = new ProcessStartInfo();
+                    psi.FileName = exeToRun;
+                    psi.Arguments = "install --id " + pkgId + " -e --silent --accept-package-agreements --accept-source-agreements";
+                    psi.UseShellExecute = false;
+                    psi.CreateNoWindow = true;
+                    psi.RedirectStandardOutput = true;
+                    psi.RedirectStandardError = true;
+                    using (Process proc = Process.Start(psi)) {
+                        proc.WaitForExit();
+                        if (proc.ExitCode == 0) okCount++; else failCount++;
+                    }
+                } catch { failCount++; }
+            }
+
+            try {
+                this.BeginInvoke(new MethodInvoker(delegate {
                     btnInstallWg.Enabled = true;
                     foreach (CheckBox cb in allWgBoxes) cb.Enabled = true;
                     lnkWgAll.Enabled = true; lnkWgNone.Enabled = true;
-                    string[] r = result.Split('|');
-                    int ok = 0, da = 0, bad = 0;
-                    if (r.Length >= 3) { int.TryParse(r[0], out ok); int.TryParse(r[1], out da); int.TryParse(r[2], out bad); }
-                    else bad = selIndices.Count;
-                    lblWgStatus.Text = String.Format("Abgeschlossen: {0} installiert, {1} schon vorhanden, {2} fehlgeschlagen.", ok, da, bad);
-                    lblWgStatus.ForeColor = bad == 0 ? UI.Ok : UI.Warn;
-                    ReloadDb();
-                    if (bad > 0)
-                    {
-                        string all; lock (texte) all = String.Join("\r\n", texte.ToArray());
-                        MessageBox.Show(this, all.Length > 0 ? all : "Keine Rückmeldung vom Arbeitsprozess.", "Softwarepakete installieren", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    if (failCount == 0) {
+                        lblWgStatus.Text = String.Format("Installation abgeschlossen: {0} Programme erfolgreich installiert.", okCount);
+                        lblWgStatus.ForeColor = UI.Ok;
+                    } else {
+                        lblWgStatus.Text = String.Format("Abgeschlossen: {0} erfolgreich, {1} fehlgeschlagen.", okCount, failCount);
+                        lblWgStatus.ForeColor = UI.Warn;
                     }
                 }));
-            }
-            catch { }
+            } catch { }
         });
         t.IsBackground = true;
         t.Start();
@@ -10993,12 +10798,6 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
-        new Eintrag("3.53", "09.10.2026", "Testsuite nach Fachgebieten, winget mit Änderungsprotokoll, Grafikauswahl im Lasttest",
-            "Softwarepakete der Seite Tools: winget läuft jetzt im Arbeitsprozess mit Frist je Paket und vollständig gelesener Ausgabe (vorher konnte die Installation unbegrenzt hängen). Jede Installation steht als Eingriff auf der Seite Änderungen und lässt sich dort mit winget uninstall zurücknehmen; schon vorhandene Programme bleiben unberührt. Vor dem Start fragt die Oberfläche nach. " +
-            "Grafikauswahl im Lasttest: Die Wahl der Grafikeinheit auf der Seite Lasttest sprang auf den Wert des Benchmarks zurück; beide Seiten gleichen sich jetzt in beide Richtungen ab. " +
-            "Absturzabbilder: Parameter mit Kerneladressen (ab 0x8000000000000000) brachen das Lesen eines Minidumps ab; behoben. " +
-            "Tests: Die 17 Testdateien je Version sind in Dateien nach Fachgebieten aufgegangen (Oberfläche, Sensoren, Messung, Datenbank, Bericht, Ablauf, Optimierung, Aufbau, Release). Die Oberfläche wird je Testlauf nur noch einmal übersetzt und mit einem Selbsttest geprüft; Testen.cmd -Datei Name startet einzelne Dateien. " +
-            "Bauen.cmd: Commit-Nachricht aus dieser Versionshistorie statt fester Liste, Commit nur nach bestandenen Tests, ohne BOM am Dateianfang."),
         new Eintrag("3.52", "07.10.2026", "Netzlaufwerk-Härtung, Dashboard-Link-Fix, optimierte Datenpflege, aufgeräumte Optionen und vollständige Historie",
             "Netzlaufwerk- und NAS-Härtung: Klare Trennung zwischen Berichten/Datenbank auf dem Netzlaufwerk und strikt lokalen Binaries/Caches auf dem USB-Stick oder im lokalen Temp-Verzeichnis. Ausnahme 'Pfadformat nicht unterstützt' und CAS-Sicherheitsblockaden bei OpenRead und externen Treibern (smartctl, PawnIO, LibreHardwareMonitor) behoben. " +
             "Dashboard-Link-Korrektur: Relative Pfadauflösung von Berichts-Links im interaktiven Multi-System-Dashboard (Dashboard.html) bereinigt; Auflösung auf <Lauf-Ordner>/Diagnosebericht.html mit Vorwärtsslash ohne doppeltes Berichte-Präfix (ERR_FILE_NOT_FOUND behoben). " +
@@ -11278,7 +11077,7 @@ function Test-StepEnabled([string]$Key) {
     return $false
 }
 
-if (-not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport) {
+if (-not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $Dashboard -and -not $DashboardExport) {
     # Berichte landen ausschließlich im Datenordner neben dem Programm (z. B. auf dem USB-Stick)
     if (-not $OutputDir) {
         $base = $(if ($script:DataDir) { Join-Path $script:DataDir 'Berichte' } else { Join-Path $env:TEMP 'LeosMinibench-Berichte' })
@@ -12196,7 +11995,7 @@ function Repair-Utf8AsOem([string]$Text) {
 }
 
 function Invoke-External {
-    param([string]$File, [string]$Arguments = '', [int]$TimeoutSec = 600, [Text.Encoding]$Encoding = $script:OemEnc, [string]$Progress = '', [int]$ExpectedSec = 0, [switch]$OhneUeberspringen)
+    param([string]$File, [string]$Arguments = '', [int]$TimeoutSec = 600, [Text.Encoding]$Encoding = $script:OemEnc, [string]$Progress = '', [int]$ExpectedSec = 0)
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $File; $psi.Arguments = $Arguments
     $psi.UseShellExecute = $false; $psi.CreateNoWindow = $true
@@ -12210,8 +12009,7 @@ function Invoke-External {
     $o = $p.StandardOutput.ReadToEndAsync(); $e = $p.StandardError.ReadToEndAsync()
     $sw = [Diagnostics.Stopwatch]::StartNew(); $timedOut = $false
     while (-not $p.WaitForExit(500)) {
-        # -OhneUeberspringen: Hilfsmodi außerhalb eines Laufs (winget der Seite Tools) reagieren nicht auf skip.flag eines laufenden Laufs
-        if (-not $OhneUeberspringen -and (Get-Command Test-SkipRequested -ErrorAction SilentlyContinue) -and (Test-SkipRequested)) {
+        if ((Get-Command Test-SkipRequested -ErrorAction SilentlyContinue) -and (Test-SkipRequested)) {
             try { $p.Kill() } catch { }
             throw (New-Object System.OperationCanceledException 'Vom Benutzer übersprungen')
         }
@@ -16411,10 +16209,10 @@ function Read-MinidumpFile([string]$Path) {
                                 $exAddr = $reader.ReadUInt64()
                                 $paramCount = $reader.ReadUInt32()
                                 $unused = $reader.ReadUInt32()
-                                if ($paramCount -ge 1 -and ($stream.Position + 8) -le $stream.Length) { $p1 = $reader.ReadUInt64() }
-                                if ($paramCount -ge 2 -and ($stream.Position + 8) -le $stream.Length) { $p2 = $reader.ReadUInt64() }
-                                if ($paramCount -ge 3 -and ($stream.Position + 8) -le $stream.Length) { $p3 = $reader.ReadUInt64() }
-                                if ($paramCount -ge 4 -and ($stream.Position + 8) -le $stream.Length) { $p4 = $reader.ReadUInt64() }
+                                if ($paramCount -ge 1 -and ($stream.Position + 8) -le $stream.Length) { $p1 = [int64]$reader.ReadUInt64() }
+                                if ($paramCount -ge 2 -and ($stream.Position + 8) -le $stream.Length) { $p2 = [int64]$reader.ReadUInt64() }
+                                if ($paramCount -ge 3 -and ($stream.Position + 8) -le $stream.Length) { $p3 = [int64]$reader.ReadUInt64() }
+                                if ($paramCount -ge 4 -and ($stream.Position + 8) -le $stream.Length) { $p4 = [int64]$reader.ReadUInt64() }
                                 $stream.Position = $savePos
                             }
                             break
@@ -16430,10 +16228,10 @@ function Read-MinidumpFile([string]$Path) {
                         $stream.Position = 0x38
                         $code = [int64]$reader.ReadUInt32()
                         $stream.Position = 0x40
-                        $p1 = $reader.ReadUInt64()
-                        $p2 = $reader.ReadUInt64()
-                        $p3 = $reader.ReadUInt64()
-                        $p4 = $reader.ReadUInt64()
+                        $p1 = [int64]$reader.ReadUInt64()
+                        $p2 = [int64]$reader.ReadUInt64()
+                        $p3 = [int64]$reader.ReadUInt64()
+                        $p4 = [int64]$reader.ReadUInt64()
                     }
                 } elseif ($valid -eq 0x504D5544) { # DUMP
                     if ($stream.Length -ge 0x38) {
@@ -16493,14 +16291,13 @@ function Read-Minidumps {
             }
         }
     } else {
-        $sysRoot = $(if ($env:SystemRoot) { $env:SystemRoot } else { 'C:\Windows' })
-        $dirs = @('C:\Windows\Minidump', (Join-Path $sysRoot 'Minidump')) | Select-Object -Unique
+        $dirs = @('C:\Windows\Minidump', (Join-Path $env:SystemRoot 'Minidump')) | Select-Object -Unique
         foreach ($d in $dirs) {
             if (Test-Path -LiteralPath $d) {
                 $files += @(Get-ChildItem -LiteralPath $d -Filter '*.dmp' -ErrorAction SilentlyContinue)
             }
         }
-        $memDmp = Join-Path $sysRoot 'MEMORY.DMP'
+        $memDmp = Join-Path $env:SystemRoot 'MEMORY.DMP'
         if (Test-Path -LiteralPath $memDmp) {
             $files += @(Get-Item -LiteralPath $memDmp -ErrorAction SilentlyContinue)
         }
@@ -16515,7 +16312,7 @@ function Read-Minidumps {
 #endregion
 
 #region ---------- C#-Testroutinen (RAM, CPU, Energiesparen) ----------
-if ($FullLanguage -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not ('DiagDiskStress' -as [type])) {
+if ($FullLanguage -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $Dashboard -and -not $DashboardExport -and -not ('DiagDiskStress' -as [type])) {
     $csCode = @'
 using System;
 using System.ComponentModel;
@@ -19876,7 +19673,7 @@ $script:SensorNotes = New-Object System.Collections.Generic.List[string]
 $script:SensorSnapshot = $null
 $script:SensorDb = [ordered]@{}
 
-if ($FullLanguage -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not ('DiagSensors' -as [type])) {
+if ($FullLanguage -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $Dashboard -and -not $DashboardExport -and -not ('DiagSensors' -as [type])) {
     $sensCode = @'
 using System;
 using System.Collections;
@@ -22000,7 +21797,7 @@ function New-RenderChartsHtml {
 }
 #endregion
 # =====================================================================================
-#        OPTIMIERUNG UND TOOLS: Hilfsmodi der Oberfläche (ab v2.8, Softwarepakete ab v3.53, kein Bericht)
+#                 OPTIMIERUNG: Hilfsmodi der Oberfläche (ab v2.8, kein Bericht)
 # =====================================================================================
 # Zustand aller Einträge: @@OPTZ|Id|Zustand|Text je Eintrag, @@RESULT|Anzahl
 if ($OptimierungZustand) {
@@ -22016,12 +21813,6 @@ if ($OptimierungZustand) {
     }
     Send-GuiEvent 'RESULT' $n
     exit 0
-}
-# Seite Tools (ab v3.53): Softwarepakete über winget, je Paket @@PAKET, am Ende @@RESULT|installiert|bereits|fehlgeschlagen
-if ($SoftwareInstallieren) {
-    $r = Invoke-SoftwarePakete $SoftwareInstallieren
-    Send-GuiEvent 'RESULT' $r.Installiert $r.Bereits $r.Fehler
-    exit $(if ($r.Fehler) { 1 } else { 0 })
 }
 if ($OptWerkzeugeHolen) {
     $r = Install-OptTools
