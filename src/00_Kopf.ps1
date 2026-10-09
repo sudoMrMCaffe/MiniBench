@@ -91,6 +91,13 @@ param(
     [switch]$OptWerkzeugeHolen,
     # Seite Tools (ab v3.53): Softwarepakete über winget installieren, "Id=Name;Id=Name" (Hilfsmodus der Oberfläche)
     [string]$SoftwareInstallieren = '',
+    # Ablage (ab v3.54): Abgleich mit dem Netzlaufwerk, Läufe entfernen (ins Archiv) und umbenennen (Hilfsmodi der Oberfläche)
+    [switch]$Abgleich,
+    [switch]$AbgleichLoeschen,
+    [switch]$AbgleichNeu,
+    [string]$Entfernen = '',
+    [string]$Umbenennen = '',
+    [string]$NeuerName = '',
     # Allgemein
     [switch]$KiOhneAnonymisierung,
     # Hilfswerkzeuge (PawnIO, smartmontools per winget) nach dem Lauf: entfernen oder auf diesem PC behalten; leer = gespeicherte Wahl

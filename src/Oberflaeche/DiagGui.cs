@@ -350,6 +350,8 @@ public partial class DiagGui : Form
         Controls.Add(body); Controls.Add(head);
 
         FormClosing += OnClosing;
+        // selbst hergestellte Verbindungen zum Netzlaufwerk (Kennwort) nicht über das Programmende hinaus bestehen lassen
+        FormClosed += delegate { NasAblage.AlleTrennen(); };
         // gegen Flackern: Doppelpufferung für Formular, Panels und Listen; Laufansicht wird höchstens alle 250 ms aktualisiert
         DoubleBuffered = true;
         SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
@@ -685,7 +687,7 @@ public partial class DiagGui : Form
         FillRefLists();
         FillChangeList();
         UpdateSensTools();
-        if (lblDbPath != null) lblDbPath.Text = "Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)");
+        if (lblDbPath != null) SetText(lblDbPath, NasAblage.AblageText(dataDir));
     }
 
     // Modulverträge übernehmen: Navigation und Seite Reparatur richten sich danach (ohne Vertrag gelten die festen Listen)
@@ -1929,7 +1931,10 @@ public partial class DiagGui : Form
     }
 
     // Wie RunHelper, aber ohne die Oberfläche einzufrieren (Downloads, Treiber entfernen)
-    string RunHelperPumped(string args, out List<string> lines, int timeoutSec)
+    string RunHelperPumped(string args, out List<string> lines, int timeoutSec) { return RunHelperPumped(args, out lines, timeoutSec, null); }
+
+    // Wie RunHelper, aber ohne die Oberfläche einzufrieren; Fortschritt des Abgleichs (@@ABGLEICH|Nr|Anzahl|Datei) im Label
+    string RunHelperPumped(string args, out List<string> lines, int timeoutSec, Label progress)
     {
         List<string> got = new List<string>();
         string result = "";
@@ -1942,7 +1947,16 @@ public partial class DiagGui : Form
             using (Process p = new Process())
             {
                 p.StartInfo = psi;
-                p.OutputDataReceived += delegate(object s, DataReceivedEventArgs e) { if (e.Data == null) { eof = true; return; } lock (got) got.Add(e.Data); };
+                p.OutputDataReceived += delegate(object s, DataReceivedEventArgs e) {
+                    if (e.Data == null) { eof = true; return; }
+                    if (progress != null && e.Data.StartsWith("@@ABGLEICH|"))
+                    {
+                        string[] x = e.Data.Split(new char[] { '|' }, 4);
+                        if (x.Length == 4) { string t = "Abgleich: " + x[1] + " von " + x[2] + ", " + x[3].Replace("¦", "|"); try { BeginInvoke(new MethodInvoker(delegate { SetText(progress, t); })); } catch { } }
+                        return;
+                    }
+                    lock (got) got.Add(e.Data);
+                };
                 p.Start(); p.BeginOutputReadLine();
                 DateTime until = DateTime.Now.AddSeconds(timeoutSec);
                 while (!p.HasExited && DateTime.Now < until) { Application.DoEvents(); System.Threading.Thread.Sleep(50); }

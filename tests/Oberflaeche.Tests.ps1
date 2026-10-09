@@ -36,6 +36,9 @@ Describe 'Selbsttest der Oberfläche' {
         @{ Fall = 'Softwarepakete.Ereignisse' }
         @{ Fall = 'Datenbank.Referenzen' }
         @{ Fall = 'Aenderungen.Softwarepaket' }
+        @{ Fall = 'Netzlaufwerk.Pfad' }
+        @{ Fall = 'Netzlaufwerk.Konfiguration' }
+        @{ Fall = 'Netzlaufwerk.Ergebnis' }
     ) {
         Assert-GuiSelbsttest $Fall
     }

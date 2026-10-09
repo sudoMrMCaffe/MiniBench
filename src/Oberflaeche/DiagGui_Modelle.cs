@@ -138,3 +138,199 @@ class OptItem
     public string Id = "", Kat = "", Risiko = "", Neustart = "", Vorlagen = "", Bedingung = "", Titel = "", Tip = "", Zustand = "", ZustandText = "";
     public bool Verwaltet; public int Minuten; public CheckBox Box;
 }
+
+// Netzlaufwerk als Spiegel der Nutzerdaten (ab v3.54). Die Oberfläche arbeitet immer im Datenordner auf dem Stick;
+// Netzwerk.json dort nennt nur den NAS-Pfad (und optional den Benutzer). Abgeglichen wird über den Hilfsmodus -Abgleich
+// (Kern\Ablage.ps1). Verbindungen mit Kennwort laufen über WNetAddConnection2 (nicht dauerhaft, Kennwort nicht in einer
+// Befehlszeile) und werden beim Schließen des Programms wieder getrennt.
+public static class NasAblage
+{
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    class NETRESOURCE
+    {
+        public int dwScope = 0, dwType = 1, dwDisplayType = 0, dwUsage = 0;
+        public string lpLocalName = null, lpRemoteName = null, lpComment = null, lpProvider = null;
+    }
+    [System.Runtime.InteropServices.DllImport("mpr.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    static extern int WNetAddConnection2(NETRESOURCE res, string password, string user, int flags);
+    [System.Runtime.InteropServices.DllImport("mpr.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    static extern int WNetCancelConnection2(string name, int flags, bool force);
+
+    static readonly List<string> verbunden = new List<string>();
+
+    // leer, wenn gültig; sonst der Grund (gleiche Regeln wie Test-NasPfad in Kern\Ablage.ps1)
+    public static string PfadFehler(string pfad)
+    {
+        string p = (pfad ?? "").Trim();
+        if (p.Length == 0) return "kein Pfad angegeben";
+        if (System.Text.RegularExpressions.Regex.IsMatch(p, @"^\\\\[^\\/:*?""<>|]+\\[^\\/:*?""<>|]+(\\.*)?$")) return "";
+        if (System.Text.RegularExpressions.Regex.IsMatch(p, @"^\\[^\\]")) return p + " beginnt mit nur einem \\ und zeigte damit auf den Stick; gemeint ist \\" + p;
+        if (System.Text.RegularExpressions.Regex.IsMatch(p, @"^[A-Za-z]:\\"))
+        {
+            try { if (new DriveInfo(p.Substring(0, 3)).DriveType == DriveType.Network) return ""; } catch { }
+            return p + " ist kein Netzlaufwerk (lokales Laufwerk)";
+        }
+        return p + " ist kein UNC-Pfad (\\\\server\\freigabe\\Ordner)";
+    }
+
+    // \\server\freigabe aus einem UNC-Pfad (für die Verbindung), sonst leer
+    public static string Freigabe(string pfad)
+    {
+        System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(pfad ?? "", @"^(\\\\[^\\]+\\[^\\]+)");
+        return m.Success ? m.Groups[1].Value : "";
+    }
+
+    // ohne abschließendes \, außer beim Stamm eines Laufwerks (Z:\); wie Format-NasPfad in Kern\Ablage.ps1
+    public static string Vereinheitlichen(string pfad)
+    {
+        string p = (pfad ?? "").Trim().TrimEnd('\\');
+        if (p.Length == 2 && p[1] == ':') p += "\\";
+        return p;
+    }
+
+    public static string KonfigDatei(string dataDir) { return String.IsNullOrEmpty(dataDir) ? "" : Path.Combine(dataDir, "Netzwerk.json"); }
+
+    public static bool LeseKonfig(string dataDir, out string pfad, out string benutzer)
+    {
+        pfad = ""; benutzer = "";
+        string f = KonfigDatei(dataDir);
+        if (f.Length == 0 || !File.Exists(f)) return false;
+        try
+        {
+            Dictionary<string, object> d = new System.Web.Script.Serialization.JavaScriptSerializer().DeserializeObject(File.ReadAllText(f, Encoding.UTF8)) as Dictionary<string, object>;
+            if (d == null) return false;
+            object o;
+            if (d.TryGetValue("NasPfad", out o) && o != null) pfad = Convert.ToString(o);
+            else if (d.TryGetValue("NetzwerkPfad", out o) && o != null) pfad = Convert.ToString(o);
+            if (d.TryGetValue("Benutzer", out o) && o != null) benutzer = Convert.ToString(o);
+        }
+        catch { return false; }
+        pfad = Vereinheitlichen(pfad);
+        return pfad.Length > 0;
+    }
+
+    public static void SchreibeKonfig(string dataDir, string pfad, string benutzer)
+    {
+        Dictionary<string, object> d = new Dictionary<string, object>();
+        d["NasPfad"] = Vereinheitlichen(pfad);
+        if (!String.IsNullOrEmpty(benutzer)) d["Benutzer"] = benutzer.Trim();
+        Directory.CreateDirectory(dataDir);
+        File.WriteAllText(KonfigDatei(dataDir), new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(d), new UTF8Encoding(true));
+    }
+
+    public static void LoescheKonfig(string dataDir)
+    {
+        string f = KonfigDatei(dataDir);
+        if (f.Length > 0 && File.Exists(f)) File.Delete(f);
+    }
+
+    // Zeitpunkt des letzten Abgleichs aus Minibench-Daten\Abgleich\Stand.json ("yyyy-MM-dd HH:mm:ss"), sonst leer
+    public static string LetzterAbgleich(string dataDir)
+    {
+        try
+        {
+            string f = Path.Combine(Path.Combine(dataDir, "Abgleich"), "Stand.json");
+            if (!File.Exists(f)) return "";
+            string t = File.ReadAllText(f, Encoding.UTF8);
+            System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(t, @"""Zeit""\s*:\s*""(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})");
+            return m.Success ? m.Groups[3].Value + "." + m.Groups[2].Value + "." + m.Groups[1].Value + " " + m.Groups[4].Value + ":" + m.Groups[5].Value : "";
+        }
+        catch { return ""; }
+    }
+
+    // Zeile für die Seite Vergleichsdatenbank
+    public static string AblageText(string dataDir)
+    {
+        string t = "Datenordner: " + (String.IsNullOrEmpty(dataDir) ? "(nicht verfügbar)" : dataDir);
+        string p, b;
+        if (!String.IsNullOrEmpty(dataDir) && LeseKonfig(dataDir, out p, out b))
+        {
+            string z = LetzterAbgleich(dataDir);
+            t += "   ·   Netzlaufwerk: " + p + (z.Length > 0 ? " (zuletzt abgeglichen " + z + ")" : " (noch nicht abgeglichen)");
+        }
+        return t;
+    }
+
+    // Ergebnis des Hilfsmodus -Abgleich: ok|zumNas|aufStick|gelöscht|Konflikte|Fehler|erreichbar -> kurzer Text
+    public static string ErgebnisText(string res, out bool ok, out bool erreichbar)
+    {
+        ok = false; erreichbar = false;
+        string[] x = (res ?? "").Split('|');
+        if (x.Length < 7) return "Keine Rückmeldung vom Abgleich.";
+        ok = x[0] == "1"; erreichbar = x[6] == "1";
+        if (!erreichbar) return "Netzlaufwerk oder Ordner nicht erreichbar, nichts abgeglichen.";
+        if (Angehalten(res)) return "Abgleich angehalten, nichts geändert.";
+        return x[1] + " zum Netzlaufwerk, " + x[2] + " auf den Stick, " + x[3] + " gelöscht, " + x[4] + " Konflikte, " + x[5] + " Fehler";
+    }
+
+    // Schutz vor Massenlöschung hat angehalten (8. Feld des Ergebnisses)
+    public static bool Angehalten(string res)
+    {
+        string[] x = (res ?? "").Split('|');
+        return x.Length >= 8 && x[7] == "1";
+    }
+
+    // Ordner über dem NAS-Ordner: die Freigabe (\\server\freigabe) oder der Stamm des Netzlaufwerks
+    static string Oberhalb(string pfad)
+    {
+        string f = Freigabe(pfad);
+        if (f.Length > 0) return f;
+        try { return Path.GetPathRoot(pfad) ?? ""; } catch { return ""; }
+    }
+
+    // Prüfung mit Zeitlimit in einem eigenen Thread (ein nicht erreichbarer Server blockiert sonst bis zu einer Minute);
+    // die Oberfläche verarbeitet währenddessen Nachrichten, ist aber gesperrt (keine zweite Aktion)
+    static bool MitFrist(Func<bool> pruefung, int timeoutMs)
+    {
+        bool ok = false;
+        System.Threading.Thread t = new System.Threading.Thread(delegate() { try { ok = pruefung(); } catch { ok = false; } });
+        t.IsBackground = true; t.Start();
+        DateTime bis = DateTime.Now.AddMilliseconds(timeoutMs);
+        while (t.IsAlive && DateTime.Now < bis) { Application.DoEvents(); t.Join(30); }
+        return !t.IsAlive && ok;
+    }
+
+    // Ist der Server erreichbar (Freigabe vorhanden)? Ob der Ordner selbst fehlen darf, entscheidet der Abgleich.
+    public static bool Erreichbar(string pfad, int timeoutMs)
+    {
+        if (PfadFehler(pfad).Length > 0) return false;
+        string ober = Oberhalb(pfad);
+        return MitFrist(delegate() { return Directory.Exists(pfad) || (ober.Length > 0 && Directory.Exists(ober)); }, timeoutMs);
+    }
+
+    // Beim Einrichten: Ordner vorhanden oder auf der erreichbaren Freigabe angelegt?
+    public static bool OrdnerBereit(string pfad, int timeoutMs)
+    {
+        if (PfadFehler(pfad).Length > 0) return false;
+        return MitFrist(delegate() {
+            if (Directory.Exists(pfad)) return true;
+            string eltern = Path.GetDirectoryName(pfad);
+            if (String.IsNullOrEmpty(eltern) || !Directory.Exists(eltern)) return false;
+            Directory.CreateDirectory(pfad);
+            return true;
+        }, timeoutMs);
+    }
+
+    // Verbindung mit Benutzer und Kennwort (nicht dauerhaft). Rückgabe: leer bei Erfolg, sonst der Fehler.
+    public static string Verbinden(string pfad, string benutzer, string kennwort)
+    {
+        string share = Freigabe(pfad);
+        if (share.Length == 0) return "Verbinden geht nur mit einem UNC-Pfad (\\\\server\\freigabe).";
+        NETRESOURCE r = new NETRESOURCE(); r.lpRemoteName = share;
+        int rc = WNetAddConnection2(r, String.IsNullOrEmpty(kennwort) ? null : kennwort, String.IsNullOrEmpty(benutzer) ? null : benutzer, 0);
+        if (rc == 0) { lock (verbunden) if (!verbunden.Contains(share)) verbunden.Add(share); return ""; }
+        if (rc == 1219) return "Zur Freigabe besteht schon eine Verbindung mit anderen Anmeldedaten (Fehler 1219).";
+        if (rc == 86 || rc == 1326) return "Benutzername oder Kennwort falsch (Fehler " + rc + ").";
+        return "Verbindung fehlgeschlagen (Fehler " + rc + ": " + new System.ComponentModel.Win32Exception(rc).Message + ").";
+    }
+
+    // beim Schließen: nur die selbst hergestellten Verbindungen trennen
+    public static void AlleTrennen()
+    {
+        lock (verbunden)
+        {
+            foreach (string s in verbunden) { try { WNetCancelConnection2(s, 0, false); } catch { } }
+            verbunden.Clear();
+        }
+    }
+}

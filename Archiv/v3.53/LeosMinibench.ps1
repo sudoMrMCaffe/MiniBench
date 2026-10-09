@@ -91,13 +91,6 @@ param(
     [switch]$OptWerkzeugeHolen,
     # Seite Tools (ab v3.53): Softwarepakete über winget installieren, "Id=Name;Id=Name" (Hilfsmodus der Oberfläche)
     [string]$SoftwareInstallieren = '',
-    # Ablage (ab v3.54): Abgleich mit dem Netzlaufwerk, Läufe entfernen (ins Archiv) und umbenennen (Hilfsmodi der Oberfläche)
-    [switch]$Abgleich,
-    [switch]$AbgleichLoeschen,
-    [switch]$AbgleichNeu,
-    [string]$Entfernen = '',
-    [string]$Umbenennen = '',
-    [string]$NeuerName = '',
     # Allgemein
     [switch]$KiOhneAnonymisierung,
     # Hilfswerkzeuge (PawnIO, smartmontools per winget) nach dem Lauf: entfernen oder auf diesem PC behalten; leer = gespeicherte Wahl
@@ -207,9 +200,8 @@ if ('ä' -ne [string][char]0xE4 -and $PSCommandPath) {
 
 #region ---------- Administratorrechte ----------
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-# Vergleich, Import, Dashboard, Datenpflege sowie Abgleich, Entfernen und Umbenennen (ab v3.54) arbeiten nur im Datenordner
-# und brauchen keine Administratorrechte
-if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenpflege -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme -and -not $Abgleich -and -not $Entfernen -and -not $Umbenennen) {
+# Vergleich, Import, Dashboard und Datenpflege arbeiten nur im Datenordner und brauchen keine Administratorrechte
+if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenpflege -and -not $Dashboard -and -not $DashboardExport) {
     if (-not $PSCommandPath) { return }
     # Netzlaufwerke sind im Administratorkontext nicht verbunden: Skript und Datenordner als UNC-Pfad weitergeben
     function ConvertTo-Unc([string]$Path) {
@@ -234,7 +226,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenp
 }
 #endregion
 
-$ScriptVersion = '3.54'
+$ScriptVersion = '3.53'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -947,11 +939,55 @@ function Test-WritableDir([string]$Dir) {
         return $true
     } catch { return $false }
 }
-# Ab v3.54 liegt der Datenordner immer lokal (neben dem Programm, also auf dem Stick). Ein Netzlaufwerk (NAS) ist nur noch
-# ein Spiegel der Nutzerdaten, abgeglichen per Aktualisieren (Kern\Ablage.ps1). Der Start greift nie auf das NAS zu:
-# vorher konnte ein nicht erreichbares NAS den Start um Minuten verzögern oder ganz anhalten (net use, SMB-Zeitlimits).
 function Resolve-DataDir([string]$AppDir = '') {
-    # Kandidaten (USB-Stick neben dem Programm, Übergabepfad -DatenDir) mit automatischem Fallback
+    # 1. Optionalen Netzwerk- / NAS-Pfad aus Netzwerk.json prüfen
+    $localCfgDirs = [System.Collections.Generic.List[string]]::new()
+    if ($AppDir) {
+        $localCfgDirs.Add((Join-Path $AppDir 'Minibench-Daten'))
+        $localCfgDirs.Add($AppDir)
+    }
+    if ($env:LEOSMINIBENCH_EXE) {
+        try {
+            $exeDir = Split-Path $env:LEOSMINIBENCH_EXE -Parent
+            if ($exeDir) { $localCfgDirs.Add((Join-Path $exeDir 'Minibench-Daten')) }
+        } catch { }
+    }
+    if ($PSScriptRoot -and $PSScriptRoot -notlike "$env:TEMP*" -and $PSScriptRoot -notlike "*\tests*") {
+        $localCfgDirs.Add((Join-Path $PSScriptRoot 'Minibench-Daten'))
+    }
+    if ($DatenDir) {
+        $localCfgDirs.Add($DatenDir.TrimEnd('\'))
+    }
+    try {
+        $myDoc = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Leos Minibench'
+        $localCfgDirs.Add($myDoc)
+    } catch { }
+    try {
+        $appData = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'LeosMinibench'
+        $localCfgDirs.Add($appData)
+    } catch { }
+    if (Test-Path -LiteralPath 'Minibench-Daten') {
+        try { $localCfgDirs.Add((Convert-Path 'Minibench-Daten')) } catch { }
+    }
+
+    foreach ($lcd in $localCfgDirs) {
+        if (-not $lcd) { continue }
+        $netCfg = Join-Path $lcd 'Netzwerk.json'
+        if (Test-Path -LiteralPath $netCfg) {
+            try {
+                $netObj = Get-Content -LiteralPath $netCfg -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+                $nas = $(if ($netObj.NasPfad) { [string]$netObj.NasPfad } elseif ($netObj.NetzwerkPfad) { [string]$netObj.NetzwerkPfad } else { '' }).Trim().TrimEnd('\')
+                if ($nas) {
+                    if (Test-WritableDir $nas) { return $nas }
+                    # Automatisch Verbindung wiederherstellen via net use falls Sitzung noch nicht aktiv ist
+                    try { & net.exe use $nas /persistent:yes 2>&1 | Out-Null } catch { }
+                    if (Test-WritableDir $nas) { return $nas }
+                }
+            } catch { }
+        }
+    }
+
+    # 2. Lokale Kandidaten (USB-Stick / Übergabepfad) mit automatischem Fallback
     $cands = @()
     if ($AppDir) { $cands += (Join-Path $AppDir 'Minibench-Daten'); $cands += $AppDir }
     if ($DatenDir) { $cands += $DatenDir.TrimEnd('\') }
@@ -987,10 +1023,52 @@ function Test-IsNetworkPath([string]$Path) {
     return $false
 }
 
+function Resolve-LocalDataDir([string]$AppDir = '') {
+    $cands = [System.Collections.Generic.List[string]]::new()
+    if ($AppDir -and -not (Test-IsNetworkPath $AppDir)) {
+        $cands.Add((Join-Path $AppDir 'Minibench-Daten'))
+        $cands.Add($AppDir)
+    }
+    if ($DatenDir -and -not (Test-IsNetworkPath $DatenDir)) {
+        $cands.Add($DatenDir.TrimEnd('\'))
+    }
+    if ($env:LEOSMINIBENCH_EXE) {
+        try {
+            $exeDir = Split-Path $env:LEOSMINIBENCH_EXE -Parent
+            if ($exeDir -and -not (Test-IsNetworkPath $exeDir)) {
+                $cands.Add((Join-Path $exeDir 'Minibench-Daten'))
+            }
+        } catch { }
+    }
+    if ($PSScriptRoot -and $PSScriptRoot -notlike "$env:TEMP*" -and $PSScriptRoot -notlike "*\tests*" -and -not (Test-IsNetworkPath $PSScriptRoot)) {
+        $cands.Add((Join-Path $PSScriptRoot 'Minibench-Daten'))
+    }
+    if (Test-Path -LiteralPath 'Minibench-Daten') {
+        try {
+            $cp = Convert-Path 'Minibench-Daten'
+            if (-not (Test-IsNetworkPath $cp)) { $cands.Add($cp) }
+        } catch { }
+    }
+    foreach ($c in $cands) {
+        if (-not $c) { continue }
+        $old = Join-Path (Split-Path $c -Parent) 'PC-Diagnose-Daten'
+        if (-not (Test-Path -LiteralPath $c) -and (Test-Path -LiteralPath $old)) {
+            try { Rename-Item -LiteralPath $old -NewName (Split-Path $c -Leaf) -ErrorAction Stop } catch { }
+        }
+        if (Test-WritableDir $c) { return $c }
+    }
+    $doc = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Leos Minibench'
+    if (Test-WritableDir $doc) { return $doc }
+    $localApp = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'LeosMinibench'
+    if (Test-WritableDir $localApp) { return $localApp }
+    $tmp = Join-Path ([System.IO.Path]::GetTempPath()) 'LeosMinibench'
+    if (Test-WritableDir $tmp) { return $tmp }
+    return ''
+}
+
 $script:DataDirFallback = $false
 $script:DataDir      = Resolve-DataDir
-# Cache, Tools und Laufzeit liegen im selben (lokalen) Datenordner; LocalDataDir bleibt als Name für ältere Stellen erhalten
-$script:LocalDataDir = $script:DataDir
+$script:LocalDataDir = $(if ($script:DataDir -and -not (Test-IsNetworkPath $script:DataDir)) { $script:DataDir } else { Resolve-LocalDataDir })
 $script:ReportDir    = $(if ($script:DataDir) { Join-Path $script:DataDir 'Berichte' } else { Join-Path $env:TEMP 'LeosMinibench-Berichte' })
 $script:DbDir        = $(if ($script:DataDir) { Join-Path $script:DataDir 'Datenbank' } else { '' })
 $script:ToolsDir     = $(if ($script:LocalDataDir) { Join-Path $script:LocalDataDir 'Tools' } else { Join-Path ([System.IO.Path]::GetTempPath()) 'LeosMinibench\Tools' })
@@ -1402,8 +1480,7 @@ function Invoke-Datenpflege {
                             $res.Zeilen.Add(('Laufzeit\{0}\sensor.stop gelöscht: Rest der Live-Ansicht' -f $pc.Name))
                         } catch { }
                     }
-                    # -Include wirkt unter PS 5.1 ohne -Recurse nicht, daher Namensfilter per Where-Object (ab v3.54)
-                    foreach ($tmp in @(Get-ChildItem -LiteralPath $pc.FullName -File -ErrorAction SilentlyContinue | Where-Object { ($_.Name -like '*.tmp' -or $_.Name -like '*.lock' -or $_.Name -like 'checkpoint*.json') -and ($now - $_.LastWriteTime).TotalHours -ge 2 })) {
+                    foreach ($tmp in @(Get-ChildItem -LiteralPath $pc.FullName -Include '*.tmp', '*.lock', 'checkpoint*.json' -File -ErrorAction SilentlyContinue | Where-Object { ($now - $_.LastWriteTime).TotalHours -ge 2 })) {
                         try {
                             $sz = & $getSize $tmp.FullName
                             Remove-Item -LiteralPath $tmp.FullName -Force -ErrorAction Stop
@@ -1416,9 +1493,8 @@ function Invoke-Datenpflege {
                     try { Remove-Item -LiteralPath $pc.FullName -Force -ErrorAction Stop } catch { }
                 }
             }
-            # Wurzel-Dateien im Laufzeitordner: nur temporäre Reste. PawnIO_<PC>.txt (Merker für die Entfernung des Treibers
-            # nach einem Absturz) und Start.log bleiben (bis 3.53 wurde alles älter als 2 Stunden gelöscht).
-            foreach ($rt in @(Get-ChildItem -LiteralPath $lz -File -ErrorAction SilentlyContinue | Where-Object { ($_.Name -like '*.tmp' -or $_.Name -like '*.lock') -and ($now - $_.LastWriteTime).TotalHours -ge 2 })) {
+            # Wurzel-Dateien im Laufzeitordner
+            foreach ($rt in @(Get-ChildItem -LiteralPath $lz -File -ErrorAction SilentlyContinue | Where-Object { ($now - $_.LastWriteTime).TotalHours -ge 2 })) {
                 try {
                     $sz = & $getSize $rt.FullName
                     Remove-Item -LiteralPath $rt.FullName -Force -ErrorAction Stop
@@ -1465,625 +1541,6 @@ if ($Datenpflege) {
     Write-Host ('Datenpflege: {0}{1}. Archiv: {2}' -f $dp.Kurz, $cleanText, $dp.Archiv)
     Send-GuiEvent 'RESULT' ('{0}{1}' -f $dp.Kurz, $cleanText)
     exit $(if ($dp.Fehler) { 1 } else { 0 })
-}
-#endregion
-#region ---------- Ablage: Netzlaufwerk als Spiegel, Entfernen und Umbenennen von Läufen (ab v3.54) ----------
-# Arbeitsort ist immer der Datenordner auf dem Stick (Kern\Datenordner.ps1). Ein Netzlaufwerk (NAS) ist ein Spiegel der
-# Nutzerdaten: Berichte, Datenbank, Änderungen sowie Voreinstellungen.json und Referenz.json. Abgeglichen wird nur auf
-# Knopfdruck (Aktualisieren auf der Seite Vergleichsdatenbank, Hilfsmodus -Abgleich), in beide Richtungen:
-#   * Grundlage ist der Stand des letzten Abgleichs (Minibench-Daten\Abgleich\Stand.json, Größe und Zeit je Datei und Seite)
-#   * neu oder geändert auf einer Seite: auf die andere kopieren
-#   * auf einer Seite gelöscht (seit dem letzten Abgleich): auf der anderen ins Archiv verschieben
-#   * auf beiden Seiten geändert: die neuere Fassung gilt, die ältere kommt ins Archiv (Archiv\Abgleich\<Zeit>\Konflikte)
-#   * Änderung schlägt Löschung: wurde eine Datei auf einer Seite gelöscht und auf der anderen geändert, bleibt sie
-# Nie abgeglichen werden Tools, Cache, Laufzeit, Archiv, Netzwerk.json, Einstellungen.json, Geraete.json und Berichte\Dashboard.html.
-# Der Ordner eines laufenden Laufs (laufend.json) bleibt außen vor. Das NAS wird mit Zeitlimit geprüft, nie beim Start.
-# Schutz vor Massenlöschung: Fehlt auf einer Seite ein ganzer Ordner oder ein großer Teil der zuletzt abgeglichenen Dateien
-# (Freigabe nicht eingehängt, Ordner verschoben), hält der Abgleich an und ändert nichts, bis er ausdrücklich bestätigt wird.
-# Lässt sich eine Seite nicht vollständig lesen, wird ebenfalls nichts geändert. Abgleich.lock auf dem NAS verhindert zwei
-# gleichzeitige Abgleiche.
-# Netzwerk.json liegt nur im Datenordner auf dem Stick: {"NasPfad": "\\\\server\\freigabe\\Ordner", "Benutzer": "..."};
-# ein Kennwort wird nie gespeichert.
-
-$script:AbgleichOrdner   = @('Berichte', 'Datenbank', 'Änderungen')
-$script:AbgleichDateien  = @('Voreinstellungen.json', 'Referenz.json')
-$script:AbgleichToleranz = 2.0          # Sekunden; FAT-Sticks speichern Zeiten auf 2 s genau
-$script:AbgleichFormat   = 'Minibench-Abgleich/1'
-$script:AbgleichSperreMin = 30          # Abgleich.lock älter als das gilt als verwaist
-
-# Rel-Pfade stehen immer mit \ (Stand.json, Vergleiche); für Dateizugriffe in das Trennzeichen des Systems wandeln
-function Join-AbgleichPfad([string]$Root, [string]$Rel) { return (Join-Path $Root ($Rel -replace '\\', [IO.Path]::DirectorySeparatorChar)) }
-
-# ohne ' und & (Windows PowerShell 5.1 schreibt sie in JSON als ' und &), [ ] (Platzhalter) und ;
-function Get-AblageName([string]$s) { return (([string]$s -replace '[\\/:*?"<>|;''&\[\]\s]+', '_').Trim('_', '.')) }
-
-# NAS-Pfad vereinheitlichen: ohne abschließendes \, außer beim Stamm eines Laufwerks (Z:\)
-function Format-NasPfad([string]$Pfad) {
-    $p = ([string]$Pfad).Trim().TrimEnd('\')
-    if ($p -match '^[A-Za-z]:$') { $p += '\' }
-    return $p
-}
-
-# ---------- Netzwerk.json ----------
-# Prüft einen NAS-Pfad. Rückgabe: leer, wenn gültig, sonst der Grund. Erlaubt sind UNC-Pfade (\\server\freigabe[\...])
-# und Laufwerke, die Windows als Netzlaufwerk kennt. Ein Pfad mit nur einem führenden \ (\server\...) zeigt auf das
-# Laufwerk, von dem das Programm läuft, also auf den Stick; das war die Ursache des Ordners TRUENAS auf dem Stick.
-function Test-NasPfad([string]$Pfad) {
-    $p = ([string]$Pfad).Trim()
-    if (-not $p) { return 'kein Pfad angegeben' }
-    if ($p -match '^\\\\[^\\/:*?"<>|]+\\[^\\/:*?"<>|]+(\\.*)?$') { return '' }
-    if ($p -match '^\\[^\\]') { return ('{0} beginnt mit nur einem \ und zeigte damit auf den Stick; gemeint ist \{0}' -f $p) }
-    if ($p -match '^[A-Za-z]:\\') {
-        if (Test-IsNetworkPath $p) { return '' }
-        return ('{0} ist kein Netzlaufwerk (lokales Laufwerk)' -f $p)
-    }
-    return ('{0} ist kein UNC-Pfad (\\server\freigabe\Ordner)' -f $p)
-}
-
-function Get-NasKonfig([string]$DataDir = $script:DataDir) {
-    if (-not $DataDir) { return $null }
-    $f = Join-Path $DataDir 'Netzwerk.json'
-    if (-not (Test-Path -LiteralPath $f)) { return $null }
-    try { $j = Get-Content -LiteralPath $f -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop } catch { return $null }
-    $p = $(if ($j.NasPfad) { [string]$j.NasPfad } elseif ($j.NetzwerkPfad) { [string]$j.NetzwerkPfad } else { '' })
-    $p = Format-NasPfad $p
-    if (-not $p) { return $null }
-    return [pscustomobject]@{ Pfad = $p; Benutzer = [string]$j.Benutzer; Datei = $f; Fehler = (Test-NasPfad $p) }
-}
-
-function Save-NasKonfig([string]$DataDir, [string]$Pfad, [string]$Benutzer = '') {
-    $o = [ordered]@{ NasPfad = (Format-NasPfad $Pfad) }
-    if ($Benutzer) { $o.Benutzer = $Benutzer.Trim() }
-    New-Item -ItemType Directory -Path $DataDir -Force -ErrorAction Stop | Out-Null
-    [IO.File]::WriteAllText((Join-Path $DataDir 'Netzwerk.json'), ($o | ConvertTo-Json), (New-Object Text.UTF8Encoding($true)))
-}
-
-# Bis 3.53 schrieb der NAS-Dialog Netzwerk.json zusätzlich nach Dokumente\Leos Minibench und %APPDATA%\LeosMinibench, auch
-# auf fremden PCs. Diese Kopien werden nie übernommen (sonst gliche ein Stick ohne NAS mit dem NAS eines anderen ab). Beim
-# Start entfernt: nur Kopien, die auf dasselbe Netzlaufwerk zeigen wie der Stick (eigene Reste); fremde bleiben unberührt.
-function Get-AlteNasKonfigDateien {
-    $alt = @()
-    try { $d = [Environment]::GetFolderPath('MyDocuments'); if ($d) { $alt += (Join-Path (Join-Path $d 'Leos Minibench') 'Netzwerk.json') } } catch { }
-    try { $d = [Environment]::GetFolderPath('ApplicationData'); if ($d) { $alt += (Join-Path (Join-Path $d 'LeosMinibench') 'Netzwerk.json') } } catch { }
-    return $alt
-}
-function Move-AlteNasKonfig([string]$DataDir = $script:DataDir, [string[]]$AlteDateien = $null) {
-    $res = New-Object System.Collections.Generic.List[string]
-    if (-not $DataDir) { return $res }
-    $eigen = Get-NasKonfig $DataDir
-    if (-not $eigen) { return $res }
-    $eigene = Join-Path $DataDir 'Netzwerk.json'
-    $alt = $(if ($null -ne $AlteDateien) { $AlteDateien } else { Get-AlteNasKonfigDateien })
-    foreach ($f in $alt) {
-        if (-not $f -or -not (Test-Path -LiteralPath $f)) { continue }
-        if ([IO.Path]::GetFullPath($f) -eq [IO.Path]::GetFullPath($eigene)) { continue }
-        $k = Get-NasKonfig (Split-Path $f -Parent)
-        if (-not $k -or $k.Pfad -ine $eigen.Pfad) { continue }
-        try {
-            Remove-Item -LiteralPath $f -Force -ErrorAction Stop
-            $res.Add(('{0} entfernt (Rest einer früheren Version)' -f $f))
-            $d = Split-Path $f -Parent
-            if ((Split-Path $d -Leaf) -eq 'LeosMinibench' -and -not @(Get-ChildItem -LiteralPath $d -Force -ErrorAction SilentlyContinue).Count) { Remove-Item -LiteralPath $d -Force -ErrorAction SilentlyContinue }
-        } catch { }
-    }
-    return $res
-}
-
-# Ist der Ordner auf dem NAS erreichbar? Mit Zeitlimit in einem eigenen Runspace, weil ein nicht erreichbarer Server
-# Directory.Exists bis zu einer Minute blockieren kann. Mit -Anlegen wird ein fehlender Ordner auf einer vorhandenen
-# Freigabe angelegt (nur beim ersten Abgleich; danach hieße ein fehlender Ordner, dass etwas nicht stimmt).
-function Test-NasErreichbar([string]$Pfad, [int]$TimeoutMs = 6000, [switch]$Anlegen) {
-    if (-not $Pfad) { return $false }
-    $ps = [powershell]::Create()
-    try {
-        [void]$ps.AddScript({
-            param($p, $neu)
-            if ([IO.Directory]::Exists($p)) { return $true }
-            if (-not $neu) { return $false }
-            $parent = [IO.Path]::GetDirectoryName($p)
-            if ($parent -and [IO.Directory]::Exists($parent)) { try { [void][IO.Directory]::CreateDirectory($p); return $true } catch { return $false } }
-            return $false
-        }).AddArgument($Pfad).AddArgument([bool]$Anlegen)
-        $h = $ps.BeginInvoke()
-        if (-not $h.AsyncWaitHandle.WaitOne($TimeoutMs)) { try { [void]$ps.BeginStop($null, $null) } catch { }; return $false }
-        $r = @($ps.EndInvoke($h))
-        return ($r.Count -gt 0 -and [bool]$r[-1])
-    } catch { return $false }
-    finally { if ($h -and $h.IsCompleted) { $ps.Dispose() } }
-}
-
-# ---------- Bestand und Plan ----------
-# Ordner laufender Läufe (laufend.json im Laufzeitordner) relativ zum Datenordner, z. B. Berichte\PC1_20261009_1200
-function Get-AbgleichBelegt([string]$DataDir) {
-    $set = New-Object System.Collections.Generic.List[string]
-    $lz = Join-Path $DataDir 'Laufzeit'
-    foreach ($lf in @(Get-ChildItem -LiteralPath $lz -Filter 'laufend.json' -Recurse -File -ErrorAction SilentlyContinue)) {
-        try { $j = Get-Content -LiteralPath $lf.FullName -Raw -Encoding UTF8 | ConvertFrom-Json } catch { continue }
-        if ($j -and $j.OutputDir) { $set.Add('Berichte\' + @(([string]$j.OutputDir).TrimEnd('\', '/') -split '[\\/]')[-1]) }
-    }
-    return @($set)
-}
-
-function Test-AbgleichAusnahme([string]$Rel, $Belegt) {
-    $leaf = Split-Path $Rel -Leaf
-    if ($leaf -like '*.tmp' -or $leaf -like '~abgleich_*' -or $leaf -like '.schreibtest_*') { return $true }
-    if ($Rel -ieq 'Berichte\Dashboard.html') { return $true }
-    foreach ($b in $Belegt) { if ($Rel.StartsWith($b + '\', [StringComparison]::OrdinalIgnoreCase)) { return $true } }
-    return $false
-}
-
-# Alle abzugleichenden Dateien einer Seite: Rel -> @{ S = Größe; T = Zeit in UTC-Ticks }. Lässt sich ein Ordner nicht
-# vollständig lesen (Zugriff verweigert, Pfad zu lang, Verbindung weg), bricht die Funktion ab: Fehlende Dateien würden
-# sonst als gelöscht gelten.
-function Get-AbgleichBestand([string]$Root, $Belegt = @()) {
-    $d = New-Object 'System.Collections.Generic.Dictionary[string,object]' ([StringComparer]::OrdinalIgnoreCase)
-    $rootFull = [IO.Path]::GetFullPath($Root).TrimEnd('\', '/')
-    foreach ($o in $script:AbgleichOrdner) {
-        $dir = Join-Path $Root $o
-        if (-not (Test-Path -LiteralPath $dir)) { continue }
-        $ev = $null
-        $liste = @(Get-ChildItem -LiteralPath $dir -Recurse -File -Force -ErrorAction SilentlyContinue -ErrorVariable ev)
-        if ($ev -and @($ev).Count) { throw ('{0} ist nicht vollständig lesbar: {1}' -f $dir, @($ev)[0].Exception.Message) }
-        foreach ($f in $liste) {
-            $rel = $f.FullName.Substring($rootFull.Length).TrimStart('\', '/') -replace '/', '\'
-            if (Test-AbgleichAusnahme $rel $Belegt) { continue }
-            $d[$rel] = [pscustomobject]@{ S = [int64]$f.Length; T = [int64]$f.LastWriteTimeUtc.Ticks }
-        }
-    }
-    foreach ($n in $script:AbgleichDateien) {
-        $f = Join-Path $Root $n
-        if (Test-Path -LiteralPath $f -PathType Leaf) { $fi = Get-Item -LiteralPath $f -Force; $d[$n] = [pscustomobject]@{ S = [int64]$fi.Length; T = [int64]$fi.LastWriteTimeUtc.Ticks } }
-    }
-    return $d
-}
-
-# Gleich heißt: gleiche Größe und gleiche Zeit (2 s Toleranz) oder genau um ganze Stunden versetzt (bis 14 h). FAT-Sticks
-# speichern Ortszeit; nach der Umstellung auf Sommerzeit oder an einem PC in einer anderen Zeitzone erscheinen alle Dateien
-# um eine oder mehrere Stunden verschoben (wie robocopy /DST).
-function Test-AbgleichGleich($a, $b) {
-    if ($null -eq $a -or $null -eq $b) { return $false }
-    if ([int64]$a.S -ne [int64]$b.S) { return $false }
-    $dt = [math]::Abs(([double]([int64]$a.T - [int64]$b.T)) / 1e7)
-    if ($dt -le $script:AbgleichToleranz) { return $true }
-    if ($dt -gt 14 * 3600 + $script:AbgleichToleranz) { return $false }
-    return ([math]::Abs($dt - [math]::Round($dt / 3600) * 3600) -le $script:AbgleichToleranz)
-}
-
-# Stand des letzten Abgleichs: Rel -> @{ L = @{S;T}; N = @{S;T} }; leer, wenn er zu einem anderen NAS-Pfad gehört
-function Read-AbgleichStand([string]$DataDir, [string]$NasPfad) {
-    $d = New-Object 'System.Collections.Generic.Dictionary[string,object]' ([StringComparer]::OrdinalIgnoreCase)
-    $f = Join-Path (Join-Path $DataDir 'Abgleich') 'Stand.json'
-    if (-not (Test-Path -LiteralPath $f)) { return $d }
-    try { $j = Get-Content -LiteralPath $f -Raw -Encoding UTF8 | ConvertFrom-Json } catch { return $d }
-    if ([string]$j.Format -ne $script:AbgleichFormat -or ([string]$j.NasPfad).TrimEnd('\') -ine $NasPfad.TrimEnd('\')) { return $d }
-    foreach ($e in @($j.Dateien)) {
-        if (-not $e.P) { continue }
-        $d[[string]$e.P] = [pscustomobject]@{ L = [pscustomobject]@{ S = [int64]$e.LS; T = [int64]$e.LT }; N = [pscustomobject]@{ S = [int64]$e.NS; T = [int64]$e.NT } }
-    }
-    return $d
-}
-
-function Save-AbgleichStand([string]$DataDir, [string]$NasPfad, $Stand) {
-    $dir = Join-Path $DataDir 'Abgleich'
-    New-Item -ItemType Directory -Path $dir -Force | Out-Null
-    $liste = @(foreach ($k in @($Stand.Keys | Sort-Object)) { $e = $Stand[$k]; [ordered]@{ P = $k; LS = $e.L.S; LT = $e.L.T; NS = $e.N.S; NT = $e.N.T } })
-    $o = [ordered]@{ Format = $script:AbgleichFormat; NasPfad = $NasPfad; Zeit = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss', [Globalization.CultureInfo]::InvariantCulture); Dateien = $liste }
-    $f = Join-Path $dir 'Stand.json'
-    [IO.File]::WriteAllText($f + '.tmp', ($o | ConvertTo-Json -Depth 4), (New-Object Text.UTF8Encoding($false)))
-    [IO.File]::Copy($f + '.tmp', $f, $true); Remove-Item -LiteralPath ($f + '.tmp') -Force -ErrorAction SilentlyContinue
-}
-
-# Plan aus beiden Beständen und dem letzten Stand. Aktionen: NachNas, VomNas, LoeschenLokal, LoeschenNas, Gleich,
-# KonfliktNachNas (lokal neuer), KonfliktVomNas (NAS neuer), Vergessen (auf beiden Seiten weg).
-function Get-AbgleichPlan($Lokal, $Nas, $Stand) {
-    $alle = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
-    foreach ($k in $Lokal.Keys) { [void]$alle.Add($k) }; foreach ($k in $Nas.Keys) { [void]$alle.Add($k) }; foreach ($k in $Stand.Keys) { [void]$alle.Add($k) }
-    $plan = New-Object System.Collections.Generic.List[object]
-    foreach ($rel in @($alle | Sort-Object)) {
-        $l = $(if ($Lokal.ContainsKey($rel)) { $Lokal[$rel] } else { $null })
-        $n = $(if ($Nas.ContainsKey($rel)) { $Nas[$rel] } else { $null })
-        $b = $(if ($Stand.ContainsKey($rel)) { $Stand[$rel] } else { $null })
-        $a = ''
-        if ($l -and $n) {
-            if (Test-AbgleichGleich $l $n) { $a = 'Gleich' }
-            elseif ($b) {
-                $lNeu = -not (Test-AbgleichGleich $l $b.L); $nNeu = -not (Test-AbgleichGleich $n $b.N)
-                if ($lNeu -and -not $nNeu) { $a = 'NachNas' }
-                elseif ($nNeu -and -not $lNeu) { $a = 'VomNas' }
-                elseif (-not $lNeu -and -not $nNeu) { $a = 'Gleich' }   # seit dem letzten Abgleich unverändert (gleicher Inhalt, andere Zeit)
-                else { $a = $(if ([int64]$l.T -ge [int64]$n.T) { 'KonfliktNachNas' } else { 'KonfliktVomNas' }) }
-            }
-            else { $a = $(if ([int64]$l.T -ge [int64]$n.T) { 'KonfliktNachNas' } else { 'KonfliktVomNas' }) }
-        }
-        elseif ($l) { $a = $(if ($b -and (Test-AbgleichGleich $l $b.L)) { 'LoeschenLokal' } else { 'NachNas' }) }
-        elseif ($n) { $a = $(if ($b -and (Test-AbgleichGleich $n $b.N)) { 'LoeschenNas' } else { 'VomNas' }) }
-        else { $a = 'Vergessen' }
-        $plan.Add([pscustomobject]@{ Rel = $rel; Aktion = $a })
-    }
-    return $plan
-}
-
-# ---------- Ausführen ----------
-function Copy-AbgleichDatei([string]$Quelle, [string]$Ziel) {
-    $dir = Split-Path $Ziel -Parent
-    if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null }
-    $tmp = Join-Path $dir ('~abgleich_' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.tmp')
-    try {
-        [IO.File]::Copy($Quelle, $tmp, $true)
-        [IO.File]::SetLastWriteTimeUtc($tmp, [IO.File]::GetLastWriteTimeUtc($Quelle))
-        if ([IO.File]::Exists($Ziel)) { [IO.File]::Delete($Ziel) }
-        [IO.File]::Move($tmp, $Ziel)
-    } finally { if ([IO.File]::Exists($tmp)) { try { [IO.File]::Delete($tmp) } catch { } } }
-}
-
-# Datei ins Archiv der eigenen Seite verschieben (Archiv\Abgleich\<Zeit>\<Art>\<Rel>)
-function Move-AbgleichArchiv([string]$Root, [string]$Rel, [string]$Stempel, [string]$Art) {
-    $quelle = Join-AbgleichPfad $Root $Rel
-    if (-not (Test-Path -LiteralPath $quelle)) { return }
-    $ziel = Join-AbgleichPfad (Join-Path (Join-Path (Join-Path $Root 'Archiv') 'Abgleich') (Join-Path $Stempel $Art)) $Rel
-    New-Item -ItemType Directory -Path (Split-Path $ziel -Parent) -Force -ErrorAction Stop | Out-Null
-    if (Test-Path -LiteralPath $ziel) { $ziel = $ziel + '.' + [guid]::NewGuid().ToString('N').Substring(0, 4) }
-    Move-Item -LiteralPath $quelle -Destination $ziel -Force -ErrorAction Stop
-}
-
-function Get-AbgleichHash([string]$Pfad) {
-    $sha = [Security.Cryptography.SHA256]::Create()
-    $fs = [IO.File]::Open($Pfad, 'Open', 'Read', 'ReadWrite')
-    try { return [BitConverter]::ToString($sha.ComputeHash($fs)) } finally { $fs.Dispose(); $sha.Dispose() }
-}
-function Test-AbgleichInhaltGleich([string]$A, [string]$B) {
-    try { return ((Get-AbgleichHash $A) -eq (Get-AbgleichHash $B)) } catch { return $false }
-}
-
-function Get-AbgleichMeta([string]$Pfad) {
-    $fi = New-Object IO.FileInfo($Pfad)
-    if (-not $fi.Exists) { return $null }
-    return [pscustomobject]@{ S = [int64]$fi.Length; T = [int64]$fi.LastWriteTimeUtc.Ticks }
-}
-
-# Leere Ordner nach Löschungen entfernen: nur die Ordner, aus denen dieser Abgleich etwas verschoben hat, aufwärts bis
-# unter den abgeglichenen Ordner (Berichte bleibt). Ordner laufender Läufe bleiben, auch wenn sie noch leer sind.
-function Remove-AbgleichLeereOrdner([string]$Root, $Rels, $Belegt = @()) {
-    foreach ($rel in @($Rels)) {
-        $teile = @(([string]$rel) -split '\\')
-        for ($n = $teile.Count - 1; $n -ge 2; $n--) {
-            $dirRel = ($teile[0..($n - 1)] -join '\')
-            $frei = $true
-            foreach ($b in $Belegt) { if ($dirRel -ieq $b -or $dirRel.StartsWith($b + '\', [StringComparison]::OrdinalIgnoreCase)) { $frei = $false } }
-            if (-not $frei) { break }
-            $dir = Join-AbgleichPfad $Root $dirRel
-            if (-not (Test-Path -LiteralPath $dir -PathType Container)) { continue }
-            if (@(Get-ChildItem -LiteralPath $dir -Force -ErrorAction SilentlyContinue).Count) { break }
-            Remove-Item -LiteralPath $dir -Force -ErrorAction SilentlyContinue
-        }
-    }
-}
-
-# Schutz vor Massenlöschung. Rückgabe: leer, oder der Grund zum Anhalten.
-function Test-AbgleichMassenloeschung($Plan, $Stand, $Lokal, $Nas) {
-    $gruende = @()
-    foreach ($seite in @(@{ Name = 'auf dem Netzlaufwerk'; Aktion = 'LoeschenLokal'; Bestand = $Nas }, @{ Name = 'auf dem Stick'; Aktion = 'LoeschenNas'; Bestand = $Lokal })) {
-        # ganze Ordner, die beim letzten Abgleich Dateien hatten und jetzt leer sind oder fehlen
-        foreach ($o in $script:AbgleichOrdner) {
-            $vorher = @($Stand.Keys | Where-Object { $_.StartsWith($o + '\', [StringComparison]::OrdinalIgnoreCase) }).Count
-            $jetzt = @($seite.Bestand.Keys | Where-Object { $_.StartsWith($o + '\', [StringComparison]::OrdinalIgnoreCase) }).Count
-            if ($vorher -ge 3 -and $jetzt -eq 0) { $gruende += ('{0} fehlt der Ordner {1} (beim letzten Abgleich {2} Dateien)' -f $seite.Name, $o, $vorher) }
-        }
-        $del = @($Plan | Where-Object { $_.Aktion -eq $seite.Aktion }).Count
-        if ($del -ge 50 -or ($del -ge 10 -and $del * 2 -ge $Stand.Count)) { $gruende += ('{0} fehlen {1} von {2} abgeglichenen Dateien' -f $seite.Name, $del, $Stand.Count) }
-    }
-    return ($gruende -join '; ')
-}
-
-# NAS sperren (Abgleich.lock im NAS-Ordner). Die Sperre trägt eine eigene Kennung, wird während des Abgleichs
-# aufgefrischt und nur mit passender Kennung entfernt. Ihr Alter wird an der Uhr des NAS gemessen (eine frisch
-# geschriebene Probedatei), nicht an der Uhr des PCs, die auf einem geprüften Rechner falsch gehen kann.
-function Get-NasJetzt([string]$NasPfad) {
-    $f = Join-Path $NasPfad ('.zeit_' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.tmp')
-    try { [IO.File]::WriteAllText($f, ''); return [IO.File]::GetLastWriteTimeUtc($f) }
-    catch { return [DateTime]::UtcNow }
-    finally { try { [IO.File]::Delete($f) } catch { } }
-}
-function Enter-AbgleichSperre([string]$NasPfad, [string]$Kennung) {
-    $f = Join-Path $NasPfad 'Abgleich.lock'
-    for ($v = 0; $v -lt 2; $v++) {
-        try {
-            $fs = [IO.File]::Open($f, 'CreateNew', 'Write', 'None')
-            try { $b = [Text.Encoding]::UTF8.GetBytes(('{0} {1} {2}' -f $Kennung, $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))); $fs.Write($b, 0, $b.Length) } finally { $fs.Dispose() }
-            return ''
-        } catch {
-            if (-not (Test-Path -LiteralPath $f)) { return ('Sperre auf dem Netzlaufwerk nicht anlegbar: ' + $_.Exception.Message) }
-            $alt = $null; try { $alt = (Get-Item -LiteralPath $f -Force).LastWriteTimeUtc } catch { }
-            if ($alt -and ((Get-NasJetzt $NasPfad) - $alt).TotalMinutes -ge $script:AbgleichSperreMin) { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue; continue }
-            $wer = ''; try { $wer = ([IO.File]::ReadAllText($f) -replace '^[0-9a-f]{32}\s+', '') } catch { }
-            return ('ein anderer Abgleich läuft gerade oder wurde abgebrochen ({0}); die Sperre verfällt {1} Minuten nach dem letzten Lebenszeichen' -f $wer.Trim(), $script:AbgleichSperreMin)
-        }
-    }
-    return 'Sperre auf dem Netzlaufwerk nicht anlegbar'
-}
-function Update-AbgleichSperre([string]$NasPfad, [string]$Kennung) {
-    $f = Join-Path $NasPfad 'Abgleich.lock'
-    try { if ([IO.File]::ReadAllText($f).StartsWith($Kennung)) { [IO.File]::WriteAllText($f, ('{0} {1} {2}' -f $Kennung, $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))) } } catch { }
-}
-function Exit-AbgleichSperre([string]$NasPfad, [string]$Kennung) {
-    $f = Join-Path $NasPfad 'Abgleich.lock'
-    try { if ([IO.File]::ReadAllText($f).StartsWith($Kennung)) { [IO.File]::Delete($f) } } catch { }
-}
-
-# Protokoll in Minibench-Daten\Abgleich\Abgleich.log, auch wenn der Abgleich angehalten oder nichts geändert hat
-function Write-AbgleichLog([string]$DataDir, $Res) {
-    try {
-        $log = Join-Path (Join-Path $DataDir 'Abgleich') 'Abgleich.log'
-        New-Item -ItemType Directory -Path (Split-Path $log -Parent) -Force | Out-Null
-        $txt = @(('{0}  {1}  {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Res.NasPfad, $Res.Kurz)) + @($Res.Zeilen | ForEach-Object { '    ' + $_ })
-        [IO.File]::AppendAllText($log, (($txt -join "`r`n") + "`r`n"), (New-Object Text.UTF8Encoding($true)))
-    } catch { }
-}
-
-# Ordner eines Datenbankeintrags (Berichte\<Name>) aus der JSON-Datei, sonst leer
-function Get-AbgleichEintragOrdner([string]$Pfad) {
-    try {
-        $o = [string](Get-Content -LiteralPath $Pfad -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop).Ordner
-        if ($o) { return ('Berichte\' + @($o.TrimEnd('\', '/') -split '[\\/]')[-1]) }
-    } catch { }
-    return ''
-}
-
-# -LoeschenErlaubt: angehaltenen Abgleich bestätigen. -Neu: Stand des letzten Abgleichs nicht verwenden (beide Seiten
-# zusammenführen wie beim ersten Abgleich, nichts löschen), z. B. wenn das NAS neu eingerichtet oder geleert wurde.
-function Invoke-Abgleich([string]$DataDir = $script:DataDir, [string]$NasPfad = '', [int]$TimeoutMs = 6000, [switch]$LoeschenErlaubt, [switch]$Neu) {
-    $res = Invoke-AbgleichKern -DataDir $DataDir -NasPfad $NasPfad -TimeoutMs $TimeoutMs -LoeschenErlaubt:$LoeschenErlaubt -Neu:$Neu
-    if ($DataDir) { Write-AbgleichLog $DataDir $res }
-    return $res
-}
-
-function Invoke-AbgleichKern([string]$DataDir, [string]$NasPfad, [int]$TimeoutMs, [switch]$LoeschenErlaubt, [switch]$Neu) {
-    $res = [pscustomobject]@{ Ok = $false; Erreichbar = $false; NasPfad = $NasPfad; NachNas = 0; VomNas = 0; GeloeschtLokal = 0; GeloeschtNas = 0
-        Konflikte = 0; Fehler = 0; Angehalten = ''; Zeilen = (New-Object System.Collections.Generic.List[string]); Kurz = '' }
-    if (-not $DataDir) { $res.Kurz = 'kein Datenordner'; return $res }
-    if (-not $NasPfad) { $k = Get-NasKonfig $DataDir; if ($k) { $NasPfad = $k.Pfad } }
-    $NasPfad = Format-NasPfad $NasPfad
-    $res.NasPfad = $NasPfad
-    if (-not $NasPfad) { $res.Kurz = 'kein Netzlaufwerk eingerichtet'; return $res }
-    $fehler = Test-NasPfad $NasPfad
-    if ($fehler) { $res.Kurz = 'ungültiger NAS-Pfad: ' + $fehler; return $res }
-    $stand = Read-AbgleichStand $DataDir $NasPfad
-    if ($Neu) { $stand.Clear(); $res.Zeilen.Add('Neu zusammengeführt: Stand des letzten Abgleichs nicht verwendet, nichts gelöscht') }
-    # den Ordner auf dem NAS nur beim ersten Abgleich anlegen; fehlt er später, ist die Freigabe vermutlich nicht eingehängt
-    if (-not (Test-NasErreichbar $NasPfad $TimeoutMs -Anlegen:($stand.Count -eq 0))) {
-        $res.Kurz = $(if ($stand.Count) { ('{0} ist nicht erreichbar oder der Ordner fehlt; nichts geändert' -f $NasPfad) } else { ('{0} ist nicht erreichbar; nichts geändert' -f $NasPfad) })
-        return $res
-    }
-    $res.Erreichbar = $true
-    $kennung = [guid]::NewGuid().ToString('N')
-    $sperre = Enter-AbgleichSperre $NasPfad $kennung
-    if ($sperre) { $res.Fehler++; $res.Kurz = $sperre + '; nichts geändert'; return $res }
-    try {
-        $stempel = Get-Date -Format 'yyyyMMdd_HHmmss'
-        $belegt = @(Get-AbgleichBelegt $DataDir)
-        try {
-            $lokal = Get-AbgleichBestand $DataDir $belegt
-            $nas = Get-AbgleichBestand $NasPfad $belegt
-        } catch { $res.Fehler++; $res.Kurz = $_.Exception.Message + '; nichts geändert'; return $res }
-        # Datenbankeinträge zuletzt: Scheitert vorher eine Datei (z. B. eines Berichtsordners), bleiben sie für den nächsten
-        # Abgleich stehen. So entsteht kein Eintrag, dessen Bericht fehlt (Datenpflege hielte ihn für verwaist).
-        $plan = @(@(Get-AbgleichPlan $lokal $nas $stand) | Sort-Object @{ Expression = { if ($_.Rel -like 'Datenbank\*') { 1 } else { 0 } } }, @{ Expression = { $_.Rel } })
-        if (-not $LoeschenErlaubt) {
-            $grund = Test-AbgleichMassenloeschung $plan $stand $lokal $nas
-            if ($grund) {
-                $res.Angehalten = $grund
-                $res.Kurz = ('angehalten, nichts geändert: {0}' -f $grund)
-                $res.Zeilen.Add('Ist das gewollt (Daten bewusst entfernt), Abgleich bestätigen; sonst Netzlaufwerk und Pfad prüfen. Entfernte Dateien kämen ins Archiv.')
-                return $res
-            }
-        }
-        $neuStand = New-Object 'System.Collections.Generic.Dictionary[string,object]' ([StringComparer]::OrdinalIgnoreCase)
-        foreach ($k in $stand.Keys) { $neuStand[$k] = $stand[$k] }      # Ausgangspunkt: alter Stand; bearbeitete Einträge werden ersetzt
-        $arbeit = @($plan | Where-Object { $_.Aktion -ne 'Gleich' -and $_.Aktion -ne 'Vergessen' })
-        $kopiert = New-Object System.Collections.Generic.List[string]
-        $fehlOrdner = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
-        $geleertL = New-Object System.Collections.Generic.List[string]; $geleertN = New-Object System.Collections.Generic.List[string]
-        $i = 0; $folge = 0; $dbZurueck = 0
-        foreach ($p in $plan) {
-            $rel = $p.Rel; $lp = Join-AbgleichPfad $DataDir $rel; $np = Join-AbgleichPfad $NasPfad $rel
-            if ($p.Aktion -eq 'Vergessen') { [void]$neuStand.Remove($rel); continue }
-            if ($p.Aktion -eq 'Gleich' -and $lokal.ContainsKey($rel) -and $nas.ContainsKey($rel) -and
-                [math]::Abs(([double]([int64]$lokal[$rel].T - [int64]$nas[$rel].T)) / 1e7) -gt $script:AbgleichToleranz -and -not (Test-AbgleichInhaltGleich $lp $np)) {
-                # nur über die Stundenregel gleich, Inhalt aber verschieden: wie ein Konflikt behandeln
-                $p = [pscustomobject]@{ Rel = $rel; Aktion = $(if ([int64]$lokal[$rel].T -ge [int64]$nas[$rel].T) { 'KonfliktNachNas' } else { 'KonfliktVomNas' }) }
-            }
-            if ($p.Aktion -eq 'Gleich') { $neuStand[$rel] = [pscustomobject]@{ L = $lokal[$rel]; N = $nas[$rel] }; continue }
-            if ($p.Aktion -like 'Konflikt*' -and [int64]$lokal[$rel].S -eq [int64]$nas[$rel].S -and (Test-AbgleichInhaltGleich $lp $np)) {
-                $neuStand[$rel] = [pscustomobject]@{ L = $lokal[$rel]; N = $nas[$rel] }; continue
-            }
-            if ($rel -like 'Datenbank\*' -and $fehlOrdner.Count -gt 0 -and $p.Aktion -notlike 'Loeschen*') {
-                $quelle = $(if ($p.Aktion -eq 'NachNas' -or $p.Aktion -eq 'KonfliktNachNas') { $lp } else { $np })
-                $eo = Get-AbgleichEintragOrdner $quelle
-                if ($eo -and $fehlOrdner.Contains($eo)) { $dbZurueck++; continue }
-            }
-            $i++
-            if ($i % 20 -eq 1) { Send-GuiEvent 'ABGLEICH' $i $arbeit.Count $rel; if ($i -gt 1) { Update-AbgleichSperre $NasPfad $kennung } }
-            try {
-                switch ($p.Aktion) {
-                    'NachNas' { Copy-AbgleichDatei $lp $np; $res.NachNas++ }
-                    'VomNas' { Copy-AbgleichDatei $np $lp; $res.VomNas++ }
-                    'KonfliktNachNas' { Move-AbgleichArchiv $NasPfad $rel $stempel 'Konflikte'; Copy-AbgleichDatei $lp $np; $res.Konflikte++; $res.Zeilen.Add(('Konflikt {0}: Fassung vom Stick gilt, die vom Netzlaufwerk liegt dort im Archiv' -f $rel)) }
-                    'KonfliktVomNas' { Move-AbgleichArchiv $DataDir $rel $stempel 'Konflikte'; Copy-AbgleichDatei $np $lp; $res.Konflikte++; $res.Zeilen.Add(('Konflikt {0}: Fassung vom Netzlaufwerk gilt, die vom Stick liegt im Archiv' -f $rel)) }
-                    'LoeschenLokal' { Move-AbgleichArchiv $DataDir $rel $stempel 'Geloescht'; $res.GeloeschtLokal++; $geleertL.Add($rel) }
-                    'LoeschenNas' { Move-AbgleichArchiv $NasPfad $rel $stempel 'Geloescht'; $res.GeloeschtNas++; $geleertN.Add($rel) }
-                }
-                $folge = 0
-                if ($p.Aktion -like 'Loeschen*') { [void]$neuStand.Remove($rel) }
-                else {
-                    $m1 = Get-AbgleichMeta $lp; $m2 = Get-AbgleichMeta $np
-                    if ($m1 -and $m2) { $neuStand[$rel] = [pscustomobject]@{ L = $m1; N = $m2 }; $kopiert.Add($rel) }
-                }
-            } catch {
-                $res.Fehler++; $folge++
-                $res.Zeilen.Add(('Fehler bei {0}: {1}' -f $rel, $_.Exception.Message))
-                $t = @($rel -split '\\'); if ($t.Count -ge 3 -and $t[0] -ieq 'Berichte') { [void]$fehlOrdner.Add($t[0] + '\' + $t[1]) }
-                if ($folge -ge 10) { $res.Zeilen.Add('Abgebrochen: zehn Fehler in Folge (Netzlaufwerk getrennt?). Der nächste Abgleich setzt fort.'); break }
-            }
-        }
-        if ($dbZurueck) { $res.Zeilen.Add(('{0} Datenbankeinträge folgen beim nächsten Abgleich (Fehler in ihrem Berichtsordner)' -f $dbZurueck)) }
-        # Ordner mit Fehlern gelten als nicht abgeglichen: ihre in diesem Durchgang kopierten Dateien behalten den alten Stand.
-        # Fehlt einer Seite danach ein Teil davon (Datenpflege), wird er beim nächsten Abgleich ergänzt statt gelöscht.
-        foreach ($rel in $kopiert) {
-            $t = @($rel -split '\\'); $o = $(if ($t.Count -ge 3) { $t[0] + '\' + $t[1] } else { '' })
-            if ($o -and $fehlOrdner.Contains($o)) { if ($stand.ContainsKey($rel)) { $neuStand[$rel] = $stand[$rel] } else { [void]$neuStand.Remove($rel) } }
-        }
-        try { Save-AbgleichStand $DataDir $NasPfad $neuStand } catch { $res.Fehler++; $res.Zeilen.Add('Stand des Abgleichs nicht gespeichert: ' + $_.Exception.Message) }
-        Remove-AbgleichLeereOrdner $DataDir $geleertL $belegt; Remove-AbgleichLeereOrdner $NasPfad $geleertN $belegt
-    } finally { Exit-AbgleichSperre $NasPfad $kennung }
-    $res.Ok = ($res.Fehler -eq 0)
-    $res.Kurz = ('{0} zum Netzlaufwerk, {1} auf den Stick, {2} gelöscht, {3} Konflikte, {4} Fehler' -f $res.NachNas, $res.VomNas, ($res.GeloeschtLokal + $res.GeloeschtNas), $res.Konflikte, $res.Fehler)
-    return $res
-}
-
-# ---------- Läufe entfernen und umbenennen (Seite Vergleichsdatenbank) ----------
-# Berichtsordner eines Datenbankeintrags (nur innerhalb von Berichte im Datenordner), sonst leer
-function Get-LaufOrdner($Eintrag, [string]$DataDir) {
-    $ber = [IO.Path]::GetFullPath((Join-Path $DataDir 'Berichte')).TrimEnd('\', '/')
-    $o = ([string]$Eintrag.Ordner).Trim()
-    if (-not $o) { return '' }
-    $kand = @()
-    if ([IO.Path]::IsPathRooted($o)) { $kand += $o } else { $kand += (Join-Path $DataDir $o) }
-    $kand += (Join-Path $ber (@($o.TrimEnd('\', '/') -split '[\\/]')[-1]))
-    foreach ($k in $kand) {
-        try { $full = [IO.Path]::GetFullPath($k).TrimEnd('\', '/') } catch { continue }
-        if ($full.StartsWith($ber + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -and (Test-Path -LiteralPath $full -PathType Container)) { return $full }
-    }
-    return ''
-}
-
-function Test-ImDatenbankOrdner([string]$Pfad, [string]$DataDir) {
-    try {
-        $db = [IO.Path]::GetFullPath((Join-Path $DataDir 'Datenbank')).TrimEnd('\', '/')
-        $f = [IO.Path]::GetFullPath($Pfad)
-        return ($f.StartsWith($db + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -and $f -like '*.json')
-    } catch { return $false }
-}
-
-# Einträge samt Berichtsordner nach Archiv\Entfernt\<Zeit> verschieben (wiederherstellbar). Rückgabe: Anzahl und Zeilen.
-function Remove-DbLauf([string[]]$Pfade, [string]$DataDir = $script:DataDir) {
-    $res = [pscustomobject]@{ Entfernt = 0; Fehler = 0; Zeilen = (New-Object System.Collections.Generic.List[string]); Archiv = '' }
-    $arch = Join-Path (Join-Path (Join-Path $DataDir 'Archiv') 'Entfernt') (Get-Date -Format 'yyyyMMdd_HHmmss')
-    $res.Archiv = $arch
-    $belegt = @(Get-AbgleichBelegt $DataDir)
-    foreach ($p in @($Pfade | Where-Object { $_ })) {
-        $name = Split-Path $p -Leaf
-        if (-not (Test-ImDatenbankOrdner $p $DataDir) -or -not (Test-Path -LiteralPath $p)) { $res.Fehler++; $res.Zeilen.Add(('{0}: nicht in der Datenbank dieses Datenordners, übersprungen' -f $p)); continue }
-        $e = $null; try { $e = Get-Content -LiteralPath $p -Raw -Encoding UTF8 | ConvertFrom-Json } catch { }
-        $ordner = $(if ($e) { Get-LaufOrdner $e $DataDir } else { '' })
-        if ($ordner -and $belegt -contains ('Berichte\' + (Split-Path $ordner -Leaf))) { $res.Fehler++; $res.Zeilen.Add(('{0}: der Lauf ist noch nicht abgeschlossen, übersprungen' -f $name)); continue }
-        try {
-            New-Item -ItemType Directory -Path (Join-Path $arch 'Datenbank') -Force -ErrorAction Stop | Out-Null
-            if ($ordner) {
-                New-Item -ItemType Directory -Path (Join-Path $arch 'Berichte') -Force -ErrorAction Stop | Out-Null
-                Move-Item -LiteralPath $ordner -Destination (Join-Path (Join-Path $arch 'Berichte') (Split-Path $ordner -Leaf)) -ErrorAction Stop
-            }
-            Move-Item -LiteralPath $p -Destination (Join-Path (Join-Path $arch 'Datenbank') $name) -ErrorAction Stop
-            $res.Entfernt++
-            $res.Zeilen.Add(('{0}{1} ins Archiv verschoben' -f $name, $(if ($ordner) { ' und Berichtsordner ' + (Split-Path $ordner -Leaf) } else { '' })))
-        } catch { $res.Fehler++; $res.Zeilen.Add(('{0}: {1}' -f $name, $_.Exception.Message)) }
-    }
-    return $res
-}
-
-# freier Name im Ordner: Basis, sonst Basis_2, Basis_3 ...
-function Get-FreierName([string]$Dir, [string]$Basis, [string]$Endung, [string]$Eigen = '') {
-    $n = $Basis + $Endung
-    $i = 2
-    while ((Test-Path -LiteralPath (Join-Path $Dir $n)) -and $n -ine $Eigen) { $n = '{0}_{1}{2}' -f $Basis, $i, $Endung; $i++ }
-    return $n
-}
-
-# Anzeigenamen ändern und Datenbankdatei sowie Berichtsordner passend umbenennen (Name_Datum_Zeit). Der Rechnername
-# (Computer) und die Geräteidentität bleiben. Änderungsprotokolle, die auf den Berichtsordner zeigen, werden nachgeführt.
-function Rename-DbLauf([string]$Pfad, [string]$NeuerName, [string]$DataDir = $script:DataDir) {
-    $res = [pscustomobject]@{ Ok = $false; Pfad = $Pfad; Ordner = ''; Text = '' }
-    $NeuerName = ([string]$NeuerName -replace '[\r\n"]+', ' ').Trim()
-    if ($NeuerName.Length -gt 80) { $NeuerName = $NeuerName.Substring(0, 80).Trim() }
-    if (-not $NeuerName) { $res.Text = 'Kein Name angegeben.'; return $res }
-    if (-not (Test-ImDatenbankOrdner $Pfad $DataDir) -or -not (Test-Path -LiteralPath $Pfad)) { $res.Text = 'Eintrag liegt nicht in der Datenbank dieses Datenordners.'; return $res }
-    try { $e = Get-Content -LiteralPath $Pfad -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop } catch { $res.Text = 'Eintrag nicht lesbar: ' + $_.Exception.Message; return $res }
-    $basis = Get-AblageName $NeuerName
-    if (-not $basis) { $basis = Get-AblageName ([string]$e.Computer) }
-    # Datenbankdatei: <Name>_<yyyyMMdd_HHmmss>.json
-    $dbDir = Split-Path $Pfad -Parent
-    $alt = [IO.Path]::GetFileNameWithoutExtension($Pfad)
-    $m = [regex]::Match($alt, '^(.*?)(_\d{8}_\d{6})(?:_\d{1,2})?$')
-    $neuDatei = Get-FreierName $dbDir ($basis + $(if ($m.Success) { $m.Groups[2].Value } else { '_' + $alt })) '.json' (Split-Path $Pfad -Leaf)
-    $neuPfad = Join-Path $dbDir $neuDatei
-    # Berichtsordner: <Name>_<yyyyMMdd_HHmm>[_ss]
-    $ordner = Get-LaufOrdner $e $DataDir
-    $neuOrdner = ''
-    if ($ordner) {
-        $leaf = Split-Path $ordner -Leaf
-        $mo = [regex]::Match($leaf, '^(.*?)(_\d{8}_\d{4}(?:_\d{2})?)(?:_\d)?$')
-        $neuLeaf = Get-FreierName (Split-Path $ordner -Parent) ($basis + $(if ($mo.Success) { $mo.Groups[2].Value } else { '_' + $leaf })) '' $leaf
-        $neuOrdner = Join-Path (Split-Path $ordner -Parent) $neuLeaf
-        if ($neuLeaf -ine $leaf) {
-            try { Move-Item -LiteralPath $ordner -Destination $neuOrdner -ErrorAction Stop }
-            catch { $res.Text = ('Berichtsordner {0} lässt sich nicht umbenennen (geöffnet?): {1}' -f $leaf, $_.Exception.Message); return $res }
-        } else { $neuOrdner = $ordner }
-    }
-    try {
-        $e | Add-Member -NotePropertyName Name -NotePropertyValue $NeuerName -Force
-        # Ordner immer relativ zum Datenordner (ein absoluter Pfad vom Stick wäre auf dem Netzlaufwerk falsch)
-        if ($neuOrdner) { $e | Add-Member -NotePropertyName Ordner -NotePropertyValue ('Berichte\' + (Split-Path $neuOrdner -Leaf)) -Force }
-        [IO.File]::WriteAllText($neuPfad, ($e | ConvertTo-Json -Depth 20), (New-Object Text.UTF8Encoding($false)))
-        if ($neuPfad -ine $Pfad) { Remove-Item -LiteralPath $Pfad -Force -ErrorAction Stop }
-    } catch {
-        if ($ordner -and $neuOrdner -and $neuOrdner -ine $ordner) { try { Move-Item -LiteralPath $neuOrdner -Destination $ordner -ErrorAction Stop } catch { } }
-        if ($neuPfad -ine $Pfad -and (Test-Path -LiteralPath $Pfad) -and (Test-Path -LiteralPath $neuPfad)) { Remove-Item -LiteralPath $neuPfad -Force -ErrorAction SilentlyContinue }
-        $res.Text = 'Eintrag nicht gespeichert: ' + $_.Exception.Message; return $res
-    }
-    # Änderungsprotokolle: Feld Bericht zeigt auf den Ordner zur Laufzeit (anderer Laufwerksbuchstabe, früher auch das NAS).
-    # Ersetzt wird nur der letzte Teil (Ordnername), der Rest des Pfads bleibt, wie er war.
-    if ($ordner -and $neuOrdner -ine $ordner) {
-        $altLeaf = Split-Path $ordner -Leaf; $neuLeaf = Split-Path $neuOrdner -Leaf
-        $muster = '("Bericht"\s*:\s*"[^"]*?(?:\\\\|/))' + [regex]::Escape($altLeaf) + '"'
-        $ersatz = '${1}' + ($neuLeaf -replace '\$', '$$$$') + '"'
-        foreach ($cf in @(Get-ChildItem -LiteralPath (Join-Path $DataDir 'Änderungen') -Filter '*.json' -Recurse -File -ErrorAction SilentlyContinue)) {
-            try {
-                $t = [IO.File]::ReadAllText($cf.FullName, [Text.Encoding]::UTF8)
-                $n = [regex]::Replace($t, $muster, $ersatz, 'IgnoreCase')
-                if ($n -ne $t) { [IO.File]::WriteAllText($cf.FullName, $n, (New-Object Text.UTF8Encoding($false))) }
-            } catch { }
-        }
-    }
-    $res.Ok = $true; $res.Pfad = $neuPfad; $res.Ordner = $neuOrdner
-    $res.Text = ('Name geändert in {0}; Datei {1}{2}' -f $NeuerName, $neuDatei, $(if ($neuOrdner) { ', Berichtsordner ' + (Split-Path $neuOrdner -Leaf) } else { '' }))
-    return $res
-}
-
-# ---------- Start und Hilfsmodi der Oberfläche ----------
-if ($script:DataDir) { try { foreach ($z in (Move-AlteNasKonfig $script:DataDir)) { Write-Verbose $z } } catch { } }
-
-# Abgleich mit dem Netzlaufwerk: @@ABGLEICH|Nr|Anzahl|Datei während, am Ende
-# @@RESULT|ok|zumNas|aufStick|gelöscht|Konflikte|Fehler|erreichbar|angehalten (1: Schutz vor Massenlöschung, Bestätigung nötig).
-# -AbgleichLoeschen bestätigt einen angehaltenen Abgleich, -AbgleichNeu führt ohne den letzten Stand zusammen (nichts löschen).
-if ($Abgleich) {
-    $r = Invoke-Abgleich -DataDir $script:DataDir -LoeschenErlaubt:$AbgleichLoeschen -Neu:$AbgleichNeu
-    Write-Host ('Abgleich mit {0}: {1}' -f $r.NasPfad, $r.Kurz)
-    foreach ($z in $r.Zeilen) { Write-Host $z }
-    Send-GuiEvent 'RESULT' $(if ($r.Ok) { '1' } else { '0' }) $r.NachNas $r.VomNas ($r.GeloeschtLokal + $r.GeloeschtNas) $r.Konflikte $r.Fehler $(if ($r.Erreichbar) { '1' } else { '0' }) $(if ($r.Angehalten) { '1' } else { '0' })
-    exit $(if ($r.Ok) { 0 } else { 1 })
-}
-# Einträge entfernen: -Entfernen "Pfad|Pfad" (| kommt in Windows-Pfaden nicht vor), @@RESULT|entfernt|Fehler
-if ($Entfernen) {
-    $r = Remove-DbLauf @(([string]$Entfernen) -split '\|' | ForEach-Object { $_.Trim().Trim('"') } | Where-Object { $_ }) $script:DataDir
-    foreach ($z in $r.Zeilen) { Write-Host $z }
-    Send-GuiEvent 'RESULT' $r.Entfernt $r.Fehler
-    exit $(if ($r.Fehler) { 1 } else { 0 })
-}
-# Eintrag umbenennen: -Umbenennen "Pfad" -NeuerName "Name", @@RESULT|1 oder 0|neuer Pfad
-if ($Umbenennen) {
-    $r = Rename-DbLauf ([string]$Umbenennen).Trim('"') $NeuerName $script:DataDir
-    Write-Host $r.Text
-    Send-GuiEvent 'RESULT' $(if ($r.Ok) { '1' } else { '0' }) $r.Pfad
-    exit $(if ($r.Ok) { 0 } else { 1 })
 }
 #endregion
 #region ---------- Startzeit auswerten (ab v2.6, Roadmap v2.5) ----------
@@ -5623,8 +5080,6 @@ public partial class DiagGui : Form
         Controls.Add(body); Controls.Add(head);
 
         FormClosing += OnClosing;
-        // selbst hergestellte Verbindungen zum Netzlaufwerk (Kennwort) nicht über das Programmende hinaus bestehen lassen
-        FormClosed += delegate { NasAblage.AlleTrennen(); };
         // gegen Flackern: Doppelpufferung für Formular, Panels und Listen; Laufansicht wird höchstens alle 250 ms aktualisiert
         DoubleBuffered = true;
         SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
@@ -5960,7 +5415,7 @@ public partial class DiagGui : Form
         FillRefLists();
         FillChangeList();
         UpdateSensTools();
-        if (lblDbPath != null) SetText(lblDbPath, NasAblage.AblageText(dataDir));
+        if (lblDbPath != null) lblDbPath.Text = "Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)");
     }
 
     // Modulverträge übernehmen: Navigation und Seite Reparatur richten sich danach (ohne Vertrag gelten die festen Listen)
@@ -7204,10 +6659,7 @@ public partial class DiagGui : Form
     }
 
     // Wie RunHelper, aber ohne die Oberfläche einzufrieren (Downloads, Treiber entfernen)
-    string RunHelperPumped(string args, out List<string> lines, int timeoutSec) { return RunHelperPumped(args, out lines, timeoutSec, null); }
-
-    // Wie RunHelper, aber ohne die Oberfläche einzufrieren; Fortschritt des Abgleichs (@@ABGLEICH|Nr|Anzahl|Datei) im Label
-    string RunHelperPumped(string args, out List<string> lines, int timeoutSec, Label progress)
+    string RunHelperPumped(string args, out List<string> lines, int timeoutSec)
     {
         List<string> got = new List<string>();
         string result = "";
@@ -7220,16 +6672,7 @@ public partial class DiagGui : Form
             using (Process p = new Process())
             {
                 p.StartInfo = psi;
-                p.OutputDataReceived += delegate(object s, DataReceivedEventArgs e) {
-                    if (e.Data == null) { eof = true; return; }
-                    if (progress != null && e.Data.StartsWith("@@ABGLEICH|"))
-                    {
-                        string[] x = e.Data.Split(new char[] { '|' }, 4);
-                        if (x.Length == 4) { string t = "Abgleich: " + x[1] + " von " + x[2] + ", " + x[3].Replace("¦", "|"); try { BeginInvoke(new MethodInvoker(delegate { SetText(progress, t); })); } catch { } }
-                        return;
-                    }
-                    lock (got) got.Add(e.Data);
-                };
+                p.OutputDataReceived += delegate(object s, DataReceivedEventArgs e) { if (e.Data == null) { eof = true; return; } lock (got) got.Add(e.Data); };
                 p.Start(); p.BeginOutputReadLine();
                 DateTime until = DateTime.Now.AddSeconds(timeoutSec);
                 while (!p.HasExited && DateTime.Now < until) { Application.DoEvents(); System.Threading.Thread.Sleep(50); }
@@ -9500,202 +8943,6 @@ class OptItem
     public string Id = "", Kat = "", Risiko = "", Neustart = "", Vorlagen = "", Bedingung = "", Titel = "", Tip = "", Zustand = "", ZustandText = "";
     public bool Verwaltet; public int Minuten; public CheckBox Box;
 }
-
-// Netzlaufwerk als Spiegel der Nutzerdaten (ab v3.54). Die Oberfläche arbeitet immer im Datenordner auf dem Stick;
-// Netzwerk.json dort nennt nur den NAS-Pfad (und optional den Benutzer). Abgeglichen wird über den Hilfsmodus -Abgleich
-// (Kern\Ablage.ps1). Verbindungen mit Kennwort laufen über WNetAddConnection2 (nicht dauerhaft, Kennwort nicht in einer
-// Befehlszeile) und werden beim Schließen des Programms wieder getrennt.
-public static class NasAblage
-{
-    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
-    class NETRESOURCE
-    {
-        public int dwScope = 0, dwType = 1, dwDisplayType = 0, dwUsage = 0;
-        public string lpLocalName = null, lpRemoteName = null, lpComment = null, lpProvider = null;
-    }
-    [System.Runtime.InteropServices.DllImport("mpr.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
-    static extern int WNetAddConnection2(NETRESOURCE res, string password, string user, int flags);
-    [System.Runtime.InteropServices.DllImport("mpr.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
-    static extern int WNetCancelConnection2(string name, int flags, bool force);
-
-    static readonly List<string> verbunden = new List<string>();
-
-    // leer, wenn gültig; sonst der Grund (gleiche Regeln wie Test-NasPfad in Kern\Ablage.ps1)
-    public static string PfadFehler(string pfad)
-    {
-        string p = (pfad ?? "").Trim();
-        if (p.Length == 0) return "kein Pfad angegeben";
-        if (System.Text.RegularExpressions.Regex.IsMatch(p, @"^\\\\[^\\/:*?""<>|]+\\[^\\/:*?""<>|]+(\\.*)?$")) return "";
-        if (System.Text.RegularExpressions.Regex.IsMatch(p, @"^\\[^\\]")) return p + " beginnt mit nur einem \\ und zeigte damit auf den Stick; gemeint ist \\" + p;
-        if (System.Text.RegularExpressions.Regex.IsMatch(p, @"^[A-Za-z]:\\"))
-        {
-            try { if (new DriveInfo(p.Substring(0, 3)).DriveType == DriveType.Network) return ""; } catch { }
-            return p + " ist kein Netzlaufwerk (lokales Laufwerk)";
-        }
-        return p + " ist kein UNC-Pfad (\\\\server\\freigabe\\Ordner)";
-    }
-
-    // \\server\freigabe aus einem UNC-Pfad (für die Verbindung), sonst leer
-    public static string Freigabe(string pfad)
-    {
-        System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(pfad ?? "", @"^(\\\\[^\\]+\\[^\\]+)");
-        return m.Success ? m.Groups[1].Value : "";
-    }
-
-    // ohne abschließendes \, außer beim Stamm eines Laufwerks (Z:\); wie Format-NasPfad in Kern\Ablage.ps1
-    public static string Vereinheitlichen(string pfad)
-    {
-        string p = (pfad ?? "").Trim().TrimEnd('\\');
-        if (p.Length == 2 && p[1] == ':') p += "\\";
-        return p;
-    }
-
-    public static string KonfigDatei(string dataDir) { return String.IsNullOrEmpty(dataDir) ? "" : Path.Combine(dataDir, "Netzwerk.json"); }
-
-    public static bool LeseKonfig(string dataDir, out string pfad, out string benutzer)
-    {
-        pfad = ""; benutzer = "";
-        string f = KonfigDatei(dataDir);
-        if (f.Length == 0 || !File.Exists(f)) return false;
-        try
-        {
-            Dictionary<string, object> d = new System.Web.Script.Serialization.JavaScriptSerializer().DeserializeObject(File.ReadAllText(f, Encoding.UTF8)) as Dictionary<string, object>;
-            if (d == null) return false;
-            object o;
-            if (d.TryGetValue("NasPfad", out o) && o != null) pfad = Convert.ToString(o);
-            else if (d.TryGetValue("NetzwerkPfad", out o) && o != null) pfad = Convert.ToString(o);
-            if (d.TryGetValue("Benutzer", out o) && o != null) benutzer = Convert.ToString(o);
-        }
-        catch { return false; }
-        pfad = Vereinheitlichen(pfad);
-        return pfad.Length > 0;
-    }
-
-    public static void SchreibeKonfig(string dataDir, string pfad, string benutzer)
-    {
-        Dictionary<string, object> d = new Dictionary<string, object>();
-        d["NasPfad"] = Vereinheitlichen(pfad);
-        if (!String.IsNullOrEmpty(benutzer)) d["Benutzer"] = benutzer.Trim();
-        Directory.CreateDirectory(dataDir);
-        File.WriteAllText(KonfigDatei(dataDir), new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(d), new UTF8Encoding(true));
-    }
-
-    public static void LoescheKonfig(string dataDir)
-    {
-        string f = KonfigDatei(dataDir);
-        if (f.Length > 0 && File.Exists(f)) File.Delete(f);
-    }
-
-    // Zeitpunkt des letzten Abgleichs aus Minibench-Daten\Abgleich\Stand.json ("yyyy-MM-dd HH:mm:ss"), sonst leer
-    public static string LetzterAbgleich(string dataDir)
-    {
-        try
-        {
-            string f = Path.Combine(Path.Combine(dataDir, "Abgleich"), "Stand.json");
-            if (!File.Exists(f)) return "";
-            string t = File.ReadAllText(f, Encoding.UTF8);
-            System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(t, @"""Zeit""\s*:\s*""(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})");
-            return m.Success ? m.Groups[3].Value + "." + m.Groups[2].Value + "." + m.Groups[1].Value + " " + m.Groups[4].Value + ":" + m.Groups[5].Value : "";
-        }
-        catch { return ""; }
-    }
-
-    // Zeile für die Seite Vergleichsdatenbank
-    public static string AblageText(string dataDir)
-    {
-        string t = "Datenordner: " + (String.IsNullOrEmpty(dataDir) ? "(nicht verfügbar)" : dataDir);
-        string p, b;
-        if (!String.IsNullOrEmpty(dataDir) && LeseKonfig(dataDir, out p, out b))
-        {
-            string z = LetzterAbgleich(dataDir);
-            t += "   ·   Netzlaufwerk: " + p + (z.Length > 0 ? " (zuletzt abgeglichen " + z + ")" : " (noch nicht abgeglichen)");
-        }
-        return t;
-    }
-
-    // Ergebnis des Hilfsmodus -Abgleich: ok|zumNas|aufStick|gelöscht|Konflikte|Fehler|erreichbar -> kurzer Text
-    public static string ErgebnisText(string res, out bool ok, out bool erreichbar)
-    {
-        ok = false; erreichbar = false;
-        string[] x = (res ?? "").Split('|');
-        if (x.Length < 7) return "Keine Rückmeldung vom Abgleich.";
-        ok = x[0] == "1"; erreichbar = x[6] == "1";
-        if (!erreichbar) return "Netzlaufwerk oder Ordner nicht erreichbar, nichts abgeglichen.";
-        if (Angehalten(res)) return "Abgleich angehalten, nichts geändert.";
-        return x[1] + " zum Netzlaufwerk, " + x[2] + " auf den Stick, " + x[3] + " gelöscht, " + x[4] + " Konflikte, " + x[5] + " Fehler";
-    }
-
-    // Schutz vor Massenlöschung hat angehalten (8. Feld des Ergebnisses)
-    public static bool Angehalten(string res)
-    {
-        string[] x = (res ?? "").Split('|');
-        return x.Length >= 8 && x[7] == "1";
-    }
-
-    // Ordner über dem NAS-Ordner: die Freigabe (\\server\freigabe) oder der Stamm des Netzlaufwerks
-    static string Oberhalb(string pfad)
-    {
-        string f = Freigabe(pfad);
-        if (f.Length > 0) return f;
-        try { return Path.GetPathRoot(pfad) ?? ""; } catch { return ""; }
-    }
-
-    // Prüfung mit Zeitlimit in einem eigenen Thread (ein nicht erreichbarer Server blockiert sonst bis zu einer Minute);
-    // die Oberfläche verarbeitet währenddessen Nachrichten, ist aber gesperrt (keine zweite Aktion)
-    static bool MitFrist(Func<bool> pruefung, int timeoutMs)
-    {
-        bool ok = false;
-        System.Threading.Thread t = new System.Threading.Thread(delegate() { try { ok = pruefung(); } catch { ok = false; } });
-        t.IsBackground = true; t.Start();
-        DateTime bis = DateTime.Now.AddMilliseconds(timeoutMs);
-        while (t.IsAlive && DateTime.Now < bis) { Application.DoEvents(); t.Join(30); }
-        return !t.IsAlive && ok;
-    }
-
-    // Ist der Server erreichbar (Freigabe vorhanden)? Ob der Ordner selbst fehlen darf, entscheidet der Abgleich.
-    public static bool Erreichbar(string pfad, int timeoutMs)
-    {
-        if (PfadFehler(pfad).Length > 0) return false;
-        string ober = Oberhalb(pfad);
-        return MitFrist(delegate() { return Directory.Exists(pfad) || (ober.Length > 0 && Directory.Exists(ober)); }, timeoutMs);
-    }
-
-    // Beim Einrichten: Ordner vorhanden oder auf der erreichbaren Freigabe angelegt?
-    public static bool OrdnerBereit(string pfad, int timeoutMs)
-    {
-        if (PfadFehler(pfad).Length > 0) return false;
-        return MitFrist(delegate() {
-            if (Directory.Exists(pfad)) return true;
-            string eltern = Path.GetDirectoryName(pfad);
-            if (String.IsNullOrEmpty(eltern) || !Directory.Exists(eltern)) return false;
-            Directory.CreateDirectory(pfad);
-            return true;
-        }, timeoutMs);
-    }
-
-    // Verbindung mit Benutzer und Kennwort (nicht dauerhaft). Rückgabe: leer bei Erfolg, sonst der Fehler.
-    public static string Verbinden(string pfad, string benutzer, string kennwort)
-    {
-        string share = Freigabe(pfad);
-        if (share.Length == 0) return "Verbinden geht nur mit einem UNC-Pfad (\\\\server\\freigabe).";
-        NETRESOURCE r = new NETRESOURCE(); r.lpRemoteName = share;
-        int rc = WNetAddConnection2(r, String.IsNullOrEmpty(kennwort) ? null : kennwort, String.IsNullOrEmpty(benutzer) ? null : benutzer, 0);
-        if (rc == 0) { lock (verbunden) if (!verbunden.Contains(share)) verbunden.Add(share); return ""; }
-        if (rc == 1219) return "Zur Freigabe besteht schon eine Verbindung mit anderen Anmeldedaten (Fehler 1219).";
-        if (rc == 86 || rc == 1326) return "Benutzername oder Kennwort falsch (Fehler " + rc + ").";
-        return "Verbindung fehlgeschlagen (Fehler " + rc + ": " + new System.ComponentModel.Win32Exception(rc).Message + ").";
-    }
-
-    // beim Schließen: nur die selbst hergestellten Verbindungen trennen
-    public static void AlleTrennen()
-    {
-        lock (verbunden)
-        {
-            foreach (string s in verbunden) { try { WNetCancelConnection2(s, 0, false); } catch { } }
-            verbunden.Clear();
-        }
-    }
-}
 // Vergleichsdatenbank und Systemvergleich (Teilklasse DiagGui)
 public partial class DiagGui
 {
@@ -9834,14 +9081,35 @@ public partial class DiagGui
         newName = newName.Trim();
         if (newName.Length == 0 || newName == currentName) return;
 
-        // ab 3.54: Datenbankdatei und Berichtsordner bekommen den neuen Namen (Name_Datum_Zeit), über den Arbeitsprozess
-        // ein führendes - hielte powershell.exe -File für einen Parameternamen
-        newName = newName.Replace("\"", "'").Replace("\r", " ").Replace("\n", " ").TrimEnd('\\').Trim().TrimStart('-', ' ');
-        if (newName.Length == 0) return;
-        List<string> lines;
-        string res = RunHelperPumped("-Umbenennen " + Q(target.Path) + " -NeuerName " + Q(newName), out lines, 120);
-        ReloadDb();
-        if (!res.StartsWith("1")) MessageBox.Show(this, "Der Name konnte nicht geändert werden.\r\n\r\n" + String.Join("\r\n", lines.ToArray()), "Systemnamen bearbeiten", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        target.Name = newName;
+        if (File.Exists(target.Path))
+        {
+            try
+            {
+                string text = File.ReadAllText(target.Path, Encoding.UTF8);
+                string escaped = newName.Replace("\\", "\\\\").Replace("\"", "\\\"");
+                if (System.Text.RegularExpressions.Regex.IsMatch(text, @"(?m)^\s*""Name""\s*:"))
+                {
+                    text = System.Text.RegularExpressions.Regex.Replace(text, @"(?m)^(\s*""Name""\s*:\s*)"".*?""(,?)", "$1\"" + escaped + "\"$2");
+                }
+                else
+                {
+                    int idx = text.IndexOf('{');
+                    if (idx >= 0) text = text.Substring(0, idx + 1) + "\r\n  \"Name\": \"" + escaped + "\"," + text.Substring(idx + 1);
+                }
+                File.WriteAllText(target.Path, text, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Fehler beim Speichern des Namens: " + ex.Message, "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+        }
+        if (lvi != null)
+        {
+            lvi.SubItems[0].Text = target.DisplayName;
+            lvi.ToolTipText = target.DisplayName + (target.Disk.Length > 0 ? "\r\n" + target.Disk : "") + (target.HasBench ? "" : "\r\n(ohne Benchmark-Werte)");
+        }
     }
 
     Control BuildDbPage()
@@ -9850,7 +9118,7 @@ public partial class DiagGui
         FlowLayoutPanel top = Page("Vergleichsdatenbank", "Jeder Lauf wird als System gespeichert. Hier lassen sich bereits geprüfte Systeme ohne neuen Benchmark im interaktiven Multi-System-Dashboard gegenüberstellen: Systeme anhaken und \"Im Dashboard vergleichen\" klicken. Ältere Ausgabeordner lassen sich importieren. Ein Klick auf die Spaltenköpfe sortiert die Einträge.", -1);
         top.Dock = DockStyle.Top;
         top.AutoSize = true;
-        lblDbPath = Lbl(NasAblage.AblageText(dataDir), 9f, false, UI.Muted); lblDbPath.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(4)); top.Controls.Add(lblDbPath);
+        lblDbPath = Lbl("Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lblDbPath.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(4)); top.Controls.Add(lblDbPath);
 
         FlowLayoutPanel topTools = Row();
         topTools.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8));
@@ -9858,12 +9126,12 @@ public partial class DiagGui
         Tip(imp, "Übernimmt Benchmark-Werte aus Ausgabeordnern früherer Läufe in die Datenbank (auch von PC-Diagnose).");
         btnDbClean = UI.Secondary("Aufräumen ..."); btnDbClean.Margin = new Padding(UI.S(8), 0, 0, 0); btnDbClean.Click += delegate { CleanData(); }; btnDbClean.Enabled = dataDir.Length > 0;
         Tip(btnDbClean, "Räumt nicht vergleichbare oder abgebrochene Läufe auf und verschiebt sie ins Archiv.");
-        Button rel = UI.Secondary("Aktualisieren"); rel.Margin = new Padding(UI.S(8), 0, 0, 0); rel.Click += delegate { RefreshAndSync(); };
-        Tip(rel, "Liest Datenbank und Referenz neu ein. Ist ein Netzlaufwerk eingerichtet und erreichbar, werden Berichte, Datenbank und Änderungsprotokolle vorher in beide Richtungen abgeglichen.");
+        Button rel = UI.Secondary("Aktualisieren"); rel.Margin = new Padding(UI.S(8), 0, 0, 0); rel.Click += delegate { ReloadDb(); };
+        Tip(rel, "Liest Datenbank und Referenz neu ein.");
         Button open = UI.Secondary("Datenordner"); open.Margin = new Padding(UI.S(8), 0, 0, 0); open.Click += delegate { if (dataDir.Length > 0) OpenShell(dataDir); };
         Tip(open, "Öffnet den Datenordner (Berichte, Datenbank, Tools, Archiv).");
-        Button btnNas = UI.Secondary("Netzlaufwerk ..."); btnNas.Margin = new Padding(UI.S(8), 0, 0, 0); btnNas.Click += delegate { ShowConnectNasDialog(); };
-        Tip(btnNas, "Richtet ein Netzlaufwerk (NAS) als Spiegel der Berichte und der Datenbank ein oder entfernt es. Gearbeitet wird immer auf dem Stick.");
+        Button btnNas = UI.Secondary("Netzlaufwerk / NAS ..."); btnNas.Margin = new Padding(UI.S(8), 0, 0, 0); btnNas.Click += delegate { ShowConnectNasDialog(); };
+        Tip(btnNas, "Verbindet ein Netzlaufwerk oder NAS für Berichte und Vergleichsdatenbank.");
         topTools.Controls.Add(imp); topTools.Controls.Add(btnDbClean); topTools.Controls.Add(rel); topTools.Controls.Add(open); topTools.Controls.Add(btnNas);
         top.Controls.Add(topTools);
 
@@ -9886,9 +9154,9 @@ public partial class DiagGui
         btnRename = UI.Secondary("Name ändern ..."); btnRename.Margin = new Padding(UI.S(8), 0, 0, 0);
         btnRename.Click += delegate { RenameSelectedEntry(); };
         btnRename.Enabled = false;
-        Tip(btnRename, "Ändert den Anzeigenamen des ausgewählten Systems (z. B. Vor Reinigung) und benennt Datenbankdatei und Berichtsordner passend um. Rechnername und Hardware-Erkennung bleiben.");
+        Tip(btnRename, "Bearbeitet den Anzeigenamen des ausgewählten Systems (z. B. für Notizen wie Vor Reinigung oder Neuer Treiber), ohne die Hardware-Erkennung zu verändern.");
         btnDelete = UI.Secondary("Entfernen"); btnDelete.Margin = new Padding(UI.S(8), 0, 0, 0); btnDelete.Click += delegate { DeleteSelected(); };
-        Tip(btnDelete, "Verschiebt die angehakten Läufe samt Berichtsordner nach Minibench-Daten\\Archiv\\Entfernt. Beim nächsten Abgleich verschwinden sie auch vom Netzlaufwerk.");
+        Tip(btnDelete, "Löscht die ausgewählten Systeme aus der Vergleichsdatenbank.");
         b.Controls.Add(btnDashboard); b.Controls.Add(btnOpenReport); b.Controls.Add(btnRename); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
         lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
         lblDbClean.Margin = new Padding(UI.S(4), UI.S(8), UI.S(4), 0); bottom.Controls.Add(lblDbClean);
@@ -10010,8 +9278,6 @@ public partial class DiagGui
         if (e.Ordner.Length > 0)
         {
             string dir = System.IO.Path.IsPathRooted(e.Ordner) ? e.Ordner : System.IO.Path.Combine(dataDir, e.Ordner);
-            // Einträge aus der Zeit, als die Ablage auf dem NAS lag, können einen UNC-Pfad tragen: dann der gleichnamige Ordner auf dem Stick
-            if (!Directory.Exists(dir)) { string alt = System.IO.Path.Combine(System.IO.Path.Combine(dataDir, "Berichte"), System.IO.Path.GetFileName(e.Ordner.TrimEnd('\\', '/'))); if (Directory.Exists(alt)) dir = alt; }
             string html = System.IO.Path.Combine(dir, "Diagnosebericht.html");
             if (File.Exists(html)) { OpenShell(html); return; }
             if (Directory.Exists(dir)) { OpenShell(dir); return; }
@@ -10053,97 +9319,15 @@ public partial class DiagGui
         }
     }
 
-    // ab 3.54: Eintrag und Berichtsordner ins Archiv (Minibench-Daten\Archiv\Entfernt), über den Arbeitsprozess
     void DeleteSelected()
     {
         List<DbEntry> sel = CheckedEntries();
         if (sel.Count == 0) return;
         StringBuilder sb = new StringBuilder();
         foreach (DbEntry e in sel) sb.AppendLine("·  " + e.DisplayName + "  " + e.Datum);
-        string nas, ben; bool mitNas = NasAblage.LeseKonfig(dataDir, out nas, out ben);
-        string msg = "Diese Läufe entfernen?\r\n\r\n" + sb.ToString() + "\r\nDatenbankeintrag und Berichtsordner werden nach Minibench-Daten\\Archiv\\Entfernt verschoben und lassen sich von dort zurückholen."
-            + (mitNas ? " Auf dem Netzlaufwerk verschwinden sie beim nächsten Aktualisieren (dort ebenfalls ins Archiv)." : "");
-        if (MessageBox.Show(this, msg, "Läufe entfernen", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-        List<string> paths = new List<string>();
-        foreach (DbEntry e in sel) paths.Add(e.Path);
-        List<string> lines;
-        string res = RunHelperPumped("-Entfernen " + Q(String.Join("|", paths.ToArray())), out lines, 300);
+        if (MessageBox.Show(this, "Diese Einträge aus der Vergleichsdatenbank entfernen? Die Berichtsordner bleiben erhalten.\r\n\r\n" + sb.ToString(), "Leos Minibench", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+        foreach (DbEntry e in sel) { try { File.Delete(e.Path); } catch { } }
         ReloadDb();
-        string[] r = res.Split('|');
-        if (r.Length < 2 || r[1] != "0") MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Keine Rückmeldung vom Arbeitsprozess.", "Läufe entfernen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-    }
-
-    // Aktualisieren (ab 3.54): mit eingerichtetem und erreichbarem Netzlaufwerk erst abgleichen, dann neu einlesen.
-    // Ohne Netzlaufwerk oder unterwegs nur neu einlesen; alles auf dem Stick bleibt nutzbar.
-    bool abgleichLaeuft = false;
-    void RefreshAndSync()
-    {
-        if (abgleichLaeuft) return;
-        abgleichLaeuft = true;
-        try { AbgleichenUndLaden(); } finally { abgleichLaeuft = false; }
-    }
-
-    void AbgleichenUndLaden()
-    {
-        string pfad, benutzer;
-        if (dataDir.Length == 0 || !NasAblage.LeseKonfig(dataDir, out pfad, out benutzer)) { ReloadDb(); return; }
-        string fehler = NasAblage.PfadFehler(pfad);
-        if (fehler.Length > 0) { ReloadDb(); MessageBox.Show(this, "Der gespeicherte Pfad des Netzlaufwerks ist nicht verwendbar: " + fehler + "\r\n\r\nBitte unter \"Netzlaufwerk ...\" korrigieren.", "Aktualisieren", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-        SetText(lblDbPath, "Netzlaufwerk " + pfad + " wird geprüft ...");
-        bool warAn = Enabled; Enabled = false;
-        bool da;
-        try { da = NasAblage.Erreichbar(pfad, 6000); } finally { Enabled = warAn; }
-        if (!da && benutzer.Length > 0)
-        {
-            string pw = PromptPassword(pfad, benutzer);
-            if (pw != null)
-            {
-                string err = NasAblage.Verbinden(pfad, benutzer, pw);
-                Enabled = false;
-                try { da = err.Length == 0 && NasAblage.Erreichbar(pfad, 6000); } finally { Enabled = warAn; }
-                if (!da && err.Length > 0) MessageBox.Show(this, err, "Netzlaufwerk verbinden", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-        }
-        if (!da)
-        {
-            ReloadDb();
-            SetText(lblDbPath, NasAblage.AblageText(dataDir) + "   ·   gerade nicht erreichbar");
-            return;
-        }
-        List<string> lines;
-        string res = RunHelperPumped("-Abgleich", out lines, 3600, lblDbPath);
-        string[] r0 = res.Split('|');
-        if (r0.Length >= 7 && r0[6] == "0")
-        {
-            // Freigabe erreichbar, Ordner aber weg, obwohl schon abgeglichen: nicht stillschweigend neu anlegen
-            string frage = "Die Freigabe ist erreichbar, der Ordner " + pfad + " aber nicht, obwohl schon abgeglichen wurde.\r\n\r\n"
-                + "Ist die Freigabe richtig eingehängt und der Ordner nicht verschoben? Nur wenn das Netzlaufwerk neu eingerichtet wurde: "
-                + "Ordner neu anlegen und beide Seiten zusammenführen? Dabei wird nichts gelöscht.";
-            if (MessageBox.Show(this, frage, "Abgleich mit dem Netzlaufwerk", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.Yes)
-                res = RunHelperPumped("-Abgleich -AbgleichNeu", out lines, 3600, lblDbPath);
-            else { ReloadDb(); SetText(lblDbPath, NasAblage.AblageText(dataDir) + "   ·   Ordner auf dem Netzlaufwerk fehlt, nichts geändert"); return; }
-        }
-        if (NasAblage.Angehalten(res))
-        {
-            // Schutz vor Massenlöschung: nichts wurde geändert; nur auf ausdrücklichen Wunsch fortsetzen
-            string frage = "Der Abgleich wurde angehalten, nichts wurde geändert:\r\n\r\n" + String.Join("\r\n", lines.ToArray())
-                + "\r\n\r\nIst die Freigabe richtig eingehängt und der Ordner nicht verschoben?\r\n\r\n"
-                + "Ja: Die Daten wurden bewusst entfernt. Die fehlenden Dateien werden auf der anderen Seite ins Archiv verschoben (Archiv\\Abgleich).\r\n"
-                + "Nein: Beide Seiten zusammenführen, nichts entfernen (z. B. Netzlaufwerk neu eingerichtet oder geleert).\r\n"
-                + "Abbrechen: nichts tun.";
-            DialogResult wahl = MessageBox.Show(this, frage, "Abgleich mit dem Netzlaufwerk", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button3);
-            if (wahl == DialogResult.Yes) res = RunHelperPumped("-Abgleich -AbgleichLoeschen", out lines, 3600, lblDbPath);
-            else if (wahl == DialogResult.No) res = RunHelperPumped("-Abgleich -AbgleichNeu", out lines, 3600, lblDbPath);
-            else { ReloadDb(); SetText(lblDbPath, NasAblage.AblageText(dataDir) + "   ·   Abgleich angehalten, nichts geändert"); return; }
-        }
-        ReloadDb();
-        bool ok, erreichbar;
-        string kurz = NasAblage.ErgebnisText(res, out ok, out erreichbar);
-        SetText(lblDbPath, NasAblage.AblageText(dataDir) + "   ·   " + kurz);
-        // Konflikte, Fehler und Abbrüche anzeigen; ein reiner Abgleich ohne Besonderheiten steht nur in der Zeile
-        string[] x = res.Split('|');
-        bool besonders = !ok || !erreichbar || (x.Length >= 6 && (x[4] != "0" || x[5] != "0"));
-        if (besonders) MessageBox.Show(this, kurz + (lines.Count > 0 ? "\r\n\r\n" + String.Join("\r\n", lines.ToArray()) : "") + "\r\n\r\nProtokoll: Minibench-Daten\\Abgleich\\Abgleich.log", "Abgleich mit dem Netzlaufwerk", MessageBoxButtons.OK, ok ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
     }
 
     void CleanData()
@@ -10338,9 +9522,9 @@ public partial class DiagGui
             try { Directory.CreateDirectory(td); } catch { }
             OpenShell(td);
         };
-        Button btnConnectNas = UI.Secondary("Netzlaufwerk einrichten ...");
+        Button btnConnectNas = UI.Secondary("Netzlaufwerk verbinden ...");
         btnConnectNas.Margin = new Padding(UI.S(8), 0, 0, 0);
-        Tip(btnConnectNas, "Richtet ein Netzlaufwerk als Spiegel der Berichte und der Datenbank ein. Werkzeuge bleiben immer auf dem Stick.");
+        Tip(btnConnectNas, "Verbindet ein Netzlaufwerk oder NAS für Berichte und Datenbank mit lokalem Fallback.");
         btnConnectNas.Click += delegate { ShowConnectNasDialog(); };
         topBar.Controls.Add(btnRefreshTools);
         topBar.Controls.Add(btnOpenToolsDir);
@@ -10977,113 +10161,193 @@ public partial class DiagGui
         return false;
     }
 
-    // Netzlaufwerk einrichten (ab v3.54): nur Pfad und Benutzer in Minibench-Daten\Netzwerk.json auf dem Stick. Die Ablage
-    // bleibt lokal; abgeglichen wird über Aktualisieren auf der Seite Vergleichsdatenbank. Ein Kennwort wird nicht
-    // gespeichert, die Verbindung (WNetAddConnection2) ist nicht dauerhaft und endet spätestens mit dem Programm.
+    public static bool TestWritableDir(string dir)
+    {
+        if (String.IsNullOrEmpty(dir)) return false;
+        try
+        {
+            Directory.CreateDirectory(dir);
+            string testFile = Path.Combine(dir, ".schreibtest_" + Process.GetCurrentProcess().Id + ".tmp");
+            File.WriteAllText(testFile, "x", Encoding.UTF8);
+            File.Delete(testFile);
+            return true;
+        }
+        catch { return false; }
+    }
+
+    public void SwitchDataDir(string newDir)
+    {
+        if (String.IsNullOrEmpty(newDir)) return;
+        this.dataDir = newDir.TrimEnd('\\');
+        this.dbDir = Path.Combine(this.dataDir, "Datenbank");
+        this.changeDir = Path.Combine(this.dataDir, "Änderungen");
+        try { Directory.CreateDirectory(this.dataDir); } catch { }
+        try { Directory.CreateDirectory(this.dbDir); } catch { }
+        try { Directory.CreateDirectory(this.changeDir); } catch { }
+        try { ReloadDb(); } catch { }
+    }
+
     public void ShowConnectNasDialog()
     {
-        string altPfad, altBenutzer;
-        bool hatKonfig = NasAblage.LeseKonfig(dataDir, out altPfad, out altBenutzer);
         using (Form dlg = new Form())
         {
-            dlg.Text = "Netzlaufwerk für den Abgleich einrichten";
+            dlg.Text = "Netzlaufwerk für Berichte & Datenbank verbinden";
             dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
             dlg.MaximizeBox = false; dlg.MinimizeBox = false; dlg.ShowInTaskbar = false;
             dlg.StartPosition = FormStartPosition.CenterParent;
             dlg.Font = new Font("Segoe UI", 9.5f);
             dlg.BackColor = UI.Bg; dlg.ForeColor = UI.Text;
-            dlg.ClientSize = new Size(UI.S(540), UI.S(400));
+            dlg.ClientSize = new Size(UI.S(520), UI.S(380));
 
             FlowLayoutPanel p = new FlowLayoutPanel();
-            p.Dock = DockStyle.Fill; p.FlowDirection = FlowDirection.TopDown; p.WrapContents = false; p.Padding = new Padding(UI.S(16));
+            p.Dock = DockStyle.Fill;
+            p.FlowDirection = FlowDirection.TopDown;
+            p.WrapContents = false;
+            p.Padding = new Padding(UI.S(16));
 
-            Label lInfo = Lbl("Berichte, Datenbank und Änderungsprotokolle bleiben immer auf dem Stick. Ein Netzlaufwerk ist ein Spiegel dieser Daten: \"Aktualisieren\" auf der Seite Vergleichsdatenbank gleicht beide Seiten ab. Ohne Netzlaufwerk (unterwegs) funktioniert alles wie gewohnt.", 9f, false, UI.Muted);
-            lInfo.MaximumSize = new Size(UI.S(500), 0); lInfo.Margin = new Padding(0, 0, 0, UI.S(12));
+            Label lInfo = Lbl("Verbindet ein Netzlaufwerk oder NAS für Berichte und Vergleichsdatenbank. Ist das Netzlaufwerk offline oder nicht beschreibbar, schaltet Minibench automatisch auf den lokalen Datenordner zurück.", 9f, false, UI.Muted);
+            lInfo.MaximumSize = new Size(UI.S(480), 0);
+            lInfo.Margin = new Padding(0, 0, 0, UI.S(12));
             p.Controls.Add(lInfo);
 
-            Label lPath = Lbl("Ordner auf dem Netzlaufwerk (\\\\server\\freigabe\\Ordner):", 9.5f, true, UI.Text); lPath.Margin = new Padding(0, 0, 0, UI.S(4)); p.Controls.Add(lPath);
-            TextBox tbPath = new TextBox(); tbPath.Width = UI.S(500); tbPath.Margin = new Padding(0, 0, 0, UI.S(10));
-            tbPath.Text = hatKonfig ? altPfad : @"\\NAS\Freigabe\Minibench";
-            Tip(tbPath, "UNC-Pfad des Ordners auf dem NAS, zum Beispiel \\\\TRUENAS\\Multimedia\\MiniBench. Ein Pfad mit nur einem \\ am Anfang zeigt auf den Stick und wird abgelehnt.");
+            Label lPath = Lbl("Netzwerkpfad (UNC-Pfad oder Netzlaufwerk):", 9.5f, true, UI.Text);
+            lPath.Margin = new Padding(0, 0, 0, UI.S(4));
+            p.Controls.Add(lPath);
+
+            TextBox tbPath = new TextBox();
+            tbPath.Width = UI.S(480);
+            string initialPath = (dataDir != null && dataDir.StartsWith(@"\\")) ? dataDir : "";
+            if (String.IsNullOrEmpty(initialPath)) {
+                List<string> probeDirs = new List<string>();
+                string eEnv = Environment.GetEnvironmentVariable("LEOSMINIBENCH_EXE");
+                if (!String.IsNullOrEmpty(eEnv)) { try { string ed = Path.GetDirectoryName(eEnv); if (!String.IsNullOrEmpty(ed)) probeDirs.Add(Path.Combine(ed, "Minibench-Daten")); } catch { } }
+                probeDirs.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Leos Minibench"));
+                probeDirs.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "LeosMinibench"));
+                probeDirs.Add(Path.Combine(Directory.GetCurrentDirectory(), "Minibench-Daten"));
+                if (!String.IsNullOrEmpty(dataDir) && !dataDir.StartsWith(@"\\")) probeDirs.Add(dataDir);
+                foreach (string pd in probeDirs) {
+                    try {
+                        string cfg = Path.Combine(pd, "Netzwerk.json");
+                        if (File.Exists(cfg)) {
+                            string txt = File.ReadAllText(cfg, Encoding.UTF8);
+                            System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(txt, @"""NasPfad""\s*:\s*""([^""]+)""");
+                            if (m.Success && !String.IsNullOrEmpty(m.Groups[1].Value)) { initialPath = m.Groups[1].Value.Replace(@"\\", @"\"); break; }
+                        }
+                    } catch { }
+                }
+            }
+            if (String.IsNullOrEmpty(initialPath)) initialPath = @"\\NAS\Freigabe\Minibench-Daten";
+            tbPath.Text = initialPath;
+            tbPath.Margin = new Padding(0, 0, 0, UI.S(10));
             p.Controls.Add(tbPath);
 
-            Label lUser = Lbl("Benutzername (optional):", 9f, false, UI.Text); lUser.Margin = new Padding(0, 0, 0, UI.S(2)); p.Controls.Add(lUser);
-            TextBox tbUser = new TextBox(); tbUser.Width = UI.S(500); tbUser.Margin = new Padding(0, 0, 0, UI.S(8)); tbUser.Text = altBenutzer;
-            Tip(tbUser, "Nur nötig, wenn Windows die Freigabe nicht mit der eigenen Anmeldung öffnet. Wird in Netzwerk.json gespeichert, das Kennwort nicht.");
+            Label lUser = Lbl("Benutzername (optional für 'net use'):", 9f, false, UI.Text);
+            lUser.Margin = new Padding(0, 0, 0, UI.S(2));
+            p.Controls.Add(lUser);
+
+            TextBox tbUser = new TextBox();
+            tbUser.Width = UI.S(480);
+            tbUser.Margin = new Padding(0, 0, 0, UI.S(8));
             p.Controls.Add(tbUser);
 
-            Label lPass = Lbl("Kennwort (optional, wird nicht gespeichert):", 9f, false, UI.Text); lPass.Margin = new Padding(0, 0, 0, UI.S(2)); p.Controls.Add(lPass);
-            TextBox tbPass = new TextBox(); tbPass.Width = UI.S(500); tbPass.UseSystemPasswordChar = true; tbPass.Margin = new Padding(0, 0, 0, UI.S(14));
-            Tip(tbPass, "Stellt die Verbindung nur für diese Sitzung her (nicht dauerhaft). Beim Aktualisieren fragt Leos Minibench bei Bedarf erneut.");
+            Label lPass = Lbl("Kennwort (optional):", 9f, false, UI.Text);
+            lPass.Margin = new Padding(0, 0, 0, UI.S(2));
+            p.Controls.Add(lPass);
+
+            TextBox tbPass = new TextBox();
+            tbPass.Width = UI.S(480);
+            tbPass.UseSystemPasswordChar = true;
+            tbPass.Margin = new Padding(0, 0, 0, UI.S(10));
             p.Controls.Add(tbPass);
 
-            FlowLayoutPanel rowButtons = Row();
-            Button btnOk = UI.Primary("Speichern und prüfen"); btnOk.Margin = new Padding(0);
-            Tip(btnOk, "Prüft den Pfad, verbindet bei Bedarf mit Benutzer und Kennwort und speichert den Pfad in Netzwerk.json auf dem Stick.");
-            Button btnRemove = UI.Secondary("Netzlaufwerk entfernen"); btnRemove.Margin = new Padding(UI.S(8), 0, 0, 0); btnRemove.Enabled = hatKonfig;
-            Tip(btnRemove, "Löscht Netzwerk.json. Die Daten auf Stick und Netzlaufwerk bleiben unverändert, es wird nur nicht mehr abgeglichen.");
-            Button btnCancel = UI.Secondary("Abbrechen"); btnCancel.Margin = new Padding(UI.S(8), 0, 0, 0);
-            Tip(btnCancel, "Schließt den Dialog ohne Änderungen.");
-            btnCancel.Click += delegate { dlg.Close(); };
-            bool jetztAbgleichen = false;
+            CheckBox chkSave = Chk("In Minibench-Daten\\Netzwerk.json dauerhaft festlegen", true);
+            chkSave.Margin = new Padding(0, 0, 0, UI.S(4));
+            Tip(chkSave, "Speichert den NAS-Pfad in der lokalen Konfigurationsdatei Netzwerk.json für zukünftige Starts.");
+            p.Controls.Add(chkSave);
 
-            btnRemove.Click += delegate {
-                if (MessageBox.Show(dlg, "Netzlaufwerk " + altPfad + " entfernen? Die Daten bleiben auf beiden Seiten erhalten, es wird nur nicht mehr abgeglichen.", "Netzlaufwerk entfernen", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-                try { NasAblage.LoescheKonfig(dataDir); } catch (Exception ex) { MessageBox.Show(dlg, ex.Message, "Netzlaufwerk entfernen", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                dlg.Close();
-            };
+            CheckBox chkNetUse = Chk("Verbindung jetzt herstellen ('net use')", true);
+            chkNetUse.Margin = new Padding(0, 0, 0, UI.S(14));
+            Tip(chkNetUse, "Führt im Hintergrund 'net use' aus, um Netzwerkauthentifizierung herzustellen.");
+            p.Controls.Add(chkNetUse);
+
+            FlowLayoutPanel rowButtons = Row();
+            Button btnOk = UI.Primary("Verbinden & Umschalten");
+            btnOk.Margin = new Padding(0);
+            Tip(btnOk, "Testet Schreibrechte und schaltet den aktiven Speicherort auf das Netzlaufwerk um.");
+
+            Button btnCancel = UI.Secondary("Abbrechen");
+            btnCancel.Margin = new Padding(UI.S(8), 0, 0, 0);
+            btnCancel.Click += delegate { dlg.Close(); };
+            Tip(btnCancel, "Schließt den Dialog ohne Änderungen.");
 
             btnOk.Click += delegate {
-                string pfad = NasAblage.Vereinheitlichen(tbPath.Text);
-                string fehler = NasAblage.PfadFehler(pfad);
-                if (fehler.Length > 0) { MessageBox.Show(dlg, "Der Pfad ist nicht verwendbar: " + fehler, "Netzlaufwerk einrichten", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                if (dataDir.Length == 0) { MessageBox.Show(dlg, "Es gibt keinen Datenordner auf dem Stick.", "Netzlaufwerk einrichten", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                Cursor = Cursors.WaitCursor; dlg.Cursor = Cursors.WaitCursor;
-                string hinweis = "";
-                if (tbPass.Text.Length > 0 || tbUser.Text.Trim().Length > 0)
-                {
-                    string err = NasAblage.Verbinden(pfad, tbUser.Text.Trim(), tbPass.Text);
-                    if (err.Length > 0) hinweis = err;
+                string unc = tbPath.Text.Trim();
+                if (String.IsNullOrEmpty(unc)) {
+                    MessageBox.Show(dlg, "Bitte geben Sie einen Netzwerkpfad ein.", "Netzlaufwerk verbinden", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
                 }
-                dlg.Enabled = false;
-                bool ok = NasAblage.OrdnerBereit(pfad, 6000);
-                dlg.Enabled = true;
-                Cursor = Cursors.Default; dlg.Cursor = Cursors.Default;
-                if (!ok)
-                {
-                    string m = "Der Ordner auf dem Netzlaufwerk ist gerade nicht erreichbar oder lässt sich nicht anlegen" + (hinweis.Length > 0 ? ": " + hinweis : ".") + "\r\n\r\nTrotzdem speichern? Abgeglichen wird dann beim nächsten Aktualisieren im Heimnetz.";
-                    if (MessageBox.Show(dlg, m, "Netzlaufwerk einrichten", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+
+                // net use optional ausführen
+                if (chkNetUse.Checked || !String.IsNullOrEmpty(tbUser.Text)) {
+                    try {
+                        ProcessStartInfo psi = new ProcessStartInfo();
+                        psi.FileName = "net.exe";
+                        StringBuilder args = new StringBuilder("use \"").Append(unc).Append("\"");
+                        if (!String.IsNullOrEmpty(tbPass.Text)) args.Append(" \"").Append(tbPass.Text).Append("\"");
+                        if (!String.IsNullOrEmpty(tbUser.Text)) args.Append(" /user:\"").Append(tbUser.Text).Append("\"");
+                        args.Append(chkSave.Checked ? " /persistent:yes" : " /persistent:no");
+                        psi.Arguments = args.ToString();
+                        psi.UseShellExecute = false;
+                        psi.CreateNoWindow = true;
+                        using (Process pNet = Process.Start(psi)) {
+                            pNet.WaitForExit(8000);
+                        }
+                    } catch { }
                 }
-                try { NasAblage.SchreibeKonfig(dataDir, pfad, tbUser.Text.Trim()); }
-                catch (Exception ex) { MessageBox.Show(dlg, "Netzwerk.json lässt sich nicht schreiben: " + ex.Message, "Netzlaufwerk einrichten", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                if (ok) jetztAbgleichen = MessageBox.Show(dlg, "Netzlaufwerk gespeichert und erreichbar.\r\n\r\nJetzt abgleichen?", "Netzlaufwerk einrichten", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
+
+                // Schreibprobe durchführen
+                if (!TestWritableDir(unc)) {
+                    MessageBox.Show(dlg, "Auf das Netzlaufwerk '" + unc + "' konnte nicht schreibend zugegriffen werden.\r\n\r\nBitte Zugriffsrechte, Freigabeeinstellungen und Netzwerkverbindung prüfen. Der bisherige Ablageort bleibt aktiv.", "Verbindung fehlgeschlagen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Dauerhaft speichern wenn gewünscht
+                if (chkSave.Checked) {
+                    List<string> cfgDirs = new List<string>();
+                    string exeEnv = Environment.GetEnvironmentVariable("LEOSMINIBENCH_EXE");
+                    if (!String.IsNullOrEmpty(exeEnv)) {
+                        try { string ed = Path.GetDirectoryName(exeEnv); if (!String.IsNullOrEmpty(ed) && Directory.Exists(ed)) cfgDirs.Add(Path.Combine(ed, "Minibench-Daten")); } catch { }
+                    }
+                    if (!String.IsNullOrEmpty(dataDir) && !dataDir.StartsWith(@"\\")) cfgDirs.Add(dataDir);
+                    cfgDirs.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Leos Minibench"));
+                    cfgDirs.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "LeosMinibench"));
+                    cfgDirs.Add(Path.Combine(Directory.GetCurrentDirectory(), "Minibench-Daten"));
+
+                    string json = "{\r\n  \"NasPfad\": \"" + unc.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"\r\n}\r\n";
+                    foreach (string cd in cfgDirs) {
+                        try {
+                            if (!Directory.Exists(cd)) Directory.CreateDirectory(cd);
+                            string cfgPath = Path.Combine(cd, "Netzwerk.json");
+                            File.WriteAllText(cfgPath, json, new UTF8Encoding(true));
+                        } catch { }
+                    }
+                }
+
+                // Live umschalten
+                SwitchDataDir(unc);
+                MessageBox.Show(dlg, "Netzlaufwerk erfolgreich verbunden!\r\n\r\nAktiver Ablageort für Berichte und Datenbank:\r\n" + unc, "Netzlaufwerk verbunden", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 dlg.DialogResult = DialogResult.OK;
                 dlg.Close();
             };
 
-            rowButtons.Controls.Add(btnOk); rowButtons.Controls.Add(btnRemove); rowButtons.Controls.Add(btnCancel);
+            rowButtons.Controls.Add(btnOk);
+            rowButtons.Controls.Add(btnCancel);
             p.Controls.Add(rowButtons);
-            dlg.Controls.Add(p);
-            dlg.AcceptButton = btnOk; dlg.CancelButton = btnCancel;
-            dlg.ShowDialog(this);
-            if (lblDbPath != null) SetText(lblDbPath, NasAblage.AblageText(dataDir));
-            if (jetztAbgleichen) RefreshAndSync();
-        }
-    }
 
-    // Kennwort für das Netzlaufwerk abfragen (wird nicht gespeichert); null = abgebrochen
-    string PromptPassword(string pfad, string benutzer)
-    {
-        using (Form dlg = new Form())
-        {
-            dlg.Text = "Netzlaufwerk verbinden"; dlg.FormBorderStyle = FormBorderStyle.FixedDialog; dlg.MaximizeBox = false; dlg.MinimizeBox = false;
-            dlg.StartPosition = FormStartPosition.CenterParent; dlg.ClientSize = new Size(UI.S(440), UI.S(150)); dlg.BackColor = UI.Bg; dlg.Font = new Font("Segoe UI", 9f);
-            Label l = new Label(); l.Text = "Kennwort für " + benutzer + " auf " + NasAblage.Freigabe(pfad) + ":"; l.Location = new Point(UI.S(16), UI.S(14)); l.Size = new Size(UI.S(408), UI.S(36));
-            TextBox tb = new TextBox(); tb.UseSystemPasswordChar = true; tb.Location = new Point(UI.S(16), UI.S(54)); tb.Size = new Size(UI.S(408), UI.S(24));
-            Button ok = UI.Primary("Verbinden"); ok.Location = new Point(UI.S(226), UI.S(98)); ok.Size = new Size(UI.S(95), UI.S(32)); ok.DialogResult = DialogResult.OK;
-            Button ab = UI.Secondary("Abbrechen"); ab.Location = new Point(UI.S(328), UI.S(98)); ab.Size = new Size(UI.S(96), UI.S(32)); ab.DialogResult = DialogResult.Cancel;
-            dlg.Controls.Add(l); dlg.Controls.Add(tb); dlg.Controls.Add(ok); dlg.Controls.Add(ab); dlg.AcceptButton = ok; dlg.CancelButton = ab;
-            return dlg.ShowDialog(this) == DialogResult.OK ? tb.Text : null;
+            dlg.Controls.Add(p);
+            dlg.AcceptButton = btnOk;
+            dlg.CancelButton = btnCancel;
+            dlg.ShowDialog(this);
         }
     }
 }
@@ -11729,12 +10993,6 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
-        new Eintrag("3.54", "09.10.2026", "Netzlaufwerk als Spiegel mit Abgleich auf Knopfdruck, Läufe vollständig entfernen und umbenennen",
-            "Datenordner immer auf dem Stick: Leos Minibench startet ohne Zugriff auf das Netzlaufwerk und findet Werkzeuge und Sensoren immer auf dem Stick. Vorher konnte ein nicht erreichbares NAS den Start blockieren, und Tools wurden auf dem NAS gesucht. " +
-            "Netzlaufwerk als Spiegel: Aktualisieren auf der Seite Vergleichsdatenbank gleicht Berichte, Datenbank, Änderungsprotokolle, Voreinstellungen und Referenz in beide Richtungen ab. Die neuere Fassung gilt, die ältere und alles Gelöschte kommt ins Archiv. Fehlt auf einer Seite ein großer Teil der Daten, hält der Abgleich an und fragt nach. Unterwegs funktioniert alles ohne NAS. " +
-            "Netzlaufwerk einrichten: Pfad und Benutzer stehen nur noch in Minibench-Daten\\Netzwerk.json auf dem Stick, das Kennwort wird nicht gespeichert, die Verbindung ist nicht dauerhaft. Ein Pfad mit nur einem \\ am Anfang (Ursache des Ordners TRUENAS auf dem Stick) wird abgelehnt. " +
-            "Vergleichsdatenbank: Entfernen verschiebt Eintrag und Berichtsordner ins Archiv, Name ändern benennt auch Datei und Berichtsordner um. " +
-            "Datenpflege: PawnIO-Merker und Start.log bleiben stehen, verwaiste temporäre Dateien im Laufzeitordner werden unter Windows PowerShell 5.1 wieder gefunden."),
         new Eintrag("3.53", "09.10.2026", "Testsuite nach Fachgebieten, winget mit Änderungsprotokoll, Grafikauswahl im Lasttest",
             "Softwarepakete der Seite Tools: winget läuft jetzt im Arbeitsprozess mit Frist je Paket und vollständig gelesener Ausgabe (vorher konnte die Installation unbegrenzt hängen). Jede Installation steht als Eingriff auf der Seite Änderungen und lässt sich dort mit winget uninstall zurücknehmen; schon vorhandene Programme bleiben unberührt. Vor dem Start fragt die Oberfläche nach. " +
             "Grafikauswahl im Lasttest: Die Wahl der Grafikeinheit auf der Seite Lasttest sprang auf den Wert des Benchmarks zurück; beide Seiten gleichen sich jetzt in beide Richtungen ab. " +
@@ -12020,7 +11278,7 @@ function Test-StepEnabled([string]$Key) {
     return $false
 }
 
-if (-not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme) {
+if (-not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport) {
     # Berichte landen ausschließlich im Datenordner neben dem Programm (z. B. auf dem USB-Stick)
     if (-not $OutputDir) {
         $base = $(if ($script:DataDir) { Join-Path $script:DataDir 'Berichte' } else { Join-Path $env:TEMP 'LeosMinibench-Berichte' })
@@ -17257,7 +16515,7 @@ function Read-Minidumps {
 #endregion
 
 #region ---------- C#-Testroutinen (RAM, CPU, Energiesparen) ----------
-if ($FullLanguage -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme -and -not ('DiagDiskStress' -as [type])) {
+if ($FullLanguage -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not ('DiagDiskStress' -as [type])) {
     $csCode = @'
 using System;
 using System.ComponentModel;
@@ -20618,7 +19876,7 @@ $script:SensorNotes = New-Object System.Collections.Generic.List[string]
 $script:SensorSnapshot = $null
 $script:SensorDb = [ordered]@{}
 
-if ($FullLanguage -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme -and -not ('DiagSensors' -as [type])) {
+if ($FullLanguage -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not ('DiagSensors' -as [type])) {
     $sensCode = @'
 using System;
 using System.Collections;

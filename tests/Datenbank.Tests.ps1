@@ -1,5 +1,5 @@
 ﻿# Vergleichsdatenbank (Format PC-Diagnose-DB/2 mit Geräteidentität), Referenzsysteme und eingebettete Referenzen,
-# Datenordner mit NAS-Anbindung über Netzwerk.json und lokalem Fallback, Datenpflege und Archivierung.
+# Datenordner (immer lokal, ab v3.54) mit Fallback auf Dokumente, Datenpflege und Archivierung.
 BeforeAll {
     . (Join-Path $PSScriptRoot 'Hilfen.ps1')
     # Kern\Datenordner.ps1 nur als einzelne Funktionen laden: der Teil ermittelt beim Laden sofort den Datenordner
@@ -7,7 +7,7 @@ BeforeAll {
     # Dokumente-Pfad und das Testmodul lädt gar nicht).
     Import-MinibenchTestModule -Parts 'Kern\Risiko.ps1', 'Kern\Modulvertrag.ps1', 'Kern\Geraeteidentitaet.ps1', 'Kern\Datenpflege.ps1', 'Kern\Referenzen_Eingebettet.ps1', 'Kern\Referenz_Vergleich.ps1' `
         -Functions 'Read-JsonFile', 'ConvertTo-ValueTable', 'Get-DbEntries', 'Get-DbLatest', 'Get-SafeName', 'Save-DbEntry', 'Get-CurrentRefValues', 'Import-BenchReference', 'Get-Median', 'Add-Line',
-                   'Test-WritableDir', 'Resolve-DataDir', 'Test-IsNetworkPath', 'Resolve-LocalDataDir', 'Initialize-DbDir' `
+                   'Test-WritableDir', 'Resolve-DataDir', 'Test-IsNetworkPath', 'Initialize-DbDir' `
         -Setup @'
 $script:DbFormat = 'PC-Diagnose-DB/2'
 $script:Report = New-Object System.Text.StringBuilder
@@ -16,7 +16,7 @@ $script:Facts = [ordered]@{ 'Prozessor' = 'AMD Ryzen 5 7600X'; 'Arbeitsspeicher'
 $script:BenchShort = @{}; $script:BenchNew = New-Object System.Collections.ArrayList; $script:BenchDisks = @(); $script:BenchResults = @(); $script:BenchRefName = ''
 $script:LoadSummary = ''; $KeineDatenbank = $false; $AnalyzeLastRun = $false; $Kurztest = $false; $BenchmarkKurz = $false; $ReferenzDatei = ''
 $script:DataDirFallback = $false; $script:LocalDataDir = ''; $script:CpDir = ''
-# net.exe (Verbindung zum NAS wiederherstellen) läuft in Tests nie; die Tests ersetzen den Platzhalter per Mock
+# net.exe: Platzhalter, damit die Tests prüfen können, dass der Start es nie aufruft
 function net.exe { }
 function Get-ModeLabel { 'Diagnose (vollständig)' }
 '@
@@ -246,7 +246,7 @@ foreach ($f in @(Get-ChildItem -LiteralPath $Dir -Filter '*.json')) {
     }
 }
 
-Describe 'Datenordner, NAS und Netzwerk.json' {
+Describe 'Datenordner und Netzwerk.json' {
     BeforeAll {
         # Netzwerk.json des Rechners (Dokumente, AppData) und Ordner außerhalb von TestDrive bleiben unsichtbar, net.exe läuft nie
         function Use-NurTestDrive {
@@ -283,22 +283,25 @@ Describe 'Datenordner, NAS und Netzwerk.json' {
         MinibenchTest\Resolve-DataDir -AppDir $app | Should -Be (Join-Path $app 'Minibench-Daten')
         Join-Path $app 'Minibench-Daten' | Should -Exist
     }
-    It 'nimmt den erreichbaren NAS-Pfad aus Netzwerk.json (Schlüssel <Schluessel>)' -ForEach @(
+    # ab v3.54: das NAS ist nur noch Spiegel (Kern\Ablage.ps1); der Start fasst es nie an, auch wenn es erreichbar wäre
+    It 'mit Netzwerk.json (Schlüssel <Schluessel>) bleibt der Datenordner lokal, das NAS wird beim Start nicht berührt' -ForEach @(
         @{ Schluessel = 'NasPfad' }, @{ Schluessel = 'NetzwerkPfad' }
     ) {
         Use-NurTestDrive
         $nas = Join-Path (New-TestDir 'nas') 'Minibench'
+        New-Item -ItemType Directory -Path $nas | Out-Null
         $app = New-AppDir -NasPfad $nas -Schluessel $Schluessel
-        MinibenchTest\Resolve-DataDir -AppDir $app | Should -Be $nas
-        Should -Invoke -ModuleName MinibenchTest net.exe -Times 0 -Exactly
-    }
-    It 'versucht bei unerreichbarem NAS die Verbindung wiederherzustellen und fällt sonst auf den lokalen Ordner zurück' {
-        Use-NurTestDrive
-        $blocker = Join-Path (New-TestDir 'nas') 'keinOrdner.txt'
-        [IO.File]::WriteAllText($blocker, 'x')
-        $app = New-AppDir -NasPfad (Join-Path $blocker 'Minibench')
         MinibenchTest\Resolve-DataDir -AppDir $app | Should -Be (Join-Path $app 'Minibench-Daten')
-        Should -Invoke -ModuleName MinibenchTest net.exe -Times 1 -Exactly
+        Should -Invoke -ModuleName MinibenchTest net.exe -Times 0 -Exactly
+        Should -Invoke -ModuleName MinibenchTest Test-Path -Times 0 -Exactly -ParameterFilter { ([string]$LiteralPath + [string]$Path).StartsWith($nas) }
+    }
+    It 'ein nicht erreichbares NAS in Netzwerk.json verzögert den Start nicht' {
+        Use-NurTestDrive
+        $app = New-AppDir -NasPfad '\\nicht-da.invalid\freigabe\Minibench'
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        MinibenchTest\Resolve-DataDir -AppDir $app | Should -Be (Join-Path $app 'Minibench-Daten')
+        $sw.Elapsed.TotalSeconds | Should -BeLessThan 5
+        Should -Invoke -ModuleName MinibenchTest net.exe -Times 0 -Exactly
     }
     It 'übernimmt den Ordner PC-Diagnose-Daten einer früheren Version' {
         Use-NurTestDrive
@@ -323,54 +326,31 @@ Describe 'Datenordner, NAS und Netzwerk.json' {
             Get-ModuleVar 'DataDirFallback' | Should -BeTrue
         } finally { Set-ModuleVar 'DataDirFallback' $false }
     }
-    It 'der lokale Ordner für Cache, Werkzeuge und Laufzeit nimmt nie einen Netzwerkpfad' {
-        Use-NurTestDrive
-        $lokal = New-TestDir 'lokal'
-        Mock -ModuleName MinibenchTest Test-WritableDir { ([string]$Dir).StartsWith($script:NurTestDrive) }
-        Set-ModuleVar 'DatenDir' $lokal
-        try {
-            MinibenchTest\Resolve-LocalDataDir -AppDir '\\server\freigabe\Minibench' | Should -Be $lokal
-            Should -Invoke -ModuleName MinibenchTest Test-WritableDir -ParameterFilter { ([string]$Dir).StartsWith('\\') } -Times 0 -Exactly
-        } finally { Set-ModuleVar 'DatenDir' $null }
-    }
-    It 'liegt der Datenordner auf dem NAS, bleiben Cache, Werkzeuge und Laufzeit lokal' {
+    It 'Datenbank, Berichte, Werkzeuge, Cache und Laufzeit liegen alle im Datenordner auf dem Stick' {
         # die Zuweisungen am Ende von Kern\Datenordner.ps1, so wie sie beim Start laufen
         $zeilen = @((Get-PartText 'Kern\Datenordner.ps1') -split "`r`n" | Where-Object { $_ -match '^\$script:(DataDirFallback|DataDir|LocalDataDir|ReportDir|DbDir|ToolsDir|CacheDir|CpDir)\s*=' })
         $zeilen.Count | Should -Be 8
-        # ein Ordner in TestDrive steht für die Freigabe auf dem NAS (UNC-Pfade lassen sich unter Linux nicht verbinden)
-        $nas = New-TestDir 'nas'
-        $lokal = New-TestDir 'lokal'
-        $script:FakeNas = $nas; $script:FakeLokal = $lokal
-        Mock -ModuleName MinibenchTest Resolve-DataDir { $script:FakeNas }
-        Mock -ModuleName MinibenchTest Test-IsNetworkPath { ([string]$Path).StartsWith('\\') }
-        Mock -ModuleName MinibenchTest Test-IsNetworkPath { $true } -ParameterFilter { [string]$Path -eq $script:FakeNas }
-        Mock -ModuleName MinibenchTest Resolve-LocalDataDir { $script:FakeLokal }
+        $lokal = New-TestDir 'daten'
+        $script:FakeLokal = $lokal
+        Mock -ModuleName MinibenchTest Resolve-DataDir { $script:FakeLokal }
         try {
             & (Get-Module MinibenchTest) ([scriptblock]::Create($zeilen -join "`n"))
-            Get-ModuleVar 'DataDir' | Should -Be $nas
-            Get-ModuleVar 'DbDir' | Should -Be (Join-Path $nas 'Datenbank')
+            Get-ModuleVar 'DataDir' | Should -Be $lokal
             Get-ModuleVar 'LocalDataDir' | Should -Be $lokal
-            Get-ModuleVar 'CacheDir' | Should -Be (Join-Path $lokal 'Cache')
+            Get-ModuleVar 'DbDir' | Should -Be (Join-Path $lokal 'Datenbank')
+            Get-ModuleVar 'ReportDir' | Should -Be (Join-Path $lokal 'Berichte')
             Get-ModuleVar 'ToolsDir' | Should -Be (Join-Path $lokal 'Tools')
+            Get-ModuleVar 'CacheDir' | Should -Be (Join-Path $lokal 'Cache')
             Get-ModuleVar 'CpDir' | Should -Be (Join-Path (Join-Path $lokal 'Laufzeit') $env:COMPUTERNAME)
-            Should -Invoke -ModuleName MinibenchTest Resolve-LocalDataDir -Times 1 -Exactly
         } finally {
             & (Get-Module MinibenchTest) { $script:DataDir = ''; $script:DbDir = ''; $script:LocalDataDir = ''; $script:CpDir = ''; $script:DataDirFallback = $false }
         }
     }
-    It 'liegt der Datenordner lokal, dient er auch als lokaler Ordner' {
-        $zeilen = @((Get-PartText 'Kern\Datenordner.ps1') -split "`r`n" | Where-Object { $_ -match '^\$script:(DataDirFallback|DataDir|LocalDataDir|ReportDir|DbDir|ToolsDir|CacheDir|CpDir)\s*=' })
-        $lokal = New-TestDir 'daten'
-        $script:FakeLokal = $lokal
-        Mock -ModuleName MinibenchTest Resolve-DataDir { $script:FakeLokal }
-        Mock -ModuleName MinibenchTest Resolve-LocalDataDir { throw 'darf nicht aufgerufen werden' }
-        try {
-            & (Get-Module MinibenchTest) ([scriptblock]::Create($zeilen -join "`n"))
-            Get-ModuleVar 'LocalDataDir' | Should -Be $lokal
-            Get-ModuleVar 'CacheDir' | Should -Be (Join-Path $lokal 'Cache')
-        } finally {
-            & (Get-Module MinibenchTest) { $script:DataDir = ''; $script:DbDir = ''; $script:LocalDataDir = ''; $script:CpDir = ''; $script:DataDirFallback = $false }
-        }
+    It 'Kern\Datenordner.ps1 liest Netzwerk.json nicht mehr und ruft kein net use' {
+        $t = Get-PartText 'Kern\Datenordner.ps1'
+        $code = (($t -split "`r`n") | Where-Object { $_ -notmatch '^\s*#' }) -join "`n"
+        $code | Should -Not -Match 'Netzwerk\.json'
+        $code | Should -Not -Match 'net(\.exe)?\s+use'
     }
 }
 
@@ -552,9 +532,8 @@ Describe 'Datenpflege und Archivierung' {
         $r.FreigegebenMB | Should -Be 2
         [IO.File]::ReadAllText((Join-Path $root 'Archiv/Datenpflege.log'), [Text.Encoding]::UTF8) | Should -Match '2[.,]00 MB freigegeben'
     }
-    # bekannter Fehler, Behebung offen: Get-ChildItem -Include ohne -Recurse findet unter Windows PowerShell 5.1 nichts
-    # (Kern\Datenpflege.ps1, Schritt 6), verwaiste *.tmp, *.lock und checkpoint*.json bleiben dort liegen
-    It 'löscht verwaiste temporäre Dateien im Laufzeitordner eines Geräts, frische bleiben' -Skip {
+    # bis 3.53 mit Get-ChildItem -Include ohne -Recurse (fand unter Windows PowerShell 5.1 nichts)
+    It 'löscht verwaiste temporäre Dateien im Laufzeitordner eines Geräts, frische bleiben' {
         $root = New-Leer
         $pc = Join-Path $root 'Laufzeit/PC1'; New-Item -ItemType Directory $pc -Force | Out-Null
         foreach ($n in 'alt.tmp', 'alt.lock', 'checkpoint_alt.json') { $f = Join-Path $pc $n; [IO.File]::WriteAllText($f, 'x'); Set-Alter $f 3 }
@@ -564,29 +543,15 @@ Describe 'Datenpflege und Archivierung' {
         Join-Path $pc 'frisch.tmp' | Should -Exist
         $r.Geloescht | Should -Be 3
     }
-    # bekannter Fehler, Behebung offen: Datenpflege löscht alle Dateien direkt in Laufzeit\ älter als 2 h, auch den
-    # PawnIO-Merker (PawnIO_<PC>.txt, sonst wird ein vorübergehend installierter Treiber nie entfernt) und Start.log
-    It 'lässt den PawnIO-Merker und Start.log im Laufzeitordner stehen' -Skip {
+    # bis 3.53 löschte die Datenpflege alle Dateien direkt in Laufzeit\ älter als 2 h, auch den PawnIO-Merker
+    # (PawnIO_<PC>.txt, sonst wird ein vorübergehend installierter Treiber nie entfernt) und Start.log
+    It 'lässt den PawnIO-Merker und Start.log im Laufzeitordner stehen, alte *.tmp nicht' {
         $root = New-Leer
         $lz = Join-Path $root 'Laufzeit'
-        foreach ($n in 'PawnIO_PC1.txt', 'Start.log') { $f = Join-Path $lz $n; [IO.File]::WriteAllText($f, 'x'); Set-Alter $f 3 }
+        foreach ($n in 'PawnIO_PC1.txt', 'Start.log', 'rest.tmp') { $f = Join-Path $lz $n; [IO.File]::WriteAllText($f, 'x'); Set-Alter $f 3 }
         $null = MinibenchTest\Invoke-Datenpflege -DataDir $root
         Join-Path $lz 'PawnIO_PC1.txt' | Should -Exist
         Join-Path $lz 'Start.log' | Should -Exist
-    }
-    # bekannter Fehler, Behebung offen: Datenpflege sucht laufend.json nur in <Datenordner>\Laufzeit; liegt der Datenordner
-    # auf dem NAS, steht der Merker im lokalen Laufzeitordner (CpDir) und der laufende Lauf wandert ins Archiv
-    It 'lässt einen laufenden Lauf auch dann liegen, wenn sein Merker im lokalen Laufzeitordner steht' -Skip {
-        $root = New-Leer
-        $busy = New-Report (Join-Path $root 'Berichte') 'PC1_20261003_1600' -Teilweise
-        $lokal = New-TestDir 'lokal'
-        $cp = Join-Path $lokal 'Laufzeit/PC1'; New-Item -ItemType Directory $cp -Force | Out-Null
-        [IO.File]::WriteAllText((Join-Path $cp 'laufend.json'), (@{ OutputDir = $busy; Version = '3.52' } | ConvertTo-Json))
-        Set-ModuleVar 'LocalDataDir' $lokal
-        Set-ModuleVar 'CpDir' $cp
-        try {
-            $null = MinibenchTest\Invoke-Datenpflege -DataDir $root
-            $busy | Should -Exist
-        } finally { Set-ModuleVar 'LocalDataDir' ''; Set-ModuleVar 'CpDir' '' }
+        Join-Path $lz 'rest.tmp' | Should -Not -Exist
     }
 }

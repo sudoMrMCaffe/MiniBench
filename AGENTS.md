@@ -10,13 +10,14 @@ src                 Quelltext. Reihenfolge der Teile in src\Bauplan.txt. Kern in
                     Module je Ordner src\Module\<Name> mit Vertrag.psd1 (Modulvertrag) und Ablauf.ps1,
                     Oberfläche in src\Oberflaeche\DiagGui*.cs (C#, Teile in der Reihenfolge aus Oberflaeche.ps1),
                     Versionshistorie in src\Oberflaeche\Versionen.cs, Sensoren in src\Kern\Sensoren.ps1 und .cs,
-                    Datenpflege in src\Kern\Datenpflege.ps1, Softwarepakete (winget) in src\Kern\Softwarepakete.ps1.
+                    Datenpflege in src\Kern\Datenpflege.ps1, Softwarepakete (winget) in src\Kern\Softwarepakete.ps1,
+                    Netzlaufwerk (Abgleich, Entfernen, Umbenennen von Läufen) in src\Kern\Ablage.ps1.
 Bauen.cmd           fügt src zu Aktueller Build\LeosMinibench.ps1 zusammen, führt die Tests aus, baut die .exe, schreibt
                     Stand.txt, passt README.md an (Version, Testanzahl), verschiebt den vorigen Build nach
                     Archiv\v<alte Version>, räumt Aktueller Build\Minibench-Daten auf und committet nach bestandenen
                     Tests lokal (Nachricht aus Versionen.cs). Bauen.cmd ohnetests baut ohne Tests und ohne Commit.
 Aktueller Build     nie von Hand ändern, entsteht bei jedem Bau neu. Inhalt kommt auf den USB-Stick.
-tests               Pester-Tests nach Fachgebieten (keine Dateien je Version): Ablauf, Aenderungen, Aufbau, Auswertung,
+tests               Pester-Tests nach Fachgebieten (keine Dateien je Version): Ablage, Ablauf, Aenderungen, Aufbau, Auswertung,
                     Bericht, Datenbank, Lauf (Gesamtläufe, nur mit -Gesamtlauf), Messung, Modulvertrag, Oberflaeche,
                     Optimierung, Praxistest, Release, Risiko, Sensoren, Werkzeuge. Testdaten unter tests\Daten.
                     Start: Testen.cmd, einzelne Dateien: Testen.cmd -Datei Oberflaeche,Release.
@@ -28,8 +29,9 @@ tests               Pester-Tests nach Fachgebieten (keine Dateien je Version): A
 Doku                Änderungen_vX.Y.txt, Versionshistorie.txt, Projektstand.md, Beispiele, Screenshots.
 Archiv\vX.Y         Sicherung jeder abgelösten Version (legt Bauen.cmd an).
 Minibench-Daten     Datenordner neben der exe: Berichte, Datenbank (JSON, PC-Diagnose-DB/2), Tools mit Manifest
-                    Tools.json (SHA-256), Cache, Laufzeit, Änderungen (Änderungsprotokoll), Archiv. Berichte und Datenbank
-                    können auf ein NAS (Netzwerk.json); Cache, Tools und Laufzeit bleiben lokal.
+                    Tools.json (SHA-256), Cache, Laufzeit, Änderungen (Änderungsprotokoll), Abgleich, Archiv. Liegt immer
+                    auf dem Stick. Ein NAS ist nur Spiegel: Netzwerk.json (Pfad, Benutzer, nie ein Kennwort) steht nur hier,
+                    abgeglichen wird nur über Aktualisieren (Kern\Ablage.ps1). Der Start greift nie auf das NAS zu.
 
 ## Feste Vorgaben
 1. Windows PowerShell 5.1 und C# 5 (Add-Type, mcs -langversion:5 zum Prüfen). Keine Installation nötig, läuft vom Stick.
@@ -52,7 +54,10 @@ Minibench-Daten     Datenordner neben der exe: Berichte, Datenbank (JSON, PC-Dia
 12. Werte aus Datenbank, WMI oder Dateinamen in HTML und JavaScript immer maskieren.
 13. Neuer Startparameter, der einen Hilfsmodus der Oberfläche startet: in den Sondermodus-Bedingungen von
     Oberflaeche.ps1, Grundgeruest.ps1, Testroutinen.ps1 und Sensoren.ps1 ausschließen und einem Modulvertrag oder der
-    Liste $general in Modulvertrag.Tests.ps1 zuordnen.
+    Liste $general in Modulvertrag.Tests.ps1 zuordnen. Hilfsmodi, die schon in ihrem eigenen Kernteil mit exit enden
+    (-Datenpflege, -Abgleich, -Entfernen, -Umbenennen), brauchen den Ausschluss nicht; braucht der Modus keine
+    Administratorrechte, in Kern\Adminrechte.ps1 eintragen.
+14. Nutzerdaten nie löschen, sondern ins Archiv des Datenordners verschieben (Datenpflege, Entfernen, Abgleich).
 
 ## Regeln für Tests
 1. Nach Fachgebiet, nicht nach Version. Verhaltenstests (Funktion im Testmodul aufrufen, Ergebnis prüfen) vor Regex auf

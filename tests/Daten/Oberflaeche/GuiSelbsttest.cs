@@ -21,6 +21,9 @@ public static class GuiSelbsttest
         Fall("Softwarepakete.Ereignisse", SoftwareEreignisse);
         Fall("Datenbank.Referenzen", DatenbankReferenzen);
         Fall("Aenderungen.Softwarepaket", AenderungSoftwarepaket);
+        Fall("Netzlaufwerk.Pfad", NasPfad);
+        Fall("Netzlaufwerk.Konfiguration", NasKonfiguration);
+        Fall("Netzlaufwerk.Ergebnis", NasErgebnis);
         foreach (string l in outLines) System.Console.WriteLine(l);
         return 0;
     }
@@ -158,5 +161,60 @@ public static class GuiSelbsttest
             Ist(l[0].Undoable, "auf diesem PC rückgängig machbar");
         }
         finally { try { System.IO.Directory.Delete(dir, true); } catch { } }
+    }
+
+    // ab v3.54: Netzlaufwerk als Spiegel (NasAblage in DiagGui_Modelle.cs)
+    static void NasPfad()
+    {
+        Ist(NasAblage.PfadFehler(@"\\TRUENAS\Multimedia\MiniBench") == "", "UNC-Pfad gültig");
+        Ist(NasAblage.PfadFehler(@"\\nas\freigabe") == "", "Freigabe ohne Unterordner gültig");
+        Ist(NasAblage.PfadFehler(@"\TRUENAS\Multimedia\MiniBench").Contains("nur einem"), "ein führendes \\ wird erkannt (Ordner TRUENAS auf dem Stick)");
+        Ist(NasAblage.PfadFehler(@"TRUENAS\Multimedia").Length > 0, "relativer Pfad abgelehnt");
+        Ist(NasAblage.PfadFehler("").Length > 0 && NasAblage.PfadFehler(null).Length > 0, "leer abgelehnt");
+        Ist(NasAblage.Freigabe(@"\\TRUENAS\Multimedia\MiniBench\Daten") == @"\\TRUENAS\Multimedia", "Freigabe aus dem Pfad");
+        Ist(NasAblage.Freigabe(@"I:\TRUENAS") == "", "Laufwerk hat keine Freigabe");
+        Ist(!NasAblage.Erreichbar(@"\TRUENAS\Multimedia", 200), "ungültiger Pfad gilt nie als erreichbar");
+        Ist(!NasAblage.OrdnerBereit(@"\TRUENAS\Multimedia", 200), "ungültiger Pfad wird nie angelegt");
+        Ist(NasAblage.Vereinheitlichen(@" \\nas\daten\ ") == @"\\nas\daten" && NasAblage.Vereinheitlichen(@"Z:\") == @"Z:\" && NasAblage.Vereinheitlichen("Z:") == @"Z:\", "Pfade vereinheitlichen (Laufwerksstamm bleibt Z:\\)");
+    }
+
+    static void NasKonfiguration()
+    {
+        string d = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "mb_nas_" + System.Guid.NewGuid().ToString("N"));
+        try
+        {
+            string p, b;
+            Ist(!NasAblage.LeseKonfig(d, out p, out b), "ohne Netzwerk.json keine Konfiguration");
+            Ist(NasAblage.AblageText(d) == "Datenordner: " + d, "ohne Netzlaufwerk nur der Datenordner");
+            NasAblage.SchreibeKonfig(d, @"\\TRUENAS\Multimedia\MiniBench\", "leo");
+            Ist(NasAblage.LeseKonfig(d, out p, out b) && p == @"\\TRUENAS\Multimedia\MiniBench" && b == "leo", "Pfad und Benutzer gelesen: " + p + " / " + b);
+            string t = System.IO.File.ReadAllText(NasAblage.KonfigDatei(d));
+            Ist(!t.ToLowerInvariant().Contains("kennwort") && !t.ToLowerInvariant().Contains("passw"), "kein Kennwort in Netzwerk.json");
+            Ist(NasAblage.AblageText(d).Contains("noch nicht abgeglichen"), "noch nicht abgeglichen");
+            System.IO.Directory.CreateDirectory(System.IO.Path.Combine(d, "Abgleich"));
+            System.IO.File.WriteAllText(System.IO.Path.Combine(System.IO.Path.Combine(d, "Abgleich"), "Stand.json"), "{\"Format\":\"Minibench-Abgleich/1\",\"Zeit\":\"2026-10-09 14:05:33\",\"Dateien\":[]}");
+            Ist(NasAblage.LetzterAbgleich(d) == "09.10.2026 14:05", "Zeit des letzten Abgleichs: " + NasAblage.LetzterAbgleich(d));
+            Ist(NasAblage.AblageText(d).Contains("zuletzt abgeglichen 09.10.2026 14:05"), "Zeile nennt den letzten Abgleich");
+            // Schlüssel früherer Versionen
+            System.IO.File.WriteAllText(NasAblage.KonfigDatei(d), "{\"NetzwerkPfad\":\"\\\\\\\\nas\\\\daten\"}");
+            Ist(NasAblage.LeseKonfig(d, out p, out b) && p == @"\\nas\daten" && b == "", "Schlüssel NetzwerkPfad: " + p);
+            NasAblage.LoescheKonfig(d);
+            Ist(!System.IO.File.Exists(NasAblage.KonfigDatei(d)), "Netzwerk.json gelöscht");
+        }
+        finally { try { System.IO.Directory.Delete(d, true); } catch { } }
+    }
+
+    static void NasErgebnis()
+    {
+        bool ok, erreichbar;
+        string t = NasAblage.ErgebnisText("1|3|2|1|0|0|1", out ok, out erreichbar);
+        Ist(ok && erreichbar && t == "3 zum Netzlaufwerk, 2 auf den Stick, 1 gelöscht, 0 Konflikte, 0 Fehler", t);
+        t = NasAblage.ErgebnisText("0|0|0|0|0|0|0", out ok, out erreichbar);
+        Ist(!ok && !erreichbar && t.Contains("nicht erreichbar"), t);
+        t = NasAblage.ErgebnisText("0|0|0|0|0|0|1|1", out ok, out erreichbar);
+        Ist(!ok && erreichbar && NasAblage.Angehalten("0|0|0|0|0|0|1|1") && t.Contains("angehalten"), "angehalten: " + t);
+        Ist(!NasAblage.Angehalten("1|3|2|1|0|0|1|0") && !NasAblage.Angehalten("1|3|2|1|0|0|1"), "nicht angehalten");
+        t = NasAblage.ErgebnisText("", out ok, out erreichbar);
+        Ist(!ok && t.StartsWith("Keine"), t);
     }
 }

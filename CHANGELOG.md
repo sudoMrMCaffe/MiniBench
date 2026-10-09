@@ -2,6 +2,15 @@
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
 
+## v3.54 (09.10.2026)
+
+* **Datenordner immer auf dem Stick:** `Resolve-DataDir` liest `Netzwerk.json` nicht mehr und ruft kein `net use`. Der Start ist ohne NAS so schnell wie mit; Tools, Cache und Laufzeit liegen immer im Datenordner auf dem Stick (vorher wurden Tools auf dem NAS gesucht, Sensoren fehlten).
+* **Netzlaufwerk als Spiegel (`Kern\Ablage.ps1`):** Abgleich nur über Aktualisieren (Hilfsmodus `-Abgleich`), in beide Richtungen gegen den Stand des letzten Abgleichs (`Minibench-Daten\Abgleich\Stand.json`). Neuere Fassung gilt, ältere nach `Archiv\Abgleich\<Zeit>\Konflikte`; Löschungen werden als Verschiebung ins Archiv übertragen, Änderung schlägt Löschung. Schutz vor Massenlöschung (hält an; `-AbgleichLoeschen` bestätigt, `-AbgleichNeu` führt ohne Entfernen zusammen), Abbruch ohne Änderung bei Lesefehlern, Sperre `Abgleich.lock`, Toleranz für Zeitverschiebung auf FAT-Sticks.
+* **Netzlaufwerk einrichten:** `Netzwerk.json` nur im Datenordner auf dem Stick, Kennwort nie gespeichert, Verbindung über `WNetAddConnection2` ohne `/persistent`, beim Beenden getrennt. Pfade mit nur einem führenden `\` werden abgelehnt (Ursache des Ordners `TRUENAS` auf dem Stick).
+* **Vergleichsdatenbank:** Entfernen verschiebt Eintrag und Berichtsordner nach `Archiv\Entfernt\<Zeit>` (`-Entfernen`); Name ändern benennt Datenbankdatei und Berichtsordner um und führt Verweise in den Änderungsprotokollen nach (`-Umbenennen`).
+* **Datenpflege:** PawnIO-Merker und `Start.log` bleiben stehen; `-Include` ohne `-Recurse` ersetzt (fand unter PS 5.1 nichts).
+* **Tests:** neue Datei `Ablage.Tests.ps1`, Datenordner-Tests in `Datenbank.Tests.ps1` neu gefasst, drei Fälle im Selbsttest der Oberfläche.
+
 ## v3.53 (09.10.2026)
 
 * **Softwarepakete (Seite Tools) über das Änderungsprotokoll:** winget läuft im Arbeitsprozess (`-SoftwareInstallieren`) mit Frist je Paket (20 Minuten) und vollständig gelesener Ausgabe. Vorher konnte die Installation unbegrenzt hängen, weil die umgeleitete Ausgabe nie gelesen wurde. Jede Installation ist ein Eingriff im Änderungsprotokoll mit Gegenbefehl `winget uninstall`; die Seite Änderungen nimmt sie zurück. Schon vorhandene Programme werden weder angefasst noch protokolliert. Vor dem Start fragt die Oberfläche nach.

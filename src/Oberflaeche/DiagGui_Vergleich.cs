@@ -136,35 +136,14 @@ public partial class DiagGui
         newName = newName.Trim();
         if (newName.Length == 0 || newName == currentName) return;
 
-        target.Name = newName;
-        if (File.Exists(target.Path))
-        {
-            try
-            {
-                string text = File.ReadAllText(target.Path, Encoding.UTF8);
-                string escaped = newName.Replace("\\", "\\\\").Replace("\"", "\\\"");
-                if (System.Text.RegularExpressions.Regex.IsMatch(text, @"(?m)^\s*""Name""\s*:"))
-                {
-                    text = System.Text.RegularExpressions.Regex.Replace(text, @"(?m)^(\s*""Name""\s*:\s*)"".*?""(,?)", "$1\"" + escaped + "\"$2");
-                }
-                else
-                {
-                    int idx = text.IndexOf('{');
-                    if (idx >= 0) text = text.Substring(0, idx + 1) + "\r\n  \"Name\": \"" + escaped + "\"," + text.Substring(idx + 1);
-                }
-                File.WriteAllText(target.Path, text, Encoding.UTF8);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(this, "Fehler beim Speichern des Namens: " + ex.Message, "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-        }
-        if (lvi != null)
-        {
-            lvi.SubItems[0].Text = target.DisplayName;
-            lvi.ToolTipText = target.DisplayName + (target.Disk.Length > 0 ? "\r\n" + target.Disk : "") + (target.HasBench ? "" : "\r\n(ohne Benchmark-Werte)");
-        }
+        // ab 3.54: Datenbankdatei und Berichtsordner bekommen den neuen Namen (Name_Datum_Zeit), über den Arbeitsprozess
+        // ein führendes - hielte powershell.exe -File für einen Parameternamen
+        newName = newName.Replace("\"", "'").Replace("\r", " ").Replace("\n", " ").TrimEnd('\\').Trim().TrimStart('-', ' ');
+        if (newName.Length == 0) return;
+        List<string> lines;
+        string res = RunHelperPumped("-Umbenennen " + Q(target.Path) + " -NeuerName " + Q(newName), out lines, 120);
+        ReloadDb();
+        if (!res.StartsWith("1")) MessageBox.Show(this, "Der Name konnte nicht geändert werden.\r\n\r\n" + String.Join("\r\n", lines.ToArray()), "Systemnamen bearbeiten", MessageBoxButtons.OK, MessageBoxIcon.Warning);
     }
 
     Control BuildDbPage()
@@ -173,7 +152,7 @@ public partial class DiagGui
         FlowLayoutPanel top = Page("Vergleichsdatenbank", "Jeder Lauf wird als System gespeichert. Hier lassen sich bereits geprüfte Systeme ohne neuen Benchmark im interaktiven Multi-System-Dashboard gegenüberstellen: Systeme anhaken und \"Im Dashboard vergleichen\" klicken. Ältere Ausgabeordner lassen sich importieren. Ein Klick auf die Spaltenköpfe sortiert die Einträge.", -1);
         top.Dock = DockStyle.Top;
         top.AutoSize = true;
-        lblDbPath = Lbl("Datenbank: " + (dbDir.Length > 0 ? dbDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lblDbPath.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(4)); top.Controls.Add(lblDbPath);
+        lblDbPath = Lbl(NasAblage.AblageText(dataDir), 9f, false, UI.Muted); lblDbPath.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(4)); top.Controls.Add(lblDbPath);
 
         FlowLayoutPanel topTools = Row();
         topTools.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8));
@@ -181,12 +160,12 @@ public partial class DiagGui
         Tip(imp, "Übernimmt Benchmark-Werte aus Ausgabeordnern früherer Läufe in die Datenbank (auch von PC-Diagnose).");
         btnDbClean = UI.Secondary("Aufräumen ..."); btnDbClean.Margin = new Padding(UI.S(8), 0, 0, 0); btnDbClean.Click += delegate { CleanData(); }; btnDbClean.Enabled = dataDir.Length > 0;
         Tip(btnDbClean, "Räumt nicht vergleichbare oder abgebrochene Läufe auf und verschiebt sie ins Archiv.");
-        Button rel = UI.Secondary("Aktualisieren"); rel.Margin = new Padding(UI.S(8), 0, 0, 0); rel.Click += delegate { ReloadDb(); };
-        Tip(rel, "Liest Datenbank und Referenz neu ein.");
+        Button rel = UI.Secondary("Aktualisieren"); rel.Margin = new Padding(UI.S(8), 0, 0, 0); rel.Click += delegate { RefreshAndSync(); };
+        Tip(rel, "Liest Datenbank und Referenz neu ein. Ist ein Netzlaufwerk eingerichtet und erreichbar, werden Berichte, Datenbank und Änderungsprotokolle vorher in beide Richtungen abgeglichen.");
         Button open = UI.Secondary("Datenordner"); open.Margin = new Padding(UI.S(8), 0, 0, 0); open.Click += delegate { if (dataDir.Length > 0) OpenShell(dataDir); };
         Tip(open, "Öffnet den Datenordner (Berichte, Datenbank, Tools, Archiv).");
-        Button btnNas = UI.Secondary("Netzlaufwerk / NAS ..."); btnNas.Margin = new Padding(UI.S(8), 0, 0, 0); btnNas.Click += delegate { ShowConnectNasDialog(); };
-        Tip(btnNas, "Verbindet ein Netzlaufwerk oder NAS für Berichte und Vergleichsdatenbank.");
+        Button btnNas = UI.Secondary("Netzlaufwerk ..."); btnNas.Margin = new Padding(UI.S(8), 0, 0, 0); btnNas.Click += delegate { ShowConnectNasDialog(); };
+        Tip(btnNas, "Richtet ein Netzlaufwerk (NAS) als Spiegel der Berichte und der Datenbank ein oder entfernt es. Gearbeitet wird immer auf dem Stick.");
         topTools.Controls.Add(imp); topTools.Controls.Add(btnDbClean); topTools.Controls.Add(rel); topTools.Controls.Add(open); topTools.Controls.Add(btnNas);
         top.Controls.Add(topTools);
 
@@ -209,9 +188,9 @@ public partial class DiagGui
         btnRename = UI.Secondary("Name ändern ..."); btnRename.Margin = new Padding(UI.S(8), 0, 0, 0);
         btnRename.Click += delegate { RenameSelectedEntry(); };
         btnRename.Enabled = false;
-        Tip(btnRename, "Bearbeitet den Anzeigenamen des ausgewählten Systems (z. B. für Notizen wie Vor Reinigung oder Neuer Treiber), ohne die Hardware-Erkennung zu verändern.");
+        Tip(btnRename, "Ändert den Anzeigenamen des ausgewählten Systems (z. B. Vor Reinigung) und benennt Datenbankdatei und Berichtsordner passend um. Rechnername und Hardware-Erkennung bleiben.");
         btnDelete = UI.Secondary("Entfernen"); btnDelete.Margin = new Padding(UI.S(8), 0, 0, 0); btnDelete.Click += delegate { DeleteSelected(); };
-        Tip(btnDelete, "Löscht die ausgewählten Systeme aus der Vergleichsdatenbank.");
+        Tip(btnDelete, "Verschiebt die angehakten Läufe samt Berichtsordner nach Minibench-Daten\\Archiv\\Entfernt. Beim nächsten Abgleich verschwinden sie auch vom Netzlaufwerk.");
         b.Controls.Add(btnDashboard); b.Controls.Add(btnOpenReport); b.Controls.Add(btnRename); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
         lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
         lblDbClean.Margin = new Padding(UI.S(4), UI.S(8), UI.S(4), 0); bottom.Controls.Add(lblDbClean);
@@ -333,6 +312,8 @@ public partial class DiagGui
         if (e.Ordner.Length > 0)
         {
             string dir = System.IO.Path.IsPathRooted(e.Ordner) ? e.Ordner : System.IO.Path.Combine(dataDir, e.Ordner);
+            // Einträge aus der Zeit, als die Ablage auf dem NAS lag, können einen UNC-Pfad tragen: dann der gleichnamige Ordner auf dem Stick
+            if (!Directory.Exists(dir)) { string alt = System.IO.Path.Combine(System.IO.Path.Combine(dataDir, "Berichte"), System.IO.Path.GetFileName(e.Ordner.TrimEnd('\\', '/'))); if (Directory.Exists(alt)) dir = alt; }
             string html = System.IO.Path.Combine(dir, "Diagnosebericht.html");
             if (File.Exists(html)) { OpenShell(html); return; }
             if (Directory.Exists(dir)) { OpenShell(dir); return; }
@@ -374,15 +355,97 @@ public partial class DiagGui
         }
     }
 
+    // ab 3.54: Eintrag und Berichtsordner ins Archiv (Minibench-Daten\Archiv\Entfernt), über den Arbeitsprozess
     void DeleteSelected()
     {
         List<DbEntry> sel = CheckedEntries();
         if (sel.Count == 0) return;
         StringBuilder sb = new StringBuilder();
         foreach (DbEntry e in sel) sb.AppendLine("·  " + e.DisplayName + "  " + e.Datum);
-        if (MessageBox.Show(this, "Diese Einträge aus der Vergleichsdatenbank entfernen? Die Berichtsordner bleiben erhalten.\r\n\r\n" + sb.ToString(), "Leos Minibench", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-        foreach (DbEntry e in sel) { try { File.Delete(e.Path); } catch { } }
+        string nas, ben; bool mitNas = NasAblage.LeseKonfig(dataDir, out nas, out ben);
+        string msg = "Diese Läufe entfernen?\r\n\r\n" + sb.ToString() + "\r\nDatenbankeintrag und Berichtsordner werden nach Minibench-Daten\\Archiv\\Entfernt verschoben und lassen sich von dort zurückholen."
+            + (mitNas ? " Auf dem Netzlaufwerk verschwinden sie beim nächsten Aktualisieren (dort ebenfalls ins Archiv)." : "");
+        if (MessageBox.Show(this, msg, "Läufe entfernen", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+        List<string> paths = new List<string>();
+        foreach (DbEntry e in sel) paths.Add(e.Path);
+        List<string> lines;
+        string res = RunHelperPumped("-Entfernen " + Q(String.Join("|", paths.ToArray())), out lines, 300);
         ReloadDb();
+        string[] r = res.Split('|');
+        if (r.Length < 2 || r[1] != "0") MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Keine Rückmeldung vom Arbeitsprozess.", "Läufe entfernen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+    }
+
+    // Aktualisieren (ab 3.54): mit eingerichtetem und erreichbarem Netzlaufwerk erst abgleichen, dann neu einlesen.
+    // Ohne Netzlaufwerk oder unterwegs nur neu einlesen; alles auf dem Stick bleibt nutzbar.
+    bool abgleichLaeuft = false;
+    void RefreshAndSync()
+    {
+        if (abgleichLaeuft) return;
+        abgleichLaeuft = true;
+        try { AbgleichenUndLaden(); } finally { abgleichLaeuft = false; }
+    }
+
+    void AbgleichenUndLaden()
+    {
+        string pfad, benutzer;
+        if (dataDir.Length == 0 || !NasAblage.LeseKonfig(dataDir, out pfad, out benutzer)) { ReloadDb(); return; }
+        string fehler = NasAblage.PfadFehler(pfad);
+        if (fehler.Length > 0) { ReloadDb(); MessageBox.Show(this, "Der gespeicherte Pfad des Netzlaufwerks ist nicht verwendbar: " + fehler + "\r\n\r\nBitte unter \"Netzlaufwerk ...\" korrigieren.", "Aktualisieren", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+        SetText(lblDbPath, "Netzlaufwerk " + pfad + " wird geprüft ...");
+        bool warAn = Enabled; Enabled = false;
+        bool da;
+        try { da = NasAblage.Erreichbar(pfad, 6000); } finally { Enabled = warAn; }
+        if (!da && benutzer.Length > 0)
+        {
+            string pw = PromptPassword(pfad, benutzer);
+            if (pw != null)
+            {
+                string err = NasAblage.Verbinden(pfad, benutzer, pw);
+                Enabled = false;
+                try { da = err.Length == 0 && NasAblage.Erreichbar(pfad, 6000); } finally { Enabled = warAn; }
+                if (!da && err.Length > 0) MessageBox.Show(this, err, "Netzlaufwerk verbinden", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+        if (!da)
+        {
+            ReloadDb();
+            SetText(lblDbPath, NasAblage.AblageText(dataDir) + "   ·   gerade nicht erreichbar");
+            return;
+        }
+        List<string> lines;
+        string res = RunHelperPumped("-Abgleich", out lines, 3600, lblDbPath);
+        string[] r0 = res.Split('|');
+        if (r0.Length >= 7 && r0[6] == "0")
+        {
+            // Freigabe erreichbar, Ordner aber weg, obwohl schon abgeglichen: nicht stillschweigend neu anlegen
+            string frage = "Die Freigabe ist erreichbar, der Ordner " + pfad + " aber nicht, obwohl schon abgeglichen wurde.\r\n\r\n"
+                + "Ist die Freigabe richtig eingehängt und der Ordner nicht verschoben? Nur wenn das Netzlaufwerk neu eingerichtet wurde: "
+                + "Ordner neu anlegen und beide Seiten zusammenführen? Dabei wird nichts gelöscht.";
+            if (MessageBox.Show(this, frage, "Abgleich mit dem Netzlaufwerk", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.Yes)
+                res = RunHelperPumped("-Abgleich -AbgleichNeu", out lines, 3600, lblDbPath);
+            else { ReloadDb(); SetText(lblDbPath, NasAblage.AblageText(dataDir) + "   ·   Ordner auf dem Netzlaufwerk fehlt, nichts geändert"); return; }
+        }
+        if (NasAblage.Angehalten(res))
+        {
+            // Schutz vor Massenlöschung: nichts wurde geändert; nur auf ausdrücklichen Wunsch fortsetzen
+            string frage = "Der Abgleich wurde angehalten, nichts wurde geändert:\r\n\r\n" + String.Join("\r\n", lines.ToArray())
+                + "\r\n\r\nIst die Freigabe richtig eingehängt und der Ordner nicht verschoben?\r\n\r\n"
+                + "Ja: Die Daten wurden bewusst entfernt. Die fehlenden Dateien werden auf der anderen Seite ins Archiv verschoben (Archiv\\Abgleich).\r\n"
+                + "Nein: Beide Seiten zusammenführen, nichts entfernen (z. B. Netzlaufwerk neu eingerichtet oder geleert).\r\n"
+                + "Abbrechen: nichts tun.";
+            DialogResult wahl = MessageBox.Show(this, frage, "Abgleich mit dem Netzlaufwerk", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button3);
+            if (wahl == DialogResult.Yes) res = RunHelperPumped("-Abgleich -AbgleichLoeschen", out lines, 3600, lblDbPath);
+            else if (wahl == DialogResult.No) res = RunHelperPumped("-Abgleich -AbgleichNeu", out lines, 3600, lblDbPath);
+            else { ReloadDb(); SetText(lblDbPath, NasAblage.AblageText(dataDir) + "   ·   Abgleich angehalten, nichts geändert"); return; }
+        }
+        ReloadDb();
+        bool ok, erreichbar;
+        string kurz = NasAblage.ErgebnisText(res, out ok, out erreichbar);
+        SetText(lblDbPath, NasAblage.AblageText(dataDir) + "   ·   " + kurz);
+        // Konflikte, Fehler und Abbrüche anzeigen; ein reiner Abgleich ohne Besonderheiten steht nur in der Zeile
+        string[] x = res.Split('|');
+        bool besonders = !ok || !erreichbar || (x.Length >= 6 && (x[4] != "0" || x[5] != "0"));
+        if (besonders) MessageBox.Show(this, kurz + (lines.Count > 0 ? "\r\n\r\n" + String.Join("\r\n", lines.ToArray()) : "") + "\r\n\r\nProtokoll: Minibench-Daten\\Abgleich\\Abgleich.log", "Abgleich mit dem Netzlaufwerk", MessageBoxButtons.OK, ok ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
     }
 
     void CleanData()

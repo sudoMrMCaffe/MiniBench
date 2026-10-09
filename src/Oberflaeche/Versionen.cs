@@ -11,6 +11,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.54", "09.10.2026", "Netzlaufwerk als Spiegel mit Abgleich auf Knopfdruck, Läufe vollständig entfernen und umbenennen",
+            "Datenordner immer auf dem Stick: Leos Minibench startet ohne Zugriff auf das Netzlaufwerk und findet Werkzeuge und Sensoren immer auf dem Stick. Vorher konnte ein nicht erreichbares NAS den Start blockieren, und Tools wurden auf dem NAS gesucht. " +
+            "Netzlaufwerk als Spiegel: Aktualisieren auf der Seite Vergleichsdatenbank gleicht Berichte, Datenbank, Änderungsprotokolle, Voreinstellungen und Referenz in beide Richtungen ab. Die neuere Fassung gilt, die ältere und alles Gelöschte kommt ins Archiv. Fehlt auf einer Seite ein großer Teil der Daten, hält der Abgleich an und fragt nach. Unterwegs funktioniert alles ohne NAS. " +
+            "Netzlaufwerk einrichten: Pfad und Benutzer stehen nur noch in Minibench-Daten\\Netzwerk.json auf dem Stick, das Kennwort wird nicht gespeichert, die Verbindung ist nicht dauerhaft. Ein Pfad mit nur einem \\ am Anfang (Ursache des Ordners TRUENAS auf dem Stick) wird abgelehnt. " +
+            "Vergleichsdatenbank: Entfernen verschiebt Eintrag und Berichtsordner ins Archiv, Name ändern benennt auch Datei und Berichtsordner um. " +
+            "Datenpflege: PawnIO-Merker und Start.log bleiben stehen, verwaiste temporäre Dateien im Laufzeitordner werden unter Windows PowerShell 5.1 wieder gefunden."),
         new Eintrag("3.53", "09.10.2026", "Testsuite nach Fachgebieten, winget mit Änderungsprotokoll, Grafikauswahl im Lasttest",
             "Softwarepakete der Seite Tools: winget läuft jetzt im Arbeitsprozess mit Frist je Paket und vollständig gelesener Ausgabe (vorher konnte die Installation unbegrenzt hängen). Jede Installation steht als Eingriff auf der Seite Änderungen und lässt sich dort mit winget uninstall zurücknehmen; schon vorhandene Programme bleiben unberührt. Vor dem Start fragt die Oberfläche nach. " +
             "Grafikauswahl im Lasttest: Die Wahl der Grafikeinheit auf der Seite Lasttest sprang auf den Wert des Benchmarks zurück; beide Seiten gleichen sich jetzt in beide Richtungen ab. " +

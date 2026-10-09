@@ -9,6 +9,7 @@ Kern\Version.ps1
 Kern\Referenzen_Eingebettet.ps1
 Kern\Datenordner.ps1
 Kern\Datenpflege.ps1
+Kern\Ablage.ps1
 Kern\Startzeit.ps1
 Kern\Risiko.ps1
 Kern\Modulvertrag.ps1

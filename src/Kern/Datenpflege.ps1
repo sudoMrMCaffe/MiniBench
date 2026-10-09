@@ -233,7 +233,8 @@ function Invoke-Datenpflege {
                             $res.Zeilen.Add(('Laufzeit\{0}\sensor.stop gelöscht: Rest der Live-Ansicht' -f $pc.Name))
                         } catch { }
                     }
-                    foreach ($tmp in @(Get-ChildItem -LiteralPath $pc.FullName -Include '*.tmp', '*.lock', 'checkpoint*.json' -File -ErrorAction SilentlyContinue | Where-Object { ($now - $_.LastWriteTime).TotalHours -ge 2 })) {
+                    # -Include wirkt unter PS 5.1 ohne -Recurse nicht, daher Namensfilter per Where-Object (ab v3.54)
+                    foreach ($tmp in @(Get-ChildItem -LiteralPath $pc.FullName -File -ErrorAction SilentlyContinue | Where-Object { ($_.Name -like '*.tmp' -or $_.Name -like '*.lock' -or $_.Name -like 'checkpoint*.json') -and ($now - $_.LastWriteTime).TotalHours -ge 2 })) {
                         try {
                             $sz = & $getSize $tmp.FullName
                             Remove-Item -LiteralPath $tmp.FullName -Force -ErrorAction Stop
@@ -246,8 +247,9 @@ function Invoke-Datenpflege {
                     try { Remove-Item -LiteralPath $pc.FullName -Force -ErrorAction Stop } catch { }
                 }
             }
-            # Wurzel-Dateien im Laufzeitordner
-            foreach ($rt in @(Get-ChildItem -LiteralPath $lz -File -ErrorAction SilentlyContinue | Where-Object { ($now - $_.LastWriteTime).TotalHours -ge 2 })) {
+            # Wurzel-Dateien im Laufzeitordner: nur temporäre Reste. PawnIO_<PC>.txt (Merker für die Entfernung des Treibers
+            # nach einem Absturz) und Start.log bleiben (bis 3.53 wurde alles älter als 2 Stunden gelöscht).
+            foreach ($rt in @(Get-ChildItem -LiteralPath $lz -File -ErrorAction SilentlyContinue | Where-Object { ($_.Name -like '*.tmp' -or $_.Name -like '*.lock') -and ($now - $_.LastWriteTime).TotalHours -ge 2 })) {
                 try {
                     $sz = & $getSize $rt.FullName
                     Remove-Item -LiteralPath $rt.FullName -Force -ErrorAction Stop

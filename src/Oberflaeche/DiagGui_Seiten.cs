@@ -159,9 +159,9 @@ public partial class DiagGui
             try { Directory.CreateDirectory(td); } catch { }
             OpenShell(td);
         };
-        Button btnConnectNas = UI.Secondary("Netzlaufwerk verbinden ...");
+        Button btnConnectNas = UI.Secondary("Netzlaufwerk einrichten ...");
         btnConnectNas.Margin = new Padding(UI.S(8), 0, 0, 0);
-        Tip(btnConnectNas, "Verbindet ein Netzlaufwerk oder NAS für Berichte und Datenbank mit lokalem Fallback.");
+        Tip(btnConnectNas, "Richtet ein Netzlaufwerk als Spiegel der Berichte und der Datenbank ein. Werkzeuge bleiben immer auf dem Stick.");
         btnConnectNas.Click += delegate { ShowConnectNasDialog(); };
         topBar.Controls.Add(btnRefreshTools);
         topBar.Controls.Add(btnOpenToolsDir);
@@ -798,193 +798,113 @@ public partial class DiagGui
         return false;
     }
 
-    public static bool TestWritableDir(string dir)
-    {
-        if (String.IsNullOrEmpty(dir)) return false;
-        try
-        {
-            Directory.CreateDirectory(dir);
-            string testFile = Path.Combine(dir, ".schreibtest_" + Process.GetCurrentProcess().Id + ".tmp");
-            File.WriteAllText(testFile, "x", Encoding.UTF8);
-            File.Delete(testFile);
-            return true;
-        }
-        catch { return false; }
-    }
-
-    public void SwitchDataDir(string newDir)
-    {
-        if (String.IsNullOrEmpty(newDir)) return;
-        this.dataDir = newDir.TrimEnd('\\');
-        this.dbDir = Path.Combine(this.dataDir, "Datenbank");
-        this.changeDir = Path.Combine(this.dataDir, "Änderungen");
-        try { Directory.CreateDirectory(this.dataDir); } catch { }
-        try { Directory.CreateDirectory(this.dbDir); } catch { }
-        try { Directory.CreateDirectory(this.changeDir); } catch { }
-        try { ReloadDb(); } catch { }
-    }
-
+    // Netzlaufwerk einrichten (ab v3.54): nur Pfad und Benutzer in Minibench-Daten\Netzwerk.json auf dem Stick. Die Ablage
+    // bleibt lokal; abgeglichen wird über Aktualisieren auf der Seite Vergleichsdatenbank. Ein Kennwort wird nicht
+    // gespeichert, die Verbindung (WNetAddConnection2) ist nicht dauerhaft und endet spätestens mit dem Programm.
     public void ShowConnectNasDialog()
     {
+        string altPfad, altBenutzer;
+        bool hatKonfig = NasAblage.LeseKonfig(dataDir, out altPfad, out altBenutzer);
         using (Form dlg = new Form())
         {
-            dlg.Text = "Netzlaufwerk für Berichte & Datenbank verbinden";
+            dlg.Text = "Netzlaufwerk für den Abgleich einrichten";
             dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
             dlg.MaximizeBox = false; dlg.MinimizeBox = false; dlg.ShowInTaskbar = false;
             dlg.StartPosition = FormStartPosition.CenterParent;
             dlg.Font = new Font("Segoe UI", 9.5f);
             dlg.BackColor = UI.Bg; dlg.ForeColor = UI.Text;
-            dlg.ClientSize = new Size(UI.S(520), UI.S(380));
+            dlg.ClientSize = new Size(UI.S(540), UI.S(400));
 
             FlowLayoutPanel p = new FlowLayoutPanel();
-            p.Dock = DockStyle.Fill;
-            p.FlowDirection = FlowDirection.TopDown;
-            p.WrapContents = false;
-            p.Padding = new Padding(UI.S(16));
+            p.Dock = DockStyle.Fill; p.FlowDirection = FlowDirection.TopDown; p.WrapContents = false; p.Padding = new Padding(UI.S(16));
 
-            Label lInfo = Lbl("Verbindet ein Netzlaufwerk oder NAS für Berichte und Vergleichsdatenbank. Ist das Netzlaufwerk offline oder nicht beschreibbar, schaltet Minibench automatisch auf den lokalen Datenordner zurück.", 9f, false, UI.Muted);
-            lInfo.MaximumSize = new Size(UI.S(480), 0);
-            lInfo.Margin = new Padding(0, 0, 0, UI.S(12));
+            Label lInfo = Lbl("Berichte, Datenbank und Änderungsprotokolle bleiben immer auf dem Stick. Ein Netzlaufwerk ist ein Spiegel dieser Daten: \"Aktualisieren\" auf der Seite Vergleichsdatenbank gleicht beide Seiten ab. Ohne Netzlaufwerk (unterwegs) funktioniert alles wie gewohnt.", 9f, false, UI.Muted);
+            lInfo.MaximumSize = new Size(UI.S(500), 0); lInfo.Margin = new Padding(0, 0, 0, UI.S(12));
             p.Controls.Add(lInfo);
 
-            Label lPath = Lbl("Netzwerkpfad (UNC-Pfad oder Netzlaufwerk):", 9.5f, true, UI.Text);
-            lPath.Margin = new Padding(0, 0, 0, UI.S(4));
-            p.Controls.Add(lPath);
-
-            TextBox tbPath = new TextBox();
-            tbPath.Width = UI.S(480);
-            string initialPath = (dataDir != null && dataDir.StartsWith(@"\\")) ? dataDir : "";
-            if (String.IsNullOrEmpty(initialPath)) {
-                List<string> probeDirs = new List<string>();
-                string eEnv = Environment.GetEnvironmentVariable("LEOSMINIBENCH_EXE");
-                if (!String.IsNullOrEmpty(eEnv)) { try { string ed = Path.GetDirectoryName(eEnv); if (!String.IsNullOrEmpty(ed)) probeDirs.Add(Path.Combine(ed, "Minibench-Daten")); } catch { } }
-                probeDirs.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Leos Minibench"));
-                probeDirs.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "LeosMinibench"));
-                probeDirs.Add(Path.Combine(Directory.GetCurrentDirectory(), "Minibench-Daten"));
-                if (!String.IsNullOrEmpty(dataDir) && !dataDir.StartsWith(@"\\")) probeDirs.Add(dataDir);
-                foreach (string pd in probeDirs) {
-                    try {
-                        string cfg = Path.Combine(pd, "Netzwerk.json");
-                        if (File.Exists(cfg)) {
-                            string txt = File.ReadAllText(cfg, Encoding.UTF8);
-                            System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(txt, @"""NasPfad""\s*:\s*""([^""]+)""");
-                            if (m.Success && !String.IsNullOrEmpty(m.Groups[1].Value)) { initialPath = m.Groups[1].Value.Replace(@"\\", @"\"); break; }
-                        }
-                    } catch { }
-                }
-            }
-            if (String.IsNullOrEmpty(initialPath)) initialPath = @"\\NAS\Freigabe\Minibench-Daten";
-            tbPath.Text = initialPath;
-            tbPath.Margin = new Padding(0, 0, 0, UI.S(10));
+            Label lPath = Lbl("Ordner auf dem Netzlaufwerk (\\\\server\\freigabe\\Ordner):", 9.5f, true, UI.Text); lPath.Margin = new Padding(0, 0, 0, UI.S(4)); p.Controls.Add(lPath);
+            TextBox tbPath = new TextBox(); tbPath.Width = UI.S(500); tbPath.Margin = new Padding(0, 0, 0, UI.S(10));
+            tbPath.Text = hatKonfig ? altPfad : @"\\NAS\Freigabe\Minibench";
+            Tip(tbPath, "UNC-Pfad des Ordners auf dem NAS, zum Beispiel \\\\TRUENAS\\Multimedia\\MiniBench. Ein Pfad mit nur einem \\ am Anfang zeigt auf den Stick und wird abgelehnt.");
             p.Controls.Add(tbPath);
 
-            Label lUser = Lbl("Benutzername (optional für 'net use'):", 9f, false, UI.Text);
-            lUser.Margin = new Padding(0, 0, 0, UI.S(2));
-            p.Controls.Add(lUser);
-
-            TextBox tbUser = new TextBox();
-            tbUser.Width = UI.S(480);
-            tbUser.Margin = new Padding(0, 0, 0, UI.S(8));
+            Label lUser = Lbl("Benutzername (optional):", 9f, false, UI.Text); lUser.Margin = new Padding(0, 0, 0, UI.S(2)); p.Controls.Add(lUser);
+            TextBox tbUser = new TextBox(); tbUser.Width = UI.S(500); tbUser.Margin = new Padding(0, 0, 0, UI.S(8)); tbUser.Text = altBenutzer;
+            Tip(tbUser, "Nur nötig, wenn Windows die Freigabe nicht mit der eigenen Anmeldung öffnet. Wird in Netzwerk.json gespeichert, das Kennwort nicht.");
             p.Controls.Add(tbUser);
 
-            Label lPass = Lbl("Kennwort (optional):", 9f, false, UI.Text);
-            lPass.Margin = new Padding(0, 0, 0, UI.S(2));
-            p.Controls.Add(lPass);
-
-            TextBox tbPass = new TextBox();
-            tbPass.Width = UI.S(480);
-            tbPass.UseSystemPasswordChar = true;
-            tbPass.Margin = new Padding(0, 0, 0, UI.S(10));
+            Label lPass = Lbl("Kennwort (optional, wird nicht gespeichert):", 9f, false, UI.Text); lPass.Margin = new Padding(0, 0, 0, UI.S(2)); p.Controls.Add(lPass);
+            TextBox tbPass = new TextBox(); tbPass.Width = UI.S(500); tbPass.UseSystemPasswordChar = true; tbPass.Margin = new Padding(0, 0, 0, UI.S(14));
+            Tip(tbPass, "Stellt die Verbindung nur für diese Sitzung her (nicht dauerhaft). Beim Aktualisieren fragt Leos Minibench bei Bedarf erneut.");
             p.Controls.Add(tbPass);
 
-            CheckBox chkSave = Chk("In Minibench-Daten\\Netzwerk.json dauerhaft festlegen", true);
-            chkSave.Margin = new Padding(0, 0, 0, UI.S(4));
-            Tip(chkSave, "Speichert den NAS-Pfad in der lokalen Konfigurationsdatei Netzwerk.json für zukünftige Starts.");
-            p.Controls.Add(chkSave);
-
-            CheckBox chkNetUse = Chk("Verbindung jetzt herstellen ('net use')", true);
-            chkNetUse.Margin = new Padding(0, 0, 0, UI.S(14));
-            Tip(chkNetUse, "Führt im Hintergrund 'net use' aus, um Netzwerkauthentifizierung herzustellen.");
-            p.Controls.Add(chkNetUse);
-
             FlowLayoutPanel rowButtons = Row();
-            Button btnOk = UI.Primary("Verbinden & Umschalten");
-            btnOk.Margin = new Padding(0);
-            Tip(btnOk, "Testet Schreibrechte und schaltet den aktiven Speicherort auf das Netzlaufwerk um.");
-
-            Button btnCancel = UI.Secondary("Abbrechen");
-            btnCancel.Margin = new Padding(UI.S(8), 0, 0, 0);
-            btnCancel.Click += delegate { dlg.Close(); };
+            Button btnOk = UI.Primary("Speichern und prüfen"); btnOk.Margin = new Padding(0);
+            Tip(btnOk, "Prüft den Pfad, verbindet bei Bedarf mit Benutzer und Kennwort und speichert den Pfad in Netzwerk.json auf dem Stick.");
+            Button btnRemove = UI.Secondary("Netzlaufwerk entfernen"); btnRemove.Margin = new Padding(UI.S(8), 0, 0, 0); btnRemove.Enabled = hatKonfig;
+            Tip(btnRemove, "Löscht Netzwerk.json. Die Daten auf Stick und Netzlaufwerk bleiben unverändert, es wird nur nicht mehr abgeglichen.");
+            Button btnCancel = UI.Secondary("Abbrechen"); btnCancel.Margin = new Padding(UI.S(8), 0, 0, 0);
             Tip(btnCancel, "Schließt den Dialog ohne Änderungen.");
+            btnCancel.Click += delegate { dlg.Close(); };
+            bool jetztAbgleichen = false;
+
+            btnRemove.Click += delegate {
+                if (MessageBox.Show(dlg, "Netzlaufwerk " + altPfad + " entfernen? Die Daten bleiben auf beiden Seiten erhalten, es wird nur nicht mehr abgeglichen.", "Netzlaufwerk entfernen", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+                try { NasAblage.LoescheKonfig(dataDir); } catch (Exception ex) { MessageBox.Show(dlg, ex.Message, "Netzlaufwerk entfernen", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                dlg.Close();
+            };
 
             btnOk.Click += delegate {
-                string unc = tbPath.Text.Trim();
-                if (String.IsNullOrEmpty(unc)) {
-                    MessageBox.Show(dlg, "Bitte geben Sie einen Netzwerkpfad ein.", "Netzlaufwerk verbinden", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
+                string pfad = NasAblage.Vereinheitlichen(tbPath.Text);
+                string fehler = NasAblage.PfadFehler(pfad);
+                if (fehler.Length > 0) { MessageBox.Show(dlg, "Der Pfad ist nicht verwendbar: " + fehler, "Netzlaufwerk einrichten", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                if (dataDir.Length == 0) { MessageBox.Show(dlg, "Es gibt keinen Datenordner auf dem Stick.", "Netzlaufwerk einrichten", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                Cursor = Cursors.WaitCursor; dlg.Cursor = Cursors.WaitCursor;
+                string hinweis = "";
+                if (tbPass.Text.Length > 0 || tbUser.Text.Trim().Length > 0)
+                {
+                    string err = NasAblage.Verbinden(pfad, tbUser.Text.Trim(), tbPass.Text);
+                    if (err.Length > 0) hinweis = err;
                 }
-
-                // net use optional ausführen
-                if (chkNetUse.Checked || !String.IsNullOrEmpty(tbUser.Text)) {
-                    try {
-                        ProcessStartInfo psi = new ProcessStartInfo();
-                        psi.FileName = "net.exe";
-                        StringBuilder args = new StringBuilder("use \"").Append(unc).Append("\"");
-                        if (!String.IsNullOrEmpty(tbPass.Text)) args.Append(" \"").Append(tbPass.Text).Append("\"");
-                        if (!String.IsNullOrEmpty(tbUser.Text)) args.Append(" /user:\"").Append(tbUser.Text).Append("\"");
-                        args.Append(chkSave.Checked ? " /persistent:yes" : " /persistent:no");
-                        psi.Arguments = args.ToString();
-                        psi.UseShellExecute = false;
-                        psi.CreateNoWindow = true;
-                        using (Process pNet = Process.Start(psi)) {
-                            pNet.WaitForExit(8000);
-                        }
-                    } catch { }
+                dlg.Enabled = false;
+                bool ok = NasAblage.OrdnerBereit(pfad, 6000);
+                dlg.Enabled = true;
+                Cursor = Cursors.Default; dlg.Cursor = Cursors.Default;
+                if (!ok)
+                {
+                    string m = "Der Ordner auf dem Netzlaufwerk ist gerade nicht erreichbar oder lässt sich nicht anlegen" + (hinweis.Length > 0 ? ": " + hinweis : ".") + "\r\n\r\nTrotzdem speichern? Abgeglichen wird dann beim nächsten Aktualisieren im Heimnetz.";
+                    if (MessageBox.Show(dlg, m, "Netzlaufwerk einrichten", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
                 }
-
-                // Schreibprobe durchführen
-                if (!TestWritableDir(unc)) {
-                    MessageBox.Show(dlg, "Auf das Netzlaufwerk '" + unc + "' konnte nicht schreibend zugegriffen werden.\r\n\r\nBitte Zugriffsrechte, Freigabeeinstellungen und Netzwerkverbindung prüfen. Der bisherige Ablageort bleibt aktiv.", "Verbindung fehlgeschlagen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                // Dauerhaft speichern wenn gewünscht
-                if (chkSave.Checked) {
-                    List<string> cfgDirs = new List<string>();
-                    string exeEnv = Environment.GetEnvironmentVariable("LEOSMINIBENCH_EXE");
-                    if (!String.IsNullOrEmpty(exeEnv)) {
-                        try { string ed = Path.GetDirectoryName(exeEnv); if (!String.IsNullOrEmpty(ed) && Directory.Exists(ed)) cfgDirs.Add(Path.Combine(ed, "Minibench-Daten")); } catch { }
-                    }
-                    if (!String.IsNullOrEmpty(dataDir) && !dataDir.StartsWith(@"\\")) cfgDirs.Add(dataDir);
-                    cfgDirs.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Leos Minibench"));
-                    cfgDirs.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "LeosMinibench"));
-                    cfgDirs.Add(Path.Combine(Directory.GetCurrentDirectory(), "Minibench-Daten"));
-
-                    string json = "{\r\n  \"NasPfad\": \"" + unc.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"\r\n}\r\n";
-                    foreach (string cd in cfgDirs) {
-                        try {
-                            if (!Directory.Exists(cd)) Directory.CreateDirectory(cd);
-                            string cfgPath = Path.Combine(cd, "Netzwerk.json");
-                            File.WriteAllText(cfgPath, json, new UTF8Encoding(true));
-                        } catch { }
-                    }
-                }
-
-                // Live umschalten
-                SwitchDataDir(unc);
-                MessageBox.Show(dlg, "Netzlaufwerk erfolgreich verbunden!\r\n\r\nAktiver Ablageort für Berichte und Datenbank:\r\n" + unc, "Netzlaufwerk verbunden", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                try { NasAblage.SchreibeKonfig(dataDir, pfad, tbUser.Text.Trim()); }
+                catch (Exception ex) { MessageBox.Show(dlg, "Netzwerk.json lässt sich nicht schreiben: " + ex.Message, "Netzlaufwerk einrichten", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                if (ok) jetztAbgleichen = MessageBox.Show(dlg, "Netzlaufwerk gespeichert und erreichbar.\r\n\r\nJetzt abgleichen?", "Netzlaufwerk einrichten", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
                 dlg.DialogResult = DialogResult.OK;
                 dlg.Close();
             };
 
-            rowButtons.Controls.Add(btnOk);
-            rowButtons.Controls.Add(btnCancel);
+            rowButtons.Controls.Add(btnOk); rowButtons.Controls.Add(btnRemove); rowButtons.Controls.Add(btnCancel);
             p.Controls.Add(rowButtons);
-
             dlg.Controls.Add(p);
-            dlg.AcceptButton = btnOk;
-            dlg.CancelButton = btnCancel;
+            dlg.AcceptButton = btnOk; dlg.CancelButton = btnCancel;
             dlg.ShowDialog(this);
+            if (lblDbPath != null) SetText(lblDbPath, NasAblage.AblageText(dataDir));
+            if (jetztAbgleichen) RefreshAndSync();
+        }
+    }
+
+    // Kennwort für das Netzlaufwerk abfragen (wird nicht gespeichert); null = abgebrochen
+    string PromptPassword(string pfad, string benutzer)
+    {
+        using (Form dlg = new Form())
+        {
+            dlg.Text = "Netzlaufwerk verbinden"; dlg.FormBorderStyle = FormBorderStyle.FixedDialog; dlg.MaximizeBox = false; dlg.MinimizeBox = false;
+            dlg.StartPosition = FormStartPosition.CenterParent; dlg.ClientSize = new Size(UI.S(440), UI.S(150)); dlg.BackColor = UI.Bg; dlg.Font = new Font("Segoe UI", 9f);
+            Label l = new Label(); l.Text = "Kennwort für " + benutzer + " auf " + NasAblage.Freigabe(pfad) + ":"; l.Location = new Point(UI.S(16), UI.S(14)); l.Size = new Size(UI.S(408), UI.S(36));
+            TextBox tb = new TextBox(); tb.UseSystemPasswordChar = true; tb.Location = new Point(UI.S(16), UI.S(54)); tb.Size = new Size(UI.S(408), UI.S(24));
+            Button ok = UI.Primary("Verbinden"); ok.Location = new Point(UI.S(226), UI.S(98)); ok.Size = new Size(UI.S(95), UI.S(32)); ok.DialogResult = DialogResult.OK;
+            Button ab = UI.Secondary("Abbrechen"); ab.Location = new Point(UI.S(328), UI.S(98)); ab.Size = new Size(UI.S(96), UI.S(32)); ab.DialogResult = DialogResult.Cancel;
+            dlg.Controls.Add(l); dlg.Controls.Add(tb); dlg.Controls.Add(ok); dlg.Controls.Add(ab); dlg.AcceptButton = ok; dlg.CancelButton = ab;
+            return dlg.ShowDialog(this) == DialogResult.OK ? tb.Text : null;
         }
     }
 }

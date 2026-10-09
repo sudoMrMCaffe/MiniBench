@@ -8,55 +8,11 @@ function Test-WritableDir([string]$Dir) {
         return $true
     } catch { return $false }
 }
+# Ab v3.54 liegt der Datenordner immer lokal (neben dem Programm, also auf dem Stick). Ein Netzlaufwerk (NAS) ist nur noch
+# ein Spiegel der Nutzerdaten, abgeglichen per Aktualisieren (Kern\Ablage.ps1). Der Start greift nie auf das NAS zu:
+# vorher konnte ein nicht erreichbares NAS den Start um Minuten verzögern oder ganz anhalten (net use, SMB-Zeitlimits).
 function Resolve-DataDir([string]$AppDir = '') {
-    # 1. Optionalen Netzwerk- / NAS-Pfad aus Netzwerk.json prüfen
-    $localCfgDirs = [System.Collections.Generic.List[string]]::new()
-    if ($AppDir) {
-        $localCfgDirs.Add((Join-Path $AppDir 'Minibench-Daten'))
-        $localCfgDirs.Add($AppDir)
-    }
-    if ($env:LEOSMINIBENCH_EXE) {
-        try {
-            $exeDir = Split-Path $env:LEOSMINIBENCH_EXE -Parent
-            if ($exeDir) { $localCfgDirs.Add((Join-Path $exeDir 'Minibench-Daten')) }
-        } catch { }
-    }
-    if ($PSScriptRoot -and $PSScriptRoot -notlike "$env:TEMP*" -and $PSScriptRoot -notlike "*\tests*") {
-        $localCfgDirs.Add((Join-Path $PSScriptRoot 'Minibench-Daten'))
-    }
-    if ($DatenDir) {
-        $localCfgDirs.Add($DatenDir.TrimEnd('\'))
-    }
-    try {
-        $myDoc = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Leos Minibench'
-        $localCfgDirs.Add($myDoc)
-    } catch { }
-    try {
-        $appData = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'LeosMinibench'
-        $localCfgDirs.Add($appData)
-    } catch { }
-    if (Test-Path -LiteralPath 'Minibench-Daten') {
-        try { $localCfgDirs.Add((Convert-Path 'Minibench-Daten')) } catch { }
-    }
-
-    foreach ($lcd in $localCfgDirs) {
-        if (-not $lcd) { continue }
-        $netCfg = Join-Path $lcd 'Netzwerk.json'
-        if (Test-Path -LiteralPath $netCfg) {
-            try {
-                $netObj = Get-Content -LiteralPath $netCfg -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
-                $nas = $(if ($netObj.NasPfad) { [string]$netObj.NasPfad } elseif ($netObj.NetzwerkPfad) { [string]$netObj.NetzwerkPfad } else { '' }).Trim().TrimEnd('\')
-                if ($nas) {
-                    if (Test-WritableDir $nas) { return $nas }
-                    # Automatisch Verbindung wiederherstellen via net use falls Sitzung noch nicht aktiv ist
-                    try { & net.exe use $nas /persistent:yes 2>&1 | Out-Null } catch { }
-                    if (Test-WritableDir $nas) { return $nas }
-                }
-            } catch { }
-        }
-    }
-
-    # 2. Lokale Kandidaten (USB-Stick / Übergabepfad) mit automatischem Fallback
+    # Kandidaten (USB-Stick neben dem Programm, Übergabepfad -DatenDir) mit automatischem Fallback
     $cands = @()
     if ($AppDir) { $cands += (Join-Path $AppDir 'Minibench-Daten'); $cands += $AppDir }
     if ($DatenDir) { $cands += $DatenDir.TrimEnd('\') }
@@ -92,52 +48,10 @@ function Test-IsNetworkPath([string]$Path) {
     return $false
 }
 
-function Resolve-LocalDataDir([string]$AppDir = '') {
-    $cands = [System.Collections.Generic.List[string]]::new()
-    if ($AppDir -and -not (Test-IsNetworkPath $AppDir)) {
-        $cands.Add((Join-Path $AppDir 'Minibench-Daten'))
-        $cands.Add($AppDir)
-    }
-    if ($DatenDir -and -not (Test-IsNetworkPath $DatenDir)) {
-        $cands.Add($DatenDir.TrimEnd('\'))
-    }
-    if ($env:LEOSMINIBENCH_EXE) {
-        try {
-            $exeDir = Split-Path $env:LEOSMINIBENCH_EXE -Parent
-            if ($exeDir -and -not (Test-IsNetworkPath $exeDir)) {
-                $cands.Add((Join-Path $exeDir 'Minibench-Daten'))
-            }
-        } catch { }
-    }
-    if ($PSScriptRoot -and $PSScriptRoot -notlike "$env:TEMP*" -and $PSScriptRoot -notlike "*\tests*" -and -not (Test-IsNetworkPath $PSScriptRoot)) {
-        $cands.Add((Join-Path $PSScriptRoot 'Minibench-Daten'))
-    }
-    if (Test-Path -LiteralPath 'Minibench-Daten') {
-        try {
-            $cp = Convert-Path 'Minibench-Daten'
-            if (-not (Test-IsNetworkPath $cp)) { $cands.Add($cp) }
-        } catch { }
-    }
-    foreach ($c in $cands) {
-        if (-not $c) { continue }
-        $old = Join-Path (Split-Path $c -Parent) 'PC-Diagnose-Daten'
-        if (-not (Test-Path -LiteralPath $c) -and (Test-Path -LiteralPath $old)) {
-            try { Rename-Item -LiteralPath $old -NewName (Split-Path $c -Leaf) -ErrorAction Stop } catch { }
-        }
-        if (Test-WritableDir $c) { return $c }
-    }
-    $doc = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Leos Minibench'
-    if (Test-WritableDir $doc) { return $doc }
-    $localApp = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'LeosMinibench'
-    if (Test-WritableDir $localApp) { return $localApp }
-    $tmp = Join-Path ([System.IO.Path]::GetTempPath()) 'LeosMinibench'
-    if (Test-WritableDir $tmp) { return $tmp }
-    return ''
-}
-
 $script:DataDirFallback = $false
 $script:DataDir      = Resolve-DataDir
-$script:LocalDataDir = $(if ($script:DataDir -and -not (Test-IsNetworkPath $script:DataDir)) { $script:DataDir } else { Resolve-LocalDataDir })
+# Cache, Tools und Laufzeit liegen im selben (lokalen) Datenordner; LocalDataDir bleibt als Name für ältere Stellen erhalten
+$script:LocalDataDir = $script:DataDir
 $script:ReportDir    = $(if ($script:DataDir) { Join-Path $script:DataDir 'Berichte' } else { Join-Path $env:TEMP 'LeosMinibench-Berichte' })
 $script:DbDir        = $(if ($script:DataDir) { Join-Path $script:DataDir 'Datenbank' } else { '' })
 $script:ToolsDir     = $(if ($script:LocalDataDir) { Join-Path $script:LocalDataDir 'Tools' } else { Join-Path ([System.IO.Path]::GetTempPath()) 'LeosMinibench\Tools' })

@@ -1,0 +1,133 @@
+﻿LEOS MINIBENCH 3.54: ÄNDERUNGEN
+===============================
+
+Version 3.54 baut die Anbindung eines Netzlaufwerks (NAS) um. Bisher konnte der Datenordner selbst auf dem NAS liegen.
+Das hatte vier Folgen: Ohne erreichbares NAS startete das Programm verzögert oder gar nicht, Sensoren und Werkzeuge
+fehlten, weil der Ordner Tools auf dem NAS gesucht wurde, Netzwerk.json lag an bis zu fünf Orten, und ein Pfad mit
+nur einem \ am Anfang legte auf dem Stick einen Ordner TRUENAS an. Ab 3.54 wird immer auf dem Stick gearbeitet; das NAS
+ist ein Spiegel, der auf Knopfdruck abgeglichen wird. Dazu entfernt die Seite Vergleichsdatenbank Läufe jetzt samt
+Berichtsordner und benennt beim Ändern des Namens auch die Dateien um.
+
+1. DATENORDNER IMMER AUF DEM STICK
+Resolve-DataDir (Kern\Datenordner.ps1) liest Netzwerk.json nicht mehr und ruft kein net use. Der Datenordner ist
+Minibench-Daten neben dem Programm (oder -DatenDir, Rückfall Dokumente\Leos Minibench wie bisher). Datenbank, Berichte,
+Tools, Cache und Laufzeit liegen alle darin; LocalDataDir ist gleich DataDir. Der Start berührt das NAS nie.
+  Ursache der Startprobleme  Bis 3.53 prüfte der Start den UNC-Pfad, versuchte bei Misserfolg net use (kann auf eine
+                      Anmeldung warten) und lief in SMB-Zeitlimits. Start.log auf dem Stick zeigte 20 Sekunden bis
+                      "Datenordner gefunden". Die Oberfläche suchte LibreHardwareMonitor und PawnIO unter
+                      <Datenordner>\Tools, also auf dem NAS.
+  Ordner TRUENAS      Netzwerk.json enthielt zeitweise \TRUENAS\Multimedia\MiniBench (ein \ am Anfang). Windows liest
+                      das als Pfad auf dem Laufwerk des Programms, also auf dem Stick. Solche Pfade werden jetzt abgelehnt
+                      (Test-NasPfad, NasAblage.PfadFehler) mit dem Hinweis auf \\TRUENAS\...
+
+2. NETZLAUFWERK ALS SPIEGEL (KERN\ABLAGE.PS1)
+Abgeglichen werden Berichte, Datenbank, Änderungen sowie Voreinstellungen.json und Referenz.json, in beide Richtungen,
+nur über Aktualisieren auf der Seite Vergleichsdatenbank (Hilfsmodus -Abgleich). Nie abgeglichen werden Tools, Cache,
+Laufzeit, Archiv, Netzwerk.json, Einstellungen.json, Geraete.json, Berichte\Dashboard.html und der Ordner eines Laufs,
+der gerade läuft (laufend.json).
+  Grundlage           Stand des letzten Abgleichs in Minibench-Daten\Abgleich\Stand.json (Größe und Zeit je Datei und
+                      Seite, gebunden an den NAS-Pfad). Gleich heißt gleiche Größe und Zeit (2 s Toleranz); um ganze
+                      Stunden versetzte Zeiten gelten als gleich, weil FAT-Sticks Ortszeit speichern (Sommerzeit,
+                      andere Zeitzone). Zwischen Stick und NAS wird ein solcher Versatz am Inhalt (SHA-256) geprüft.
+  Regeln              Neu oder geändert auf einer Seite: auf die andere kopieren (über eine temporäre Datei, Zeit wird
+                      übernommen). Auf einer Seite gelöscht: auf der anderen nach Archiv\Abgleich\<Zeit>\Geloescht
+                      verschieben. Auf beiden Seiten geändert: die neuere Fassung gilt, die ältere kommt nach
+                      Archiv\Abgleich\<Zeit>\Konflikte ihrer Seite; gleicher Inhalt (SHA-256) ist kein Konflikt.
+                      Änderung schlägt Löschung. Der erste Abgleich vereinigt beide Seiten und löscht nichts.
+  Reihenfolge         Datenbankeinträge zuletzt. Scheitert eine Datei im Berichtsordner eines Eintrags, folgt der Eintrag
+                      erst beim nächsten Abgleich; der Ordner gilt als nicht abgeglichen. So entsteht kein Eintrag ohne
+                      Bericht, den die Datenpflege für verwaist hielte. Andere Einträge laufen weiter.
+  Schutz              Fehlt auf einer Seite ein ganzer Ordner, der beim letzten Abgleich Dateien hatte, oder ein großer
+                      Teil der abgeglichenen Dateien (ab 50, oder ab 10 und mindestens die Hälfte), hält der Abgleich an
+                      und ändert nichts. Die Oberfläche fragt dann: Daten bewusst entfernt (-AbgleichLoeschen, die andere
+                      Seite verschiebt ins Archiv), beide Seiten ohne Entfernen zusammenführen (-AbgleichNeu, etwa nach
+                      Neueinrichtung des NAS) oder nichts tun. Lässt sich eine Seite nicht vollständig lesen, wird nichts
+                      geändert. Fehlt der NAS-Ordner nach dem ersten Abgleich, wird er nur auf Nachfrage neu angelegt
+                      (Freigabe vermutlich nicht eingehängt). Abgleich.lock im NAS-Ordner mit eigener Kennung verhindert
+                      zwei gleichzeitige Abgleiche; sie wird alle 20 Dateien aufgefrischt und gilt 30 Minuten nach dem
+                      letzten Lebenszeichen als verwaist, gemessen an der Uhr des NAS. Zehn Fehler in Folge brechen ab;
+                      der nächste Abgleich setzt fort. Jeder Abgleich, auch ein angehaltener, steht im Protokoll.
+  Unterwegs           Ohne erreichbares NAS liest Aktualisieren nur neu ein, die Zeile über der Liste nennt "gerade nicht
+                      erreichbar". Auf dem Stick ist alles vollständig nutzbar.
+  Rückmeldung         @@ABGLEICH|Nr|Anzahl|Datei als Fortschritt in der Zeile über der Liste, am Ende
+                      @@RESULT|ok|zumNas|aufStick|gelöscht|Konflikte|Fehler|erreichbar|angehalten. Eine Meldung erscheint
+                      nur bei Konflikten, Fehlern oder Anhalten. Protokoll: Minibench-Daten\Abgleich\Abgleich.log.
+
+3. NETZLAUFWERK EINRICHTEN
+Der Dialog (Seite Vergleichsdatenbank, Netzlaufwerk ..., und Seite Tools) speichert Pfad und optional Benutzer nur in
+Minibench-Daten\Netzwerk.json auf dem Stick. Das Kennwort wird nie gespeichert. Mit Benutzer verbindet die Oberfläche
+über WNetAddConnection2, nicht dauerhaft und ohne Kennwort in einer Befehlszeile; beim Beenden werden die selbst
+hergestellten Verbindungen getrennt. Beim Aktualisieren fragt sie das Kennwort bei Bedarf erneut. Fehlt der Ordner auf
+einer erreichbaren Freigabe, legt der Dialog ihn an. Netzlaufwerk entfernen löscht nur Netzwerk.json.
+  Alte Kopien         Bis 3.53 stand Netzwerk.json auch in Dokumente\Leos Minibench und %APPDATA%\LeosMinibench, auch auf
+                      fremden PCs. Kopien, die auf dasselbe NAS zeigen wie der Stick, entfernt der Start; übernommen wird
+                      keine (sonst glich ein Stick ohne NAS mit dem NAS eines anderen ab). Fremde Kopien bleiben.
+
+4. VERGLEICHSDATENBANK: ENTFERNEN UND NAME ÄNDERN
+  Entfernen           Verschiebt den Datenbankeintrag und seinen Berichtsordner nach Minibench-Daten\Archiv\Entfernt\<Zeit>
+                      (Hilfsmodus -Entfernen "Pfad|Pfad"); von dort lassen sie sich zurückholen. Ein Lauf, der noch läuft,
+                      wird übersprungen. Nur Dateien in Datenbank und Ordner in Berichte dieses Datenordners werden
+                      angefasst. Mit Netzlaufwerk verschwinden sie dort beim nächsten Aktualisieren (ebenfalls ins Archiv).
+  Name ändern         Ändert den Anzeigenamen und benennt Datenbankdatei (<Name>_<Datum>_<Zeit>.json) und Berichtsordner
+                      (<Name>_<Datum>_<Zeit>) um (-Umbenennen -NeuerName). Rechnername und Geräteidentität bleiben. Der
+                      Ordner steht danach immer relativ (Berichte\<Name>) im Eintrag; Verweise in den
+                      Änderungsprotokollen werden nachgeführt. Bei Namensgleichheit wird _2, _3 angehängt.
+Beide laufen im Arbeitsprozess über RunHelperPumped; die Oberfläche bleibt bedienbar. Abgleich, Entfernen und
+Umbenennen brauchen keine Administratorrechte.
+
+5. DATENPFLEGE
+Im Laufzeitordner löschte die Datenpflege alle Dateien älter als zwei Stunden, auch den PawnIO-Merker (PawnIO_<PC>.txt;
+ohne ihn wird ein vorübergehend installierter Treiber nie entfernt) und Start.log. Jetzt nur *.tmp und *.lock. In
+Laufzeit\<PC> fand Get-ChildItem -Include ohne -Recurse unter Windows PowerShell 5.1 nichts; jetzt Where-Object.
+
+GEFUNDEN UND BEHOBEN (Tests und Codeprüfung)
+  1. Plan des Abgleichs: Dateien mit gleichem Inhalt und anderer Zeit galten nach dem ersten Abgleich bei jedem weiteren
+     als Konflikt und wurden jedes Mal neu verglichen. Gefunden beim Schreiben der Tests.
+  2. Codeprüfung: Eine leere oder nicht eingehängte Freigabe hätte alle Dateien des Sticks ins Archiv verschoben (das NAS
+     wurde als erreichbar gemeldet, der fehlende Ordner neu angelegt, alles galt als dort gelöscht). Behoben durch den
+     Schutz vor Massenlöschung, Anlegen nur beim ersten Abgleich und Abbruch bei Lesefehlern.
+  3. Codeprüfung: Das Aufräumen leerer Ordner hätte den noch leeren Berichtsordner eines laufenden Laufs gelöscht. Jetzt
+     nur Ordner, aus denen der Abgleich etwas verschoben hat, nie die eines laufenden Laufs.
+  4. Codeprüfung: Nach Sommerzeitumstellung wären auf FAT-Sticks alle Dateien als geändert erschienen. Ganze Stunden
+     gelten jetzt als gleich.
+  5. Codeprüfung: Die Oberfläche prüfte den NAS-Ordner selbst; ein noch nicht angelegter Ordner galt als nicht erreichbar.
+     Jetzt wird die Freigabe geprüft, der Ordner beim Einrichten angelegt.
+  6. Codeprüfung: Die Übernahme alter Netzwerk.json aus Dokumente hätte auf fremden PCs deren NAS übernommen. Jetzt keine
+     Übernahme, entfernt werden nur eigene Reste.
+  7. Codeprüfung: Ein Teilabgleich mit späterer Datenpflege konnte einen Lauf auf beiden Seiten ins Archiv bringen. Behoben
+     durch die Reihenfolge (Datenbank zuletzt) und den Stand für Ordner mit Fehlern.
+  8. Codeprüfung: Umbenennen führte Verweise mit anderem Laufwerksbuchstaben nicht nach, schrieb bei absolutem Ordner
+     einen Pfad vom Stick in den Eintrag und ließ den Zähler (_2) bei jedem weiteren Umbenennen anwachsen.
+  9. Codeprüfung: Ein neuer Name mit - am Anfang wäre als Parameter gelesen worden; die Liste für -Entfernen trennt jetzt
+     mit | statt ; (kommt in Windows-Pfaden nicht vor). Laufwerksstamm Z:\ wurde zu Z: gekürzt und abgelehnt.
+  10. Codeprüfung: Aktualisieren ließ sich während der Prüfung des NAS ein zweites Mal auslösen; Umbenennen und Entfernen
+      froren die Oberfläche bis zum Ende des Arbeitsprozesses ein.
+  11. Zweite Codeprüfung: Ein einziger wiederkehrender Fehler hätte alle Datenbankeinträge dauerhaft zurückgehalten (jetzt
+      nur der Eintrag, dessen Berichtsordner betroffen ist); ein geleertes NAS ließ sich nur durch Archivieren des Sticks
+      wieder füllen (jetzt -AbgleichNeu); die Sperre konnte einem laufenden Abgleich entzogen und vom falschen Rechner
+      entfernt werden; Dateien gleicher Größe mit Stundenversatz und anderem Inhalt galten als gleich; angehaltene
+      Abgleiche standen nicht im Protokoll; ' und & in Namen störten das Nachführen der Änderungsprotokolle.
+  12. Beim Testen: Die Variable $neu im Abgleich kollidierte mit dem neuen Schalter -Neu (PowerShell unterscheidet keine
+      Groß- und Kleinschreibung); jede Datei endete mit einem Fehler.
+
+GRENZEN
+  Konflikte entscheidet die Dateizeit. Geht die Uhr eines PCs falsch (leere CMOS-Batterie), kann die ältere Fassung
+  gewinnen; die andere liegt dann im Archiv, verloren geht nichts.
+  Eine Änderung, die eine Datei bei gleicher Größe genau um ganze Stunden später schreibt, gilt als unverändert.
+  Pfade über 260 Zeichen kann Windows PowerShell 5.1 nicht lesen; der Abgleich bricht dann ohne Änderung ab und nennt den
+  Ordner.
+  Leere Ordner werden nicht abgeglichen.
+  Unter Windows ist die Suite für 3.54 noch nicht gelaufen (Sandbox: Zahlen in Doku\Projektstand.md).
+
+UMSTIEG
+  1. Den Ordner TRUENAS im Stamm des Sticks löschen (I:\TRUENAS, Rest von 3.51, siehe Abschnitt 1), ebenso die Kopie im
+     Projektordner unter "Arbeitsversion auf dem Stick". Die Daten liegen auf dem NAS und in Minibench-Daten.
+  2. Testen.cmd, dann Bauen.cmd; nach bestandenen Tests entsteht der Commit "Release v3.54: ...", danach git push.
+  3. Inhalt von "Aktueller Build" auf den Stick kopieren. Netzwerk.json im Datenordner bleibt gültig.
+  4. Im Heimnetz einmal Aktualisieren: Der erste Abgleich holt alle Daten vom NAS auf den Stick und umgekehrt, gelöscht
+     wird dabei nichts. Je nach Menge der Berichte dauert er einige Minuten.
+
+QUELLEN
+  WNetAddConnection2: learn.microsoft.com/windows/win32/api/winnetwk/nf-winnetwk-wnetaddconnection2w
+  Zeitstempel auf FAT (Ortszeit, 2 s Auflösung): learn.microsoft.com/windows/win32/sysinfo/file-times
+  robocopy /DST (Ausgleich der Sommerzeit): learn.microsoft.com/windows-server/administration/windows-commands/robocopy

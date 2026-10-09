@@ -5,6 +5,16 @@ Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Verweis Versionshistorie oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
 
+VERSION 3.54   (09.10.2026)  NETZLAUFWERK ALS SPIEGEL MIT ABGLEICH AUF KNOPFDRUCK, LÄUFE VOLLSTÄNDIG ENTFERNEN UND UMBENENNEN
+====================================================================================================
+Der Datenordner liegt immer auf dem Stick; der Start greift nie auf das Netzlaufwerk zu, Werkzeuge und Sensoren kommen
+immer vom Stick. Ein eingerichtetes Netzlaufwerk ist ein Spiegel: Aktualisieren auf der Seite Vergleichsdatenbank
+gleicht Berichte, Datenbank, Änderungsprotokolle, Voreinstellungen und Referenz in beide Richtungen ab. Die neuere
+Fassung gilt, die ältere und alles Gelöschte kommt ins Archiv (Archiv\Abgleich). Fehlt auf einer Seite ein großer Teil
+der Daten, hält der Abgleich an. Netzwerk.json steht nur noch auf dem Stick, ohne Kennwort; ein Pfad mit nur einem \
+am Anfang wird abgelehnt. Entfernen verschiebt Datenbankeintrag und Berichtsordner ins Archiv, Name ändern benennt Datei
+und Berichtsordner um. Datenpflege: PawnIO-Merker bleibt, verwaiste temporäre Dateien werden wieder gefunden.
+
 VERSION 3.53   (09.10.2026)  TESTSUITE NACH FACHGEBIETEN, WINGET MIT ÄNDERUNGSPROTOKOLL, GRAFIKAUSWAHL IM LASTTEST
 ====================================================================================================
 Softwarepakete der Seite Tools: winget läuft im Arbeitsprozess (Hilfsmodus -SoftwareInstallieren) mit einer Frist von
