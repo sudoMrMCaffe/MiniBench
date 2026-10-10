@@ -42,7 +42,7 @@
 
 
 1. **[LeosMinibench.exe herunterladen](https://github.com/sudoMrMCaffe/MiniBench/raw/main/Aktueller%20Build/LeosMinibench.exe)** (oder auf den USB-Stick kopieren).
-2. Per Doppelklick als **Administrator** starten (UAC bestätigen).
+2. Per Doppelklick als **Administrator** starten (UAC bestätigen, die App ist nicht bei Micosoft registriert).
 3. Gewünschte Module wählen und **Start** klicken. Alle Berichte landen sauber unter `Minibench-Daten\Berichte\`.
 
 ---
