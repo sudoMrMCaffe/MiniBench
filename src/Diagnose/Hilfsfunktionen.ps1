@@ -21,9 +21,16 @@ function Get-ShortCpuName([string]$Name) { ((($Name -as [string]) -replace '\s+'
 function Get-ShortGpuName([string]$Name) { (([string]$Name) -replace '^(AMD|NVIDIA|Intel\(R\))\s*', '').Trim() }
 # Grafikeinheiten mit Art (dGPU, iGPU) und ob sie den Desktop ausgibt (aktive Auflösung); virtuelle Adapter fehlen
 function Get-GpuAdapters {
-    @(Get-CimCached Win32_VideoController | Where-Object { $_ -and (Get-GpuKind ([string]$_.Name)) -ne 'virtuell' } | ForEach-Object {
-        $k = Get-GpuKind ([string]$_.Name)
-        [pscustomobject]@{ Name = ([string]$_.Name).Trim(); Art = $k; Desktop = [bool]$_.CurrentHorizontalResolution; Treiber = [string]$_.DriverVersion; Adapter = $_
+    $raw = @(Get-CimCached Win32_VideoController | Where-Object { $_ -and (Get-GpuKind ([string]$_.Name)) -ne 'virtuell' })
+    $hasIgpu = [bool](@($raw | Where-Object { (Get-GpuKind ([string]$_.Name)) -eq 'iGPU' }).Count)
+    $isLaptop = ($script:IsLaptop -or (Test-OnBattery) -or (@($raw | Where-Object { Test-LaptopGpu $_.Name }).Count -gt 0))
+    @(foreach ($a in $raw) {
+        $k = Get-GpuKind ([string]$a.Name)
+        $isDesktopOut = [bool]$a.CurrentHorizontalResolution
+        if ($hasIgpu -and $isLaptop -and $k -eq 'dGPU') {
+            $isDesktopOut = $false
+        }
+        [pscustomobject]@{ Name = ([string]$a.Name).Trim(); Art = $k; Desktop = $isDesktopOut; Treiber = [string]$a.DriverVersion; Adapter = $a
             Bezeichnung = $(switch ($k) { 'dGPU' { 'Grafikkarte' } 'iGPU' { 'Prozessorgrafik' } default { 'Grafik' } }) }
     })
 }
@@ -175,6 +182,15 @@ function ConvertFrom-BatteryReportXml([string]$Text) {
         if ($f) { [pscustomobject]@{ Zeitraum = ('{0}{1}' -f ([string]$st -replace 'T.*$', ''), $(if ($en) { ' bis ' + ([string]$en -replace 'T.*$', '') } else { '' })); VollmWh = $f; DesignmWh = $d; ActiveRuntime = (Get-XmlLocal $_ 'ActiveRuntime') } }
     })
     $res[0].Verlauf = @($hist)
+    if ($res.Count -and $res[0].Verlauf.Count -and $res[0].DesignmWh -and $res[0].VollmWh -and [double]$res[0].DesignmWh -le [double]$res[0].VollmWh) {
+        $maxHistDesign = ($res[0].Verlauf | Where-Object { $_.DesignmWh } | Measure-Object -Property DesignmWh -Maximum).Maximum
+        if ($maxHistDesign -and [double]$maxHistDesign -gt [double]$res[0].DesignmWh) {
+            $origDesign = $res[0].DesignmWh
+            $res[0].DesignmWh = [double]$maxHistDesign
+            $res[0].VerschleissProzent = [math]::Round([math]::Max(0.0, (1 - [double]$res[0].VollmWh / [double]$maxHistDesign) * 100), 1)
+            $res[0] | Add-Member -NotePropertyName DesignHinweis -NotePropertyValue ('höchster Wert aus dem Verlauf, gemeldet {0:N0} mWh' -f $origDesign) -Force
+        }
+    }
     # Laufzeitschätzung: Abschnitt RuntimeEstimates (FullChargeCapacity bzw. DesignCapacity mit ActiveRuntime)
     $est = @($all | Where-Object { $_.LocalName -eq 'RuntimeEstimates' }) | Select-Object -First 1
     if ($est) {
@@ -222,6 +238,15 @@ function ConvertFrom-BatteryReportHtml([string]$Html) {
             $c = & $cells $row.Groups[1].Value
             if ($c.Count -ge 3 -and $c[0] -match '^\d{4}-\d{2}-\d{2}') { [pscustomobject]@{ Zeitraum = ($c[0] -replace '\s+-\s+', ' bis '); VollmWh = (& $mwh $c[1]); DesignmWh = (& $mwh $c[2]); ActiveRuntime = $null } }
         })
+        if ($out.Count -and $out[0].Verlauf.Count -and $out[0].DesignmWh -and $out[0].VollmWh -and [double]$out[0].DesignmWh -le [double]$out[0].VollmWh) {
+            $maxHistDesign = ($out[0].Verlauf | Where-Object { $_.DesignmWh } | Measure-Object -Property DesignmWh -Maximum).Maximum
+            if ($maxHistDesign -and [double]$maxHistDesign -gt [double]$out[0].DesignmWh) {
+                $origDesign = $out[0].DesignmWh
+                $out[0].DesignmWh = [double]$maxHistDesign
+                $out[0].VerschleissProzent = [math]::Round([math]::Max(0.0, (1 - [double]$out[0].VollmWh / [double]$maxHistDesign) * 100), 1)
+                $out[0] | Add-Member -NotePropertyName DesignHinweis -NotePropertyValue ('höchster Wert aus dem Verlauf, gemeldet {0:N0} mWh' -f $origDesign) -Force
+            }
+        }
     }
     if ($e -gt 0) {
         $rows = @([regex]::Matches($Html.Substring($e), '(?is)<tr[^>]*>(.*?)</tr>') | ForEach-Object { , (& $cells $_.Groups[1].Value) } | Where-Object { $_.Count -ge 5 -and (& $hms $_[1]) })
@@ -236,7 +261,17 @@ function ConvertFrom-BatteryReportHtml([string]$Html) {
 function Get-BatteryFinding($Info) {
     if (-not $Info -or $null -eq $Info.VerschleissProzent) { return $null }
     $w = [double]$Info.VerschleissProzent
-    $txt = ('Akku {0}: {1:N0} % Verschleiß (volle Ladung {2:N0} von {3:N0} mWh Designkapazität{4}).' -f $Info.Name, $w, $Info.VollmWh, $Info.DesignmWh, $(if ($null -ne $Info.Zyklen) { ', {0:N0} Ladezyklen' -f $Info.Zyklen } else { '' }))
+    $txt = ('Akku {0}: {1:N0} % Verschleiß (volle Ladung {2:N0} von {3:N0} mWh Designkapazität{4}{5}).' -f $Info.Name, $w, $Info.VollmWh, $Info.DesignmWh, $(if ($null -ne $Info.Zyklen -and $Info.Zyklen -gt 0) { ', {0:N0} Ladezyklen' -f $Info.Zyklen } else { '' }), $(if ($Info.PSObject.Properties['DesignHinweis'] -and $Info.DesignHinweis) { ' laut Verlauf' } else { '' }))
+    # Sprunghafter Abfall der vollen Ladung gegenüber dem Verlauf prüfen
+    $lastHist = @($Info.Verlauf | Where-Object { $_.VollmWh })
+    $sprungTxt = ''
+    if ($lastHist.Count) {
+        $prevVoll = [double]$lastHist[$lastHist.Count - 1].VollmWh
+        if ($prevVoll -gt 0 -and ($prevVoll - [double]$Info.VollmWh) / $prevVoll -ge 0.3) {
+            $sprungTxt = (' Die volle Ladung fiel sprunghaft von {0:N0} mWh auf {1:N0} mWh ab. Nach einer vollen Ladung erneut prüfen.' -f $prevVoll, $Info.VollmWh)
+        }
+    }
+    if ($sprungTxt) { return [pscustomobject]@{ Stufe = 'WARNUNG'; Text = $txt + $sprungTxt } }
     if ($w -ge 50) { return [pscustomobject]@{ Stufe = 'WARNUNG'; Text = $txt + ' Die Laufzeit ist stark verkürzt, ein Austausch lohnt sich.' } }
     if ($w -ge 30) { return [pscustomobject]@{ Stufe = 'INFO'; Text = $txt + ' Die Laufzeit ist spürbar kürzer als im Neuzustand.' } }
     return $null

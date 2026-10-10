@@ -98,6 +98,8 @@ param(
     [string]$Entfernen = '',
     [string]$Umbenennen = '',
     [string]$NeuerName = '',
+    # Referenzen (ab v3.6): Median aller Systeme, Notebooks und Desktops aktualisieren (Hilfsmodus der Oberfläche)
+    [switch]$MedianAktualisieren,
     # Allgemein
     [switch]$KiOhneAnonymisierung,
     # Hilfswerkzeuge (PawnIO, smartmontools per winget) nach dem Lauf: entfernen oder auf diesem PC behalten; leer = gespeicherte Wahl
@@ -207,9 +209,9 @@ if ('ä' -ne [string][char]0xE4 -and $PSCommandPath) {
 
 #region ---------- Administratorrechte ----------
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-# Vergleich, Import, Dashboard, Datenpflege sowie Abgleich, Entfernen und Umbenennen (ab v3.54) arbeiten nur im Datenordner
-# und brauchen keine Administratorrechte
-if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenpflege -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme -and -not $Abgleich -and -not $Entfernen -and -not $Umbenennen) {
+# Vergleich, Import, Dashboard, Datenpflege sowie Abgleich, Entfernen, Umbenennen und MedianAktualisieren
+# arbeiten nur im Datenordner und brauchen keine Administratorrechte
+if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenpflege -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme -and -not $Abgleich -and -not $Entfernen -and -not $Umbenennen -and -not $MedianAktualisieren) {
     if (-not $PSCommandPath) { return }
     # Netzlaufwerke sind im Administratorkontext nicht verbunden: Skript und Datenordner als UNC-Pfad weitergeben
     function ConvertTo-Unc([string]$Path) {
@@ -234,7 +236,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenp
 }
 #endregion
 
-$ScriptVersion = '3.54'
+$ScriptVersion = '3.6'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -2323,70 +2325,70 @@ $script:ModuleContracts = @(
     Parameter       = @('Wartung', 'Reparaturen', 'OhneWiederherstellungspunkt')
     Datenbankfelder = @()
     Schritte        = @(
-        @{ Key = 'DismRestore'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 20; Vorauswahl = $true; Ueblich = $false
+        @{ Key = 'DismRestore'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 20; Vorauswahl = $true; Ueblich = $false; Gruppe = 'Systemdateien und Komponentenspeicher'
            Titel = 'Komponentenspeicher prüfen und reparieren (DISM)'
            Text  = 'Komponentenspeicher prüfen und reparieren (DISM ScanHealth, bei Bedarf RestoreHealth)' }
-        @{ Key = 'Sfc'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 12; Vorauswahl = $true; Ueblich = $false
+        @{ Key = 'Sfc'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 12; Vorauswahl = $true; Ueblich = $false; Gruppe = 'Systemdateien und Komponentenspeicher'
            Titel = 'Systemdateien reparieren (sfc /scannow)'
            Text  = 'Systemdateien reparieren (sfc /scannow, nach DISM)' }
-        @{ Key = 'Komponentenbereinigung'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 15; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'Komponentenbereinigung'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 15; Vorauswahl = $false; Ueblich = $false; Gruppe = 'Systemdateien und Komponentenspeicher'
            Titel = 'Komponentenspeicher bereinigen (DISM)'
            Text  = 'Komponentenspeicher bereinigen (DISM StartComponentCleanup, gibt Platz frei)' }
-        @{ Key = 'Dateisystem'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'keins'; Minuten = 5; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'Dateisystem'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'moeglich'; Rueckgaengig = 'keins'; Minuten = 5; Vorauswahl = $false; Ueblich = $false; Gruppe = 'Systemdateien und Komponentenspeicher'
            Titel = 'Dateisystemfehler beheben'
            Text  = 'Dateisystemfehler beheben (Onlinescan, SpotFix, Systemlaufwerk beim Neustart)' }
-        @{ Key = 'WindowsUpdate'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'immer'; Rueckgaengig = 'Hinweis'; Minuten = 2; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'WindowsUpdate'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'immer'; Rueckgaengig = 'Hinweis'; Minuten = 2; Vorauswahl = $false; Ueblich = $false; Gruppe = 'Windows Update, Netzwerk und Zeit'
            Titel = 'Windows Update zurücksetzen'
            Text  = 'Windows Update zurücksetzen (Dienste, SoftwareDistribution, catroot2)' }
-        @{ Key = 'Netzwerk'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'immer'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'Netzwerk'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'immer'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 1; Vorauswahl = $false; Ueblich = $false; Gruppe = 'Windows Update, Netzwerk und Zeit'
            Titel = 'Netzwerk zurücksetzen'
            Text  = 'Netzwerk zurücksetzen (DNS-Cache, Winsock, TCP/IP), Neustart nötig' }
-        @{ Key = 'Temp'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 3; Vorauswahl = $false; Ueblich = $true
+        @{ Key = 'Temp'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 3; Vorauswahl = $false; Ueblich = $true; Gruppe = 'Bereinigung und Speicherplatz'
            Titel = 'Temporäre Dateien löschen'
            Text  = 'Temporäre Dateien löschen (älter als 2 Tage, Übermittlungsoptimierung, Fehlerberichte)' }
-        @{ Key = 'WMI'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 2; Vorauswahl = $false; Ueblich = $true
+        @{ Key = 'WMI'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 2; Vorauswahl = $false; Ueblich = $true; Gruppe = 'Dienste, Geräte und Energie'
            Titel = 'WMI-Repository prüfen'
            Text  = 'WMI-Repository prüfen und bei Bedarf reparieren' }
-        @{ Key = 'Zeit'; Typ = 'Massnahme'; Risiko = 'Aendern'; Neustart = 'nie'; Rueckgaengig = 'Protokoll'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'Zeit'; Typ = 'Massnahme'; Risiko = 'Aendern'; Neustart = 'nie'; Rueckgaengig = 'Protokoll'; Minuten = 1; Vorauswahl = $false; Ueblich = $false; Gruppe = 'Windows Update, Netzwerk und Zeit'
            Titel = 'Zeit synchronisieren'
            Text  = 'Windows-Zeit neu synchronisieren' }
-        @{ Key = 'Druck'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'Druck'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false; Gruppe = 'Dienste, Geräte und Energie'
            Titel = 'Druckwarteschlange leeren'
            Text  = 'Druckwarteschlange leeren und Druckspooler neu starten' }
-        @{ Key = 'Geraete'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'Geraete'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'Wiederherstellungspunkt'; Minuten = 1; Vorauswahl = $false; Ueblich = $false; Gruppe = 'Dienste, Geräte und Energie'
            Titel = 'Geräte neu erkennen'
            Text  = 'Geräte neu erkennen lassen (pnputil /scan-devices)' }
-        @{ Key = 'Schnellstart'; Typ = 'Massnahme'; Risiko = 'Aendern'; Neustart = 'nie'; Rueckgaengig = 'Protokoll'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'Schnellstart'; Typ = 'Massnahme'; Risiko = 'Aendern'; Neustart = 'nie'; Rueckgaengig = 'Protokoll'; Minuten = 1; Vorauswahl = $false; Ueblich = $false; Gruppe = 'Dienste, Geräte und Energie'
            Titel = 'Schnellstart deaktivieren'
            Text  = 'Schnellstart deaktivieren (hilft bei Abstürzen nach dem Einschalten)' }
-        @{ Key = 'Energieplaene'; Typ = 'Massnahme'; Risiko = 'Aendern'; Neustart = 'nie'; Rueckgaengig = 'Protokoll'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'Energieplaene'; Typ = 'Massnahme'; Risiko = 'Aendern'; Neustart = 'nie'; Rueckgaengig = 'Protokoll'; Minuten = 1; Vorauswahl = $false; Ueblich = $false; Gruppe = 'Dienste, Geräte und Energie'
            Titel = 'Energiesparpläne zurücksetzen'
            Text  = 'Energiesparpläne auf Standard zurücksetzen (eigene Pläne werden vorher gesichert)' }
-        @{ Key = 'Datentraegerbereinigung'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 10; Vorauswahl = $false; Ueblich = $true
+        @{ Key = 'Datentraegerbereinigung'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 10; Vorauswahl = $false; Ueblich = $true; Gruppe = 'Bereinigung und Speicherplatz'
            Titel = 'Datenträgerbereinigung mit allen Kategorien'
            Text  = 'Datenträgerbereinigung (cleanmgr mit allen Kategorien außer Downloads)' }
-        @{ Key = 'Leistungszaehler'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'Leistungszaehler'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false; Gruppe = 'Dienste, Geräte und Energie'
            Titel = 'Leistungszähler neu aufbauen'
            Text  = 'Leistungszähler aus der Sicherung neu aufbauen (lodctr /r)' }
-        @{ Key = 'Leerlaufaufgaben'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'Leerlaufaufgaben'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false; Gruppe = 'Dienste, Geräte und Energie'
            Titel = 'Leerlaufaufgaben jetzt ausführen'
            Text  = 'Aufgeschobene Windows-Wartungsaufgaben starten (ProcessIdleTasks)' }
-        @{ Key = 'ShaderCache'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $true
+        @{ Key = 'ShaderCache'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $true; Gruppe = 'Bereinigung und Speicherplatz'
            Titel = 'Shader-Caches der Grafiktreiber leeren'
            Text  = 'DirectX-, OpenGL-, Intel- und AMD-Shader-Caches leeren' }
-        @{ Key = 'UpdateDownloads'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $true
+        @{ Key = 'UpdateDownloads'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $true; Gruppe = 'Bereinigung und Speicherplatz'
            Titel = 'Heruntergeladene Updates löschen'
            Text  = 'SoftwareDistribution-Download-Ordner leeren (installierte Updates bleiben erhalten)' }
-        @{ Key = 'Absturzabbilder'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $true
+        @{ Key = 'Absturzabbilder'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $true; Gruppe = 'Bereinigung und Speicherplatz'
            Titel = 'Absturzabbilder und Installationsreste löschen'
            Text  = 'CrashDumps, MSOCache, RetailDemo und Treiberreste leeren' }
-        @{ Key = 'Prefetch'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $true
+        @{ Key = 'Prefetch'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $true; Gruppe = 'Bereinigung und Speicherplatz'
            Titel = 'Prefetch-Daten löschen'
            Text  = 'Prefetch-Ordner leeren (Windows baut die Daten danach neu auf)' }
-        @{ Key = 'PaketCache'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'PaketCache'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false; Gruppe = 'Bereinigung und Speicherplatz'
            Titel = 'Paket-Cache von Installationsprogrammen löschen'
            Text  = 'Paket-Cache von Installationsprogrammen leeren (Package Cache)' }
-        @{ Key = 'Wiederherstellungspunkte'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false
+        @{ Key = 'Wiederherstellungspunkte'; Typ = 'Massnahme'; Risiko = 'Eingriff'; Neustart = 'nie'; Rueckgaengig = 'keins'; Minuten = 1; Vorauswahl = $false; Ueblich = $false; Gruppe = 'Bereinigung und Speicherplatz'
            Titel = 'Alte Wiederherstellungspunkte löschen'
            Text  = 'Alte Schattenkopien auf dem Systemlaufwerk löschen' }
     )
@@ -2539,7 +2541,7 @@ function Resolve-ModuleList([string]$Text) {
 
 # Kurzfassung der Verträge für die Oberfläche, eine Zeile je Eintrag:
 #   M|Name|Titel|Kurz|Admin|Risiko|Neustart
-#   S|Modul|Key|Typ|Risiko|Neustart|Rueckgaengig|Minuten|Vorauswahl|Ueblich|Text
+#   S|Modul|Key|Typ|Risiko|Neustart|Rueckgaengig|Minuten|Vorauswahl|Ueblich|Text|Gruppe
 function Get-ContractGuiLines {
     $l = New-Object System.Collections.Generic.List[string]
     $clean = { param($v) (([string]$v) -replace '[\r\n|]+', ' ').Trim() }
@@ -2547,7 +2549,7 @@ function Get-ContractGuiLines {
         $l.Add(('M|{0}|{1}|{2}|{3}|{4}|{5}' -f $c.Name, (& $clean $c.Seite.Titel), (& $clean $c.Seite.Kurz), $(if ($c.Admin) { '1' } else { '0' }), $c.Risiko, $c.Neustart))
         foreach ($s in $c.Schritte) {
             $txt = $(if ($s.Text) { $s.Text } else { $s.Titel })
-            $l.Add(('S|{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}|{8}|{9}' -f $c.Name, $s.Key, $s.Typ, $s.Risiko, $s.Neustart, $s.Rueckgaengig, [int]$s.Minuten, $(if ($s.Vorauswahl) { '1' } else { '0' }), $(if ($s.Ueblich) { '1' } else { '0' }), (& $clean $txt)))
+            $l.Add(('S|{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}|{8}|{9}|{10}' -f $c.Name, $s.Key, $s.Typ, $s.Risiko, $s.Neustart, $s.Rueckgaengig, [int]$s.Minuten, $(if ($s.Vorauswahl) { '1' } else { '0' }), $(if ($s.Ueblich) { '1' } else { '0' }), (& $clean $txt), (& $clean $s.Gruppe)))
         }
     }
     return $l.ToArray()
@@ -5239,7 +5241,7 @@ function Undo-OptChange($Record) {
 
 #endregion
 #region ---------- Grafische Oberfläche ----------
-if (-not $EventMode -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme) {
+if (-not $EventMode -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme -and -not $MedianAktualisieren) {
     Write-StartPhase 'Datenordner gefunden'
     # Hardwareabfragen für die Oberfläche (Datenträgerliste, Geräteidentität) laufen parallel zum Laden der Oberfläche
     $hwPs = $null; $hwHandle = $null
@@ -5376,6 +5378,9 @@ public partial class DiagGui : Form
     List<string> gpuSelValues = new List<string>();
     // Schneller Modus (ab v2.6): parallele Prüfungen der Diagnose
     CheckBox chkFast;
+    LinkLabel diagToggle;
+    Label diagSummaryLbl;
+    FlowLayoutPanel diagBody;
     Label lblPar;
     Dictionary<string, string[]> parJobs = new Dictionary<string, string[]>();
     List<string> parOrder = new List<string>();
@@ -5392,6 +5397,7 @@ public partial class DiagGui : Form
     List<string> diskNums = new List<string>();
     ComboBox cmbBenchDur, cmbRef;
     CheckBox chkDbSave, chkRefSave;
+    Button btnUpdateMed;
     List<DbEntry> refItems = new List<DbEntry>(), cmpItems = new List<DbEntry>();
     // Lasttest
     CheckBox chkLCpu, chkLRam, chkLGpu, chkLDisk;
@@ -5454,8 +5460,11 @@ public partial class DiagGui : Form
     // Modulverträge und Änderungsprotokoll
     Dictionary<string, string[]> modInfo = new Dictionary<string, string[]>();   // Name -> Titel, Kurz, Admin, Risiko, Neustart
     List<ContractStep> steps = new List<ContractStep>();
-    string[] repRisk = new string[0];
+    string[] repRisk = new string[0], repGroup = new string[0];
     bool[] repDefault = new bool[0], repUsual = new bool[0];
+    Dictionary<string, Label> repCatCount = new Dictionary<string, Label>();
+    Dictionary<string, FlowLayoutPanel> repCatBody = new Dictionary<string, FlowLayoutPanel>();
+    Dictionary<string, LinkLabel> repCatToggle = new Dictionary<string, LinkLabel>();
     string changeDir = "";
     List<ChangeEntry> changes = new List<ChangeEntry>();
     ListView lvChg;
@@ -5770,6 +5779,7 @@ public partial class DiagGui : Form
             BackColor = UI.Bg;
             ForeColor = UI.Text;
             ApplyThemeRecursive(this);
+            ApplyDiagProfile();
         }
         finally
         {
@@ -5863,7 +5873,21 @@ public partial class DiagGui : Form
         }
         else if (c is CheckBox || c is RadioButton)
         {
-            c.ForeColor = UI.Text;
+            c.ForeColor = c.Enabled ? UI.Text : UI.Muted;
+        }
+        else if (c is LinkLabel)
+        {
+            LinkLabel ll = (LinkLabel)c;
+            if (ll.LinkColor == Color.FromArgb(28, 29, 31) || ll.LinkColor == Color.FromArgb(245, 246, 247) || ll.LinkColor == Color.Black || ll.LinkColor == SystemColors.ControlText)
+            {
+                ll.LinkColor = UI.Text;
+            }
+            else
+            {
+                ll.LinkColor = UI.Accent;
+            }
+            ll.ActiveLinkColor = UI.AccentHover;
+            ll.ForeColor = UI.Text;
         }
         else if (c is Button)
         {
@@ -5896,7 +5920,7 @@ public partial class DiagGui : Form
             if (lbl.Parent != head && lbl.ForeColor != Color.White)
             {
                 Color fc = lbl.ForeColor;
-                if (fc == Color.FromArgb(28, 29, 31) || fc == Color.FromArgb(245, 246, 247) || fc == Color.Black)
+                if (fc == Color.FromArgb(28, 29, 31) || fc == Color.FromArgb(245, 246, 247) || fc == Color.Black || fc == SystemColors.ControlText || fc.ToArgb() == Color.Black.ToArgb())
                 {
                     lbl.ForeColor = UI.Text;
                 }
@@ -5974,6 +5998,7 @@ public partial class DiagGui : Form
             {
                 ContractStep c = new ContractStep(); c.Module = x[1]; c.Key = x[2]; c.Typ = x[3]; c.Risiko = x[4]; c.Neustart = x[5]; c.Rueckgaengig = x[6];
                 int m; int.TryParse(x[7], out m); c.Minuten = m; c.Vorauswahl = x[8] == "1"; c.Ueblich = x[9] == "1"; c.Text = x[10];
+                if (x.Length >= 12) c.Gruppe = x[11];
                 steps.Add(c);
             }
         }
@@ -5981,17 +6006,17 @@ public partial class DiagGui : Form
         if (rep.Count > 0)
         {
             repKeys = new string[rep.Count]; repText = new string[rep.Count]; repMinutes = new int[rep.Count];
-            repRisk = new string[rep.Count]; repDefault = new bool[rep.Count]; repUsual = new bool[rep.Count];
+            repRisk = new string[rep.Count]; repGroup = new string[rep.Count]; repDefault = new bool[rep.Count]; repUsual = new bool[rep.Count];
             for (int i = 0; i < rep.Count; i++)
             {
                 repKeys[i] = rep[i].Key; repText[i] = rep[i].Text; repMinutes[i] = rep[i].Minuten;
-                repRisk[i] = rep[i].Risiko; repDefault[i] = rep[i].Vorauswahl; repUsual[i] = rep[i].Ueblich;
+                repRisk[i] = rep[i].Risiko; repGroup[i] = rep[i].Gruppe; repDefault[i] = rep[i].Vorauswahl; repUsual[i] = rep[i].Ueblich;
             }
         }
         else
         {
-            repRisk = new string[repKeys.Length]; repDefault = new bool[repKeys.Length]; repUsual = new bool[repKeys.Length];
-            for (int i = 0; i < repKeys.Length; i++) { repRisk[i] = ""; repDefault[i] = i < 2; repUsual[i] = i < 2 || repKeys[i] == "Dateisystem" || repKeys[i] == "Temp" || repKeys[i] == "WMI"; }
+            repRisk = new string[repKeys.Length]; repGroup = new string[repKeys.Length]; repDefault = new bool[repKeys.Length]; repUsual = new bool[repKeys.Length];
+            for (int i = 0; i < repKeys.Length; i++) { repRisk[i] = ""; repGroup[i] = ""; repDefault[i] = i < 2; repUsual[i] = i < 2 || repKeys[i] == "Dateisystem" || repKeys[i] == "Temp" || repKeys[i] == "WMI"; }
         }
     }
 
@@ -6130,6 +6155,7 @@ public partial class DiagGui : Form
         Tip(chkGpuWahl, "Bei Notebooks mit zwei Grafikeinheiten misst WinSAT nur die Einheit, die den Desktop ausgibt. Mit diesem Haken wird WinSAT kurz auf die Grafikkarte gestellt und gleich wieder zurück (steht im Änderungsprotokoll).");
         Tip(cmbBenchDur, "Normal: 5 Sekunden je Messung, stabile Werte. Kurz: 2 Sekunden, etwa halbe Dauer; Kurzläufe werden nur mit Kurzläufen verglichen.");
         Tip(cmbRef, "Bezug für die Prozentwerte (100 %): die gespeicherte Referenz (Referenz.json, gesetzt mit dem Haken unten), der Median aller Systeme der Datenbank oder ein einzelner gespeicherter Lauf.");
+        Tip(btnUpdateMed, "Berechnet den Median aller Systeme, der Notebooks und der Desktop-PCs neu und aktualisiert die Referenzdateien.");
         Tip(chkDbSave, "Legt die Werte dieses Laufs als Eintrag in Minibench-Daten\\Datenbank ab (Verlauf auf diesem PC, Vergleiche, Rang).");
         Tip(chkRefSave, "Speichert die Werte dieses Laufs als Referenz.json im Datenordner. Alle PCs, die mit diesem Datenordner messen, werden dann in Prozent dieses Systems angegeben.");
         // Lasttest
@@ -6332,7 +6358,22 @@ public partial class DiagGui : Form
         chkFast.CheckedChanged += delegate { UpdateSummary(); }; f.Controls.Add(chkFast);
         Label fastHint = Lbl("Updatesuche, Defender-Schnellscan, Energieanalyse und SMART-Langtest laufen nebenher. Messungen bleiben exklusiv, damit die Werte vergleichbar sind.", 8.5f, false, UI.Muted);
         fastHint.MaximumSize = new Size(UI.S(820), 0); fastHint.Margin = new Padding(UI.S(24), 0, 0, UI.S(4)); f.Controls.Add(fastHint);
-        f.Controls.Add(Section("Prüfungen"));
+        FlowLayoutPanel dh = Row(); dh.Margin = new Padding(UI.S(4), UI.S(10), 0, 0);
+        diagToggle = new LinkLabel(); diagToggle.Text = "▸ Prüfungen"; diagToggle.AutoSize = true;
+        diagToggle.Font = new Font("Segoe UI Semibold", 10.5f); diagToggle.LinkColor = UI.Text;
+        diagToggle.ActiveLinkColor = UI.Accent; diagToggle.LinkBehavior = LinkBehavior.HoverUnderline;
+        diagToggle.Margin = new Padding(0, UI.S(2), UI.S(10), 0);
+        Tip(diagToggle, "Klicken zeigt oder verbirgt die einzelnen Diagnoseprüfungen.");
+
+        diagSummaryLbl = Lbl("", 9f, false, UI.Muted);
+        diagSummaryLbl.Margin = new Padding(0, UI.S(4), UI.S(12), 0);
+        dh.Controls.Add(diagToggle); dh.Controls.Add(diagSummaryLbl);
+        f.Controls.Add(dh);
+
+        diagBody = new FlowLayoutPanel(); diagBody.FlowDirection = FlowDirection.TopDown;
+        diagBody.WrapContents = false; diagBody.AutoSize = true; diagBody.BackColor = UI.Panel;
+        diagBody.Margin = new Padding(UI.S(16), 0, 0, UI.S(4)); diagBody.Visible = false;
+
         diagChk = new CheckBox[diagKeys.Length];
         for (int i = 0; i < diagKeys.Length; i++) {
             int chkIdx = i;
@@ -6344,10 +6385,17 @@ public partial class DiagGui : Form
                 }
             };
             diagChk[i].CheckedChanged += delegate { UpdateSummary(); };
-            f.Controls.Add(diagChk[i]);
+            diagBody.Controls.Add(diagChk[i]);
         }
         Label cpuHint = Lbl("Die CPU-Stabilität prüft ab v2.7 das Modul Lasttest (Prozessor, ab 2 Minuten): eigener Lastprozess, Rechenfehler, Takt- und Temperaturverlauf und Drosselnachweis.", 8.5f, false, UI.Muted);
-        cpuHint.MaximumSize = new Size(UI.S(820), 0); cpuHint.Margin = new Padding(UI.S(24), UI.S(2), 0, UI.S(4)); f.Controls.Add(cpuHint);
+        cpuHint.MaximumSize = new Size(UI.S(820), 0); cpuHint.Margin = new Padding(UI.S(4), UI.S(2), 0, UI.S(4));
+        diagBody.Controls.Add(cpuHint);
+        f.Controls.Add(diagBody);
+
+        diagToggle.LinkClicked += delegate {
+            diagBody.Visible = !diagBody.Visible;
+            diagToggle.Text = (diagBody.Visible ? "▾ " : "▸ ") + "Prüfungen";
+        };
         f.Controls.Add(Section("Optionen"));
         chkInstall = Chk("smartmontools bei Bedarf installieren (winget) oder aus dem Datenordner verwenden", true);
         chkMem = Chk("Windows-Speicherdiagnose beim nächsten Neustart einplanen", false);
@@ -6364,10 +6412,31 @@ public partial class DiagGui : Form
         return f;
     }
 
+    void UpdateDiagSummary()
+    {
+        if (diagSummaryLbl == null || diagChk == null) return;
+        int sel = 0;
+        for (int i = 0; i < diagChk.Length; i++)
+        {
+            if (diagChk[i] != null && diagChk[i].Checked) sel++;
+        }
+        string pName = rbVoll != null && rbVoll.Checked ? "Vollständig" :
+                       rbSchnell != null && rbSchnell.Checked ? "Schnell" :
+                       rbCustom != null && rbCustom.Checked ? "Benutzerdefiniert" :
+                       rbTest != null && rbTest.Checked ? "Funktionstest" :
+                       rbCrash != null && rbCrash.Checked ? "Nur Absturzanalyse" : "";
+        diagSummaryLbl.Text = sel + " von " + diagChk.Length + " Prüfungen gewählt" + (pName.Length > 0 ? " (Profil " + pName + ")" : "");
+    }
+
     void ApplyDiagProfile()
     {
         if (diagChk == null) return;
         bool custom = rbCustom.Checked, crash = rbCrash.Checked;
+        if (custom && diagBody != null)
+        {
+            diagBody.Visible = true;
+            if (diagToggle != null) diagToggle.Text = "▾ Prüfungen";
+        }
         // Ereignisse, Updatesuche, Integritaet, Defender, SmartLang, Netzwerk, RamTest, Energieanalyse
         // (CPU-Stabilität ab v2.7 nur noch im Modul Lasttest)
         bool[] voll = new bool[] { true, true, true, true, true, true, true, true };
@@ -6391,6 +6460,7 @@ public partial class DiagGui : Form
         }
         cmbDays.Enabled = !rbTest.Checked;
         if (cmbSmartMax != null) cmbSmartMax.Enabled = !crash && !rbTest.Checked;
+        UpdateDiagSummary();
         UpdateSummary();
     }
 
@@ -6430,7 +6500,18 @@ public partial class DiagGui : Form
         FlowLayoutPanel r1 = Row(); r1.Controls.Add(RowLabel("Messdauer", 150));
         cmbBenchDur = Combo(260, new string[] { "Normal (stabile Werte)", "Kurz (etwa halbe Dauer)" }, 0); cmbBenchDur.SelectedIndexChanged += delegate { UpdateSummary(); }; r1.Controls.Add(cmbBenchDur); f.Controls.Add(r1);
         FlowLayoutPanel r2 = Row(); r2.Controls.Add(RowLabel("Referenz (100 %)", 150));
-        cmbRef = Combo(520, new string[0], 0); r2.Controls.Add(cmbRef); f.Controls.Add(r2);
+        cmbRef = Combo(360, new string[0], 0); r2.Controls.Add(cmbRef);
+        btnUpdateMed = UI.Secondary("Median aktualisieren");
+        btnUpdateMed.Click += delegate {
+            if (running) return;
+            List<string> lines;
+            string res = RunHelperPumped("-MedianAktualisieren", out lines, 60);
+            FillRefLists();
+            string msg = lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Keine Rückmeldung vom Arbeitsprozess.";
+            MessageBox.Show(this, msg, "Median-Referenz", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        };
+        r2.Controls.Add(btnUpdateMed);
+        f.Controls.Add(r2);
         clbCompare = new CheckedListBox(); clbCompare.BackColor = UI.Panel; clbCompare.ForeColor = UI.Text;
         f.Controls.Add(Section("Speichern"));
         chkDbSave = Chk("Ergebnis in der Vergleichsdatenbank speichern", dbDir.Length > 0); chkDbSave.Enabled = dbDir.Length > 0; f.Controls.Add(chkDbSave);
@@ -6442,21 +6523,31 @@ public partial class DiagGui : Form
     void FillRefLists()
     {
         if (cmbRef == null) return;
-        string prevRef = cmbRef.SelectedIndex > 1 && cmbRef.SelectedIndex - 2 < refItems.Count ? refItems[cmbRef.SelectedIndex - 2].Path : "";
+        int prevSpecial = -1;
+        string prevRef = "";
+        if (cmbRef.SelectedIndex >= 0 && cmbRef.SelectedIndex <= 3) prevSpecial = cmbRef.SelectedIndex;
+        else if (cmbRef.SelectedIndex >= 4 && cmbRef.SelectedIndex - 4 < refItems.Count) prevRef = refItems[cmbRef.SelectedIndex - 4].Path;
         HashSet<string> prevCmp = new HashSet<string>();
         for (int i = 0; i < clbCompare.Items.Count; i++) if (clbCompare.GetItemChecked(i) && i < cmpItems.Count) prevCmp.Add(cmpItems[i].Path);
         cmbRef.Items.Clear(); refItems.Clear(); clbCompare.Items.Clear(); cmpItems.Clear();
         cmbRef.Items.Add(SavedRefText());
         cmbRef.Items.Add("Median aller Systeme in der Vergleichsdatenbank");
+        cmbRef.Items.Add("Median Notebooks in der Vergleichsdatenbank");
+        cmbRef.Items.Add("Median Desktop-PCs in der Vergleichsdatenbank");
         int sel = 0;
         foreach (DbEntry e in db)
         {
             if (!e.HasBench) continue;
             refItems.Add(e); cmbRef.Items.Add(e.Label);
-            if (e.Path == prevRef) sel = cmbRef.Items.Count - 1;
             cmpItems.Add(e); clbCompare.Items.Add(e.Label, prevCmp.Contains(e.Path));
         }
-        cmbRef.SelectedIndex = sel;
+        if (prevSpecial >= 0 && prevSpecial < cmbRef.Items.Count) sel = prevSpecial;
+        else if (prevRef.Length > 0)
+        {
+            int idx = refItems.FindIndex(delegate(DbEntry x) { return String.Equals(x.Path, prevRef, StringComparison.OrdinalIgnoreCase); });
+            if (idx >= 0) sel = idx + 4;
+        }
+        if (sel >= 0 && sel < cmbRef.Items.Count) sel = cmbRef.SelectedIndex = sel;
         if (clbCompare.Items.Count == 0) { clbCompare.Items.Add("(noch keine Systeme mit Benchmark in der Datenbank)"); clbCompare.Enabled = false; }
         else clbCompare.Enabled = true;
         clbCompare.Height = Math.Max(UI.S(48), Math.Min(8, clbCompare.Items.Count) * UI.S(21) + UI.S(6));
@@ -6520,6 +6611,27 @@ public partial class DiagGui : Form
         if (cmbLGpuSel != null) cmbLGpuSel.Enabled = chkLGpu.Checked;
     }
 
+    string[] repairGroupOrder = new string[] {
+        "Systemdateien und Komponentenspeicher",
+        "Bereinigung und Speicherplatz",
+        "Windows Update, Netzwerk und Zeit",
+        "Dienste, Geräte und Energie"
+    };
+
+    string GetRepairGroup(int i)
+    {
+        if (i >= 0 && i < repGroup.Length && !string.IsNullOrEmpty(repGroup[i])) return repGroup[i];
+        if (i >= 0 && i < repKeys.Length)
+        {
+            string k = repKeys[i];
+            if (k == "DismRestore" || k == "Sfc" || k == "Komponentenbereinigung" || k == "Dateisystem") return "Systemdateien und Komponentenspeicher";
+            if (k == "Temp" || k == "Datentraegerbereinigung" || k == "UpdateDownloads" || k == "ShaderCache" || k == "Prefetch" || k == "PaketCache" || k == "Absturzabbilder" || k == "Wiederherstellungspunkte") return "Bereinigung und Speicherplatz";
+            if (k == "WindowsUpdate" || k == "Netzwerk" || k == "Zeit") return "Windows Update, Netzwerk und Zeit";
+            if (k == "WMI" || k == "Leistungszaehler" || k == "Leerlaufaufgaben" || k == "Druck" || k == "Geraete" || k == "Schnellstart" || k == "Energieplaene") return "Dienste, Geräte und Energie";
+        }
+        return "Dienste, Geräte und Energie";
+    }
+
     Control BuildRepairPage()
     {
         FlowLayoutPanel f = Page("Wartung", "Führt die gewählten Wartungs- und Reparaturaufgaben nacheinander aus. Vorher wird auf Wunsch ein Wiederherstellungspunkt angelegt. Einige Aufgaben werden erst nach einem Neustart wirksam.", 3);
@@ -6529,20 +6641,98 @@ public partial class DiagGui : Form
         FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(8));
         Button all = UI.Secondary("Übliche Auswahl"); all.Margin = new Padding(0);
         Tip(all, "Wählt alle risikoarmen Routine-Wartungsaufgaben wie Bereinigungen und Cache-Leerungen aus.");
-        all.Click += delegate { for (int i = 0; i < repChk.Length; i++) repChk[i].Checked = repUsual[i]; };
+        all.Click += delegate {
+            for (int i = 0; i < repChk.Length; i++) repChk[i].Checked = repUsual[i];
+            UpdateRepairCounts();
+            UpdateRepairGroupVisibility();
+        };
         Button none = UI.Secondary("Keine");
         Tip(none, "Hebt die Auswahl aller Wartungs- und Reparaturaufgaben auf.");
-        none.Click += delegate { foreach (CheckBox c in repChk) c.Checked = false; };
+        none.Click += delegate {
+            foreach (CheckBox c in repChk) c.Checked = false;
+            UpdateRepairCounts();
+            UpdateRepairGroupVisibility();
+        };
         b.Controls.Add(all); b.Controls.Add(none); f.Controls.Add(b);
+
         repChk = new CheckBox[repKeys.Length];
         for (int i = 0; i < repKeys.Length; i++)
         {
             string t = repText[i] + (repRisk[i].Length > 0 ? "   ·  " + ContractStep.RiskLabel(repRisk[i]) : "");
-            repChk[i] = Chk(t, repDefault[i]); repChk[i].CheckedChanged += delegate { UpdateSummary(); }; f.Controls.Add(repChk[i]);
+            repChk[i] = Chk(t, repDefault[i]);
+            repChk[i].CheckedChanged += delegate { UpdateRepairCounts(); UpdateSummary(); };
         }
+
+        repCatCount.Clear(); repCatBody.Clear(); repCatToggle.Clear();
+        foreach (string grp in repairGroupOrder)
+        {
+            List<int> indices = new List<int>();
+            for (int i = 0; i < repKeys.Length; i++) if (GetRepairGroup(i) == grp) indices.Add(i);
+            if (indices.Count == 0) continue;
+
+            FlowLayoutPanel h = Row(); h.Margin = new Padding(UI.S(4), UI.S(10), 0, 0);
+            LinkLabel tg = new LinkLabel(); tg.Text = "▸ " + grp; tg.AutoSize = true; tg.Font = new Font("Segoe UI Semibold", 10f); tg.LinkColor = UI.Text; tg.ActiveLinkColor = UI.Accent; tg.LinkBehavior = LinkBehavior.HoverUnderline; tg.Margin = new Padding(0, UI.S(2), UI.S(10), 0);
+            Label cnt = Lbl("", 9f, false, UI.Muted); cnt.Margin = new Padding(0, UI.S(4), UI.S(12), 0);
+            h.Controls.Add(tg); h.Controls.Add(cnt);
+            f.Controls.Add(h);
+
+            FlowLayoutPanel body = new FlowLayoutPanel(); body.FlowDirection = FlowDirection.TopDown; body.WrapContents = false; body.AutoSize = true; body.BackColor = UI.Panel; body.Margin = new Padding(UI.S(16), 0, 0, UI.S(4));
+            bool hasChecked = false;
+            foreach (int idx in indices)
+            {
+                if (repChk[idx].Checked) hasChecked = true;
+                body.Controls.Add(repChk[idx]);
+            }
+            body.Visible = hasChecked;
+            tg.Text = (hasChecked ? "▾ " : "▸ ") + grp;
+            f.Controls.Add(body);
+
+            repCatCount[grp] = cnt; repCatBody[grp] = body; repCatToggle[grp] = tg;
+            string gName = grp;
+            tg.LinkClicked += delegate {
+                body.Visible = !body.Visible;
+                tg.Text = (body.Visible ? "▾ " : "▸ ") + gName;
+            };
+            Tip(tg, "Klicken zeigt oder verbirgt die Maßnahmen dieser Gruppe.");
+        }
+        UpdateRepairCounts();
+
         Label lg = Lbl("Ändern: wird mit Vorher-Wert protokolliert und lässt sich auf der Seite Änderungen zurücknehmen.  Eingriff: nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt.", 8.75f, false, UI.Muted);
         lg.MaximumSize = new Size(UI.S(820), 0); lg.Margin = new Padding(UI.S(4), UI.S(8), 0, 0); f.Controls.Add(lg);
         return f;
+    }
+
+    void UpdateRepairCounts()
+    {
+        foreach (string grp in repairGroupOrder)
+        {
+            if (!repCatCount.ContainsKey(grp)) continue;
+            int sel = 0, tot = 0;
+            for (int i = 0; i < repKeys.Length; i++)
+            {
+                if (GetRepairGroup(i) == grp)
+                {
+                    tot++;
+                    if (repChk[i] != null && repChk[i].Checked) sel++;
+                }
+            }
+            repCatCount[grp].Text = sel + " von " + tot + " gewählt";
+        }
+    }
+
+    void UpdateRepairGroupVisibility()
+    {
+        foreach (string grp in repairGroupOrder)
+        {
+            if (!repCatBody.ContainsKey(grp) || !repCatToggle.ContainsKey(grp)) continue;
+            bool hasChecked = false;
+            for (int i = 0; i < repKeys.Length; i++)
+            {
+                if (GetRepairGroup(i) == grp && repChk[i] != null && repChk[i].Checked) { hasChecked = true; break; }
+            }
+            repCatBody[grp].Visible = hasChecked;
+            repCatToggle[grp].Text = (hasChecked ? "▾ " : "▸ ") + grp;
+        }
     }
 
     // ------------------------------------------------------------ Seite Optimierung (ab v2.8)
@@ -6945,6 +7135,7 @@ public partial class DiagGui : Form
             Button ok = UI.Primary("Starten"); ok.DialogResult = DialogResult.OK; ok.Margin = new Padding(0, 0, UI.S(8), 0); Button ab = UI.Secondary("Abbrechen"); ab.DialogResult = DialogResult.Cancel;
             b.Controls.Add(ok); b.Controls.Add(ab); f.Controls.Add(b);
             d.Controls.Add(f); d.AcceptButton = ok; d.CancelButton = ab;
+            UI.ThemeDialog(d);
             if (d.ShowDialog(this) != DialogResult.OK) return -1;
             int drv = rbMit.Checked ? 1 : 0;
             if (askKeep) runKeep = cKeep.Checked ? "behalten" : "entfernen";
@@ -7412,6 +7603,7 @@ public partial class DiagGui : Form
 
     void UpdateSummary()
     {
+        UpdateDiagSummary();
         if (lblSel == null || diagChk == null || benchChk == null || repChk == null || chkLCpu == null || chkOptRestore == null) return;
         List<string> m = SelectedModules();
         if (m.Count == 0) { lblSel.Text = "Kein Modul ausgewählt"; lblSel.ForeColor = UI.Crit; btnStart.Enabled = false; return; }
@@ -7469,7 +7661,9 @@ public partial class DiagGui : Form
             if (cmbBenchDur.SelectedIndex == 1) a.Append(" -BenchmarkKurz");
             if (benchChk[2].Checked && chkGpuWahl != null && chkGpuWahl.Checked) a.Append(" -BenchGpuWahl");
             if (cmbRef.SelectedIndex == 1) a.Append(" -ReferenzDatei *median");
-            else if (cmbRef.SelectedIndex > 1 && cmbRef.SelectedIndex - 2 < refItems.Count) a.Append(" -ReferenzDatei ").Append(Q(refItems[cmbRef.SelectedIndex - 2].Path));
+            else if (cmbRef.SelectedIndex == 2) a.Append(" -ReferenzDatei *median:notebook");
+            else if (cmbRef.SelectedIndex == 3) a.Append(" -ReferenzDatei *median:desktop");
+            else if (cmbRef.SelectedIndex >= 4 && cmbRef.SelectedIndex - 4 < refItems.Count) a.Append(" -ReferenzDatei ").Append(Q(refItems[cmbRef.SelectedIndex - 4].Path));
             List<string> cmp = new List<string>();
             if (clbCompare.Enabled) for (int i = 0; i < clbCompare.Items.Count && i < cmpItems.Count; i++) if (clbCompare.GetItemChecked(i)) cmp.Add(cmpItems[i].Path);
             if (cmp.Count > 0) a.Append(" -VergleichDateien ").Append(Q(String.Join(";", cmp.ToArray())));
@@ -7716,17 +7910,18 @@ public partial class DiagGui : Form
         using (Form f = new Form())
         {
             f.Text = "Voreinstellung speichern"; f.FormBorderStyle = FormBorderStyle.FixedDialog; f.MaximizeBox = false; f.MinimizeBox = false; f.ShowInTaskbar = false;
-            f.StartPosition = FormStartPosition.CenterParent; f.Font = new Font("Segoe UI", 9.5f); f.BackColor = UI.Bg; f.AutoSize = true; f.AutoSizeMode = AutoSizeMode.GrowAndShrink; f.Padding = new Padding(16);
+            f.StartPosition = FormStartPosition.CenterParent; f.Font = new Font("Segoe UI", 9.5f); f.BackColor = UI.Bg; f.AutoSize = true; f.AutoSizeMode = AutoSizeMode.GrowAndShrink; f.Padding = new Padding(UI.S(16));
             FlowLayoutPanel p = new FlowLayoutPanel(); p.FlowDirection = FlowDirection.TopDown; p.AutoSize = true; p.WrapContents = false; p.Dock = DockStyle.Fill;
-            Label l = new Label(); l.AutoSize = true; l.MaximumSize = new Size(460, 0); l.Margin = new Padding(0, 0, 0, 8);
+            Label l = new Label(); l.AutoSize = true; l.MaximumSize = new Size(UI.S(460), 0); l.Margin = new Padding(0, 0, 0, UI.S(8));
             l.Text = "Speichert die Auswahl aller Seiten (Module, Prüfungen, Messungen, Lasttest, Reparaturen, Sensortreiber) im Datenordner. Laufwerke und Vergleichssysteme bleiben je PC frei.";
             p.Controls.Add(l);
-            TextBox tb = new TextBox(); tb.Width = 320; tb.Text = presetActive.Length > 0 ? presetActive : "Standardprüfung"; p.Controls.Add(tb);
-            CheckBox cs = new CheckBox(); cs.AutoSize = true; cs.Margin = new Padding(3, 10, 3, 3); cs.Text = "Beim Start automatisch laden (dann genügt ein Klick auf Start)"; cs.Checked = start.Length == 0 || start == tb.Text; p.Controls.Add(cs);
-            FlowLayoutPanel b = new FlowLayoutPanel(); b.AutoSize = true; b.Margin = new Padding(0, 12, 0, 0);
+            TextBox tb = new TextBox(); tb.Width = UI.S(320); tb.Text = presetActive.Length > 0 ? presetActive : "Standardprüfung"; p.Controls.Add(tb);
+            CheckBox cs = new CheckBox(); cs.AutoSize = true; cs.Margin = new Padding(UI.S(3), UI.S(10), UI.S(3), UI.S(3)); cs.Text = "Beim Start automatisch laden (dann genügt ein Klick auf Start)"; cs.Checked = start.Length == 0 || start == tb.Text; p.Controls.Add(cs);
+            FlowLayoutPanel b = new FlowLayoutPanel(); b.AutoSize = true; b.Margin = new Padding(0, UI.S(12), 0, 0);
             Button ok = UI.Primary("Speichern"); ok.DialogResult = DialogResult.OK; Button ab = UI.Secondary("Abbrechen"); ab.DialogResult = DialogResult.Cancel;
             b.Controls.Add(ok); b.Controls.Add(ab); p.Controls.Add(b);
             f.Controls.Add(p); f.AcceptButton = ok; f.CancelButton = ab;
+            UI.ThemeDialog(f);
             if (f.ShowDialog(this) != DialogResult.OK) return;
             string name = tb.Text.Trim().Replace("   (beim Start)", "");
             if (name.Length == 0) return;
@@ -7803,7 +7998,14 @@ public partial class DiagGui : Form
         PutCb(d, "Diag.Tage", cmbDays); PutCb(d, "Diag.SmartMax", cmbSmartMax);
         for (int i = 0; i < benchKeys.Length && benchChk != null; i++) d["Bench." + benchKeys[i]] = benchChk[i].Checked;
         PutC(d, "Bench.GpuWahl", chkGpuWahl); PutCb(d, "Bench.Dauer", cmbBenchDur); PutC(d, "Bench.Datenbank", chkDbSave);
-        if (cmbRef != null) d["Bench.Referenz"] = cmbRef.SelectedIndex == 1 ? "Median" : (cmbRef.SelectedIndex > 1 && cmbRef.SelectedIndex - 2 < refItems.Count ? "Datei:" + refItems[cmbRef.SelectedIndex - 2].Path : "Gespeichert");
+        if (cmbRef != null)
+        {
+            if (cmbRef.SelectedIndex == 1) d["Bench.Referenz"] = "Median";
+            else if (cmbRef.SelectedIndex == 2) d["Bench.Referenz"] = "Median:Notebook";
+            else if (cmbRef.SelectedIndex == 3) d["Bench.Referenz"] = "Median:Desktop";
+            else if (cmbRef.SelectedIndex >= 4 && cmbRef.SelectedIndex - 4 < refItems.Count) d["Bench.Referenz"] = "Datei:" + refItems[cmbRef.SelectedIndex - 4].Path;
+            else d["Bench.Referenz"] = "Gespeichert";
+        }
         PutCb(d, "Gpu.Aufloesung", cmbGpuRes); PutCb(d, "Gpu.Anzeige", cmbGpuShow); d["Gpu.Auswahl"] = GpuChoiceValue(cmbGpuSel);
         PutC(d, "Last.CPU", chkLCpu); PutCb(d, "Last.CPUDauer", cmbLCpu);
         PutC(d, "Last.RAM", chkLRam); PutCb(d, "Last.RAMDauer", cmbLRam); PutCb(d, "Last.RAMAnteil", cmbLRamPct);
@@ -7838,8 +8040,14 @@ public partial class DiagGui : Form
         if (cmbRef != null)
         {
             string r = GetS(d, "Bench.Referenz");
-            int ri = r == null ? -1 : r == "Median" ? 1 : 0;
-            if (r != null && r.StartsWith("Datei:")) { int k = refItems.FindIndex(delegate(DbEntry x) { return String.Equals(x.Path, r.Substring(6), StringComparison.OrdinalIgnoreCase); }); ri = k >= 0 ? k + 2 : 0; }
+            int ri = 0;
+            if (r == "Median" || r == "*median") ri = 1;
+            else if (r == "Median:Notebook" || r == "*median:notebook") ri = 2;
+            else if (r == "Median:Desktop" || r == "*median:desktop") ri = 3;
+            else if (r != null && r.StartsWith("Datei:")) {
+                int k = refItems.FindIndex(delegate(DbEntry x) { return String.Equals(x.Path, r.Substring(6), StringComparison.OrdinalIgnoreCase); });
+                ri = k >= 0 ? k + 4 : 0;
+            }
             if (ri >= 0 && ri < cmbRef.Items.Count) cmbRef.SelectedIndex = ri;
         }
         if (chkRefSave != null) chkRefSave.Checked = false;
@@ -7851,6 +8059,7 @@ public partial class DiagGui : Form
         GetC(d, "Last.Disk", chkLDisk); GetCb(d, "Last.DiskDauer", cmbLDisk); GetCb(d, "Last.Laufwerk", cmbLDiskDrive);
         GetCb(d, "Last.AbbruchCpu", cmbLAbortCpu); GetCb(d, "Last.AbbruchGpu", cmbLAbortGpu);
         for (int i = 0; i < repKeys.Length && repChk != null; i++) GetC(d, "Rep." + repKeys[i], repChk[i]);
+        UpdateRepairCounts(); UpdateRepairGroupVisibility();
         GetC(d, "Rep.Wiederherstellungspunkt", chkRestorePoint);
         string os = GetS(d, "Opt.Auswahl");
         if (os != null) { List<string> ids = new List<string>(os.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries)); foreach (OptItem it in optItems) it.Box.Checked = ids.Contains(it.Id); UpdateOptCounts(); }
@@ -8589,6 +8798,86 @@ public static class UI
     public static Button SkipStepButton()
     {
         return Secondary("Diesen Schritt überspringen");
+    }
+
+    public static void ThemeDialog(Form f)
+    {
+        if (f == null) return;
+        f.BackColor = Bg;
+        f.ForeColor = Text;
+        if (f.Font == null || f.Font.Name != "Segoe UI")
+        {
+            f.Font = new Font("Segoe UI", 9.5f);
+        }
+        ThemeDialogControls(f.Controls);
+    }
+
+    public static void ThemeDialogControls(Control.ControlCollection controls)
+    {
+        if (controls == null) return;
+        foreach (Control c in controls)
+        {
+            ThemeDialogControl(c);
+        }
+    }
+
+    public static void ThemeDialogControl(Control c)
+    {
+        if (c == null) return;
+        if (c is TextBox || c is ComboBox)
+        {
+            c.BackColor = Panel;
+            c.ForeColor = Text;
+        }
+        else if (c is LinkLabel)
+        {
+            LinkLabel ll = (LinkLabel)c;
+            ll.LinkColor = Accent;
+            ll.ActiveLinkColor = AccentHover;
+            ll.ForeColor = Text;
+        }
+        else if (c is CheckBox || c is RadioButton)
+        {
+            c.ForeColor = c.Enabled ? Text : Muted;
+            c.BackColor = Color.Transparent;
+        }
+        else if (c is Label)
+        {
+            Color fc = c.ForeColor;
+            if (fc == Color.FromArgb(95, 99, 104) || fc == Color.FromArgb(156, 163, 175) || fc == Color.Gray)
+            {
+                c.ForeColor = Muted;
+            }
+            else
+            {
+                c.ForeColor = Text;
+            }
+        }
+        else if (c is ListView || c is ListBox)
+        {
+            c.BackColor = Panel;
+            c.ForeColor = Text;
+        }
+        else if (c is Button)
+        {
+            Button b = (Button)c;
+            if (b.ForeColor == SystemColors.ControlText || b.ForeColor.ToArgb() == Color.Black.ToArgb())
+            {
+                b.ForeColor = Text;
+                if (b.BackColor == SystemColors.Control) b.BackColor = Panel;
+            }
+        }
+        else
+        {
+            if (c.ForeColor == SystemColors.ControlText || c.ForeColor.ToArgb() == Color.Black.ToArgb())
+            {
+                c.ForeColor = Text;
+            }
+        }
+        if (c.HasChildren)
+        {
+            ThemeDialogControls(c.Controls);
+        }
     }
 }
 
@@ -9366,11 +9655,41 @@ class SensorChart : Control
 public class DbEntry
 {
     public string Path = "", Name = "", Computer = "", Datum = "", Cpu = "", Gpu = "", Ram = "", Disk = "", Befunde = "", Module = "", Quelle = "", Ordner = "";
+    public int Kerne = 0, Threads = 0;
     public Dictionary<string, double> Werte = new Dictionary<string, double>();
     public bool HasBench { get { return Werte.Count > 0; } }
     public double Get(string k) { double v; return Werte.TryGetValue(k, out v) ? v : 0; }
     public string DisplayName { get { return !String.IsNullOrEmpty(Name) ? Name : Computer; } }
-    public string Label { get { return DisplayName + "  ·  " + Datum + (Cpu.Length > 0 ? "  ·  " + Cpu : ""); } }
+
+    public static string CleanCpuName(string name)
+    {
+        if (String.IsNullOrEmpty(name)) return "";
+        string s = System.Text.RegularExpressions.Regex.Replace(name, @"\s+", " ").Trim();
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\((R|TM|tm)\)", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s*@\s*[\d.]+\s*[GM]Hz.*$", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s*-\s*Qualcomm\s+Oryon\s+CPU.*$", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s*Qualcomm\s+Oryon\s+CPU.*$", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s*(-?\s*\d+-Core)?\s*(Processor|Prozessor).*$", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s*\d+-Core.*$", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s+CPU$", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\b(Intel|AMD)\b\s*", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s+-\s+", " ").Trim();
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s+", " ").Trim();
+        return s;
+    }
+
+    public string CpuDisplay
+    {
+        get
+        {
+            string c = CleanCpuName(Cpu);
+            if (c.Length == 0) return "";
+            if (Kerne > 0 && Threads > 0) return c + " (" + Kerne + " Kerne, " + Threads + " Threads)";
+            return c;
+        }
+    }
+
+    public string Label { get { return DisplayName + "  ·  " + Datum + (CpuDisplay.Length > 0 ? "  ·  " + CpuDisplay : ""); } }
 
     public double OverallScore
     {
@@ -9395,6 +9714,13 @@ public class DbEntry
         return Convert.ToString(o, CultureInfo.InvariantCulture);
     }
 
+    static int I(Dictionary<string, object> d, string k)
+    {
+        object o; if (d == null || !d.TryGetValue(k, out o) || o == null) return 0;
+        int v; if (int.TryParse(Convert.ToString(o, CultureInfo.InvariantCulture), out v)) return v;
+        return 0;
+    }
+
     public static List<DbEntry> Load(string dir)
     {
         List<DbEntry> list = new List<DbEntry>();
@@ -9412,7 +9738,7 @@ public class DbEntry
                 object hw; if (d.TryGetValue("Hardware", out hw))
                 {
                     Dictionary<string, object> h = hw as Dictionary<string, object>;
-                    e.Cpu = S(h, "CPU"); e.Gpu = S(h, "GPU"); e.Ram = S(h, "RAM"); e.Disk = S(h, "Datentraeger");
+                    e.Cpu = S(h, "CPU"); e.Kerne = I(h, "Kerne"); e.Threads = I(h, "Threads"); e.Gpu = S(h, "GPU"); e.Ram = S(h, "RAM"); e.Disk = S(h, "Datentraeger");
                 }
                 object w; if (d.TryGetValue("Werte", out w))
                 {
@@ -9486,7 +9812,7 @@ public class ChangeEntry
 // Kurzfassung der Modulverträge aus dem Skript (Get-ContractGuiLines)
 public class ContractStep
 {
-    public string Module = "", Key = "", Typ = "", Risiko = "", Neustart = "", Rueckgaengig = "", Text = "";
+    public string Module = "", Key = "", Typ = "", Risiko = "", Neustart = "", Rueckgaengig = "", Text = "", Gruppe = "";
     public int Minuten; public bool Vorauswahl, Ueblich;
     public static string RiskLabel(string r)
     {
@@ -9816,6 +10142,7 @@ public partial class DiagGui
 
         dlg.Controls.Add(lbl); dlg.Controls.Add(tb); dlg.Controls.Add(btnOk); dlg.Controls.Add(btnCancel);
         dlg.AcceptButton = btnOk; dlg.CancelButton = btnCancel;
+        UI.ThemeDialog(dlg);
 
         return dlg.ShowDialog(this) == DialogResult.OK ? tb.Text : null;
     }
@@ -11065,6 +11392,7 @@ public partial class DiagGui
             p.Controls.Add(rowButtons);
             dlg.Controls.Add(p);
             dlg.AcceptButton = btnOk; dlg.CancelButton = btnCancel;
+            UI.ThemeDialog(dlg);
             dlg.ShowDialog(this);
             if (lblDbPath != null) SetText(lblDbPath, NasAblage.AblageText(dataDir));
             if (jetztAbgleichen) RefreshAndSync();
@@ -11083,6 +11411,7 @@ public partial class DiagGui
             Button ok = UI.Primary("Verbinden"); ok.Location = new Point(UI.S(226), UI.S(98)); ok.Size = new Size(UI.S(95), UI.S(32)); ok.DialogResult = DialogResult.OK;
             Button ab = UI.Secondary("Abbrechen"); ab.Location = new Point(UI.S(328), UI.S(98)); ab.Size = new Size(UI.S(96), UI.S(32)); ab.DialogResult = DialogResult.Cancel;
             dlg.Controls.Add(l); dlg.Controls.Add(tb); dlg.Controls.Add(ok); dlg.Controls.Add(ab); dlg.AcceptButton = ok; dlg.CancelButton = ab;
+            UI.ThemeDialog(dlg);
             return dlg.ShowDialog(this) == DialogResult.OK ? tb.Text : null;
         }
     }
@@ -11729,6 +12058,14 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.6", "10.10.2026", "Median-Referenz je Geräteklasse, Diagnose und Wartung übersichtlich, Sensor- und Akkudiagnose aus Praxistests",
+            "Median-Referenz je Geräteklasse: Feste Referenzdateien für Notebook und Desktop (Referenz_Notebook.json, Referenz_Desktop.json), auf Knopfdruck oder über -MedianAktualisieren aus bereinigten Datenbankläufen neu berechenbar, verhindern schwankende Vergleichswerte. " +
+            "Wartung gruppiert: 23 Wartungsmaßnahmen in vier fachliche Gruppen strukturiert mit Aufklappfunktion, Zählern und Beibehaltung der Schnellauswahl. " +
+            "Diagnose übersichtlich: Prüfungen auf der Diagnoseseite beim Start standardmäßig eingeklappt mit dynamischer Statuszusammenfassung; klappt bei Benutzerdefiniert automatisch auf. " +
+            "Dunkles Farbschema: UI.ThemeDialog formatiert alle Formulare und Unterdialoge konsistent mit lesbaren Textfarben ohne schwarze Schrift auf dunklem Grund. " +
+            "Hardware-Spezifikation: Reale Kerne und logische Threads in der Datenbank erfasst; herstellerbereinigte CPU-Anzeigenamen (Get-CpuAnzeigename) in Berichten, Systemvergleich und Dashboard. " +
+            "Dashboard und Telemetrie: Multi-System-Sensorverlauf mit GPU-Metriken (Takt, Watt, IGpu) vor Befunden platziert, synthetische Lasttestkurven entfernt, Profilkarten nach Punktzahl sortiert. " +
+            "Sensor- und Praxistest-Härtung: Hintergrundlastprüfung vor Messungen (> 15 % verwirft Leerlauf-Etikett mit 90/80 °C Schwellen), Akku-Historie und Plausibilität geschützt, Hybridgrafik-Zuordnung (Optimus) bereinigt, unplausible Leerlaufspannungen und Sensortemperaturen unter 5 °C gefiltert, Akkubetrieb im Benchmark protokolliert."),
         new Eintrag("3.54", "09.10.2026", "Netzlaufwerk als Spiegel mit Abgleich auf Knopfdruck, Läufe vollständig entfernen und umbenennen",
             "Datenordner immer auf dem Stick: Leos Minibench startet ohne Zugriff auf das Netzlaufwerk und findet Werkzeuge und Sensoren immer auf dem Stick. Vorher konnte ein nicht erreichbares NAS den Start blockieren, und Tools wurden auf dem NAS gesucht. " +
             "Netzlaufwerk als Spiegel: Aktualisieren auf der Seite Vergleichsdatenbank gleicht Berichte, Datenbank, Änderungsprotokolle, Voreinstellungen und Referenz in beide Richtungen ab. Die neuere Fassung gilt, die ältere und alles Gelöschte kommt ins Archiv. Fehlt auf einer Seite ein großer Teil der Daten, hält der Abgleich an und fragt nach. Unterwegs funktioniert alles ohne NAS. " +
@@ -12020,7 +12357,7 @@ function Test-StepEnabled([string]$Key) {
     return $false
 }
 
-if (-not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme) {
+if (-not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme -and -not $MedianAktualisieren) {
     # Berichte landen ausschließlich im Datenordner neben dem Programm (z. B. auf dem USB-Stick)
     if (-not $OutputDir) {
         $base = $(if ($script:DataDir) { Join-Path $script:DataDir 'Berichte' } else { Join-Path $env:TEMP 'LeosMinibench-Berichte' })
@@ -12334,6 +12671,7 @@ $script:MetricDefs = @(
     @{ K = 'GPU|REND1';     N = 'Rendertest 1-%-Low';      U = 'Bilder/s'; F = 'N0' }
     @{ K = 'GPU|REND01';    N = 'Rendertest 0,1-%-Low';    U = 'Bilder/s'; F = 'N0' }
     @{ K = 'GPU|STUTTER';   N = 'Mikroruckler-Anteil';     U = '%';        F = 'N1'; L = $true }
+    @{ K = 'GPU|STUTTERREL'; N = 'Mikroruckler (relativ)'; U = '%';        F = 'N1'; L = $true }
     @{ K = 'GPU|RPKT';      N = 'Rendertest Punktzahl';    U = 'Punkte';   F = 'N0' }
 )
 $script:DiskClassNames = [ordered]@{ 'NVMe5' = 'NVMe PCIe 5.0'; 'NVMe4' = 'NVMe PCIe 4.0'; 'NVMe3' = 'NVMe PCIe 3.0'; 'SATA-SSD' = 'SATA-SSD'; 'HDD' = 'Festplatte' }
@@ -12360,6 +12698,8 @@ function Get-DbEntries {
             Werte = (ConvertTo-ValueTable $j.Werte); Messwerte = (ConvertTo-ValueTable $j.Messwerte); Messdauer = [string]$j.Messdauer
             Hardware = $j.Hardware; Befunde = $j.Befunde; Laufwerke = @($j.Laufwerke); Ordner = [string]$j.Ordner
             Format = [string]$j.Format; GeraetId = $(if ($j.Geraet) { [string]$j.Geraet.Id } else { '' }); Version = [string]$j.Version; Quelle = [string]$j.Quelle
+            System = $(if ($j.System) { [string]$j.System } elseif ($j.Hardware -and $j.Hardware.System) { [string]$j.Hardware.System } else { '' })
+            Akku = @($j.Akku); Ablauf = $j.Ablauf
         })
     }
     Set-DbDeviceKeys $list
@@ -12374,7 +12714,7 @@ function Get-DbLatest($Entries, [switch]$ExcludeCurrent) {
 }
 
 # Kleinere Werte sind besser (Latenzen)
-function Test-LowerBetterKey([string]$Key) { return ($Key -match '\|(Latenz|STUTTER)$') }
+function Test-LowerBetterKey([string]$Key) { return ($Key -match '\|(Latenz|STUTTER|STUTTERREL)$') }
 
 # Gespeicherte Referenz (Referenz.json im Datenordner, ältere Ablage PC-Diagnose-Referenz.json), sonst $null
 function Get-SavedReference([string]$Path = '') {
@@ -12423,20 +12763,143 @@ function Get-SavedReference([string]$Path = '') {
     return $null
 }
 
+function Test-DbEntryIsBattery($Entry) {
+    if (-not $Entry) { return $false }
+    if ($Entry.Ablauf -is [psobject] -and $Entry.Ablauf.Akkubetrieb) { return $true }
+    if ($Entry.Befunde -and $Entry.Befunde.Liste -and (@($Entry.Befunde.Liste) -match 'Akkubetrieb')) { return $true }
+    return $false
+}
+
+function Test-EntryIsNotebook($Entry) {
+    if (-not $Entry) { return $false }
+    if ($Entry.Akku) {
+        foreach ($b in @($Entry.Akku)) {
+            if ($b -and ($b.DesignmWh -gt 0 -or $b.VollmWh -gt 0)) { return $true }
+        }
+    }
+    $text = ('{0} {1} {2}' -f $Entry.System, $Entry.Name, $(if ($Entry.Hardware) { '{0} {1}' -f $Entry.Hardware.CPU, $Entry.Hardware.Mainboard } else { '' }))
+    if ($text -match '(?i)\b(Laptop|Notebook|Convertible|Subnotebook|Tablet|ZenBook|EliteBook|Latitude|Precision \d{4})\b') {
+        return $true
+    }
+    return $false
+}
+
+function Update-BenchReferenceMedians([string]$DataDir = $script:DataDir) {
+    $res = [pscustomobject]@{ Aktualisiert = 0; Dateien = [System.Collections.Generic.List[string]]::new(); Zeilen = [System.Collections.Generic.List[string]]::new() }
+    if (-not $DataDir) { return $res }
+    $allEntries = @(Get-DbLatest (Get-DbEntries) | Where-Object { -not (Test-DbEntryIsBattery $_) })
+    if (-not $allEntries.Count) {
+        $res.Zeilen.Add('Keine validen Systeme in der Vergleichsdatenbank gefunden.')
+        return $res
+    }
+    $targets = @(
+        @{ Name = 'aller Systeme'; File = 'Referenz.json'; Items = $allEntries }
+        @{ Name = 'Notebooks'; File = 'Referenz_Notebook.json'; Items = @($allEntries | Where-Object { Test-EntryIsNotebook $_ }) }
+        @{ Name = 'Desktop-PCs'; File = 'Referenz_Desktop.json'; Items = @($allEntries | Where-Object { -not (Test-EntryIsNotebook $_) }) }
+    )
+    foreach ($t in $targets) {
+        $items = @($t.Items)
+        if (-not $items.Count) { continue }
+        $w = [ordered]@{}
+        $h = [ordered]@{}
+        $keys = @($items | ForEach-Object { $_.Werte.Keys } | Where-Object { $_ -ne 'GPU|STUTTER' } | Select-Object -Unique)
+        foreach ($k in $keys) {
+            $vals = @($items | ForEach-Object { $_.Werte[$k] } | Where-Object { $null -ne $_ -and $_ -gt 0 })
+            if ($vals.Count) {
+                $m = Get-Median $vals
+                if ($null -ne $m) {
+                    $def = @($script:MetricDefs | Where-Object { $_.K -eq $k }) | Select-Object -First 1
+                    if ($def -and $def.F -eq 'N0') {
+                        $w[$k] = [math]::Round($m)
+                    } elseif ($k -match '^DISK\|.*\|(SR|SW|R1|R8|W1)$') {
+                        $w[$k] = [math]::Round($m)
+                    } else {
+                        $w[$k] = [math]::Round($m, 1)
+                    }
+                    $h[$k] = ('Median aus {0} Systemen' -f $vals.Count)
+                }
+            }
+        }
+        $obj = [ordered]@{
+            Format   = 'PC-Diagnose-DB/2'
+            Name     = ('Median {0} ({1} {2})' -f $t.Name, $items.Count, $(if ($items.Count -eq 1) { 'System' } else { 'Systeme' }))
+            Computer = 'Median'
+            Datum    = (Get-Date).ToString('yyyy-MM-dd', $script:Inv)
+            Version  = $ScriptVersion
+            Quelle   = 'Vergleichsdatenbank'
+            Hardware = [ordered]@{
+                CPU = 'Median-Referenz'
+                RAM = 'n/v'
+                GPU = 'n/v'
+                Datentraeger = 'n/v'
+                Betriebssystem = 'n/v'
+                Mainboard = 'n/v'
+                WindowsInstalliert = ''
+            }
+            Werte    = $w
+            Herkunft = $h
+            Befunde  = [ordered]@{ Kritisch = 0; Warnungen = 0; Hinweise = 0; Liste = @() }
+        }
+        $dest = Join-Path $DataDir $t.File
+        try {
+            [IO.File]::WriteAllText($dest, ($obj | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding($true)))
+            $res.Dateien.Add($dest)
+            $res.Aktualisiert++
+            $res.Zeilen.Add(('{0}: {1} Werte aus {2} Systemen gespeichert' -f $t.File, $w.Count, $items.Count))
+        } catch {
+            $res.Zeilen.Add(('Fehler beim Schreiben von {0}: {1}' -f $t.File, $_.Exception.Message))
+        }
+    }
+    return $res
+}
+
 function Import-BenchReference {
     $script:Ref = $script:RefNone
-    if ($ReferenzDatei -eq '*median') {
-        $entries = @(Get-DbLatest (Get-DbEntries) -ExcludeCurrent)
+    $medType = $null
+    if ($ReferenzDatei -match '^\*median(?::(notebook|desktop|all))?$') {
+        $medType = $(if ($Matches[1]) { $Matches[1].ToLower() } else { 'all' })
+    }
+    if ($medType) {
+        $targetFile = switch ($medType) {
+            'notebook' { 'Referenz_Notebook.json' }
+            'desktop'  { 'Referenz_Desktop.json' }
+            default    { 'Referenz.json' }
+        }
+        $specificPath = $(if ($script:DataDir) { Join-Path $script:DataDir $targetFile } else { '' })
+        if ($specificPath -and (Test-Path -LiteralPath $specificPath)) {
+            $r = Get-SavedReference $specificPath
+            if ($r -and $r.Werte -and $r.Werte.Count) {
+                $script:Ref = $r
+                return
+            }
+        }
+        $allEntries = @(Get-DbLatest (Get-DbEntries) -ExcludeCurrent | Where-Object { -not (Test-DbEntryIsBattery $_) })
+        $entries = switch ($medType) {
+            'notebook' { @($allEntries | Where-Object { Test-EntryIsNotebook $_ }) }
+            'desktop'  { @($allEntries | Where-Object { -not (Test-EntryIsNotebook $_) }) }
+            default    { $allEntries }
+        }
         if ($entries.Count) {
             $w = @{}
-            $keys = @($entries | ForEach-Object { $_.Werte.Keys } | Select-Object -Unique)
-            foreach ($k in $keys) { $m = Get-Median @($entries | ForEach-Object { $_.Werte[$k] } | Where-Object { $_ -gt 0 }); if ($m) { $w[$k] = [math]::Round($m, 1) } }
-            $script:Ref = @{ Name = ('Median von {0} Systemen der Vergleichsdatenbank' -f $entries.Count); Datum = (Get-Date).ToString('yyyy-MM-dd', $script:Inv); Werte = $w; Herkunft = @{}; Quelle = 'Vergleichsdatenbank' }
+            $keys = @($entries | ForEach-Object { $_.Werte.Keys } | Where-Object { $_ -ne 'GPU|STUTTER' } | Select-Object -Unique)
+            foreach ($k in $keys) {
+                $vals = @($entries | ForEach-Object { $_.Werte[$k] } | Where-Object { $null -ne $_ -and $_ -gt 0 })
+                if ($vals.Count) {
+                    $m = Get-Median $vals
+                    if ($null -ne $m) { $w[$k] = [math]::Round($m, 1) }
+                }
+            }
+            $label = switch ($medType) {
+                'notebook' { 'Median von {0} Notebooks der Vergleichsdatenbank' -f $entries.Count }
+                'desktop'  { 'Median von {0} Desktop-PCs der Vergleichsdatenbank' -f $entries.Count }
+                default    { 'Median von {0} Systemen der Vergleichsdatenbank' -f $entries.Count }
+            }
+            $script:Ref = @{ Name = $label; Datum = (Get-Date).ToString('yyyy-MM-dd', $script:Inv); Werte = $w; Herkunft = @{}; Quelle = 'Vergleichsdatenbank' }
             return
         }
-        Add-Line '  Die Vergleichsdatenbank enthält noch keine anderen Systeme, daher gilt die gespeicherte Referenz.'
+        Add-Line ('  Die Vergleichsdatenbank enthält noch keine passenden Systeme ({0}), daher gilt die gespeicherte Referenz.' -f $medType)
     }
-    $r = Get-SavedReference $(if ($ReferenzDatei -and $ReferenzDatei -ne '*median') { $ReferenzDatei } else { '' })
+    $r = Get-SavedReference $(if ($ReferenzDatei -and -not $medType) { $ReferenzDatei } else { '' })
     if ($r) { $script:Ref = $r }
 }
 
@@ -12596,7 +13059,7 @@ function Get-CompareRows {
     $sys = @($script:CmpSystems)
     $latest = @(Get-DbLatest (Get-DbEntries) -ExcludeCurrent)
     $defs = [System.Collections.Generic.List[object]]::new()
-    foreach ($d in $script:MetricDefs) { $defs.Add($d) }
+    foreach ($d in $script:MetricDefs) { if ($d.K -ne 'GPU|STUTTER') { $defs.Add($d) } }
     foreach ($cls in $script:DiskClassNames.Keys) {
         $has = $cur.ContainsKey("DISK|$cls|SR") -or @($sys | Where-Object { $_.Werte.ContainsKey("DISK|$cls|SR") }).Count
         if (-not $has) { continue }
@@ -12801,6 +13264,14 @@ function New-MultiLineSvg {
     return $sb.ToString()
 }
 
+if ($MedianAktualisieren) {
+    $res = Update-BenchReferenceMedians -DataDir $script:DataDir
+    foreach ($z in $res.Zeilen) { Write-Host ('  ' + $z) }
+    $kurz = ('{0} Referenzdateien aktualisiert' -f $res.Dateien.Count)
+    Write-Host ('Median-Referenz: {0}.' -f $kurz)
+    Send-GuiEvent 'RESULT' $kurz
+    exit 0
+}
 function Add-Line([string]$Text = '') { [void]$script:Report.AppendLine($Text) }
 
 function Add-Section([string]$Title, [string]$Prefix = '') {
@@ -13022,6 +13493,22 @@ function Format-SizeDec($Bytes) {
 function ConvertTo-HtmlText([string]$Text) {
     if ($null -eq $Text) { return '' }
     return (($Text -replace '&', '&amp;') -replace '<', '&lt;' -replace '>', '&gt;' -replace '"', '&quot;')
+}
+
+function Get-CpuAnzeigename([string]$Name) {
+    if (-not $Name) { return '' }
+    $s = (($Name -as [string]) -replace '\s+', ' ').Trim()
+    $s = $s -replace '\((R|TM|tm)\)', ''
+    $s = $s -replace '\s*@\s*[\d.]+\s*[GM]Hz.*$', ''
+    $s = $s -replace '\s*-\s*Qualcomm\s+Oryon\s+CPU.*$', ''
+    $s = $s -replace '\s*Qualcomm\s+Oryon\s+CPU.*$', ''
+    $s = $s -replace '\s*(-?\s*\d+-Core)?\s*(Processor|Prozessor).*$', ''
+    $s = $s -replace '\s*\d+-Core.*$', ''
+    $s = $s -replace '\s+CPU$', ''
+    $s = $s -replace '\b(Intel|AMD)\b\s*', ''
+    $s = ($s -replace '\s+-\s+', ' ').Trim()
+    $s = ($s -replace '\s+', ' ').Trim()
+    return $s
 }
 
 #region ---------- Schneller Modus: unabhängige Prüfungen parallel (ab v2.6, Roadmap v2.5) ----------
@@ -13749,7 +14236,13 @@ function New-CompareReport([string[]]$Paths) {
         $bf = $s.Befunde
         $dat = $s.Datum; try { $dat = [datetime]::ParseExact($s.Datum, 'yyyy-MM-dd HH:mm', $script:Inv).ToString('dd.MM.yyyy HH:mm') } catch { }
         [void]$sb.Append(('<div class="sys k{0}"><h3><i class="sw c{0}"></i>{1}</h3><p class="meta">{2}{3}</p><dl>' -f ($i % 6), (ConvertTo-HtmlText $s.Label), (ConvertTo-HtmlText $dat), $(if ($s.Messdauer -and $s.Messdauer -ne 'normal') { ' &middot; Messdauer ' + (ConvertTo-HtmlText $s.Messdauer) } else { '' })))
-        foreach ($kv in @(@('Prozessor', $hw.CPU), @('RAM', $hw.RAM), @('Grafik', $(if ($hw.GPUGemessen -and [string]$hw.GPUGemessen -notlike ('*' + [string]$hw.GPU + '*')) { '{0} (gemessen: {1})' -f $hw.GPU, $hw.GPUGemessen } elseif ($hw.IGPU) { '{0} + {1}' -f $hw.GPU, $hw.IGPU } else { $hw.GPU })), @('System', $s.System), @('Windows', ($hw.Betriebssystem -replace '^Microsoft\s+', '')), @('Installiert', $hw.WindowsInstalliert), @('Schnellstes LW', $s.Fastest))) {
+        $cpuDisp = Get-CpuAnzeigename $hw.CPU
+        if ($hw.Kerne -and $hw.Threads) {
+            $cpuDisp = '{0} ({1} Kerne, {2} Threads)' -f $cpuDisp, $hw.Kerne, $hw.Threads
+        } elseif ($hw.CPU -match '(\d+)\s*Kerne,\s*(\d+)\s*Threads') {
+            $cpuDisp = '{0} ({1} Kerne, {2} Threads)' -f (Get-CpuAnzeigename $hw.CPU), $Matches[1], $Matches[2]
+        }
+        foreach ($kv in @(@('Prozessor', $cpuDisp), @('RAM', $hw.RAM), @('Grafik', $(if ($hw.GPUGemessen -and [string]$hw.GPUGemessen -notlike ('*' + [string]$hw.GPU + '*')) { '{0} (gemessen: {1})' -f $hw.GPU, $hw.GPUGemessen } elseif ($hw.IGPU) { '{0} + {1}' -f $hw.GPU, $hw.IGPU } else { $hw.GPU })), @('System', $s.System), @('Windows', ($hw.Betriebssystem -replace '^Microsoft\s+', '')), @('Installiert', $hw.WindowsInstalliert), @('Schnellstes LW', $s.Fastest))) {
             if ($kv[1]) { [void]$sb.Append(('<dt>{0}</dt><dd>{1}</dd>' -f $kv[0], (ConvertTo-HtmlText (Get-Short ([string]$kv[1]) 70)))) }
         }
         [void]$sb.Append('</dl>')
@@ -13895,7 +14388,6 @@ function Export-BenchDashboardData {
         foreach ($cand in $candidates) {
             if (-not (Test-Path -LiteralPath $cand)) { continue }
             $rawCsv = Join-Path $cand 'Lasttest-Verlauf.csv'
-            $benchCsv = Join-Path $cand 'Benchmark-Sensoren.csv'
             $zipPath = Join-Path $cand 'Anhang.zip'
             if (Test-Path -LiteralPath $rawCsv) {
                 try { $lines = @([System.IO.File]::ReadAllLines($rawCsv, [System.Text.Encoding]::UTF8)); if ($lines.Count -gt 1) { break } } catch { }
@@ -13905,7 +14397,6 @@ function Export-BenchDashboardData {
                     Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
                     $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
                     $entry = $zip.GetEntry('Lasttest-Verlauf.csv')
-                    if (-not $entry) { $entry = $zip.GetEntry('Benchmark-Sensoren.csv') }
                     if ($entry) {
                         $sr = New-Object System.IO.StreamReader($entry.Open(), [System.Text.Encoding]::UTF8)
                         $zipLines = [System.Collections.Generic.List[string]]::new()
@@ -13916,11 +14407,80 @@ function Export-BenchDashboardData {
                     $zip.Dispose()
                 } catch { }
             }
-            if (Test-Path -LiteralPath $benchCsv) {
-                try { $lines = @([System.IO.File]::ReadAllLines($benchCsv, [System.Text.Encoding]::UTF8)); if ($lines.Count -gt 1) { break } } catch { }
-            }
         }
         return $lines
+    }
+
+    $extractReportTxt = {
+        param([string]$LeafFolder)
+        $candidates = [System.Collections.Generic.List[string]]::new()
+        if ($LeafFolder) {
+            if ([System.IO.Path]::IsPathRooted($LeafFolder)) {
+                $candidates.Add($LeafFolder)
+            } elseif ($repDir) {
+                $candidates.Add((Join-Path (Split-Path $repDir -Parent) $LeafFolder))
+                $candidates.Add((Join-Path $repDir (Split-Path $LeafFolder -Leaf)))
+            }
+        }
+        foreach ($cand in $candidates) {
+            if (-not (Test-Path -LiteralPath $cand)) { continue }
+            $txtPath = Join-Path $cand 'Diagnosebericht.txt'
+            if (Test-Path -LiteralPath $txtPath) {
+                try { return [System.IO.File]::ReadAllText($txtPath, [System.Text.Encoding]::UTF8) } catch { }
+            }
+            $zipPath = Join-Path $cand 'Anhang.zip'
+            if (Test-Path -LiteralPath $zipPath) {
+                try {
+                    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+                    $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+                    $entry = $zip.GetEntry('Diagnosebericht.txt')
+                    if ($entry) {
+                        $sr = New-Object System.IO.StreamReader($entry.Open(), [System.Text.Encoding]::UTF8)
+                        $content = $sr.ReadToEnd()
+                        $sr.Dispose()
+                        $zip.Dispose()
+                        return $content
+                    }
+                    $zip.Dispose()
+                } catch { }
+            }
+        }
+        return ''
+    }
+
+    $getLasttestArt = {
+        param([string]$Summary, [int]$SeriesDuration = 0)
+        $min = 0
+        if ($Summary -match 'Dauer\s*(\d+):(\d+):(\d+)') {
+            $hrs = [int]$matches[1]; $m = [int]$matches[2]; $s = [int]$matches[3]
+            $min = [math]::Max(1, [int][math]::Round(($hrs * 3600 + $m * 60 + $s) / 60.0))
+        } elseif ($SeriesDuration -gt 0) {
+            $min = [math]::Max(1, [int][math]::Round($SeriesDuration / 60.0))
+        }
+        $minStr = if ($min -gt 0) { ' {0} Min.' -f $min } else { '' }
+
+        $hasCpu = ($Summary -match '\bProzessor\b')
+        $hasGpu = ($Summary -match '\bGrafik\b')
+        $hasRam = ($Summary -match '\bArbeitsspeicher\b')
+        $hasDisk = ($Summary -match '\bDatenträger\b|\bDatentraeger\b')
+
+        if ($hasCpu -and $hasGpu -and ($hasRam -or $hasDisk)) {
+            return ('Lasttest Voll{0}' -f $minStr)
+        } elseif ($hasCpu -and $hasGpu) {
+            return ('Lasttest CPU & Grafik{0}' -f $minStr)
+        } elseif ($hasCpu) {
+            return ('Lasttest CPU{0}' -f $minStr)
+        } elseif ($hasGpu) {
+            return ('Lasttest Grafik{0}' -f $minStr)
+        } elseif ($hasRam) {
+            return ('Lasttest RAM{0}' -f $minStr)
+        } elseif ($Summary -match '^Lasttest\s+(.+)$') {
+            return $Summary
+        } elseif ($min -gt 0) {
+            return ('Lasttest{0}' -f $minStr)
+        } else {
+            return 'Lasttest'
+        }
     }
 
     # Hilfsfunktion: Konvertierung eines JSON-Objekts in die Dashboard-Systemstruktur
@@ -13958,7 +14518,32 @@ function Export-BenchDashboardData {
         }
 
         # Hardware-Infos
-        $cpu = $(if ($j.Hardware -and $j.Hardware.CPU) { [string]$j.Hardware.CPU } else { '' })
+        $cpuRaw = $(if ($j.Hardware -and $j.Hardware.CPU) { [string]$j.Hardware.CPU } else { '' })
+        $kerne = $(if ($j.Hardware -and $null -ne $j.Hardware.Kerne) { [int]$j.Hardware.Kerne } else { $null })
+        $threads = $(if ($j.Hardware -and $null -ne $j.Hardware.Threads) { [int]$j.Hardware.Threads } else { $null })
+
+        if ($null -eq $kerne -or $null -eq $threads) {
+            if ($cpuRaw -match '(\d+)\s*Kerne,\s*(\d+)\s*Threads') {
+                $kerne = [int]$Matches[1]; $threads = [int]$Matches[2]
+            } else {
+                $txtReport = & $extractReportTxt ([string]$j.Ordner)
+                if ($txtReport -and $txtReport -match '(?m)^\s*Kerne\s*/\s*Threads\s*:\s*(\d+)\s*/\s*(\d+)') {
+                    $kerne = [int]$Matches[1]; $threads = [int]$Matches[2]
+                } elseif ($txtReport -and $txtReport -match '(\d+)\s*Kerne,\s*(\d+)\s*Threads') {
+                    $kerne = [int]$Matches[1]; $threads = [int]$Matches[2]
+                }
+            }
+        }
+
+        $cleanCpu = if (Get-Command Get-CpuAnzeigename -ErrorAction SilentlyContinue) { Get-CpuAnzeigename $cpuRaw } else { $cpuRaw }
+        if ($null -ne $kerne -and $null -ne $threads -and $kerne -gt 0 -and $threads -gt 0) {
+            $cpuFull = '{0} ({1} Kerne, {2} Threads)' -f $cleanCpu, $kerne, $threads
+            $ktDisplay = '{0} / {1}' -f $kerne, $threads
+        } else {
+            $cpuFull = $cleanCpu
+            $ktDisplay = 'n/v'
+        }
+
         $ram = $(if ($j.Hardware -and $j.Hardware.RAM) { [string]$j.Hardware.RAM } else { '' })
         $gpu = $(if ($j.Hardware -and $j.Hardware.GPU) { [string]$j.Hardware.GPU } elseif ($j.Hardware -and $j.Hardware.GPUGemessen) { [string]$j.Hardware.GPUGemessen } else { '' })
         $diskInfo = $(if ($j.Hardware -and $j.Hardware.Datentraeger) { [string]$j.Hardware.Datentraeger } else { '' })
@@ -14189,62 +14774,47 @@ function Export-BenchDashboardData {
             $header = @($csvLines[0] -split ';') | ForEach-Object { $_.Trim('"').Trim() }
             $idxT = [array]::IndexOf($header, 'T')
             $idxMhz = [array]::IndexOf($header, 'MHz')
+            if ($idxMhz -lt 0) { $idxMhz = [array]::IndexOf($header, 'CpuMHzMax') }
             $idxCpuTemp = [array]::IndexOf($header, 'CpuTemp')
             if ($idxCpuTemp -lt 0) { $idxCpuTemp = [array]::IndexOf($header, 'Temp') }
-            $idxGpuTemp = [array]::IndexOf($header, 'GpuTemp')
             $idxCpuW = [array]::IndexOf($header, 'CpuW')
+            if ($idxCpuW -lt 0) { $idxCpuW = [array]::IndexOf($header, 'Leistung') }
+            $idxGpuTemp = [array]::IndexOf($header, 'GpuTemp')
+            $idxGpuMhz = [array]::IndexOf($header, 'GpuMHz')
+            $idxGpuW = [array]::IndexOf($header, 'GpuW')
+            $idxIGpuTemp = [array]::IndexOf($header, 'IGpuTemp')
+            $idxIGpuMhz = [array]::IndexOf($header, 'IGpuMHz')
+            $idxIGpuW = [array]::IndexOf($header, 'IGpuW')
             $idxFps = [array]::IndexOf($header, 'Fps')
 
             $step = [math]::Max(1, [int][math]::Floor(($csvLines.Count - 1) / 70))
             for ($r = 1; $r -lt $csvLines.Count; $r += $step) {
                 $cols = @($csvLines[$r] -split ';') | ForEach-Object { $_.Trim('"').Trim() }
-                if ($cols.Count -le $idxT -or -not $cols[$idxT]) { continue }
+                if ($cols.Count -le $idxT -or $cols[$idxT] -eq '') { continue }
                 $t = 0.0; [double]::TryParse($cols[$idxT].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$t) | Out-Null
-                $mhz = 0.0; if ($idxMhz -ge 0 -and $cols.Count -gt $idxMhz) { [double]::TryParse($cols[$idxMhz].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$mhz) | Out-Null }
-                $temp = 0.0; if ($idxCpuTemp -ge 0 -and $cols.Count -gt $idxCpuTemp) { [double]::TryParse($cols[$idxCpuTemp].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$temp) | Out-Null }
-                $gTemp = 0.0; if ($idxGpuTemp -ge 0 -and $cols.Count -gt $idxGpuTemp) { [double]::TryParse($cols[$idxGpuTemp].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$gTemp) | Out-Null }
-                $w = 0.0; if ($idxCpuW -ge 0 -and $cols.Count -gt $idxCpuW) { [double]::TryParse($cols[$idxCpuW].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$w) | Out-Null }
-                $fps = 0.0; if ($idxFps -ge 0 -and $cols.Count -gt $idxFps) { [double]::TryParse($cols[$idxFps].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$fps) | Out-Null }
+                $mhz = 0.0; if ($idxMhz -ge 0 -and $cols.Count -gt $idxMhz -and $cols[$idxMhz]) { [double]::TryParse($cols[$idxMhz].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$mhz) | Out-Null }
+                $temp = 0.0; if ($idxCpuTemp -ge 0 -and $cols.Count -gt $idxCpuTemp -and $cols[$idxCpuTemp]) { [double]::TryParse($cols[$idxCpuTemp].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$temp) | Out-Null }
+                $gTemp = 0.0; if ($idxGpuTemp -ge 0 -and $cols.Count -gt $idxGpuTemp -and $cols[$idxGpuTemp]) { [double]::TryParse($cols[$idxGpuTemp].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$gTemp) | Out-Null }
+                $w = 0.0; if ($idxCpuW -ge 0 -and $cols.Count -gt $idxCpuW -and $cols[$idxCpuW]) { [double]::TryParse($cols[$idxCpuW].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$w) | Out-Null }
+                $gMhz = 0.0; if ($idxGpuMhz -ge 0 -and $cols.Count -gt $idxGpuMhz -and $cols[$idxGpuMhz]) { [double]::TryParse($cols[$idxGpuMhz].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$gMhz) | Out-Null }
+                $gW = 0.0; if ($idxGpuW -ge 0 -and $cols.Count -gt $idxGpuW -and $cols[$idxGpuW]) { [double]::TryParse($cols[$idxGpuW].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$gW) | Out-Null }
+                $igTemp = 0.0; if ($idxIGpuTemp -ge 0 -and $cols.Count -gt $idxIGpuTemp -and $cols[$idxIGpuTemp]) { [double]::TryParse($cols[$idxIGpuTemp].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$igTemp) | Out-Null }
+                $igMhz = 0.0; if ($idxIGpuMhz -ge 0 -and $cols.Count -gt $idxIGpuMhz -and $cols[$idxIGpuMhz]) { [double]::TryParse($cols[$idxIGpuMhz].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$igMhz) | Out-Null }
+                $igW = 0.0; if ($idxIGpuW -ge 0 -and $cols.Count -gt $idxIGpuW -and $cols[$idxIGpuW]) { [double]::TryParse($cols[$idxIGpuW].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$igW) | Out-Null }
+                $fps = 0.0; if ($idxFps -ge 0 -and $cols.Count -gt $idxFps -and $cols[$idxFps]) { [double]::TryParse($cols[$idxFps].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$fps) | Out-Null }
 
                 $series.Add([ordered]@{
-                    T       = [math]::Round($t, 1)
-                    Temp    = $(if ($temp -gt 0) { [math]::Round($temp, 1) } else { $null })
-                    MHz     = $(if ($mhz -gt 0) { [math]::Round($mhz, 0) } else { $null })
-                    GpuTemp = $(if ($gTemp -gt 0) { [math]::Round($gTemp, 1) } else { $null })
-                    CpuW    = $(if ($w -gt 0) { [math]::Round($w, 1) } else { $null })
-                    Fps     = $(if ($fps -gt 0) { [math]::Round($fps, 1) } else { $null })
-                })
-            }
-        }
-
-        # Falls keine CSV-Zeilen verfügbar sind: repräsentative Kurve synthetisieren
-        if ($series.Count -lt 5) {
-            $baseTIdle = $(if ($null -ne $cpuTIdle -and $cpuTIdle -gt 20) { $cpuTIdle } else { 42.0 })
-            $baseTMax  = $(if ($null -ne $cpuTMax -and $cpuTMax -gt 35) { $cpuTMax } else { 76.0 })
-            $baseMhz   = $(if ($null -ne $cpuMHzAvg -and $cpuMHzAvg -gt 500) { $cpuMHzAvg } elseif ($cpuMHzMax -gt 500) { $cpuMHzMax * 0.92 } else { 3850.0 })
-            $dropRatio = $(if ($taktAbfall -gt 0) { $taktAbfall / 100.0 } elseif ($drosselung -eq 'thermisch') { 0.22 } elseif ($drosselung -eq 'Leistungsgrenze') { 0.14 } elseif ($drosselung -eq 'Firmware') { 0.18 } else { 0.0 })
-
-            for ($sec = 0; $sec -le 120; $sec += 4) {
-                if ($sec -lt 16) {
-                    $p = $sec / 16.0
-                    $tVal = $baseTIdle + ($baseTMax - $baseTIdle) * $p
-                    $mVal = $baseMhz * 1.04 - ($baseMhz * 0.04 * $p)
-                } elseif ($sec -le 96) {
-                    $throttled = ($sec -ge 28 -and $dropRatio -gt 0)
-                    $tVal = $(if ($throttled) { $baseTMax - 0.4 * [math]::Sin($sec * 0.2) } else { $baseTMax * 0.96 + 1.8 * [math]::Sin($sec * 0.15) })
-                    $mVal = $(if ($throttled) { $baseMhz * (1.0 - $dropRatio) + 15.0 * [math]::Cos($sec * 0.25) } else { $baseMhz + 25.0 * [math]::Sin($sec * 0.2) })
-                } else {
-                    $cool = ($sec - 96.0) / 24.0
-                    $tVal = $baseTMax - (($baseTMax - $baseTIdle) * 0.65 * $cool)
-                    $mVal = $baseMhz * 0.65
-                }
-                $series.Add([ordered]@{
-                    T       = $sec
-                    Temp    = [math]::Round($tVal, 1)
-                    MHz     = [math]::Round($mVal, 0)
-                    GpuTemp = $(if ($null -ne $gpuTMax) { [math]::Round([math]::Max(35.0, $gpuTMax * 0.94), 1) } else { $null })
-                    CpuW    = $(if ($sec -le 96 -and $sec -ge 16) { 65.0 } else { 20.0 })
-                    Fps     = $(if ($gpuRend -gt 0) { [math]::Round($gpuRend, 1) } else { $null })
+                    T        = [math]::Round($t, 1)
+                    Temp     = $(if ($temp -gt 0) { [math]::Round($temp, 1) } else { $null })
+                    MHz      = $(if ($mhz -gt 0) { [math]::Round($mhz, 0) } else { $null })
+                    CpuW     = $(if ($w -gt 0) { [math]::Round($w, 1) } else { $null })
+                    GpuTemp  = $(if ($gTemp -gt 0) { [math]::Round($gTemp, 1) } else { $null })
+                    GpuMHz   = $(if ($gMhz -gt 0) { [math]::Round($gMhz, 0) } else { $null })
+                    GpuW     = $(if ($gW -gt 0) { [math]::Round($gW, 1) } else { $null })
+                    IGpuTemp = $(if ($igTemp -gt 0) { [math]::Round($igTemp, 1) } else { $null })
+                    IGpuMHz  = $(if ($igMhz -gt 0) { [math]::Round($igMhz, 0) } else { $null })
+                    IGpuW    = $(if ($igW -gt 0) { [math]::Round($igW, 1) } else { $null })
+                    Fps      = $(if ($fps -gt 0) { [math]::Round($fps, 1) } else { $null })
                 })
             }
         }
@@ -14260,35 +14830,41 @@ function Export-BenchDashboardData {
 
         # Ermittlung des Berichts-Pfads für Direktverlinkung (v3.52)
         $reportUrl = ''
-        if ($j.BerichtPfad) {
-            $reportUrl = [string]$j.BerichtPfad
-        } elseif ($j.Ordner) {
-            $pOrd = [string]$j.Ordner
-            $pNorm = $pOrd -replace '\\', '/'
-            if ($pNorm -match 'Diagnosebericht\.html$') {
-                $reportUrl = $pNorm
-            } else {
-                $reportUrl = $pNorm.TrimEnd('/') + '/Diagnosebericht.html'
-            }
-        } elseif ($FilePath) {
-            $parentDir = Split-Path $FilePath -Parent
-            $candRel = Join-Path (Split-Path $parentDir -Parent) ('Berichte\' + (Split-Path $parentDir -Leaf) + '\Diagnosebericht.html')
-            if (Test-Path -LiteralPath $candRel) {
-                $reportUrl = (Split-Path $parentDir -Leaf) + '/Diagnosebericht.html'
-            } else {
-                # Suche nach Diagnosebericht.html im Geschwister-Ordner Berichte
-                $candRep = Join-Path (Split-Path (Split-Path $FilePath -Parent) -Parent) 'Berichte'
-                if (Test-Path -LiteralPath $candRep) {
-                    $found = @(Get-ChildItem -LiteralPath $candRep -Filter 'Diagnosebericht.html' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*$($j.Computer)*" })
-                    if ($found.Count) {
-                        $folderLeaf = Split-Path (Split-Path $found[0].FullName -Parent) -Leaf
-                        $reportUrl = $folderLeaf + '/Diagnosebericht.html'
+        if (-not $isRef) {
+            if ($j.BerichtPfad) {
+                $reportUrl = [string]$j.BerichtPfad
+            } elseif ($j.Ordner) {
+                $pOrd = [string]$j.Ordner
+                $pNorm = $pOrd -replace '\\', '/'
+                if ($pNorm -match 'Diagnosebericht\.html$') {
+                    $reportUrl = $pNorm
+                } else {
+                    $reportUrl = $pNorm.TrimEnd('/') + '/Diagnosebericht.html'
+                }
+            } elseif ($sourceFile -and (Split-Path $sourceFile -Parent)) {
+                $parentDir = Split-Path $sourceFile -Parent
+                $grandParent = Split-Path $parentDir -Parent
+                if ($grandParent) {
+                    $candRel = Join-Path $grandParent ('Berichte\' + (Split-Path $parentDir -Leaf) + '\Diagnosebericht.html')
+                    if (Test-Path -LiteralPath $candRel) {
+                        $reportUrl = (Split-Path $parentDir -Leaf) + '/Diagnosebericht.html'
+                    } else {
+                        # Suche nach Diagnosebericht.html im Geschwister-Ordner Berichte
+                        $candRep = Join-Path $grandParent 'Berichte'
+                        if (Test-Path -LiteralPath $candRep) {
+                            $found = @(Get-ChildItem -LiteralPath $candRep -Filter 'Diagnosebericht.html' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*$($j.Computer)*" })
+                            if ($found.Count) {
+                                $folderLeaf = Split-Path (Split-Path $found[0].FullName -Parent) -Leaf
+                                $reportUrl = $folderLeaf + '/Diagnosebericht.html'
+                            }
+                        }
                     }
                 }
             }
-        }
-        if (-not $reportUrl -and $j.Datum -and $j.Computer) {
-            $reportUrl = ('{0}_{1}/Diagnosebericht.html' -f ($j.Datum -replace '[- :]', ''), $j.Computer)
+            if (-not $reportUrl -and $j.Datum -and $j.Computer) {
+                $dClean = ($j.Datum -replace '-', '') -replace ' ', '_' -replace ':', ''
+                $reportUrl = ('{0}_{1}/Diagnosebericht.html' -f $j.Computer, $dClean)
+            }
         }
 
         # URL-Pfad normalisieren: Relative Links relativ zu Dashboard.html (in Berichte/ gelegen)
@@ -14303,6 +14879,9 @@ function Export-BenchDashboardData {
             $reportUrl = $reportUrl.TrimStart('/')
         }
 
+        $seriesDur = if ($series.Count -gt 0) { [int]$series[$series.Count - 1].T } else { 0 }
+        $lasttestArt = & $getLasttestArt ([string]$j.Lasttest) $seriesDur
+
         return [ordered]@{
             Id          = $id
             ReportUrl   = $reportUrl
@@ -14312,7 +14891,13 @@ function Export-BenchDashboardData {
             IsReference = $isRef
             OS          = $os
             Hardware    = [ordered]@{
-                CPU                = $cpu
+                CPU                = $cpuRaw
+                CpuKurz            = $cleanCpu
+                CleanCpu           = $cleanCpu
+                CpuDisplay         = $cpuFull
+                Kerne              = $kerne
+                Threads            = $threads
+                KerneThreads       = $ktDisplay
                 RAM                = $ram
                 GPU                = $gpu
                 Datentraeger       = $diskInfo
@@ -14349,6 +14934,7 @@ function Export-BenchDashboardData {
                 DisksByClass  = $disksByClass
             }
             Telemetry   = [ordered]@{
+                TestType                 = $lasttestArt
                 CpuTempMax               = $cpuTMax
                 CpuTempLeerlauf          = $cpuTIdle
                 TjMax                    = $tjMax
@@ -15220,30 +15806,16 @@ function Get-BenchDashboardHtmlTemplate {
     </div>
   </section>
 
-  <!-- BEFUNDE-VERGLEICH -->
-  <section class="dash-card">
-    <div class="card-head">
-      <div>
-        <h2>🔍 Befunde der Systeme im Vergleich</h2>
-        <p>Synoptische Gegenüberstellung aller Diagnose-Befunde (Kritisch, Warnungen, Hinweise).</p>
-      </div>
-    </div>
-    <div id="findingsGrid" class="findings-grid">
-      <!-- Generiert durch JavaScript -->
-    </div>
-  </section>
-
   <!-- INTERAKTIVER SYSTEMVERGLEICH-CHART -->
   <section class="dash-card">
     <div class="card-head">
       <div>
-        <h2>🔥 Lasttest-Telemetrie &amp; Multi-System-Sensorverlauf</h2>
-        <p>Zeitreihen für Temperatur (°C) und Kerntakt (GHz) über die Belastungsdauer mit Farbcodierung je System.</p>
+        <h2>Lasttest-Telemetrie &amp; Multi-System-Sensorverlauf</h2>
+        <p>Sensorverlauf über die Belastungsdauer mit Farbcodierung je System.</p>
       </div>
       <div class="chart-controls">
-        <button id="btnModeTemp" class="chart-btn active" type="button">🌡️ Temperatur (°C) aller Systeme</button>
-        <button id="btnModeMhz" class="chart-btn" type="button">⚡ Kerntakt (GHz) aller Systeme</button>
-        <button id="btnModeBase" class="chart-btn" type="button">📊 Basissystem Detailansicht</button>
+        <button id="btnModeCpu" class="chart-btn active" type="button">CPU</button>
+        <button id="btnModeGpu" class="chart-btn" type="button">GPU</button>
       </div>
     </div>
 
@@ -15254,6 +15826,19 @@ function Get-BenchDashboardHtmlTemplate {
     </div>
 
     <div id="chartLegend" class="chart-legend">
+      <!-- Generiert durch JavaScript -->
+    </div>
+  </section>
+
+  <!-- BEFUNDE-VERGLEICH -->
+  <section class="dash-card">
+    <div class="card-head">
+      <div>
+        <h2>Befunde der Systeme im Vergleich</h2>
+        <p>Synoptische Gegenüberstellung aller Diagnose-Befunde (Kritisch, Warnungen, Hinweise).</p>
+      </div>
+    </div>
+    <div id="findingsGrid" class="findings-grid">
       <!-- Generiert durch JavaScript -->
     </div>
   </section>
@@ -15276,7 +15861,17 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
   let baseSystem = null;
   let comparedSystems = [];
   let selectedCompareIds = new Set();
-  let chartMode = 'temp'; // 'temp', 'mhz', 'base'
+  let chartMode = 'cpu'; // 'cpu', 'gpu'
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 
   // Farbpalette für bis zu N Systeme
   const SYSTEM_COLORS = [
@@ -15309,9 +15904,8 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
   const tooltip = document.getElementById('chartTooltip');
   const chartLegend = document.getElementById('chartLegend');
 
-  const btnModeTemp = document.getElementById('btnModeTemp');
-  const btnModeMhz = document.getElementById('btnModeMhz');
-  const btnModeBase = document.getElementById('btnModeBase');
+  const btnModeCpu = document.getElementById('btnModeCpu');
+  const btnModeGpu = document.getElementById('btnModeGpu');
 
   const btnSelectAll = document.getElementById('btnSelectAll');
   const btnSelectNone = document.getElementById('btnSelectNone');
@@ -15504,18 +16098,16 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     });
 
     // Chart Modus-Umschalter
-    btnModeTemp.addEventListener('click', () => { setChartMode('temp'); });
-    btnModeMhz.addEventListener('click', () => { setChartMode('mhz'); });
-    btnModeBase.addEventListener('click', () => { setChartMode('base'); });
+    btnModeCpu.addEventListener('click', () => { setChartMode('cpu'); });
+    btnModeGpu.addEventListener('click', () => { setChartMode('gpu'); });
 
     window.addEventListener('resize', renderChart);
   }
 
   function setChartMode(mode) {
     chartMode = mode;
-    btnModeTemp.classList.toggle('active', mode === 'temp');
-    btnModeMhz.classList.toggle('active', mode === 'mhz');
-    btnModeBase.classList.toggle('active', mode === 'base');
+    btnModeCpu.classList.toggle('active', mode === 'cpu');
+    btnModeGpu.classList.toggle('active', mode === 'gpu');
     renderChart();
   }
 
@@ -15626,11 +16218,13 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     comparedSystems.forEach((s, idx) => {
       const color = getSysColor(idx, isDark);
       const isBase = (idx === 0);
-      const nameHtml = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" title="Diagnosebericht für ${s.DisplayName || s.Computer} im Browser öffnen" style="color:inherit; text-decoration:underline; font-weight:600; cursor:pointer;">${s.DisplayName || s.Computer}</a>`
-        : `<span>${s.DisplayName || s.Computer}</span>`;
-      const repBadge = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" class="report-badge-btn" title="Diagnosebericht öffnen" style="margin-left:auto; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; font-size:0.75rem; border-radius:4px; background:var(--accent-subtle); color:var(--accent); text-decoration:none; border:1px solid var(--accent); font-weight:600; cursor:pointer;">📄 Bericht</a>`
+      const sName = escapeHtml(s.DisplayName || s.Computer);
+      const repUrl = s.ReportUrl ? escapeHtml(s.ReportUrl) : '';
+      const nameHtml = repUrl
+        ? `<a href="${repUrl}" target="_blank" title="Diagnosebericht für ${sName} im Browser öffnen" style="color:inherit; text-decoration:underline; font-weight:600; cursor:pointer;">${sName}</a>`
+        : `<span>${sName}</span>`;
+      const repBadge = repUrl
+        ? `<a href="${repUrl}" target="_blank" class="report-badge-btn" title="Diagnosebericht öffnen" style="margin-left:auto; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; font-size:0.75rem; border-radius:4px; background:var(--accent-subtle); color:var(--accent); text-decoration:none; border:1px solid var(--accent); font-weight:600; cursor:pointer;">Bericht</a>`
         : '';
       html += `<th>
         <div style="display: flex; align-items: center; gap: 6px;">
@@ -15639,21 +16233,22 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           ${isBase ? '<span class="pill ok">Basis</span>' : ''}
           ${repBadge}
         </div>
-        <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">${s.Datum || 'Referenz'}</div>
+        <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">${escapeHtml(s.Datum || 'Referenz')}</div>
       </th>`;
     });
     html += '</tr></thead><tbody>';
 
     const rows = [
-      { key: 'Bericht', label: 'Diagnosebericht', get: s => s.ReportUrl ? `<a href="${s.ReportUrl}" target="_blank" style="color:var(--accent); text-decoration:underline; font-weight:600;">📄 Diagnosebericht.html öffnen</a>` : '<span style="color:var(--text-muted);">-</span>' },
-      { key: 'Computer', label: 'Rechnername', get: s => s.Computer || '-' },
-      { key: 'CPU', label: 'Prozessor (CPU)', get: s => s.Hardware?.CPU || '-' },
-      { key: 'RAM', label: 'Arbeitsspeicher (RAM)', get: s => s.Hardware?.RAM || '-' },
-      { key: 'GPU', label: 'Grafikkarte (GPU)', get: s => s.Hardware?.GPU || '-' },
-      { key: 'Disk', label: 'Datenträger', get: s => s.Hardware?.Datentraeger || s.Hardware?.FastestDisk || '-' },
-      { key: 'Mainboard', label: 'Mainboard / System', get: s => s.Hardware?.Mainboard || s.Hardware?.System || '-' },
-      { key: 'OS', label: 'Betriebssystem', get: s => s.OS || s.Hardware?.Betriebssystem || '-' },
-      { key: 'Installiert', label: 'Windows installiert', get: s => s.Hardware?.WindowsInstalliert || '-' },
+      { key: 'Bericht', label: 'Diagnosebericht', get: s => s.ReportUrl ? `<a href="${escapeHtml(s.ReportUrl)}" target="_blank" style="color:var(--accent); text-decoration:underline; font-weight:600;">Diagnosebericht.html öffnen</a>` : '<span style="color:var(--text-muted);">-</span>' },
+      { key: 'Computer', label: 'Rechnername', get: s => escapeHtml(s.Computer || '-') },
+      { key: 'CPU', label: 'Prozessor (CPU)', get: s => escapeHtml(s.Hardware?.CpuKurz || s.Hardware?.CPU || '-') },
+      { key: 'KerneThreads', label: 'Kerne / Threads', get: s => escapeHtml((s.Hardware?.Kerne && s.Hardware?.Threads) ? `${s.Hardware.Kerne} / ${s.Hardware.Threads}` : (s.Hardware?.KerneThreads || 'n/v')) },
+      { key: 'RAM', label: 'Arbeitsspeicher (RAM)', get: s => escapeHtml(s.Hardware?.RAM || '-') },
+      { key: 'GPU', label: 'Grafikkarte (GPU)', get: s => escapeHtml(s.Hardware?.GPU || '-') },
+      { key: 'Disk', label: 'Datenträger', get: s => escapeHtml(s.Hardware?.Datentraeger || s.Hardware?.FastestDisk || '-') },
+      { key: 'Mainboard', label: 'Mainboard / System', get: s => escapeHtml(s.Hardware?.Mainboard || s.Hardware?.System || '-') },
+      { key: 'OS', label: 'Betriebssystem', get: s => escapeHtml(s.OS || s.Hardware?.Betriebssystem || '-') },
+      { key: 'Installiert', label: 'Windows installiert', get: s => escapeHtml(s.Hardware?.WindowsInstalliert || '-') },
       { key: 'Befunde', label: 'Diagnose-Befunde', get: s => {
         const b = s.Befunde || { Kritisch: 0, Warnungen: 0, Hinweise: 0 };
         return `<span class="badge ${b.Kritisch > 0 ? 'crit' : 'neutral'}">${b.Kritisch} kritisch</span>
@@ -15680,9 +16275,9 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
     const profiles = [
-      { key: 'Gaming', title: '🎮 Gaming', desc: 'GPU- & Single-Thread-Fokus' },
-      { key: 'Desktop', title: '💼 Büro / Desktop', desc: 'Reaktionszeit & SSD-Leistung' },
-      { key: 'Workstation', title: '⚙️ Workstation', desc: 'Mehrkern- & RAM-Durchsatz' }
+      { key: 'Gaming', title: 'Gaming', desc: 'GPU- & Single-Thread-Fokus' },
+      { key: 'Desktop', title: 'Büro / Desktop', desc: 'Reaktionszeit & SSD-Leistung' },
+      { key: 'Workstation', title: 'Workstation', desc: 'Mehrkern- & RAM-Durchsatz' }
     ];
 
     let html = '';
@@ -15690,21 +16285,54 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       const baseScore = baseSystem?.Scores?.[p.key] || 0;
       html += `<div class="profile-card">
         <div class="profile-header">
-          <span>${p.title}</span>
-          <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: normal;">${p.desc}</span>
+          <span>${escapeHtml(p.title)}</span>
+          <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: normal;">${escapeHtml(p.desc)}</span>
         </div>
         <div class="profile-sys-list">`;
 
-      comparedSystems.forEach((s, idx) => {
-        const sc = s.Scores?.[p.key] || 0;
-        const isBase = (idx === 0);
-        const color = getSysColor(idx, isDark);
-        const delta = isBase ? 0 : calcDelta(sc, baseScore);
-        const deltaHtml = isBase ? '<span class="pill ok">100 % (Basis)</span>' : renderPill(delta);
+      const items = comparedSystems.map((s, idx) => {
+        const sc = s.Scores?.[p.key];
+        const hasScore = (typeof sc === 'number' && sc > 0);
+        const isBase = (String(s.Id) === String(baseSystem?.Id));
+        return {
+          sys: s,
+          idx: idx,
+          score: hasScore ? sc : 0,
+          hasScore: hasScore,
+          isBase: isBase
+        };
+      });
 
-        const nameLink = s.ReportUrl
-          ? `<a href="${s.ReportUrl}" target="_blank" title="Diagnosebericht für ${s.DisplayName || s.Computer} öffnen" style="color:inherit; text-decoration:underline; cursor:pointer;">${s.DisplayName || s.Computer}</a>`
-          : `<span>${s.DisplayName || s.Computer}</span>`;
+      items.sort((a, b) => {
+        if (a.hasScore && b.hasScore) return b.score - a.score;
+        if (a.hasScore && !b.hasScore) return -1;
+        if (!a.hasScore && b.hasScore) return 1;
+        return a.idx - b.idx;
+      });
+
+      items.forEach(item => {
+        const s = item.sys;
+        const sc = item.score;
+        const isBase = item.isBase;
+        const color = getSysColor(item.idx, isDark);
+        const sName = escapeHtml(s.DisplayName || s.Computer);
+        const repUrl = s.ReportUrl ? escapeHtml(s.ReportUrl) : '';
+
+        const delta = isBase ? 0 : (item.hasScore && baseScore > 0 ? calcDelta(sc, baseScore) : null);
+        let deltaHtml = '';
+        if (isBase) {
+          deltaHtml = '<span class="pill ok">100 % (Basis)</span>';
+        } else if (delta !== null) {
+          deltaHtml = renderPill(delta);
+        } else {
+          deltaHtml = '<span class="pill neutral">n/v</span>';
+        }
+
+        const scoreText = item.hasScore ? fmtNum(sc) : 'n/v';
+
+        const nameLink = repUrl
+          ? `<a href="${repUrl}" target="_blank" title="Diagnosebericht für ${sName} öffnen" style="color:inherit; text-decoration:underline; cursor:pointer;">${sName}</a>`
+          : `<span>${sName}</span>`;
 
         html += `<div class="profile-sys-row ${isBase ? 'is-base' : ''}">
           <div style="display: flex; align-items: center; gap: 6px;">
@@ -15712,7 +16340,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
             <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nameLink}</span>
           </div>
           <div style="display: flex; align-items: center; gap: 4px;">
-            <span style="font-weight: 700;">${fmtNum(sc)}</span>
+            <span style="font-weight: 700;">${scoreText}</span>
             ${deltaHtml}
           </div>
         </div>`;
@@ -15733,11 +16361,13 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     comparedSystems.forEach((s, idx) => {
       const color = getSysColor(idx, isDark);
       const isBase = (idx === 0);
-      const nameLink = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" title="Diagnosebericht für ${s.DisplayName || s.Computer} im Browser öffnen" style="color:inherit; text-decoration:underline; font-weight:600; cursor:pointer;">${s.DisplayName || s.Computer}</a>`
-        : `<span>${s.DisplayName || s.Computer}</span>`;
-      const repBtn = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" title="Diagnosebericht öffnen" style="font-size:0.75rem; color:var(--accent); text-decoration:none; margin-left:4px;">📄</a>`
+      const sName = escapeHtml(s.DisplayName || s.Computer);
+      const repUrl = s.ReportUrl ? escapeHtml(s.ReportUrl) : '';
+      const nameLink = repUrl
+        ? `<a href="${repUrl}" target="_blank" title="Diagnosebericht für ${sName} im Browser öffnen" style="color:inherit; text-decoration:underline; font-weight:600; cursor:pointer;">${sName}</a>`
+        : `<span>${sName}</span>`;
+      const repBtn = repUrl
+        ? `<a href="${repUrl}" target="_blank" title="Diagnosebericht öffnen" style="font-size:0.75rem; color:var(--accent); text-decoration:none; margin-left:4px;">Bericht</a>`
         : '';
       html += `<th style="text-align: right;">
         <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
@@ -15845,11 +16475,13 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       const b = s.Befunde || { Kritisch: 0, Warnungen: 0, Hinweise: 0, Liste: [] };
       const list = b.Liste || [];
 
-      const nameLink = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" title="Diagnosebericht für ${s.DisplayName || s.Computer} im Browser öffnen" style="color:inherit; text-decoration:underline; font-weight:600; cursor:pointer;">${s.DisplayName || s.Computer}</a>`
-        : `<span>${s.DisplayName || s.Computer}</span>`;
-      const repBadge = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" class="report-badge-btn" title="Diagnosebericht öffnen" style="margin-left:auto; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; font-size:0.75rem; border-radius:4px; background:var(--accent-subtle); color:var(--accent); text-decoration:none; border:1px solid var(--accent); font-weight:600; cursor:pointer;">📄 Bericht</a>`
+      const sName = escapeHtml(s.DisplayName || s.Computer);
+      const repUrl = s.ReportUrl ? escapeHtml(s.ReportUrl) : '';
+      const nameLink = repUrl
+        ? `<a href="${repUrl}" target="_blank" title="Diagnosebericht für ${sName} im Browser öffnen" style="color:inherit; text-decoration:underline; font-weight:600; cursor:pointer;">${sName}</a>`
+        : `<span>${sName}</span>`;
+      const repBadge = repUrl
+        ? `<a href="${repUrl}" target="_blank" class="report-badge-btn" title="Diagnosebericht öffnen" style="margin-left:auto; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; font-size:0.75rem; border-radius:4px; background:var(--accent-subtle); color:var(--accent); text-decoration:none; border:1px solid var(--accent); font-weight:600; cursor:pointer;">Bericht</a>`
         : '';
 
       html += `<div class="finding-card">
@@ -15876,7 +16508,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
 
           html += `<div class="finding-item">
             <span class="badge ${bCls}" style="flex-shrink: 0;">${bCls.toUpperCase()}</span>
-            <span>${txt.replace(/^\[\w+\]\s*/, '')}</span>
+            <span>${escapeHtml(txt.replace(/^\[\w+\]\s*/, ''))}</span>
           </div>`;
         });
         html += `</div></details>`;
@@ -15896,22 +16528,18 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
     let html = '';
-    if (chartMode === 'base') {
-      html = `
-        <div class="legend-item"><div class="legend-color" style="background: var(--curve-temp);"></div><span>Basis CPU Temperatur (°C)</span></div>
-        <div class="legend-item"><div class="legend-color" style="background: var(--curve-mhz);"></div><span>Basis CPU Takt (GHz)</span></div>
-        <div class="legend-item"><div class="legend-color" style="background: #E81123; border: 1px dashed #E81123; height: 2px;"></div><span>TjMax Grenze</span></div>
-      `;
-    } else {
-      comparedSystems.forEach((s, idx) => {
-        const color = getSysColor(idx, isDark);
-        const label = (idx === 0 ? '🎯 Basis: ' : '') + (s.DisplayName || s.Computer);
-        html += `<div class="legend-item">
-          <div class="legend-color" style="background: ${color};"></div>
-          <span>${label}</span>
-        </div>`;
-      });
-    }
+    comparedSystems.forEach((s, idx) => {
+      const color = getSysColor(idx, isDark);
+      const isBase = (String(s.Id) === String(baseSystem?.Id));
+      const sName = escapeHtml(s.DisplayName || s.Computer);
+      const label = (isBase ? 'Basis: ' : '') + sName;
+      const hasSeries = (s.Telemetry?.Series && s.Telemetry.Series.length > 0);
+      const testType = hasSeries ? (s.Telemetry?.TestType || 'Lasttest') : 'keine Zeitreihe';
+      html += `<div class="legend-item">
+        <div class="legend-color" style="background: ${color};"></div>
+        <span>${label} (${escapeHtml(testType)})</span>
+      </div>`;
+    });
 
     chartLegend.innerHTML = html;
   }
@@ -15947,57 +16575,36 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     const chartW = width - padding.left - padding.right;
     const chartH = height - padding.top - padding.bottom;
 
-    // Maximale Zeit & Y-Werte über alle aktiven Systeme ermitteln
+    // Maximale Zeit ermitteln
     let tMax = 120;
-    let maxMhz = 5000;
     comparedSystems.forEach(s => {
       const srs = s.Telemetry?.Series || [];
       if (srs.length > 0) {
         const lastT = srs[srs.length - 1].T;
         if (lastT > tMax) tMax = lastT;
-        srs.forEach(pt => { if (pt.MHz && pt.MHz > maxMhz) maxMhz = pt.MHz * 1.1; });
       }
     });
 
     const tempMax = 110;
     const getX = t => padding.left + (t / tMax) * chartW;
     const getYTemp = temp => padding.top + chartH - (temp / tempMax) * chartH;
-    const getYMhz = mhz => padding.top + chartH - (mhz / maxMhz) * chartH;
 
-    // GRID LINES
+    // GRID LINES (Temperaturskala 0..100 °C)
     ctx.strokeStyle = isDark ? '#363636' : '#ECEFF1';
     ctx.lineWidth = 1;
     ctx.fillStyle = isDark ? '#808080' : '#888888';
     ctx.font = '11px system-ui, sans-serif';
 
-    if (chartMode === 'temp' || chartMode === 'base') {
-      [0, 25, 50, 75, 100].forEach(deg => {
-        const y = getYTemp(deg);
-        ctx.beginPath();
-        ctx.moveTo(padding.left, y);
-        ctx.lineTo(padding.left + chartW, y);
-        ctx.stroke();
+    [0, 25, 50, 75, 100].forEach(deg => {
+      const y = getYTemp(deg);
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(padding.left + chartW, y);
+      ctx.stroke();
 
-        ctx.textAlign = 'right';
-        ctx.fillText(deg + ' °C', padding.left - 8, y + 4);
-      });
-    }
-
-    if (chartMode === 'mhz' || chartMode === 'base') {
-      const align = (chartMode === 'mhz') ? 'right' : 'left';
-      const xPos = (chartMode === 'mhz') ? padding.left - 8 : padding.left + chartW + 8;
-      [0, 2000, 4000, 6000].filter(m => m <= maxMhz).forEach(m => {
-        const y = getYMhz(m);
-        if (chartMode === 'mhz') {
-          ctx.beginPath();
-          ctx.moveTo(padding.left, y);
-          ctx.lineTo(padding.left + chartW, y);
-          ctx.stroke();
-        }
-        ctx.textAlign = align;
-        ctx.fillText((m / 1000).toFixed(1) + ' GHz', xPos, y + 4);
-      });
-    }
+      ctx.textAlign = 'right';
+      ctx.fillText(deg + ' °C', padding.left - 8, y + 4);
+    });
 
     // X Axis Time Labels
     ctx.textAlign = 'center';
@@ -16011,95 +16618,43 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     }
 
     // KURVEN ZEICHNEN
-    if (chartMode === 'base') {
-      // Detailansicht Basissystem (Temperatur + Takt)
-      const baseSrs = baseSystem?.Telemetry?.Series || [];
-      const tjMax = baseSystem?.Telemetry?.TjMax || 100;
+    comparedSystems.forEach((s, idx) => {
+      const srs = s.Telemetry?.Series || [];
+      if (srs.length < 2) return;
+      const color = getSysColor(idx, isDark);
+      const isBase = (String(s.Id) === String(baseSystem?.Id));
 
-      // TjMax Referenz
-      const yTj = getYTemp(tjMax);
       ctx.save();
-      ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = 'rgba(232, 17, 35, 0.6)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(padding.left, yTj);
-      ctx.lineTo(padding.left + chartW, yTj);
-      ctx.stroke();
-      ctx.fillStyle = 'rgba(232, 17, 35, 0.85)';
-      ctx.textAlign = 'left';
-      ctx.fillText('TjMax (' + tjMax + ' °C)', padding.left + 8, yTj - 6);
-      ctx.restore();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = isBase ? 3.0 : 2.0;
+      if (!isBase && idx % 2 === 1) ctx.setLineDash([6, 3]);
 
-      // CPU Clock
-      ctx.save();
-      ctx.strokeStyle = isDark ? '#4CC2FF' : '#0078D4';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      let startedMhz = false;
-      baseSrs.forEach(pt => {
-        if (pt.MHz) {
+      let inSegment = false;
+      srs.forEach(pt => {
+        const val = (chartMode === 'cpu')
+          ? pt.Temp
+          : (pt.GpuTemp != null ? pt.GpuTemp : pt.IGpuTemp);
+
+        if (val != null && val > 0) {
           const x = getX(pt.T);
-          const y = getYMhz(pt.MHz);
-          if (!startedMhz) { ctx.moveTo(x, y); startedMhz = true; } else { ctx.lineTo(x, y); }
-        }
-      });
-      ctx.stroke();
-      ctx.restore();
-
-      // CPU Temp
-      ctx.save();
-      ctx.strokeStyle = isDark ? '#FF5A5A' : '#E81123';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      let startedTemp = false;
-      baseSrs.forEach(pt => {
-        if (pt.Temp) {
-          const x = getX(pt.T);
-          const y = getYTemp(pt.Temp);
-          if (!startedTemp) { ctx.moveTo(x, y); startedTemp = true; } else { ctx.lineTo(x, y); }
-        }
-      });
-      ctx.stroke();
-
-      if (baseSrs.length > 1) {
-        ctx.lineTo(getX(baseSrs[baseSrs.length - 1].T), padding.top + chartH);
-        ctx.lineTo(getX(baseSrs[0].T), padding.top + chartH);
-        ctx.closePath();
-        const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
-        grad.addColorStop(0, isDark ? 'rgba(255, 90, 90, 0.2)' : 'rgba(232, 17, 35, 0.15)');
-        grad.addColorStop(1, 'rgba(232, 17, 35, 0.0)');
-        ctx.fillStyle = grad;
-        ctx.fill();
-      }
-      ctx.restore();
-
-    } else {
-      // Multi-System Überlagerung: Temperatur oder Kerntakt
-      comparedSystems.forEach((s, idx) => {
-        const srs = s.Telemetry?.Series || [];
-        if (srs.length < 2) return;
-        const color = getSysColor(idx, isDark);
-
-        ctx.save();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = (idx === 0) ? 3.0 : 2.0; // Basissystem etwas dicker
-        if (idx > 0 && idx % 2 === 1) ctx.setLineDash([6, 3]); // Jedes zweite Vergleichssystem leicht gestrichelt
-        ctx.beginPath();
-        let started = false;
-
-        srs.forEach(pt => {
-          const val = (chartMode === 'temp') ? pt.Temp : pt.MHz;
-          if (val) {
-            const x = getX(pt.T);
-            const y = (chartMode === 'temp') ? getYTemp(val) : getYMhz(val);
-            if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
+          const y = getYTemp(val);
+          if (!inSegment) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            inSegment = true;
+          } else {
+            ctx.lineTo(x, y);
           }
-        });
-        ctx.stroke();
-        ctx.restore();
+        } else {
+          if (inSegment) {
+            ctx.stroke();
+            inSegment = false;
+          }
+        }
       });
-    }
+      if (inSegment) ctx.stroke();
+      ctx.restore();
+    });
 
     // HOVER INTERACTION
     canvas.onmousemove = function(e) {
@@ -16134,7 +16689,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
 
       let tipHtml = `
         <div style="font-weight: 700; margin-bottom: 6px; border-bottom: 1px solid var(--card-border); padding-bottom: 3px;">
-          ⏱️ Zeit: ${timeStr} (${targetT.toFixed(0)} s)
+          Zeit: ${timeStr} (${targetT.toFixed(0)} s)
         </div>
       `;
 
@@ -16150,38 +16705,48 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
         });
 
         const color = getSysColor(idx, isDark);
-        const name = (idx === 0 ? '🎯 Basis: ' : '') + (s.DisplayName || s.Computer);
+        const isBase = (String(s.Id) === String(baseSystem?.Id));
+        const sName = escapeHtml(s.DisplayName || s.Computer);
+        const name = (isBase ? 'Basis: ' : '') + sName;
 
-        if (chartMode === 'temp') {
+        if (chartMode === 'cpu') {
+          const tempStr = closest.Temp != null ? closest.Temp.toFixed(1) + ' °C' : 'n/v';
+          const mhzStr = closest.MHz != null ? closest.MHz.toFixed(0) + ' MHz' : 'n/v';
+          const wattStr = closest.CpuW != null ? closest.CpuW.toFixed(1) + ' W' : 'n/v';
+
           tipHtml += `<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 3px;">
             <span style="color: ${color}; font-weight: 600;">● ${name}</span>
-            <span style="font-weight: 700;">${closest.Temp ? closest.Temp.toFixed(1) + ' °C' : '-'}</span>
+            <span style="font-weight: 700;">${tempStr} &middot; ${mhzStr} &middot; ${wattStr}</span>
           </div>`;
-          if (closest.Temp) {
+
+          if (closest.Temp != null && closest.Temp > 0) {
             ctx.fillStyle = color;
             ctx.beginPath();
             ctx.arc(cx, getYTemp(closest.Temp), 4.5, 0, Math.PI * 2);
             ctx.fill();
           }
-        } else if (chartMode === 'mhz') {
+        } else {
+          // GPU
+          const gTemp = closest.GpuTemp != null ? closest.GpuTemp : closest.IGpuTemp;
+          const gMhz = closest.GpuMHz != null ? closest.GpuMHz : closest.IGpuMHz;
+          const gWatt = closest.GpuW != null ? closest.GpuW : closest.IGpuW;
+
+          const tempStr = gTemp != null ? gTemp.toFixed(1) + ' °C' : 'n/v';
+          const mhzStr = gMhz != null ? gMhz.toFixed(0) + ' MHz' : 'n/v';
+          const wattStr = gWatt != null ? gWatt.toFixed(1) + ' W' : 'n/v';
+          const fpsStr = closest.Fps != null ? (' &middot; ' + closest.Fps.toFixed(0) + ' Bilder/s') : '';
+
           tipHtml += `<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 3px;">
             <span style="color: ${color}; font-weight: 600;">● ${name}</span>
-            <span style="font-weight: 700;">${closest.MHz ? (closest.MHz / 1000).toFixed(2) + ' GHz' : '-'}</span>
+            <span style="font-weight: 700;">${tempStr} &middot; ${mhzStr} &middot; ${wattStr}${fpsStr}</span>
           </div>`;
-          if (closest.MHz) {
+
+          if (gTemp != null && gTemp > 0) {
             ctx.fillStyle = color;
             ctx.beginPath();
-            ctx.arc(cx, getYMhz(closest.MHz), 4.5, 0, Math.PI * 2);
+            ctx.arc(cx, getYTemp(gTemp), 4.5, 0, Math.PI * 2);
             ctx.fill();
           }
-        } else {
-          // Basis Detail
-          tipHtml += `
-            <div style="color: var(--curve-temp); font-weight: 600;">🌡️ CPU-Temp: ${closest.Temp ? closest.Temp.toFixed(1) + ' °C' : '-'}</div>
-            <div style="color: var(--curve-mhz); font-weight: 600;">⚡ CPU-Takt: ${closest.MHz ? (closest.MHz / 1000).toFixed(2) + ' GHz' : '-'}</div>
-            ${closest.GpuTemp ? '<div style="color: var(--curve-gpu);">🎮 GPU-Temp: ' + closest.GpuTemp.toFixed(1) + ' °C</div>' : ''}
-            ${closest.CpuW ? '<div>💡 CPU-Paket: ' + closest.CpuW.toFixed(1) + ' W</div>' : ''}
-          `;
         }
       });
 
@@ -16191,7 +16756,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       tooltip.style.display = 'block';
 
       let tooltipX = cx + 15;
-      if (tooltipX + 220 > width) tooltipX = cx - 230;
+      if (tooltipX + 240 > width) tooltipX = cx - 250;
       tooltip.style.left = Math.max(10, tooltipX) + 'px';
       tooltip.style.top = (padding.top + 10) + 'px';
     };
@@ -16240,6 +16805,7 @@ function New-BenchDashboardHtml {
     }
 
     $json = $data | ConvertTo-Json -Depth 10 -Compress
+    $json = $json -replace '</', '<\/'
     $template = Get-BenchDashboardHtmlTemplate
 
     # Daten einbetten
@@ -17257,7 +17823,7 @@ function Read-Minidumps {
 #endregion
 
 #region ---------- C#-Testroutinen (RAM, CPU, Energiesparen) ----------
-if ($FullLanguage -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme -and -not ('DiagDiskStress' -as [type])) {
+if ($FullLanguage -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorLive -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme -and -not $MedianAktualisieren -and -not ('DiagDiskStress' -as [type])) {
     $csCode = @'
 using System;
 using System.ComponentModel;
@@ -19688,8 +20254,13 @@ function Get-WindowsInstallInfo {
         $upd = $null
         if ($_.PSChildName -match 'Updated on (.+)\)') { $t = [datetime]::MinValue; if ([datetime]::TryParse($Matches[1], $en, [Globalization.DateTimeStyles]::None, [ref]$t)) { $upd = $t } }
         if ($inst) {
+            $prod = [string]$p.ProductName
+            $bldNum = 0
+            if ($p.CurrentBuild -and [int]::TryParse([string]$p.CurrentBuild, [ref]$bldNum) -and $bldNum -ge 22000) {
+                if ($prod -match 'Windows\s*10') { $prod = $prod -replace 'Windows\s*10', 'Windows 11' }
+            }
             [pscustomobject]@{ Installiert = $inst; Ersetzt = $upd; Version = $(if ($p.DisplayVersion) { $p.DisplayVersion } else { $p.ReleaseId })
-                Build = ('{0}.{1}' -f $p.CurrentBuild, $p.UBR).Trim('.'); Produkt = $p.ProductName }
+                Build = ('{0}.{1}' -f $p.CurrentBuild, $p.UBR).Trim('.'); Produkt = $prod }
         }
     } | Sort-Object Installiert)
     $first = $cur
@@ -20112,8 +20683,23 @@ function Save-DbEntry {
     $w = Get-CurrentRefValues
     if ($Kurztest -and -not $w.Count) { return '' }
     try { New-Item -ItemType Directory -Path $script:DbDir -Force -ErrorAction Stop | Out-Null } catch { return '' }
+    $kerne = $null; $threads = $null
+    if ($script:Facts['Prozessor'] -match '(\d+)\s*Kerne,\s*(\d+)\s*Threads') {
+        $kerne = [int]$Matches[1]; $threads = [int]$Matches[2]
+    } else {
+        try {
+            $cpus = @(Get-CimCached Win32_Processor)
+            if ($cpus.Count) {
+                $kerne = [int](($cpus | Measure-Object NumberOfCores -Sum).Sum)
+                $threads = [int](($cpus | Measure-Object NumberOfLogicalProcessors -Sum).Sum)
+            }
+        } catch { }
+    }
+    $cpuRaw = $(if ($script:BenchShort.CPU) { $script:BenchShort.CPU } else { [string]$script:Facts['Prozessor'] })
     $hw = [ordered]@{
-        CPU = $(if ($script:BenchShort.CPU) { $script:BenchShort.CPU } else { [string]$script:Facts['Prozessor'] })
+        CPU = $(if ($cpuRaw) { if (Get-Command 'Get-CpuAnzeigename' -ErrorAction SilentlyContinue) { Get-CpuAnzeigename $cpuRaw } else { $cpuRaw } } else { '' })
+        Kerne = $kerne
+        Threads = $threads
         RAM = $(if ($script:BenchShort.RAM) { $script:BenchShort.RAM } else { [string]$script:Facts['Arbeitsspeicher'] })
         GPU = $(if ($script:BenchShort.GPU) { $script:BenchShort.GPU } else { [string]$script:Facts['Grafik'] })
         IGPU = $(try { [string](@(Get-GpuAdapters | Where-Object { $_.Art -eq 'iGPU' } | ForEach-Object { Get-ShortGpuName $_.Name }) | Select-Object -First 1) } catch { '' })
@@ -20145,7 +20731,11 @@ function Save-DbEntry {
         # ab v2.6: Rendertest je Grafikeinheit und Schreibzugriffe auf den Datenträger des Datenordners
         Rendertest = @($script:GpuRender | ForEach-Object { [ordered]@{ Grafik = $_.Name; Art = $_.Art; Aufloesung = $_.Aufloesung; Fps = $_.Fps; Low1 = $_.Low1; Punkte = $_.Punkte; Bildfehler = $_.Bildfehler; Treiberreset = $_.Treiberreset; Fehler = $_.Fehler } })
         Schreibzugriffe = $(if ($script:WriteInfo) { [ordered]@{ Laufwerk = $script:WriteInfo.Laufwerk; Art = $script:WriteInfo.Art; Vorgaenge = $script:WriteInfo.Vorgaenge; MB = $script:WriteInfo.MB } } else { $null })
-        Ablauf    = $(if ($SchnellerModus) { 'schneller Modus' } else { 'normal' })
+        Ablauf    = [ordered]@{
+            Modus           = $(if ($SchnellerModus) { 'schneller Modus' } else { 'normal' })
+            Hintergrundlast = [bool]$script:AblaufHintergrundlast
+            Akkubetrieb     = [bool]$script:AblaufAkkubetrieb
+        }
         Sensoren  = $(if ($script:SensorDb.Count) { $script:SensorDb } else { [ordered]@{} })
         # ab v2.8: Modul Optimierung (angewendete Einträge und Kennzahlen vorher und nachher)
         Optimierung = $(if (@($script:OptLog).Count) { [ordered]@{ Eintraege = @($script:OptLog | ForEach-Object { [ordered]@{ Id = $_.Id; Ergebnis = $_.Ergebnis; Aenderungen = $_.Aenderungen } }); Vorher = $script:OptMetricsBefore; Nachher = $script:OptMetricsAfter } } else { $null })
@@ -20215,11 +20805,22 @@ function Import-LegacyRun([string]$Folder) {
         $list = @([regex]::Matches($txt, '(?m)^  \[(KRITISCH|WARNUNG|INFO)\s*\]\s+(\S+)\s+(.+?)\s*$') | ForEach-Object { '[{0}] {1}: {2}' -f $_.Groups[1].Value, $_.Groups[2].Value, $_.Groups[3].Value })
 
         foreach ($e in (Get-DbEntries)) { if ($e.Computer -eq $computer -and $e.Datum -eq $datum) { return ('{0}: {1} vom {2} ist bereits in der Datenbank.' -f $name, $computer, $datum) } }
-        $hw = [ordered]@{
-            CPU = $(if ($short.CPU) { $short.CPU } else { [string]$facts['Prozessor'] }); RAM = $(if ($short.RAM) { $short.RAM } else { [string]$facts['Arbeitsspeicher'] })
-            GPU = $(if ($short.GPU) { $short.GPU } else { [string]$facts['Grafik'] }); Datentraeger = [string]$facts['Datenträger']; Betriebssystem = [string]$facts['Betriebssystem']; Mainboard = ''; WindowsInstalliert = ''
+        $kerne = $null; $threads = $null
+        if ($txt -match '(?m)^\s*Kerne\s*/\s*Threads\s*:\s*(\d+)\s*/\s*(\d+)') {
+            $kerne = [int]$Matches[1]; $threads = [int]$Matches[2]
+        } elseif ($txt -match '(\d+)\s*Kerne,\s*(\d+)\s*Threads') {
+            $kerne = [int]$Matches[1]; $threads = [int]$Matches[2]
         }
-        $cpuS = ($hw.CPU -replace '^(AMD|Intel\(R\))\s*', '' -replace '\((R|TM)\)', '').Trim()
+        $rawCpu = $(if ($short.CPU) { $short.CPU } else { [string]$facts['Prozessor'] })
+        $hw = [ordered]@{
+            CPU = $(if ($rawCpu) { Get-CpuAnzeigename $rawCpu } else { '' })
+            Kerne = $kerne
+            Threads = $threads
+            RAM = $(if ($short.RAM) { $short.RAM } else { [string]$facts['Arbeitsspeicher'] })
+            GPU = $(if ($short.GPU) { $short.GPU } else { [string]$facts['Grafik'] })
+            Datentraeger = [string]$facts['Datenträger']; Betriebssystem = [string]$facts['Betriebssystem']; Mainboard = ''; WindowsInstalliert = ''
+        }
+        $cpuS = $(if ($hw.CPU) { $hw.CPU } else { '' })
         $gpuS = ($hw.GPU -replace '^(AMD|NVIDIA|Intel\(R\))\s*', '').Trim()
         $o = [ordered]@{
             Format = $script:DbFormat; Name = ('{0} ({1})' -f $computer, ((@($cpuS, $hw.RAM, $gpuS) | Where-Object { $_ }) -join ', ')); Computer = $computer
@@ -20272,9 +20873,16 @@ function Get-ShortCpuName([string]$Name) { ((($Name -as [string]) -replace '\s+'
 function Get-ShortGpuName([string]$Name) { (([string]$Name) -replace '^(AMD|NVIDIA|Intel\(R\))\s*', '').Trim() }
 # Grafikeinheiten mit Art (dGPU, iGPU) und ob sie den Desktop ausgibt (aktive Auflösung); virtuelle Adapter fehlen
 function Get-GpuAdapters {
-    @(Get-CimCached Win32_VideoController | Where-Object { $_ -and (Get-GpuKind ([string]$_.Name)) -ne 'virtuell' } | ForEach-Object {
-        $k = Get-GpuKind ([string]$_.Name)
-        [pscustomobject]@{ Name = ([string]$_.Name).Trim(); Art = $k; Desktop = [bool]$_.CurrentHorizontalResolution; Treiber = [string]$_.DriverVersion; Adapter = $_
+    $raw = @(Get-CimCached Win32_VideoController | Where-Object { $_ -and (Get-GpuKind ([string]$_.Name)) -ne 'virtuell' })
+    $hasIgpu = [bool](@($raw | Where-Object { (Get-GpuKind ([string]$_.Name)) -eq 'iGPU' }).Count)
+    $isLaptop = ($script:IsLaptop -or (Test-OnBattery) -or (@($raw | Where-Object { Test-LaptopGpu $_.Name }).Count -gt 0))
+    @(foreach ($a in $raw) {
+        $k = Get-GpuKind ([string]$a.Name)
+        $isDesktopOut = [bool]$a.CurrentHorizontalResolution
+        if ($hasIgpu -and $isLaptop -and $k -eq 'dGPU') {
+            $isDesktopOut = $false
+        }
+        [pscustomobject]@{ Name = ([string]$a.Name).Trim(); Art = $k; Desktop = $isDesktopOut; Treiber = [string]$a.DriverVersion; Adapter = $a
             Bezeichnung = $(switch ($k) { 'dGPU' { 'Grafikkarte' } 'iGPU' { 'Prozessorgrafik' } default { 'Grafik' } }) }
     })
 }
@@ -20426,6 +21034,15 @@ function ConvertFrom-BatteryReportXml([string]$Text) {
         if ($f) { [pscustomobject]@{ Zeitraum = ('{0}{1}' -f ([string]$st -replace 'T.*$', ''), $(if ($en) { ' bis ' + ([string]$en -replace 'T.*$', '') } else { '' })); VollmWh = $f; DesignmWh = $d; ActiveRuntime = (Get-XmlLocal $_ 'ActiveRuntime') } }
     })
     $res[0].Verlauf = @($hist)
+    if ($res.Count -and $res[0].Verlauf.Count -and $res[0].DesignmWh -and $res[0].VollmWh -and [double]$res[0].DesignmWh -le [double]$res[0].VollmWh) {
+        $maxHistDesign = ($res[0].Verlauf | Where-Object { $_.DesignmWh } | Measure-Object -Property DesignmWh -Maximum).Maximum
+        if ($maxHistDesign -and [double]$maxHistDesign -gt [double]$res[0].DesignmWh) {
+            $origDesign = $res[0].DesignmWh
+            $res[0].DesignmWh = [double]$maxHistDesign
+            $res[0].VerschleissProzent = [math]::Round([math]::Max(0.0, (1 - [double]$res[0].VollmWh / [double]$maxHistDesign) * 100), 1)
+            $res[0] | Add-Member -NotePropertyName DesignHinweis -NotePropertyValue ('höchster Wert aus dem Verlauf, gemeldet {0:N0} mWh' -f $origDesign) -Force
+        }
+    }
     # Laufzeitschätzung: Abschnitt RuntimeEstimates (FullChargeCapacity bzw. DesignCapacity mit ActiveRuntime)
     $est = @($all | Where-Object { $_.LocalName -eq 'RuntimeEstimates' }) | Select-Object -First 1
     if ($est) {
@@ -20473,6 +21090,15 @@ function ConvertFrom-BatteryReportHtml([string]$Html) {
             $c = & $cells $row.Groups[1].Value
             if ($c.Count -ge 3 -and $c[0] -match '^\d{4}-\d{2}-\d{2}') { [pscustomobject]@{ Zeitraum = ($c[0] -replace '\s+-\s+', ' bis '); VollmWh = (& $mwh $c[1]); DesignmWh = (& $mwh $c[2]); ActiveRuntime = $null } }
         })
+        if ($out.Count -and $out[0].Verlauf.Count -and $out[0].DesignmWh -and $out[0].VollmWh -and [double]$out[0].DesignmWh -le [double]$out[0].VollmWh) {
+            $maxHistDesign = ($out[0].Verlauf | Where-Object { $_.DesignmWh } | Measure-Object -Property DesignmWh -Maximum).Maximum
+            if ($maxHistDesign -and [double]$maxHistDesign -gt [double]$out[0].DesignmWh) {
+                $origDesign = $out[0].DesignmWh
+                $out[0].DesignmWh = [double]$maxHistDesign
+                $out[0].VerschleissProzent = [math]::Round([math]::Max(0.0, (1 - [double]$out[0].VollmWh / [double]$maxHistDesign) * 100), 1)
+                $out[0] | Add-Member -NotePropertyName DesignHinweis -NotePropertyValue ('höchster Wert aus dem Verlauf, gemeldet {0:N0} mWh' -f $origDesign) -Force
+            }
+        }
     }
     if ($e -gt 0) {
         $rows = @([regex]::Matches($Html.Substring($e), '(?is)<tr[^>]*>(.*?)</tr>') | ForEach-Object { , (& $cells $_.Groups[1].Value) } | Where-Object { $_.Count -ge 5 -and (& $hms $_[1]) })
@@ -20487,7 +21113,17 @@ function ConvertFrom-BatteryReportHtml([string]$Html) {
 function Get-BatteryFinding($Info) {
     if (-not $Info -or $null -eq $Info.VerschleissProzent) { return $null }
     $w = [double]$Info.VerschleissProzent
-    $txt = ('Akku {0}: {1:N0} % Verschleiß (volle Ladung {2:N0} von {3:N0} mWh Designkapazität{4}).' -f $Info.Name, $w, $Info.VollmWh, $Info.DesignmWh, $(if ($null -ne $Info.Zyklen) { ', {0:N0} Ladezyklen' -f $Info.Zyklen } else { '' }))
+    $txt = ('Akku {0}: {1:N0} % Verschleiß (volle Ladung {2:N0} von {3:N0} mWh Designkapazität{4}{5}).' -f $Info.Name, $w, $Info.VollmWh, $Info.DesignmWh, $(if ($null -ne $Info.Zyklen -and $Info.Zyklen -gt 0) { ', {0:N0} Ladezyklen' -f $Info.Zyklen } else { '' }), $(if ($Info.PSObject.Properties['DesignHinweis'] -and $Info.DesignHinweis) { ' laut Verlauf' } else { '' }))
+    # Sprunghafter Abfall der vollen Ladung gegenüber dem Verlauf prüfen
+    $lastHist = @($Info.Verlauf | Where-Object { $_.VollmWh })
+    $sprungTxt = ''
+    if ($lastHist.Count) {
+        $prevVoll = [double]$lastHist[$lastHist.Count - 1].VollmWh
+        if ($prevVoll -gt 0 -and ($prevVoll - [double]$Info.VollmWh) / $prevVoll -ge 0.3) {
+            $sprungTxt = (' Die volle Ladung fiel sprunghaft von {0:N0} mWh auf {1:N0} mWh ab. Nach einer vollen Ladung erneut prüfen.' -f $prevVoll, $Info.VollmWh)
+        }
+    }
+    if ($sprungTxt) { return [pscustomobject]@{ Stufe = 'WARNUNG'; Text = $txt + $sprungTxt } }
     if ($w -ge 50) { return [pscustomobject]@{ Stufe = 'WARNUNG'; Text = $txt + ' Die Laufzeit ist stark verkürzt, ein Austausch lohnt sich.' } }
     if ($w -ge 30) { return [pscustomobject]@{ Stufe = 'INFO'; Text = $txt + ' Die Laufzeit ist spürbar kürzer als im Neuzustand.' } }
     return $null
@@ -20618,7 +21254,7 @@ $script:SensorNotes = New-Object System.Collections.Generic.List[string]
 $script:SensorSnapshot = $null
 $script:SensorDb = [ordered]@{}
 
-if ($FullLanguage -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme -and -not ('DiagSensors' -as [type])) {
+if ($FullLanguage -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme -and -not $MedianAktualisieren -and -not ('DiagSensors' -as [type])) {
     $sensCode = @'
 using System;
 using System.Collections;
@@ -21711,6 +22347,7 @@ function Get-SensorImplausibility($Reading, $GpuLimits = $null) {
     switch ($Reading.Art) {
         'Temperatur' {
             if ($v -le -30 -or $v -ge 150) { return ('{0:N0} °C liegt außerhalb des möglichen Bereichs' -f $v) }
+            if ($v -lt 5) { return ('{0:N0} °C unter 5 °C ist als Komponententemperatur unplausibel' -f $v) }
             if ($Reading.Gruppe -in 'Datenträger', 'RAM', 'Akku' -and $v -ge 120) { return ('{0:N0} °C ist für {1} nicht möglich' -f $v, $Reading.Gruppe) }
         }
         'Leistung' {
@@ -21743,6 +22380,24 @@ function Set-SensorClassification($Readings, $GpuLimits = $null) {
         if ($r.Art -in 'Grenzwert', 'Abstand') { continue }
         $why = Get-SensorImplausibility $r $GpuLimits
         if ($why) { $r.Status = 'unplausibel'; $r.Hinweis = $why; $r.Roh = $r.Wert; $r.Wert = [double]::NaN }
+    }
+    # Gleiche Spannungen über 1,5 V auf mehreren Schienen desselben Geräts im Leerlauf aussortieren
+    $voltages = @($Readings | Where-Object { $_ -and $_.Art -eq 'Spannung' -and $_.Status -ne 'unplausibel' -and -not [double]::IsNaN([double]$_.Wert) -and [double]$_.Wert -gt 1.5 })
+    if ($voltages.Count -gt 1) {
+        $byDev = $voltages | Group-Object Geraet
+        foreach ($grp in $byDev) {
+            $byVal = $grp.Group | Group-Object { [math]::Round([double]$_.Wert, 3) }
+            foreach ($vg in $byVal) {
+                if ($vg.Count -gt 1) {
+                    foreach ($vr in $vg.Group) {
+                        $vr.Status = 'unplausibel'
+                        $vr.Hinweis = ('{0:N3} V auf mehreren Schienen identisch (Sensorwert im Leerlauf fehlerhaft)' -f [double]$vr.Wert)
+                        $vr.Roh = $vr.Wert
+                        $vr.Wert = [double]::NaN
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -22393,7 +23048,11 @@ function Write-BenchSensorReport {
     Add-SensorGapFinding 'Der Benchmark'
     if ($b.Fehler) { Add-Line ('  Sensoren ließen sich nicht öffnen: {0}. Gezeigt werden die Windows-Werte.' -f $b.Fehler) }
     $idle = $b.Idle
-    if ($idle) { Add-Line ('  Leerlauf vor dem Benchmark: CPU {0}, GPU {1}, Paketleistung {2}' -f $(if ($null -ne $idle.CpuTemp) { '{0:N0} °C ({1})' -f $idle.CpuTemp, $idle.CpuTempQ } else { 'Temperatur nicht verfügbar' }), $(if ($null -ne $idle.GpuTemp) { '{0:N0} °C' -f $idle.GpuTemp } else { 'nicht verfügbar' }), $(if ($null -ne $idle.CpuW) { '{0:N0} W' -f $idle.CpuW } else { 'nicht verfügbar' })) }
+    if ($idle) {
+        $isIdle = ($null -eq $idle.CpuLoad -or $idle.CpuLoad -lt 15)
+        $leadPrefix = if ($isIdle) { 'Leerlauf vor dem Benchmark' } else { 'Sensoren vor dem Benchmark (bei {0} % Last)' -f [math]::Round($idle.CpuLoad) }
+        Add-Line ('  {0}: CPU {1}, GPU {2}, Paketleistung {3}' -f $leadPrefix, $(if ($null -ne $idle.CpuTemp) { '{0:N0} °C ({1})' -f $idle.CpuTemp, $idle.CpuTempQ } else { 'Temperatur nicht verfügbar' }), $(if ($null -ne $idle.GpuTemp) { '{0:N0} °C' -f $idle.GpuTemp } else { 'nicht verfügbar' }), $(if ($null -ne $idle.CpuW) { '{0:N0} W' -f $idle.CpuW } else { 'nicht verfügbar' }))
+    }
     if (-not $S.Count) { Add-Line '  Keine Messpunkte (die Messungen waren kürzer als der Abstand der Sensorabfragen).'; return }
     Add-Line ('  {0} Messpunkte in den Wartepausen der Messungen, höchstens alle {1} s.' -f $S.Count, ($b.IntervallMs / 1000))
     $rows = @(Get-BenchSensorRows $S $b.Teile)
@@ -22430,8 +23089,17 @@ function Get-SensorSnapshotFindings($Readings, $Lead) {
         & $add 'INFO' 'ARM64-Architektur erkannt: Tiefgehende Kern- und Mainboard-Sensoren erfordern x86/x64-Treiber und stehen nur eingeschränkt zur Verfügung.'
     }
     if ($null -ne $Lead.CpuTemp -and $Lead.CpuTempQ -ne 'ACPI') {
-        if ($Lead.CpuTemp -ge 80) { & $add 'WARNUNG' ('CPU-Temperatur im Leerlauf {0:N0} °C: Kühlung prüfen (Lüfter, Staub, Wärmeleitpaste) oder Hintergrundlast suchen.' -f $Lead.CpuTemp) }
-        elseif ($Lead.CpuTemp -ge 70) { & $add 'INFO' ('CPU-Temperatur im Leerlauf {0:N0} °C, etwas hoch.' -f $Lead.CpuTemp) }
+        $isIdle = ($null -eq $Lead.CpuLoad -or $Lead.CpuLoad -lt 15)
+        $lastTxt = $(if ($null -ne $Lead.CpuLoad) { '{0} % Last' -f [math]::Round($Lead.CpuLoad) } else { '' })
+        $wattTxt = $(if ($null -ne $Lead.CpuW) { '{0:N0} W' -f $Lead.CpuW } else { '' })
+        $beiTxt = $(if ($lastTxt -and $wattTxt) { 'bei {0}, {1}' -f $lastTxt, $wattTxt } elseif ($lastTxt) { 'bei {0}' -f $lastTxt } elseif ($wattTxt) { 'bei {0}' -f $wattTxt } else { '' })
+        if ($isIdle) {
+            if ($Lead.CpuTemp -ge 80) { & $add 'WARNUNG' ('CPU-Temperatur im Leerlauf {0:N0} °C: Kühlung prüfen (Lüfter, Staub, Wärmeleitpaste) oder Hintergrundlast suchen.' -f $Lead.CpuTemp) }
+            elseif ($Lead.CpuTemp -ge 70) { & $add 'INFO' ('CPU-Temperatur im Leerlauf {0:N0} °C, etwas hoch.' -f $Lead.CpuTemp) }
+        } else {
+            if ($Lead.CpuTemp -ge 90) { & $add 'WARNUNG' ('CPU-Temperatur {0:N0} °C {1}: Kühlung und Hintergrundlast prüfen.' -f $Lead.CpuTemp, $beiTxt) }
+            elseif ($Lead.CpuTemp -ge 80) { & $add 'INFO' ('CPU-Temperatur {0:N0} °C {1}.' -f $Lead.CpuTemp, $beiTxt) }
+        }
     }
     if ($null -ne $Lead.GpuTemp -and $Lead.GpuTemp -ge 80) { & $add 'WARNUNG' ('GPU-Temperatur im Leerlauf {0:N0} °C: Grafikkartenlüfter und Gehäusebelüftung prüfen.' -f $Lead.GpuTemp) }
     $cpuFan = @($Readings | Where-Object { $_.Gruppe -eq 'Mainboard' -and $_.Art -eq 'Lüfter' -and $_.Name -match 'CPU' -and -not [double]::IsNaN([double]$_.Wert) })
@@ -22439,6 +23107,52 @@ function Get-SensorSnapshotFindings($Readings, $Lead) {
         & $add 'WARNUNG' ('Der CPU-Lüfteranschluss meldet 0 U/min bei {0:N0} °C: Lüfter angeschlossen und dreht er?' -f $Lead.CpuTemp)
     }
     return $f.ToArray()
+}
+
+# Akkubetrieb prüfen (Benchmark-Ausschluss für Referenz und Vergleich)
+function Test-OnBattery {
+    try {
+        $stat = @(Get-CimInstance -Namespace root\wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue)
+        if ($stat.Count -and $null -ne $stat[0].PowerOnline) { return (-not $stat[0].PowerOnline) }
+        $bat = @(Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue)
+        if ($bat.Count -and $bat[0].BatteryStatus -eq 1) { return $true }
+    } catch { }
+    return $false
+}
+
+# Hintergrundlast vor Messungen (Benchmark, Lasttest) erkennen
+function Test-HintergrundlastVorMessung([string]$Phase = 'Benchmark') {
+    Show-Sub $Phase 'Hintergrundlast vor der Messung wird geprüft' -1
+    $loads = New-Object System.Collections.Generic.List[double]
+    $watts = New-Object System.Collections.Generic.List[double]
+    for ($i = 0; $i -lt 5; $i++) {
+        $s = $null; try { $s = Get-CpuSample } catch { }
+        if ($s -and $null -ne $s.Last) { $loads.Add([double]$s.Last) }
+        if ($s -and $null -ne $s.Leistung) { $watts.Add([double]$s.Leistung) }
+        Start-Sleep -Milliseconds 1000
+    }
+    $avgLoad = if ($loads.Count) { ($loads | Measure-Object -Average).Average } else { 0.0 }
+    $avgWatt = if ($watts.Count) { ($watts | Measure-Object -Average).Average } else { 0.0 }
+
+    if ($avgLoad -gt 15.0 -or $avgWatt -gt 25.0) {
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        while ($sw.Elapsed.TotalSeconds -lt 20.0) {
+            Start-Sleep -Milliseconds 2000
+            $s = $null; try { $s = Get-CpuSample } catch { }
+            $currLoad = if ($s -and $null -ne $s.Last) { [double]$s.Last } else { 0.0 }
+            if ($currLoad -le 15.0) { break }
+        }
+        $s = $null; try { $s = Get-CpuSample } catch { }
+        $finalLoad = if ($s -and $null -ne $s.Last) { [double]$s.Last } else { $avgLoad }
+        if ($finalLoad -gt 15.0) {
+            $topProcs = @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.CPU -gt 0 } | Sort-Object CPU -Descending | Select-Object -First 3 | ForEach-Object { '{0} ({1:N0} s CPU)' -f $_.ProcessName, $_.CPU })
+            $procText = if ($topProcs.Count) { $topProcs -join ', ' } else { 'keine ermittelbar' }
+            $script:AblaufHintergrundlast = $true
+            Add-Finding INFO $Phase ('Erhöhte Hintergrundlast vor {0} ({1:N0} % CPU): {2}. Die Messwerte können dadurch niedriger ausfallen.' -f $Phase, $finalLoad, $procText)
+            Add-Line ('  Hinweis: Erhöhte Hintergrundlast vor {0} ({1:N0} % CPU): {2}' -f $Phase, $finalLoad, $procText)
+        }
+    }
+    Hide-Sub
 }
 #endregion
 #region ---------- GPU-Rendertest (ab v2.6) ----------
@@ -22572,11 +23286,18 @@ function ConvertTo-RenderResult($Run, $Adapter) {
         if ($p99 -le 0 -and $avgMs -gt 0) { $p99 = $avgMs }
         if ($maxMs -le 0 -and $avgMs -gt 0) { $maxMs = $avgMs }
     }
+    $stutterRel = 0.0
+    $fmz = @($Run.FrameMs)
+    if ($fmz.Count -gt 0 -and $med -gt 0) {
+        $threshRel = 2.0 * $med
+        $badCount = @($fmz | Where-Object { [double]$_ -gt $threshRel }).Count
+        $stutterRel = [math]::Round(($badCount / $fmz.Count) * 100.0, 2)
+    }
     [pscustomobject]@{
         Name = $(if ($Run.AdapterName) { [string]$Run.AdapterName } else { [string]$Adapter.Name }); Art = [string]$Adapter.Art; Bezeichnung = [string]$Adapter.Bezeichnung; Index = [int]$Adapter.Index
         Ok = ([bool]$Run.Ok -and -not $hung); Fehler = $err; Haengt = $hung; Aufloesung = ('{0}x{1}' -f $Run.Width, $Run.Height); Width = [int]$Run.Width; Height = [int]$Run.Height
         Ebene = [string]$Run.FeatureLevel; Sekunden = [math]::Round($sec, 1); Bilder = [long]$Run.MeasuredFrames
-        Fps = [math]::Round($fps, 1); Low1 = [math]::Round($low1, 1); Low01 = [math]::Round($low01, 1); Mikroruckler = [math]::Round([double]$Run.StutterPct, 2); MinFps = [math]::Round([double]$Run.MinFps, 1); MaxFps = [math]::Round([double]$Run.MaxFps, 1)
+        Fps = [math]::Round($fps, 1); Low1 = [math]::Round($low1, 1); Low01 = [math]::Round($low01, 1); Mikroruckler = [math]::Round([double]$Run.StutterPct, 2); MikrorucklerRel = $stutterRel; MinFps = [math]::Round([double]$Run.MinFps, 1); MaxFps = [math]::Round([double]$Run.MaxFps, 1)
         MedianMs = [math]::Round($med, 2); P99Ms = [math]::Round($p99, 2); MaxMs = [math]::Round($maxMs, 1); Punkte = [math]::Round([double]$Run.Score)
         Treiberreset = [bool]$Run.DeviceRemoved; ResetGrund = [string]$Run.RemovedReason; Esc = [bool]$Run.EscPressed
         Bildpruefungen = [int]$Run.ImageChecks; Bildfehler = [int]$Run.ImageErrors; Referenzbild = [string]$Run.RefHash
@@ -23190,8 +23911,8 @@ Invoke-Section 'Prozessor' {
         Add-Finding INFO 'Sensoren' 'ARM64-Architektur erkannt: Tiefgehende Kern- und Mainboard-Sensoren erfordern x86/x64-Treiber und stehen nur eingeschränkt zur Verfügung.'
     }
     $script:LogicalCpus = ($cpus | Measure-Object NumberOfLogicalProcessors -Sum).Sum
-    $script:BenchShort.CPU = Get-ShortCpuName @($cpus)[0].Name
-    $script:Facts['Prozessor'] = (($cpus | ForEach-Object { '{0} ({1} Kerne, {2} Threads)' -f $_.Name.Trim(), $_.NumberOfCores, $_.NumberOfLogicalProcessors }) -join '; ')
+    $script:BenchShort.CPU = Get-CpuAnzeigename @($cpus)[0].Name
+    $script:Facts['Prozessor'] = (($cpus | ForEach-Object { '{0} ({1} Kerne, {2} Threads)' -f (Get-CpuAnzeigename $_.Name.Trim()), $_.NumberOfCores, $_.NumberOfLogicalProcessors }) -join '; ')
 }
 
 Invoke-Section 'Arbeitsspeicher' {
@@ -23245,14 +23966,19 @@ Invoke-Section 'Grafik und Monitore' {
         $p = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue
         try { if ($p.DriverDesc -and $p.'HardwareInformation.qwMemorySize') { $vram[$p.DriverDesc] = [long]$p.'HardwareInformation.qwMemorySize' } } catch { }
     }
+    $adapters = @(Get-GpuAdapters)
+    $adapterMap = @{}
+    foreach ($a in $adapters) { $adapterMap[$a.Name] = $a }
     Get-CimCached Win32_VideoController | ForEach-Object {
+        $ad = if ($adapterMap.ContainsKey(([string]$_.Name).Trim())) { $adapterMap[([string]$_.Name).Trim()] } else { $null }
+        $isDesk = if ($ad) { [bool]$ad.Desktop } else { [bool]$_.CurrentHorizontalResolution }
         [pscustomobject][ordered]@{
             'Name'          = $_.Name
-            'Art'           = $(switch (Get-GpuKind ([string]$_.Name)) { 'dGPU' { 'dedizierte Grafikkarte' } 'iGPU' { 'Prozessorgrafik (integriert)' } 'virtuell' { 'virtueller Adapter' } default { 'unbekannt' } }) + $(if ($_.CurrentHorizontalResolution) { ', gibt den Desktop aus' } else { '' })
+            'Art'           = $(switch (Get-GpuKind ([string]$_.Name)) { 'dGPU' { 'dedizierte Grafikkarte' } 'iGPU' { 'Prozessorgrafik (integriert)' } 'virtuell' { 'virtueller Adapter' } default { 'unbekannt' } }) + $(if ($isDesk) { ', gibt den Desktop aus' } else { '' })
             'VRAM'          = $(if ($vram.ContainsKey($_.Name)) { Format-Size $vram[$_.Name] } else { Format-Size $_.AdapterRAM })
             'Treiber'       = $_.DriverVersion
             'Treiberdatum'  = $(if ($_.DriverDate) { $_.DriverDate.ToString('dd.MM.yyyy') })
-            'Auflösung'     = $(if ($_.CurrentHorizontalResolution) { '{0}x{1} @ {2} Hz' -f $_.CurrentHorizontalResolution, $_.CurrentVerticalResolution, $_.CurrentRefreshRate })
+            'Auflösung'     = $(if ($isDesk -and $_.CurrentHorizontalResolution) { '{0}x{1} @ {2} Hz' -f $_.CurrentHorizontalResolution, $_.CurrentVerticalResolution, $_.CurrentRefreshRate })
             'Status'        = $_.Status
         }
     } | Out-Report -List
@@ -23418,7 +24144,10 @@ Invoke-Section 'Akku' {
         $fullC  = $(if ($r -and $r.VollmWh) { $r.VollmWh } elseif ($full.Count -gt $i -and $full[$i].FullChargedCapacity) { [double]$full[$i].FullChargedCapacity } else { $null })
         $cycles = $(if ($r -and $null -ne $r.Zyklen) { $r.Zyklen } elseif ($cyc.Count -gt $i -and $cyc[$i].CycleCount) { [double]$cyc[$i].CycleCount } else { $null })
         $info = New-BatteryInfo $(if ($r -and $r.Name) { $r.Name } else { $bat[$i].Name }) $(if ($r) { $r.Hersteller } elseif ($static.Count -gt $i) { $static[$i].ManufactureName }) $(if ($r) { $r.Chemie }) $design $fullC $cycles
-        if ($r) { $info.LaufzeitVoll = $r.LaufzeitVoll; $info.LaufzeitDesign = $r.LaufzeitDesign; $info.Verlauf = @($r.Verlauf) }
+        if ($r) {
+            $info.LaufzeitVoll = $r.LaufzeitVoll; $info.LaufzeitDesign = $r.LaufzeitDesign; $info.Verlauf = @($r.Verlauf)
+            if ($r.PSObject.Properties['DesignHinweis'] -and $r.DesignHinweis) { $info | Add-Member -NotePropertyName DesignHinweis -NotePropertyValue $r.DesignHinweis -Force }
+        }
         $info | Add-Member -NotePropertyName Ladestand -NotePropertyValue $bat[$i].EstimatedChargeRemaining -Force
         $info | Add-Member -NotePropertyName Netzteil -NotePropertyValue $(if ($stat.Count -gt $i) { [bool]$stat[$i].PowerOnline } else { $null }) -Force
         $info | Add-Member -NotePropertyName Quelle -NotePropertyValue $(if ($r) { $repSrc } else { 'WMI' }) -Force
@@ -23427,10 +24156,10 @@ Invoke-Section 'Akku' {
             'Akku'                      = $info.Name
             'Hersteller, Chemie'        = (@($info.Hersteller, $info.Chemie) | Where-Object { $_ }) -join ', '
             'Ladestand'                 = $(if ($null -ne $info.Ladestand) { '{0} %{1}' -f $info.Ladestand, $(if ($info.Netzteil) { ', am Netzteil' } elseif ($info.Netzteil -eq $false) { ', im Akkubetrieb' }) })
-            'Designkapazität'           = $(if ($info.DesignmWh) { '{0:N0} mWh' -f $info.DesignmWh })
+            'Designkapazität'           = $(if ($info.PSObject.Properties['DesignHinweis'] -and $info.DesignHinweis) { '{0:N0} mWh ({1})' -f $info.DesignmWh, $info.DesignHinweis } elseif ($info.DesignmWh) { '{0:N0} mWh' -f $info.DesignmWh })
             'Volle Ladekapazität'       = $(if ($info.VollmWh) { '{0:N0} mWh' -f $info.VollmWh })
             'Verschleiß'                = $(if ($null -ne $info.VerschleissProzent) { '{0:N1} %' -f $info.VerschleissProzent } else { 'nicht ermittelbar' })
-            'Ladezyklen'                = $(if ($null -ne $info.Zyklen) { '{0:N0}' -f $info.Zyklen } else { 'nicht gemeldet' })
+            'Ladezyklen'                = $(if ($null -ne $info.Zyklen -and $info.Zyklen -gt 0) { '{0:N0}' -f $info.Zyklen } else { 'nicht gemeldet' })
             'Laufzeit (volle Ladung)'   = $(if ($info.LaufzeitVoll) { (Format-Duration $info.LaufzeitVoll) + ' geschätzt' } else { 'keine Schätzung' })
             'Laufzeit (Neuzustand)'     = $(if ($info.LaufzeitDesign) { (Format-Duration $info.LaufzeitDesign) + ' geschätzt' } else { '' })
             'Quelle'                    = $info.Quelle
@@ -23445,7 +24174,7 @@ Invoke-Section 'Akku' {
         $f = Get-BatteryFinding $info
         if ($f) { Add-Finding $f.Stufe 'Akku' $f.Text }
     }
-    if ($script:BatteryInfo.Count) { $b0 = $script:BatteryInfo[0]; $script:Facts['Akku'] = ('{0}: {1}{2}' -f $b0.Name, $(if ($null -ne $b0.VerschleissProzent) { '{0:N0} % Verschleiß' -f $b0.VerschleissProzent } else { 'Verschleiß nicht ermittelbar' }), $(if ($null -ne $b0.Zyklen) { ', {0:N0} Zyklen' -f $b0.Zyklen } else { '' })) }
+    if ($script:BatteryInfo.Count) { $b0 = $script:BatteryInfo[0]; $script:Facts['Akku'] = ('{0}: {1}{2}' -f $b0.Name, $(if ($null -ne $b0.VerschleissProzent) { '{0:N0} % Verschleiß' -f $b0.VerschleissProzent } else { 'Verschleiß nicht ermittelbar' }), $(if ($null -ne $b0.Zyklen -and $b0.Zyklen -gt 0) { ', {0:N0} Zyklen' -f $b0.Zyklen } else { '' })) }
     Add-Line '  Ausführlicher Akkubericht: Akkubericht.html im Anhang'
 }
 
@@ -23835,9 +24564,12 @@ if ($script:Opt['RamTest']) {
         if (-not $TypesLoaded) { Add-Line '  Übersprungen: C#-Testroutinen nicht verfügbar (Constrained Language Mode / AppLocker).'; return }
         $os = Get-CimCached Win32_OperatingSystem | Select-Object -First 1
         $free = [long]$os.FreePhysicalMemory * 1KB
-        $target = [long]($free * $RamTestPercent / 100)
-        if (-not [Environment]::Is64BitProcess) { $target = [math]::Min($target, 1.2GB) }
-        Add-Line ('  Freier RAM: {0}, davon getestet werden {1} % ({2}).' -f (Format-Size $free), $RamTestPercent, (Format-Size $target))
+        $rawTarget = [long]($free * $RamTestPercent / 100)
+        if (-not [Environment]::Is64BitProcess) { $rawTarget = [math]::Min($rawTarget, 1024MB) }
+        $target = [long]([math]::Floor([double]$rawTarget / 256MB) * 256MB)
+        if ($target -lt 256MB) { $target = 256MB }
+        $actualPct = [math]::Round([double]$target / [double]$free * 100)
+        Add-Line ('  Freier RAM: {0}, davon getestet werden {1} % ({2}).' -f (Format-Size $free), $actualPct, (Format-Size $target))
         Add-Line '  Hinweis: Ein Test unter Windows erreicht nicht jeden physischen Speicherbereich. Für eine vollständige Prüfung die Windows-Speicherdiagnose oder MemTest86 nutzen.'
         $task = [DiagRam]::RunAsync($target, $RamTestPasses)
         while (-not $task.IsCompleted) {
@@ -24182,11 +24914,11 @@ if (($ModBench -or $ModLast) -and -not $ModDiag) {
         $script:Facts['Betriebssystem'] = ('{0} {1} (Build {2}.{3})' -f $os.Caption, $cv.DisplayVersion, $os.BuildNumber, $cv.UBR)
         if ($ii.Erstinstallation) { $script:Facts['Windows installiert'] = ('{0:dd.MM.yyyy} (vor {1}){2}' -f $ii.Erstinstallation, (Format-Age $ii.AlterTage -Dativ), $(if ($ii.Upgrades.Count) { ', seitdem {0} Funktionsupdate(s), zuletzt {1:dd.MM.yyyy}' -f $ii.Upgrades.Count, $ii.AktuellSeit } else { ', seitdem kein Funktionsupdate' })) }
         $script:Facts['BIOS/UEFI']      = ('{0} vom {1:dd.MM.yyyy}' -f $bios.SMBIOSBIOSVersion, $bios.ReleaseDate)
-        $script:Facts['Prozessor']      = (($cpus | ForEach-Object { '{0} ({1} Kerne, {2} Threads)' -f $_.Name.Trim(), $_.NumberOfCores, $_.NumberOfLogicalProcessors }) -join '; ')
+        $script:Facts['Prozessor']      = (($cpus | ForEach-Object { '{0} ({1} Kerne, {2} Threads)' -f (Get-CpuAnzeigename $_.Name.Trim()), $_.NumberOfCores, $_.NumberOfLogicalProcessors }) -join '; ')
         if ($mods.Count) { $script:Facts['Arbeitsspeicher'] = ('{0} ({1}x {2} {3}, {4} MT/s)' -f (Format-Size $total), $mods.Count, (Format-Size $mods[0].Capacity), $typ0, $spd0) }
         $script:Facts['Grafik']         = $(try { Get-GpuFactText } catch { $(if ($gMain) { [string]$gMain.Name } else { '' }) })
         $script:Facts['Datenträger']    = (($pd | ForEach-Object { '{0} ({1}, {2})' -f $_.FriendlyName, (Format-Size $_.Size), $_.BusType }) -join "`n")
-        $script:BenchShort.CPU = Get-ShortCpuName $cpus[0].Name
+        $script:BenchShort.CPU = Get-CpuAnzeigename $cpus[0].Name
         if ($mods.Count) { $script:BenchShort.RAM = ('{0} GB {1}-{2}' -f [math]::Round($total / 1GB), $(if ($typ0) { $typ0 } else { 'RAM' }), $spd0) }
         if ($gMain) { $script:BenchShort.GPU = Get-ShortGpuName $gMain.Name }
         $script:DiskNames = @{}
@@ -24233,6 +24965,12 @@ function Initialize-Bench {
     else { Add-Line '  Keine Referenz festgelegt, Prozentwerte entfallen. Zur Referenz wird ein PC mit dem Haken "Dieses System als Referenz festlegen".' }
     if ($script:CmpSystems.Count) { Add-Line ('  Eingeblendete Vergleichssysteme: {0}' -f (($script:CmpSystems | ForEach-Object { '{0} ({1})' -f $_.Computer, $_.Datum }) -join ', ')) }
     Add-Line '  Für aussagekräftige Werte andere Programme schließen und den PC am Netzteil betreiben.'
+    if (Test-OnBattery) {
+        $script:AblaufAkkubetrieb = $true
+        Add-Finding WARNUNG 'Benchmark' 'Benchmark im Akkubetrieb, Werte niedriger und nicht vergleichbar'
+        Add-Line '  Hinweis: Benchmark im Akkubetrieb, Werte niedriger und nicht vergleichbar.'
+    }
+    Test-HintergrundlastVorMessung -Phase 'Benchmark'
     $idle = Get-CpuSample
     $script:BenchStartLoad = [int]$idle.Last
     if ($idle.Last -gt 15) { Add-Finding INFO 'Leistung' ('Beim Benchmark-Start lag bereits {0} % CPU-Last an, die Werte können niedriger ausfallen.' -f $idle.Last) }
@@ -24381,8 +25119,10 @@ if ($script:BenchSel['CPU']) {
             if ($sha -gt 0) { Add-BenchResult -Gruppe 'CPU' -Komponente 'CPU' -Messung 'SHA-256 Prüfsumme' -Wert ([math]::Round($sha)) -Einheit 'MB/s' -Anzeige ('{0:N0} MB/s' -f $sha) -Key ($keyCpu + '|SHA') -RefKey 'CPU|SHA' -Hinweis $(if ($sha -ge 1500) { 'ein Thread, SHA-Befehlssatz aktiv' } else { 'ein Thread' }) }
             $tD = [DiagBench]::DeflateAsync($threads, $ms); [void](Wait-TaskProgress $tD 'Benchmark Prozessor' ('Kompression, {0} Threads' -f $threads) ($ms + 1500)); $defl = [double]$tD.Result
             if ($defl -gt 0) { Add-BenchResult -Gruppe 'CPU' -Komponente 'CPU' -Messung 'Kompression (Deflate)' -Wert ([math]::Round($defl)) -Einheit 'MB/s' -Anzeige ('{0:N0} MB/s' -f $defl) -Key ($keyCpu + '|DEFL') -RefKey 'CPU|DEFL' -Hinweis ('ZIP-Kompression von Textdaten auf {0} Threads, Durchsatz der Eingangsdaten' -f $threads) }
-            $script:BenchHead['CPU'] = '{0} · Einzelkern {1:N0} · Mehrkern {2:N0} Punkte' -f ($cpuName -replace '\s*(\d+-Core|Processor|CPU @.*$)', '' -replace '\((R|TM)\)', ''), $ptsST, $ptsMT
-            $script:BenchShort.CPU = Get-ShortCpuName $cpuName
+            $dispCpu = Get-CpuAnzeigename $cpuName
+            $dispCpuFull = if ($cores -gt 0 -and $threads -gt 0) { '{0} ({1} Kerne, {2} Threads)' -f $dispCpu, $cores, $threads } else { $dispCpu }
+            $script:BenchHead['CPU'] = '{0} · Einzelkern {1:N0} · Mehrkern {2:N0} Punkte' -f $dispCpuFull, $ptsST, $ptsMT
+            $script:BenchShort.CPU = $dispCpu
         } catch { Write-BenchError 'Prozessor' $_ }
         Send-BenchGroup 'CPU'
         Add-BenchHeadLine 'CPU'
@@ -24560,6 +25300,7 @@ if ($script:BenchSel['GPU']) {
                         Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Rendertest 1-%-Low' + $suffix) -Wert $res.Low1 -Einheit 'Bilder/s' -Anzeige ('{0:N0} Bilder/s' -f $res.Low1) -Key ('GPU|' + $res.Name + '|REND1|' + $res.Aufloesung) -RefKey $(if ($isLead -and $res.Aufloesung -eq '1280x720') { 'GPU|REND1' } else { '' }) -Hinweis 'Bilder/s aus den langsamsten 1 % der Bildzeiten (Ruckler)'
                         Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Rendertest 0,1-%-Low' + $suffix) -Wert $res.Low01 -Einheit 'Bilder/s' -Anzeige ('{0:N0} Bilder/s' -f $res.Low01) -Key ('GPU|' + $res.Name + '|REND01|' + $res.Aufloesung) -RefKey $(if ($isLead -and $res.Aufloesung -eq '1280x720') { 'GPU|REND01' } else { '' }) -Hinweis 'Bilder/s aus dem 99,9. Perzentil der Bildzeiten (0,1 % Low)'
                         Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Mikroruckler-Anteil' + $suffix) -Wert $res.Mikroruckler -Einheit '%' -Anzeige ('{0:N1} %' -f $res.Mikroruckler) -Key ('GPU|' + $res.Name + '|STUTTER') -RefKey $(if ($isLead) { 'GPU|STUTTER' } else { '' }) -Hinweis 'Anteil der Bilder mit Bildzeit über 50 ms'
+                        Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Mikroruckler (relativ)' + $suffix) -Wert $res.MikrorucklerRel -Einheit '%' -Anzeige ('{0:N1} %' -f $res.MikrorucklerRel) -Key ('GPU|' + $res.Name + '|STUTTERREL') -RefKey $(if ($isLead) { 'GPU|STUTTERREL' } else { '' }) -Hinweis 'Anteil der Bilder mit Bildzeit über das Doppelte des Medians'
                         Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Rendertest Punktzahl' + $suffix) -Wert $res.Punkte -Einheit 'Punkte' -Anzeige ('{0:N0} Punkte' -f $res.Punkte) -Key ('GPU|' + $res.Name + '|RPKT') -RefKey $(if ($isLead) { 'GPU|RPKT' } else { '' }) -Hinweis 'Ø Bilder/s x Pixel je Bild / 10 000, vergleichbar über die Auflösungen'
                         Add-Line ('  {0} ({1}): Ø {2:N1} Bilder/s, 1-%-Low {3:N1}, 0,1-%-Low {4:N1}, Mikroruckler {5:N1} %, Punktzahl {6:N0}, {7:N0} Bilder in {8:N1} s' -f $res.Name, $res.Bezeichnung, $res.Fps, $res.Low1, $res.Low01, $res.Mikroruckler, $res.Punkte, $res.Bilder, $res.Sekunden)
                         try {
@@ -24868,8 +25609,9 @@ if ($ModLast -and (Test-StepEnabled 'Last:alle')) {
             try { Register-BadReadings $rd $script:LoadBadSeen } catch { }
             try { return (Get-SensorLead $rd) } catch { return (Get-SensorLead @()) }
         }
+        Test-HintergrundlastVorMessung -Phase 'Lasttest'
         $cpuOf = { try { return (Get-CpuSample) } catch { return [pscustomobject]@{ Last = 0; Leistung = 0; MaxLeistung = 0; MaxFreq = 0; MHz = 0; MaxMHz = 0; Temp = $null; Quelle = 'Fehler' } } }
-        $idleSamples = New-Object System.Collections.ArrayList
+        $idleSamples = New-Object System.Collections.Generic.List[object]
         Show-Sub 'Lasttest' 'Leerlaufwerte werden gemessen' -1
         for ($i = 0; $i -lt 3; $i++) { [void]$idleSamples.Add((& $readLead (& $cpuOf) -Disk:($i -eq 0))); Start-Sleep -Milliseconds 700 }
         $idle = $idleSamples[$idleSamples.Count - 1]
@@ -24884,7 +25626,9 @@ if ($ModLast -and (Test-StepEnabled 'Last:alle')) {
         Send-GuiEvent 'SENSLIM' (Format-SensorValue $cpuLimit) (Format-SensorValue $gpuLimit) (Format-SensorValue $tjMax)
         Add-Line ('  Sensoren: {0}' -f (Get-SensorSourceText))
         Add-SensorGapFinding 'Der Lasttest'
-        Add-Line ('  Leerlauf vor der Last: CPU {0}, GPU {1}, Paketleistung {2}' -f $(if ($null -ne $idle.CpuTemp) { '{0:N0} °C ({1})' -f $idle.CpuTemp, $idle.CpuTempQ } else { 'Temperatur nicht verfügbar' }), $(if ($null -ne $idle.GpuTemp) { '{0:N0} °C' -f $idle.GpuTemp } else { 'nicht verfügbar' }), $(if ($null -ne $idle.CpuW) { '{0:N0} W' -f $idle.CpuW } else { 'nicht verfügbar' }))
+        $isIdle = ($null -eq $idle.CpuLoad -or $idle.CpuLoad -lt 15)
+        $leadPrefix = if ($isIdle) { 'Leerlauf vor der Last' } else { 'Sensoren vor der Last (bei {0} % Last)' -f [math]::Round($idle.CpuLoad) }
+        Add-Line ('  {0}: CPU {1}, GPU {2}, Paketleistung {3}' -f $leadPrefix, $(if ($null -ne $idle.CpuTemp) { '{0:N0} °C ({1})' -f $idle.CpuTemp, $idle.CpuTempQ } else { 'Temperatur nicht verfügbar' }), $(if ($null -ne $idle.GpuTemp) { '{0:N0} °C' -f $idle.GpuTemp } else { 'nicht verfügbar' }), $(if ($null -ne $idle.CpuW) { '{0:N0} W' -f $idle.CpuW } else { 'nicht verfügbar' }))
         Add-Line ('  Abbruchschwelle: CPU {0}, GPU {1}. Der Test endet, wenn die CPU {2} oder die GPU rund 10 Sekunden darüber liegt.' -f $(if ($cpuLimit) { '{0:N0} °C{1}' -f $cpuLimit, $(if ($LastAbbruchCpu -eq 'auto') { $(if ($tjMax) { ' (TjMax)' } else { ' (automatisch)' }) } else { '' }) } else { 'aus' }), $(if ($gpuLimit) { '{0:N0} °C' -f $gpuLimit } else { 'aus' }), $(if ($cpuHold -ge 10) { 'rund eine Minute' } else { 'rund 10 Sekunden' }))
         if ($cpuLimit -and $idle.CpuTempQ -eq 'ACPI') { Add-Line '  Hinweis: Als CPU-Temperatur steht nur die ACPI-Thermalzone zur Verfügung; sie zählt für den Abbruch erst, wenn sie sich unter Last bewegt.' }
         elseif ($cpuLimit -and $null -eq $idle.CpuTemp) { Add-Line '  Hinweis: Keine CPU-Temperatur verfügbar, die CPU-Abbruchschwelle kann nicht greifen.' }
@@ -25963,7 +26707,9 @@ if ($script:Stability) {
     if ($script:Stability.Erklaerung) { foreach ($l in @(Split-TextLines $script:Stability.Erklaerung 94)) { [void]$head.AppendLine('    ' + $l) } }
     [void]$head.AppendLine()
 }
-[void]$head.AppendLine(('  ERGEBNIS: {0} kritisch, {1} Warnungen, {2} Hinweise' -f $nK, $nW, $nI))
+$ergText = '  ERGEBNIS: {0} kritisch, {1} Warnungen, {2} Hinweise' -f $nK, $nW, $nI
+if ($script:AblaufAkkubetrieb) { $ergText += ' (Hinweis: Benchmark im Akkubetrieb, Werte niedriger und nicht vergleichbar)' }
+[void]$head.AppendLine($ergText)
 [void]$head.AppendLine('  ' + ('-' * 98))
 if ($sorted.Count) {
     foreach ($f in $sorted) { [void]$head.AppendLine(('  [{0,-8}] {1,-14} {2}' -f $f.Stufe, $f.Bereich, $f.Befund)) }
@@ -25987,10 +26733,7 @@ try { New-HtmlReport -Path $htmlFile -Sorted $sorted -NK $nK -NW $nW -NI $nI -St
 catch { Write-Warning ('HTML-Bericht konnte nicht erstellt werden: {0}' -f $_.Exception.Message); $htmlFile = '' }
 
 try {
-    $dashPath = Export-BenchDashboardHtml -ErrorAction SilentlyContinue
-    if ($dashPath -and (Test-Path -LiteralPath $dashPath)) {
-        Copy-Item -LiteralPath $dashPath -Destination (Join-Path $OutputDir 'Dashboard.html') -Force -ErrorAction SilentlyContinue
-    }
+    [void](Export-BenchDashboardHtml -ErrorAction SilentlyContinue)
 } catch { }
 
 if ($script:GuiLog) { try { $script:GuiLog.Close(); $script:GuiLog = $null } catch { } }

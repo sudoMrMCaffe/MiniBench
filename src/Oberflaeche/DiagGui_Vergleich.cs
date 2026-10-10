@@ -118,6 +118,7 @@ public partial class DiagGui
 
         dlg.Controls.Add(lbl); dlg.Controls.Add(tb); dlg.Controls.Add(btnOk); dlg.Controls.Add(btnCancel);
         dlg.AcceptButton = btnOk; dlg.CancelButton = btnCancel;
+        UI.ThemeDialog(dlg);
 
         return dlg.ShowDialog(this) == DialogResult.OK ? tb.Text : null;
     }

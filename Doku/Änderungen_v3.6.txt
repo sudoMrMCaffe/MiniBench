@@ -1,0 +1,125 @@
+﻿LEOS MINIBENCH 3.6: ÄNDERUNGEN
+==============================
+
+Version 3.6 führt feste Median-Referenzen je Geräteklasse (Notebook und Desktop) ein, strukturiert die Wartung und
+Diagnose-Prüfungen übersichtlich in aufklappbare Gruppen, beseitigt schwarze Schrift auf dunklem Grund in allen
+Dialogen und Dialogfenstern, ergänzt reale Kerne und Threads sowie herstellerbereinigte CPU-Anzeigenamen und überarbeitet
+das Multi-System-Dashboard. Zudem fließen umfangreiche Härtungen aus Praxistests ein: Hintergrundlastprüfungen vor
+Messungen, robuste Akkuverschleiß-Auswertung, Windows-11-Erkennung im Upgrade-Verlauf, Filterung unplausibler Sensorwerte,
+Optimus-Hybridgrafik-Zuordnung, relative Mikroruckler und Erkennung von Akkubetrieb.
+
+1. MEDIAN-REFERENZ JE GERÄTEKLASSE (NOTEBOOK, DESKTOP)
+Neben der festen Einzelreferenz (Referenz.json) und dem dynamischen Gesamtmedian stehen zwei neue, feste Referenzdateien
+zur Verfügung: Minibench-Daten\Referenz_Desktop.json und Minibench-Daten\Referenz_Notebook.json.
+  Feste Referenzen    Bisher rechnete die Option *median den Median bei jedem Start über alle vorhandenen Systeme neu.
+                      Dadurch verschoben sich die relativen Prozentwerte aller Systeme mit jedem neu gemessenen Gerät.
+                      Die neuen Referenzdateien sind statisch gespeichert und bieten eine verlässliche 100-%-Basis.
+  Aktualisierung      Über die Schaltfläche "Median aktualisieren" auf der Seite Vergleichsdatenbank oder den Parameter
+                      -MedianAktualisieren werden beide Referenzen kontrolliert neu aus allen bereinigten Datenbankläufen
+                      berechnet.
+  Eigene Systeme      Jeder neu durchgeführte Gesamtlauf (Benchmark und Diagnose) wird in der lokalen Datenbank abgelegt.
+                      Beim nächsten Aktualisieren des Medians fließt er automatisch in die jeweilige Geräteklasse ein.
+  Median vs Mittel    Der Median ist im Gegensatz zum arithmetischen Mittelwert unempfindlich gegenüber extremen Ausreißern.
+                      Ein einzelnes High-End-Enthusiasten-System oder ein sehr schwaches Netbook würde den Mittelwert
+                      deutlich verzerren. Der Median repräsentiert exakt das typische Mittelfeld der gemessenen Geräte.
+
+2. WARTUNGSMASSNAHMEN GEGLIEDERT
+Die 23 Wartungsmaßnahmen (Module\Wartung\Vertrag.psd1) sind nun in vier fachliche Gruppen gegliedert (12. Feld der
+Vertragszeile):
+  1. Systemdateien und Komponentenspeicher (DismRestore, Sfc, Komponentenbereinigung, Dateisystem)
+  2. Bereinigung und Speicherplatz (Temp, Datentraegerbereinigung, UpdateDownloads, ShaderCache, Prefetch, PaketCache,
+     Absturzabbilder, Wiederherstellungspunkte)
+  3. Windows Update, Netzwerk und Zeit (WindowsUpdate, Netzwerk, Zeit)
+  4. Dienste, Geräte und Energie (WMI, Leistungszaehler, Leerlaufaufgaben, Druck, Geraete, Schnellstart, Energieplaene)
+Die Darstellung erfolgt wie auf der Seite Optimierung mit auf- und zuklappbaren Gruppen, Statusanzeige ("x von y gewählt")
+und Tooltips. Gruppen mit aktiven Maßnahmen öffnen sich automatisch. "Übliche Auswahl" und "Keine" aktualisieren alle
+Zähler synchron. Ältere Modulverträge ohne 12. Feld bleiben vollständig lesbar.
+
+3. DIAGNOSE: PRÜFUNGEN STANDARDMÄSSIG EINGEKLAPPT
+Auf der Seite Diagnose ist der Abschnitt der Prüfungen (diagChk) beim Start eingeklappt.
+  Zusammenfassung     Der Kopfbereich zeigt stets die aktuelle Anzahl und das Profil an, beispielsweise
+                      "6 von 8 Prüfungen gewählt (Profil Schnell)". ApplyDiagProfile und UpdateSummary halten den Text
+                      aktuell.
+  Automatisches Öffnen Wird das Profil "Benutzerdefiniert" gewählt, öffnet sich der Block selbstständig. Klicks auf
+                      einzelne Kontrollkästchen außerhalb des benutzerdefinierten Profils schalten wie gewohnt auf
+                      Benutzerdefiniert um.
+
+4. DUNKLES FARBSCHEMA: KEINE SCHWARZE SCHRIFT AUF DUNKLEM GRUND
+Im dunklen Schema erbten Dialogfenster (Formulare mit neuem Form()) Systemfarben für Steuerelemente, was zu schwarzem Text
+auf dunklem Grund führte.
+  UI.ThemeDialog      Eine zentrale Hilfsmethode formatiert alle Formulare und rekursiv alle enthaltenen Steuerelemente
+                      (Label, CheckBox, RadioButton, LinkLabel, TextBox, ComboBox, Button) passend zu Hintergrund, Text-
+                      und Rahmenfarben.
+  Dynamisches Theme   Beim Umschalten des Designs zur Laufzeit werden alle Steuerelementtypen sauber umgefärbt.
+  Leonardo-Prüfliste  Folgende Dialoge sollten im dunklen Schema begutachtet werden:
+                      - PawnIO-Treiber (Installations- und Bestätigungsdialog)
+                      - Voreinstellung speichern
+                      - PromptInput (Eingabedialoge für Bezeichnungen und NAS-Benutzer)
+                      - PromptPassword (Kennworteingabe für Netzlaufwerke)
+                      - Netzlaufwerk verbinden (ShowConnectNasDialog)
+
+5. HARDWARE-SPEZIFIKATION: KERNE/THREADS UND CPU-ANZEIGENAMEN
+  Kerne und Threads   Die Datenbankfelder Hardware.Kerne und Hardware.Threads speichern nun die realen Prozessorkerne und
+                      logischen Threads als Ganzzahlen. Ältere Einträge lesen diese aus Diagnosebericht.txt nach. Fehlt
+                      die Information, wird "n/v" ausgewiesen.
+  CPU-Anzeigenamen    Get-CpuAnzeigename entfernt redundante Herstellerzusätze (Intel, AMD, Qualcomm) und Taktraten
+                      aus der Anzeige ("Core i5-8265U", "Ryzen 5 7600X", "Snapdragon X Elite X1E78100").
+                      Die Anzeige erfolgt einheitlich als "Ryzen 5 7600X (6 Kerne, 12 Threads)" in Berichten,
+                      Systemvergleich und Dashboard. Interne Datenbankschlüssel bleiben unverändert.
+
+6. DASHBOARD & LASTTEST-TELEMETRIE
+  Profilkarten        renderProfilesGrid sortiert die Systeme absteigend nach Gesamtpunktzahl. Das Basissystem steht
+                      an der Position seiner erreichten Punktzahl und bleibt visuell hervorgehoben (is-base, 100 % Basis).
+  Sensorverlauf       Der Abschnitt "Lasttest-Telemetrie & Multi-System-Sensorverlauf" steht über den Befunden.
+                      Zwei Reiter ("CPU" und "GPU") bieten Temperaturverläufe aller Systeme. Der Cursor-Tooltip zeigt
+                      Temperatur, Takt (MHz), Leistungsaufnahme (W) sowie bei GPU Grafiktakt, Leistung, iGPU-Metriken
+                      und Bildwiederholraten.
+  Bereinigung         Der redundante Reiter "Basissystem Detailansicht" und synthetisch generierte Kurven wurden entfernt.
+                      Fehlende Messwerte werden als Lücke in der Kurve dargestellt.
+
+7. SENSOR- UND PRAXISTEST-HÄRTUNG AUS FELDTESTS
+  Hintergrundlast     Test-HintergrundlastVorMessung prüft 10 Sekunden vor Benchmark und Lasttest die Prozessorauslastung.
+                      Liegt die Last bei 15 % oder mehr, wird die Bezeichnung "Leerlauf" unterdrückt und die Warnschwellen
+                      werden auf 90 bzw. 80 °C angehoben.
+  Akkuverschleiß      Stimmen Design- und Vollladekapazität überein, nutzt die Diagnose die historische Höchstkapazität
+                      als Bezugswert. Ein Zykluszähler von 0 wird als "nicht gemeldet" angezeigt. Fällt die Kapazität um
+                      mehr als 30 % gegenüber der Historie ab, warnt ein Hinweis vor Messfehlern und rät zur Nachprüfung.
+  Windows 11 Upgrade  Systeme ab Build 22000 werden in der Upgrade-Historie verlässlich als Windows 11 erkannt, selbst
+                      wenn ältere Registrierungseinträge noch Windows 10 angeben.
+  Sensorplausibilität Komponententemperaturen unter 5 °C sowie identische Leerlaufspannungen über 1.5 V an derselben
+                      Komponente werden als Sensor-Messfehler gefiltert und nicht gewertet.
+  Mikroruckler        GPU|STUTTERREL erfasst den relativen Anteil von Einzelbilddauern, die mehr als das Zweifache des
+                      Medians betragen. Der historische absolute Mikrorucklerwert bleibt in alten Läufen erhalten, wird
+                      aber nicht mehr verglichen.
+  Optimus Hybrid      Auf Notebooks mit iGPU und dedizierter Nvidia-GPU wird die dGPU als sekundär ohne primäre
+                      Desktop-Auflösung ausgewiesen.
+  RAM-Mustertest      Die Puffergröße wird auf 256-MB-Grenzen gerundet; angezeigte und geprüfte Speichermenge stimmen
+                      exakt überein.
+  Akkubetrieb         Wird der Benchmark auf Akku gestartet (Test-OnBattery), vermerkt die Software dies im Ergebnis
+                      und setzt im Datenbankeintrag Ablauf.Akkubetrieb auf true.
+
+GEFUNDEN UND BEHOBEN (Tests und Codeprüfung)
+  1. Grafikauswertung: In ConvertTo-RenderResult erwartete die Mikroruckler-Berechnung FrameTimes statt FrameMs; behoben.
+  2. Kulturunabhängigkeit: Zahlenformatierungen in Pester-Tests scheiterten unter englischer Kultur an Kommatrennzeichen;
+     Muster auf [.,] verallgemeinert.
+  3. Datenbank-Import: Fehlende Hilfsfunktionen bei isoliertem Laden von Datenbank.ps1 fing Save-DbEntry sicher ab.
+  4. Telemetrie-Visualisierung: Das Umschalten zwischen CPU- und GPU-Reiter blendete vorherige Datenpunkte nicht
+     vollständig aus; Zustandstracking in JavaScript bereinigt.
+  5. UI-Theming: CheckBoxen und RadioButtons in Dialogfenstern verloren nach Farbschemawechsel ihre Vordergrundfarbe;
+     rekursives Theming in UI.ThemeDialog behoben.
+
+GRENZEN
+  Benchmarks auf Akku sind möglich, weisen jedoch auf verringerte Leistungsfähigkeit hin.
+  Sehr alte Datenbankeinträge ohne Diagnosebericht.txt zeigen für Kerne und Threads "n/v".
+  Die Medianberechnung je Geräteklasse erfordert mindestens einen bereinigten Datenbanksatz der jeweiligen Klasse.
+
+UMSTIEG
+  1. Nach dem Aktualisieren auf Version 3.6 auf der Seite Vergleichsdatenbank die Schaltfläche "Median aktualisieren"
+     anklicken (oder LeosMinibench.exe -MedianAktualisieren ausführen), um Referenz_Desktop.json und
+     Referenz_Notebook.json anzulegen.
+  2. Bestehende Datenbankeinträge und Berichte bleiben unverändert gültig.
+
+QUELLEN
+  WMI Win32_Processor / Win32_Battery Spezifikation: learn.microsoft.com/windows/win32/cimwin32prov/computer-system-hardware-classes
+  Windows Battery Report XML Schema: learn.microsoft.com/windows-hardware/design/device-experiences/powercfg-battery-report
+  DWM Dark Mode API: learn.microsoft.com/windows/win32/dwm/dwm-constants

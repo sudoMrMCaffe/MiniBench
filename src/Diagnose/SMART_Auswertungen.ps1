@@ -109,8 +109,13 @@ function Get-WindowsInstallInfo {
         $upd = $null
         if ($_.PSChildName -match 'Updated on (.+)\)') { $t = [datetime]::MinValue; if ([datetime]::TryParse($Matches[1], $en, [Globalization.DateTimeStyles]::None, [ref]$t)) { $upd = $t } }
         if ($inst) {
+            $prod = [string]$p.ProductName
+            $bldNum = 0
+            if ($p.CurrentBuild -and [int]::TryParse([string]$p.CurrentBuild, [ref]$bldNum) -and $bldNum -ge 22000) {
+                if ($prod -match 'Windows\s*10') { $prod = $prod -replace 'Windows\s*10', 'Windows 11' }
+            }
             [pscustomobject]@{ Installiert = $inst; Ersetzt = $upd; Version = $(if ($p.DisplayVersion) { $p.DisplayVersion } else { $p.ReleaseId })
-                Build = ('{0}.{1}' -f $p.CurrentBuild, $p.UBR).Trim('.'); Produkt = $p.ProductName }
+                Build = ('{0}.{1}' -f $p.CurrentBuild, $p.UBR).Trim('.'); Produkt = $prod }
         }
     } | Sort-Object Installiert)
     $first = $cur

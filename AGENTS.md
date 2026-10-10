@@ -1,11 +1,11 @@
-﻿# Leos Minibench: Arbeitsrahmen für jede neue Version
+# Leos Minibench: Arbeitsrahmen für jede neue Version
 
 Gilt für jeden Agenten, der an Leos Minibench arbeitet (Claude, Antigravity). Erst lesen, dann ändern.
 Den aktuellen Stand, offene Befunde und Fallstricke beschreibt Doku\Projektstand.md. Wer eine Version abschließt,
 aktualisiert diese Datei, damit der nächste Agent dort weitermachen kann.
 
 ## Ordner und Aufbau
-Projektordner auf ULB-PC10039: C:\Users\wad32muj\Agentenraum\PC DiagnoseBench
+
 src                 Quelltext. Reihenfolge der Teile in src\Bauplan.txt. Kern in src\Kern, Berichte in src\Bericht,
                     Module je Ordner src\Module\<Name> mit Vertrag.psd1 (Modulvertrag) und Ablauf.ps1,
                     Oberfläche in src\Oberflaeche\DiagGui*.cs (C#, Teile in der Reihenfolge aus Oberflaeche.ps1),
@@ -58,6 +58,17 @@ Minibench-Daten     Datenordner neben der exe: Berichte, Datenbank (JSON, PC-Dia
     (-Datenpflege, -Abgleich, -Entfernen, -Umbenennen), brauchen den Ausschluss nicht; braucht der Modus keine
     Administratorrechte, in Kern\Adminrechte.ps1 eintragen.
 14. Nutzerdaten nie löschen, sondern ins Archiv des Datenordners verschieben (Datenpflege, Entfernen, Abgleich).
+15. Jeder neu erzeugte Dialog (`new Form()`) ruft `UI.ThemeDialog(f)` auf, um Hintergrund, Vordergrund und Kind-Elemente
+    in beiden Farbschemata (Hell und Dunkel) konsistent und ohne schwarze Schrift auf dunklem Grund darzustellen.
+16. Jede Wartungsmaßnahme in `src\Module\Wartung\Vertrag.psd1` gehört einer der vier Gruppen an (Systemdateien und
+    Komponentenspeicher, Bereinigung und Speicherplatz, Windows Update, Netzwerk und Zeit, Dienste, Geräte und Energie)
+    und führt diese als 12. Feld in der Vertragszeile.
+17. CPU-Anzeigenamen in Berichten, Systemvergleich und Dashboard werden über `Get-CpuAnzeigename` bzw. äquivalente
+    C#-Regeln vom Herstellerballast und Taktsuffixen befreit ("Ryzen 5 7600X", "Core i5-8265U"). Interne Rohdaten
+    in der Datenbank und Metrikschlüssel bleiben unverändert.
+18. Als Referenz für Vergleiche und Prozentwerte dient eine gespeicherte Referenzdatei (z.B. Referenz.json, Referenz_Desktop.json,
+    Referenz_Notebook.json), nicht ein dynamischer Medianwert zur Laufzeit. Die Aktualisierung erfolgt kontrolliert auf
+    Knopfdruck oder über `-MedianAktualisieren`.
 
 ## Regeln für Tests
 1. Nach Fachgebiet, nicht nach Version. Verhaltenstests (Funktion im Testmodul aufrufen, Ergebnis prüfen) vor Regex auf

@@ -36,7 +36,7 @@ $script:SensorNotes = New-Object System.Collections.Generic.List[string]
 $script:SensorSnapshot = $null
 $script:SensorDb = [ordered]@{}
 
-if ($FullLanguage -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme -and -not ('DiagSensors' -as [type])) {
+if ($FullLanguage -and -not $ImportOrdner -and -not $Vergleich -and -not $Rueckgaengig -and -not $SensorWerkzeugeHolen -and -not $SensorAufraeumen -and -not $OptimierungZustand -and -not $OptWerkzeugeHolen -and -not $SoftwareInstallieren -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme -and -not $MedianAktualisieren -and -not ('DiagSensors' -as [type])) {
     $sensCode = @'
 #>> EINBINDEN Kern\Sensoren.cs
 '@
@@ -469,6 +469,7 @@ function Get-SensorImplausibility($Reading, $GpuLimits = $null) {
     switch ($Reading.Art) {
         'Temperatur' {
             if ($v -le -30 -or $v -ge 150) { return ('{0:N0} °C liegt außerhalb des möglichen Bereichs' -f $v) }
+            if ($v -lt 5) { return ('{0:N0} °C unter 5 °C ist als Komponententemperatur unplausibel' -f $v) }
             if ($Reading.Gruppe -in 'Datenträger', 'RAM', 'Akku' -and $v -ge 120) { return ('{0:N0} °C ist für {1} nicht möglich' -f $v, $Reading.Gruppe) }
         }
         'Leistung' {
@@ -501,6 +502,24 @@ function Set-SensorClassification($Readings, $GpuLimits = $null) {
         if ($r.Art -in 'Grenzwert', 'Abstand') { continue }
         $why = Get-SensorImplausibility $r $GpuLimits
         if ($why) { $r.Status = 'unplausibel'; $r.Hinweis = $why; $r.Roh = $r.Wert; $r.Wert = [double]::NaN }
+    }
+    # Gleiche Spannungen über 1,5 V auf mehreren Schienen desselben Geräts im Leerlauf aussortieren
+    $voltages = @($Readings | Where-Object { $_ -and $_.Art -eq 'Spannung' -and $_.Status -ne 'unplausibel' -and -not [double]::IsNaN([double]$_.Wert) -and [double]$_.Wert -gt 1.5 })
+    if ($voltages.Count -gt 1) {
+        $byDev = $voltages | Group-Object Geraet
+        foreach ($grp in $byDev) {
+            $byVal = $grp.Group | Group-Object { [math]::Round([double]$_.Wert, 3) }
+            foreach ($vg in $byVal) {
+                if ($vg.Count -gt 1) {
+                    foreach ($vr in $vg.Group) {
+                        $vr.Status = 'unplausibel'
+                        $vr.Hinweis = ('{0:N3} V auf mehreren Schienen identisch (Sensorwert im Leerlauf fehlerhaft)' -f [double]$vr.Wert)
+                        $vr.Roh = $vr.Wert
+                        $vr.Wert = [double]::NaN
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1151,7 +1170,11 @@ function Write-BenchSensorReport {
     Add-SensorGapFinding 'Der Benchmark'
     if ($b.Fehler) { Add-Line ('  Sensoren ließen sich nicht öffnen: {0}. Gezeigt werden die Windows-Werte.' -f $b.Fehler) }
     $idle = $b.Idle
-    if ($idle) { Add-Line ('  Leerlauf vor dem Benchmark: CPU {0}, GPU {1}, Paketleistung {2}' -f $(if ($null -ne $idle.CpuTemp) { '{0:N0} °C ({1})' -f $idle.CpuTemp, $idle.CpuTempQ } else { 'Temperatur nicht verfügbar' }), $(if ($null -ne $idle.GpuTemp) { '{0:N0} °C' -f $idle.GpuTemp } else { 'nicht verfügbar' }), $(if ($null -ne $idle.CpuW) { '{0:N0} W' -f $idle.CpuW } else { 'nicht verfügbar' })) }
+    if ($idle) {
+        $isIdle = ($null -eq $idle.CpuLoad -or $idle.CpuLoad -lt 15)
+        $leadPrefix = if ($isIdle) { 'Leerlauf vor dem Benchmark' } else { 'Sensoren vor dem Benchmark (bei {0} % Last)' -f [math]::Round($idle.CpuLoad) }
+        Add-Line ('  {0}: CPU {1}, GPU {2}, Paketleistung {3}' -f $leadPrefix, $(if ($null -ne $idle.CpuTemp) { '{0:N0} °C ({1})' -f $idle.CpuTemp, $idle.CpuTempQ } else { 'Temperatur nicht verfügbar' }), $(if ($null -ne $idle.GpuTemp) { '{0:N0} °C' -f $idle.GpuTemp } else { 'nicht verfügbar' }), $(if ($null -ne $idle.CpuW) { '{0:N0} W' -f $idle.CpuW } else { 'nicht verfügbar' }))
+    }
     if (-not $S.Count) { Add-Line '  Keine Messpunkte (die Messungen waren kürzer als der Abstand der Sensorabfragen).'; return }
     Add-Line ('  {0} Messpunkte in den Wartepausen der Messungen, höchstens alle {1} s.' -f $S.Count, ($b.IntervallMs / 1000))
     $rows = @(Get-BenchSensorRows $S $b.Teile)
@@ -1188,8 +1211,17 @@ function Get-SensorSnapshotFindings($Readings, $Lead) {
         & $add 'INFO' 'ARM64-Architektur erkannt: Tiefgehende Kern- und Mainboard-Sensoren erfordern x86/x64-Treiber und stehen nur eingeschränkt zur Verfügung.'
     }
     if ($null -ne $Lead.CpuTemp -and $Lead.CpuTempQ -ne 'ACPI') {
-        if ($Lead.CpuTemp -ge 80) { & $add 'WARNUNG' ('CPU-Temperatur im Leerlauf {0:N0} °C: Kühlung prüfen (Lüfter, Staub, Wärmeleitpaste) oder Hintergrundlast suchen.' -f $Lead.CpuTemp) }
-        elseif ($Lead.CpuTemp -ge 70) { & $add 'INFO' ('CPU-Temperatur im Leerlauf {0:N0} °C, etwas hoch.' -f $Lead.CpuTemp) }
+        $isIdle = ($null -eq $Lead.CpuLoad -or $Lead.CpuLoad -lt 15)
+        $lastTxt = $(if ($null -ne $Lead.CpuLoad) { '{0} % Last' -f [math]::Round($Lead.CpuLoad) } else { '' })
+        $wattTxt = $(if ($null -ne $Lead.CpuW) { '{0:N0} W' -f $Lead.CpuW } else { '' })
+        $beiTxt = $(if ($lastTxt -and $wattTxt) { 'bei {0}, {1}' -f $lastTxt, $wattTxt } elseif ($lastTxt) { 'bei {0}' -f $lastTxt } elseif ($wattTxt) { 'bei {0}' -f $wattTxt } else { '' })
+        if ($isIdle) {
+            if ($Lead.CpuTemp -ge 80) { & $add 'WARNUNG' ('CPU-Temperatur im Leerlauf {0:N0} °C: Kühlung prüfen (Lüfter, Staub, Wärmeleitpaste) oder Hintergrundlast suchen.' -f $Lead.CpuTemp) }
+            elseif ($Lead.CpuTemp -ge 70) { & $add 'INFO' ('CPU-Temperatur im Leerlauf {0:N0} °C, etwas hoch.' -f $Lead.CpuTemp) }
+        } else {
+            if ($Lead.CpuTemp -ge 90) { & $add 'WARNUNG' ('CPU-Temperatur {0:N0} °C {1}: Kühlung und Hintergrundlast prüfen.' -f $Lead.CpuTemp, $beiTxt) }
+            elseif ($Lead.CpuTemp -ge 80) { & $add 'INFO' ('CPU-Temperatur {0:N0} °C {1}.' -f $Lead.CpuTemp, $beiTxt) }
+        }
     }
     if ($null -ne $Lead.GpuTemp -and $Lead.GpuTemp -ge 80) { & $add 'WARNUNG' ('GPU-Temperatur im Leerlauf {0:N0} °C: Grafikkartenlüfter und Gehäusebelüftung prüfen.' -f $Lead.GpuTemp) }
     $cpuFan = @($Readings | Where-Object { $_.Gruppe -eq 'Mainboard' -and $_.Art -eq 'Lüfter' -and $_.Name -match 'CPU' -and -not [double]::IsNaN([double]$_.Wert) })
@@ -1197,5 +1229,51 @@ function Get-SensorSnapshotFindings($Readings, $Lead) {
         & $add 'WARNUNG' ('Der CPU-Lüfteranschluss meldet 0 U/min bei {0:N0} °C: Lüfter angeschlossen und dreht er?' -f $Lead.CpuTemp)
     }
     return $f.ToArray()
+}
+
+# Akkubetrieb prüfen (Benchmark-Ausschluss für Referenz und Vergleich)
+function Test-OnBattery {
+    try {
+        $stat = @(Get-CimInstance -Namespace root\wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue)
+        if ($stat.Count -and $null -ne $stat[0].PowerOnline) { return (-not $stat[0].PowerOnline) }
+        $bat = @(Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue)
+        if ($bat.Count -and $bat[0].BatteryStatus -eq 1) { return $true }
+    } catch { }
+    return $false
+}
+
+# Hintergrundlast vor Messungen (Benchmark, Lasttest) erkennen
+function Test-HintergrundlastVorMessung([string]$Phase = 'Benchmark') {
+    Show-Sub $Phase 'Hintergrundlast vor der Messung wird geprüft' -1
+    $loads = New-Object System.Collections.Generic.List[double]
+    $watts = New-Object System.Collections.Generic.List[double]
+    for ($i = 0; $i -lt 5; $i++) {
+        $s = $null; try { $s = Get-CpuSample } catch { }
+        if ($s -and $null -ne $s.Last) { $loads.Add([double]$s.Last) }
+        if ($s -and $null -ne $s.Leistung) { $watts.Add([double]$s.Leistung) }
+        Start-Sleep -Milliseconds 1000
+    }
+    $avgLoad = if ($loads.Count) { ($loads | Measure-Object -Average).Average } else { 0.0 }
+    $avgWatt = if ($watts.Count) { ($watts | Measure-Object -Average).Average } else { 0.0 }
+
+    if ($avgLoad -gt 15.0 -or $avgWatt -gt 25.0) {
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        while ($sw.Elapsed.TotalSeconds -lt 20.0) {
+            Start-Sleep -Milliseconds 2000
+            $s = $null; try { $s = Get-CpuSample } catch { }
+            $currLoad = if ($s -and $null -ne $s.Last) { [double]$s.Last } else { 0.0 }
+            if ($currLoad -le 15.0) { break }
+        }
+        $s = $null; try { $s = Get-CpuSample } catch { }
+        $finalLoad = if ($s -and $null -ne $s.Last) { [double]$s.Last } else { $avgLoad }
+        if ($finalLoad -gt 15.0) {
+            $topProcs = @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.CPU -gt 0 } | Sort-Object CPU -Descending | Select-Object -First 3 | ForEach-Object { '{0} ({1:N0} s CPU)' -f $_.ProcessName, $_.CPU })
+            $procText = if ($topProcs.Count) { $topProcs -join ', ' } else { 'keine ermittelbar' }
+            $script:AblaufHintergrundlast = $true
+            Add-Finding INFO $Phase ('Erhöhte Hintergrundlast vor {0} ({1:N0} % CPU): {2}. Die Messwerte können dadurch niedriger ausfallen.' -f $Phase, $finalLoad, $procText)
+            Add-Line ('  Hinweis: Erhöhte Hintergrundlast vor {0} ({1:N0} % CPU): {2}' -f $Phase, $finalLoad, $procText)
+        }
+    }
+    Hide-Sub
 }
 #endregion

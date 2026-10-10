@@ -1,6 +1,17 @@
-﻿# Changelog - Leos Minibench
+# Changelog - Leos Minibench
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
+
+## v3.6 (10.10.2026)
+
+* **Median-Referenz je Geräteklasse:** Neben der Systemreferenz (`Referenz.json`) und dem dynamischen Gesamtmedian stehen feste Mediane für Desktop und Notebook zur Verfügung (`Referenz_Desktop.json`, `Referenz_Notebook.json`). Beide werden bei Bedarf auf Knopfdruck ("Median aktualisieren" auf der Vergleichsseite) oder über `-MedianAktualisieren` aus allen bereinigten Daten neu berechnet.
+* **Wartungsmaßnahmen gegliedert:** Die 23 Maßnahmen sind in vier fachliche Gruppen gegliedert (Systemdateien und Komponentenspeicher, Bereinigung und Speicherplatz, Windows Update/Netzwerk/Zeit, Dienste/Geräte/Energie). Jede Gruppe besitzt einen ausklappbaren Bereich mit Auswahlanzeige ("x von y gewählt"). Die Schaltflächen "Übliche Auswahl" und "Keine" aktualisieren alle Gruppen.
+* **Diagnose-Prüfungen beim Start eingeklappt:** Der Bereich der Prüfungen ist standardmäßig geschlossen und zeigt eine dynamische Zusammenfassung der gewählten Prüfungen und des aktiven Profils. Bei Wahl des Profils "Benutzerdefiniert" öffnet sich der Bereich automatisch.
+* **Dunkles Farbschema ohne Schwarz auf Dunkel:** Dialoge und Formulare werden über die Hilfsmethode `UI.ThemeDialog` einheitlich formatiert. Kind-Elemente (Labels, CheckBoxen, RadioButtons, Eingabefelder) erhalten kontrastreiche Farben in beiden Themes.
+* **Kerne und Threads in Spezifikation und Berichten:** Hardware-Objekte speichern reale Prozessorkerne und logische Threads (`Hardware.Kerne`, `Hardware.Threads`). Ältere Datensätze lesen diese aus `Diagnosebericht.txt` nach.
+* **Herstellerbereinigte CPU-Anzeigenamen:** `Get-CpuAnzeigename` entfernt redundante Herstellerzusätze (Intel, AMD, Qualcomm) und Taktraten aus der Anzeige ("Ryzen 5 7600X", "Core i5-8265U", "Snapdragon X Elite X1E78100"). Die internen Datenbankschlüssel bleiben unverändert.
+* **Dashboard & Telemetrie überarbeitet:** Die Profilkarten sortieren Systeme nach Punktzahl (Basissystem an seiner Punktzahl hervorgehoben). Der Multi-System-Sensorverlauf steht vor den Befunden und enthält Reiter für CPU und GPU (inklusive Takt, Leistungsaufnahme und iGPU-Metriken im Tooltip). Synthetische Kurven wurden entfernt; fehlende Werte erscheinen als Lücke in der Linie.
+* **Sensor- und Praxistesthärtung:** Vor Benchmark und Lasttest prüft `Test-HintergrundlastVorMessung` die Systemlast (über 15 % unterdrückt die Leerlauf-Einstufung und hebt Warnschwellen auf 90/80 °C). Akkuverschleiß-Berechnung nutzt die historische Maximalkapazität als Fallback und warnt bei sprunghaften Abfällen. Windows 11 wird im Upgrade-Verlauf an der Buildnummer (>= 22000) erkannt. Hybridgrafik (Nvidia Optimus) markiert die dedizierte GPU als sekundär ohne primäre Desktop-Auflösung. Unplausible Sensorwerte (< 5 °C Komponententemperatur, doppelte Leerlaufspannungen > 1.5 V) werden gefiltert. Akkubetrieb während des Benchmarks wird vermerkt.
 
 ## v3.54 (09.10.2026)
 

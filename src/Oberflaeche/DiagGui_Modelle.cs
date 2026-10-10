@@ -4,11 +4,41 @@
 public class DbEntry
 {
     public string Path = "", Name = "", Computer = "", Datum = "", Cpu = "", Gpu = "", Ram = "", Disk = "", Befunde = "", Module = "", Quelle = "", Ordner = "";
+    public int Kerne = 0, Threads = 0;
     public Dictionary<string, double> Werte = new Dictionary<string, double>();
     public bool HasBench { get { return Werte.Count > 0; } }
     public double Get(string k) { double v; return Werte.TryGetValue(k, out v) ? v : 0; }
     public string DisplayName { get { return !String.IsNullOrEmpty(Name) ? Name : Computer; } }
-    public string Label { get { return DisplayName + "  ·  " + Datum + (Cpu.Length > 0 ? "  ·  " + Cpu : ""); } }
+
+    public static string CleanCpuName(string name)
+    {
+        if (String.IsNullOrEmpty(name)) return "";
+        string s = System.Text.RegularExpressions.Regex.Replace(name, @"\s+", " ").Trim();
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\((R|TM|tm)\)", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s*@\s*[\d.]+\s*[GM]Hz.*$", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s*-\s*Qualcomm\s+Oryon\s+CPU.*$", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s*Qualcomm\s+Oryon\s+CPU.*$", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s*(-?\s*\d+-Core)?\s*(Processor|Prozessor).*$", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s*\d+-Core.*$", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s+CPU$", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\b(Intel|AMD)\b\s*", "");
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s+-\s+", " ").Trim();
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s+", " ").Trim();
+        return s;
+    }
+
+    public string CpuDisplay
+    {
+        get
+        {
+            string c = CleanCpuName(Cpu);
+            if (c.Length == 0) return "";
+            if (Kerne > 0 && Threads > 0) return c + " (" + Kerne + " Kerne, " + Threads + " Threads)";
+            return c;
+        }
+    }
+
+    public string Label { get { return DisplayName + "  ·  " + Datum + (CpuDisplay.Length > 0 ? "  ·  " + CpuDisplay : ""); } }
 
     public double OverallScore
     {
@@ -33,6 +63,13 @@ public class DbEntry
         return Convert.ToString(o, CultureInfo.InvariantCulture);
     }
 
+    static int I(Dictionary<string, object> d, string k)
+    {
+        object o; if (d == null || !d.TryGetValue(k, out o) || o == null) return 0;
+        int v; if (int.TryParse(Convert.ToString(o, CultureInfo.InvariantCulture), out v)) return v;
+        return 0;
+    }
+
     public static List<DbEntry> Load(string dir)
     {
         List<DbEntry> list = new List<DbEntry>();
@@ -50,7 +87,7 @@ public class DbEntry
                 object hw; if (d.TryGetValue("Hardware", out hw))
                 {
                     Dictionary<string, object> h = hw as Dictionary<string, object>;
-                    e.Cpu = S(h, "CPU"); e.Gpu = S(h, "GPU"); e.Ram = S(h, "RAM"); e.Disk = S(h, "Datentraeger");
+                    e.Cpu = S(h, "CPU"); e.Kerne = I(h, "Kerne"); e.Threads = I(h, "Threads"); e.Gpu = S(h, "GPU"); e.Ram = S(h, "RAM"); e.Disk = S(h, "Datentraeger");
                 }
                 object w; if (d.TryGetValue("Werte", out w))
                 {
@@ -124,7 +161,7 @@ public class ChangeEntry
 // Kurzfassung der Modulverträge aus dem Skript (Get-ContractGuiLines)
 public class ContractStep
 {
-    public string Module = "", Key = "", Typ = "", Risiko = "", Neustart = "", Rueckgaengig = "", Text = "";
+    public string Module = "", Key = "", Typ = "", Risiko = "", Neustart = "", Rueckgaengig = "", Text = "", Gruppe = "";
     public int Minuten; public bool Vorauswahl, Ueblich;
     public static string RiskLabel(string r)
     {

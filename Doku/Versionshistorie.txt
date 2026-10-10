@@ -1,9 +1,25 @@
-﻿LEOS MINIBENCH: VERSIONSHISTORIE
+LEOS MINIBENCH: VERSIONSHISTORIE
 ================================
 
 Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab 2.2). Für 1.0 bis 2.1 gibt es
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Verweis Versionshistorie oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
+
+VERSION 3.6    (10.10.2026)  MEDIAN-REFERENZ JE GERÄTEKLASSE, DIAGNOSE UND WARTUNG ÜBERSICHTLICH, SENSOR- UND AKKUDIAGNOSE AUS PRAXISTESTS
+====================================================================================================
+Median je Geräteklasse: Feste Referenzdateien für Notebook und Desktop (Referenz_Notebook.json, Referenz_Desktop.json),
+auf Knopfdruck oder per -MedianAktualisieren aus bereinigten Datenbankläufen neu berechenbar, verhindern schwankende
+Vergleichswerte und Ausreißer.
+Wartung und Diagnose gegliedert: 23 Wartungsmaßnahmen in vier Gruppen mit Aufklappfunktion und Auswahlanzeige; Prüfungen
+auf der Diagnoseseite standardmäßig eingeklappt mit dynamischer Zusammenfassung (Profil Schnell/Standard/Umfassend).
+Dunkles Farbschema: UI.ThemeDialog formatiert alle Formulare und Unterdialoge konsistent ohne schwarze Schrift auf dunklem Grund.
+Hardware-Details und CPU-Anzeige: Kerne und Threads in der Datenbank erfasst; herstellerbereinigte CPU-Anzeigenamen
+(Get-CpuAnzeigename) in Berichten, Systemvergleich und Dashboard.
+Dashboard und Telemetrie: Multi-System-Sensorverlauf mit GPU-Metriken (Takt, Watt, IGpu) vor Befunden platziert, synthetische
+Verlaufskurven entfernt, Profilkarten nach Punktzahl sortiert.
+Sensor- und Praxistest-Härtung: Hintergrundlastprüfung vor Messungen (> 15 % verwirft Leerlauf-Etikett mit 90/80 °C Schwellen),
+Schutz vor Akkuverschleiß-Fehlalarmen, saubere Hybridgrafik-Erkennung (Optimus dGPU ohne Desktop), Filterung unplausibler
+Leerlaufspannungen und Sensortemperaturen unter 5 °C, Akkubetrieb im Benchmark protokolliert.
 
 VERSION 3.54   (09.10.2026)  NETZLAUFWERK ALS SPIEGEL MIT ABGLEICH AUF KNOPFDRUCK, LÄUFE VOLLSTÄNDIG ENTFERNEN UND UMBENENNEN
 ====================================================================================================

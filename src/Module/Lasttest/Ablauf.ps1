@@ -32,8 +32,9 @@ if ($ModLast -and (Test-StepEnabled 'Last:alle')) {
             try { Register-BadReadings $rd $script:LoadBadSeen } catch { }
             try { return (Get-SensorLead $rd) } catch { return (Get-SensorLead @()) }
         }
+        Test-HintergrundlastVorMessung -Phase 'Lasttest'
         $cpuOf = { try { return (Get-CpuSample) } catch { return [pscustomobject]@{ Last = 0; Leistung = 0; MaxLeistung = 0; MaxFreq = 0; MHz = 0; MaxMHz = 0; Temp = $null; Quelle = 'Fehler' } } }
-        $idleSamples = New-Object System.Collections.ArrayList
+        $idleSamples = New-Object System.Collections.Generic.List[object]
         Show-Sub 'Lasttest' 'Leerlaufwerte werden gemessen' -1
         for ($i = 0; $i -lt 3; $i++) { [void]$idleSamples.Add((& $readLead (& $cpuOf) -Disk:($i -eq 0))); Start-Sleep -Milliseconds 700 }
         $idle = $idleSamples[$idleSamples.Count - 1]
@@ -48,7 +49,9 @@ if ($ModLast -and (Test-StepEnabled 'Last:alle')) {
         Send-GuiEvent 'SENSLIM' (Format-SensorValue $cpuLimit) (Format-SensorValue $gpuLimit) (Format-SensorValue $tjMax)
         Add-Line ('  Sensoren: {0}' -f (Get-SensorSourceText))
         Add-SensorGapFinding 'Der Lasttest'
-        Add-Line ('  Leerlauf vor der Last: CPU {0}, GPU {1}, Paketleistung {2}' -f $(if ($null -ne $idle.CpuTemp) { '{0:N0} °C ({1})' -f $idle.CpuTemp, $idle.CpuTempQ } else { 'Temperatur nicht verfügbar' }), $(if ($null -ne $idle.GpuTemp) { '{0:N0} °C' -f $idle.GpuTemp } else { 'nicht verfügbar' }), $(if ($null -ne $idle.CpuW) { '{0:N0} W' -f $idle.CpuW } else { 'nicht verfügbar' }))
+        $isIdle = ($null -eq $idle.CpuLoad -or $idle.CpuLoad -lt 15)
+        $leadPrefix = if ($isIdle) { 'Leerlauf vor der Last' } else { 'Sensoren vor der Last (bei {0} % Last)' -f [math]::Round($idle.CpuLoad) }
+        Add-Line ('  {0}: CPU {1}, GPU {2}, Paketleistung {3}' -f $leadPrefix, $(if ($null -ne $idle.CpuTemp) { '{0:N0} °C ({1})' -f $idle.CpuTemp, $idle.CpuTempQ } else { 'Temperatur nicht verfügbar' }), $(if ($null -ne $idle.GpuTemp) { '{0:N0} °C' -f $idle.GpuTemp } else { 'nicht verfügbar' }), $(if ($null -ne $idle.CpuW) { '{0:N0} W' -f $idle.CpuW } else { 'nicht verfügbar' }))
         Add-Line ('  Abbruchschwelle: CPU {0}, GPU {1}. Der Test endet, wenn die CPU {2} oder die GPU rund 10 Sekunden darüber liegt.' -f $(if ($cpuLimit) { '{0:N0} °C{1}' -f $cpuLimit, $(if ($LastAbbruchCpu -eq 'auto') { $(if ($tjMax) { ' (TjMax)' } else { ' (automatisch)' }) } else { '' }) } else { 'aus' }), $(if ($gpuLimit) { '{0:N0} °C' -f $gpuLimit } else { 'aus' }), $(if ($cpuHold -ge 10) { 'rund eine Minute' } else { 'rund 10 Sekunden' }))
         if ($cpuLimit -and $idle.CpuTempQ -eq 'ACPI') { Add-Line '  Hinweis: Als CPU-Temperatur steht nur die ACPI-Thermalzone zur Verfügung; sie zählt für den Abbruch erst, wenn sie sich unter Last bewegt.' }
         elseif ($cpuLimit -and $null -eq $idle.CpuTemp) { Add-Line '  Hinweis: Keine CPU-Temperatur verfügbar, die CPU-Abbruchschwelle kann nicht greifen.' }

@@ -6,6 +6,10 @@
 # Testen.cmd reicht alle Parameter durch: Testen.cmd -Datei Oberflaeche
 param([switch]$Kurz, [string]$Zusammenfassung = '', [switch]$Gesamtlauf, [string]$Datei = '')
 if ($Gesamtlauf) { $env:MINIBENCH_GESAMTLAUF = '1' }
+$userModules = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'WindowsPowerShell\Modules'
+if ($userModules -and (Test-Path $userModules) -and ($env:PSModulePath -notlike "*$userModules*")) {
+    $env:PSModulePath = "$userModules;$env:PSModulePath"
+}
 $pester = Get-Module Pester -ListAvailable | Where-Object { $_.Version -ge [version]'5.0' } | Sort-Object Version -Descending | Select-Object -First 1
 if (-not $pester) {
     Write-Host ''

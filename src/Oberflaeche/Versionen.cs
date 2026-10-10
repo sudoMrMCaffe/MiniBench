@@ -1,4 +1,4 @@
-﻿// Versionshistorie (ab v2.7): Seite Versionen der Oberfläche und Doku\Versionshistorie.txt.
+// Versionshistorie (ab v2.7): Seite Versionen der Oberfläche und Doku\Versionshistorie.txt.
 // Jede neue Version bekommt hier oben einen Eintrag (ein Test prüft, dass es einen für $ScriptVersion gibt).
 // Einzelheiten stehen in Doku\Änderungen_vX.Y.txt. Für 1.0 bis 2.1 gibt es keine Änderungsdateien mehr; die Einträge
 // nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
@@ -11,6 +11,14 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.6", "10.10.2026", "Median-Referenz je Geräteklasse, Diagnose und Wartung übersichtlich, Sensor- und Akkudiagnose aus Praxistests",
+            "Median-Referenz je Geräteklasse: Feste Referenzdateien für Notebook und Desktop (Referenz_Notebook.json, Referenz_Desktop.json), auf Knopfdruck oder über -MedianAktualisieren aus bereinigten Datenbankläufen neu berechenbar, verhindern schwankende Vergleichswerte. " +
+            "Wartung gruppiert: 23 Wartungsmaßnahmen in vier fachliche Gruppen strukturiert mit Aufklappfunktion, Zählern und Beibehaltung der Schnellauswahl. " +
+            "Diagnose übersichtlich: Prüfungen auf der Diagnoseseite beim Start standardmäßig eingeklappt mit dynamischer Statuszusammenfassung; klappt bei Benutzerdefiniert automatisch auf. " +
+            "Dunkles Farbschema: UI.ThemeDialog formatiert alle Formulare und Unterdialoge konsistent mit lesbaren Textfarben ohne schwarze Schrift auf dunklem Grund. " +
+            "Hardware-Spezifikation: Reale Kerne und logische Threads in der Datenbank erfasst; herstellerbereinigte CPU-Anzeigenamen (Get-CpuAnzeigename) in Berichten, Systemvergleich und Dashboard. " +
+            "Dashboard und Telemetrie: Multi-System-Sensorverlauf mit GPU-Metriken (Takt, Watt, IGpu) vor Befunden platziert, synthetische Lasttestkurven entfernt, Profilkarten nach Punktzahl sortiert. " +
+            "Sensor- und Praxistest-Härtung: Hintergrundlastprüfung vor Messungen (> 15 % verwirft Leerlauf-Etikett mit 90/80 °C Schwellen), Akku-Historie und Plausibilität geschützt, Hybridgrafik-Zuordnung (Optimus) bereinigt, unplausible Leerlaufspannungen und Sensortemperaturen unter 5 °C gefiltert, Akkubetrieb im Benchmark protokolliert."),
         new Eintrag("3.54", "09.10.2026", "Netzlaufwerk als Spiegel mit Abgleich auf Knopfdruck, Läufe vollständig entfernen und umbenennen",
             "Datenordner immer auf dem Stick: Leos Minibench startet ohne Zugriff auf das Netzlaufwerk und findet Werkzeuge und Sensoren immer auf dem Stick. Vorher konnte ein nicht erreichbares NAS den Start blockieren, und Tools wurden auf dem NAS gesucht. " +
             "Netzlaufwerk als Spiegel: Aktualisieren auf der Seite Vergleichsdatenbank gleicht Berichte, Datenbank, Änderungsprotokolle, Voreinstellungen und Referenz in beide Richtungen ab. Die neuere Fassung gilt, die ältere und alles Gelöschte kommt ins Archiv. Fehlt auf einer Seite ein großer Teil der Daten, hält der Abgleich an und fragt nach. Unterwegs funktioniert alles ohne NAS. " +

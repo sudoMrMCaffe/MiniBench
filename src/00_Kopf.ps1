@@ -98,6 +98,8 @@ param(
     [string]$Entfernen = '',
     [string]$Umbenennen = '',
     [string]$NeuerName = '',
+    # Referenzen (ab v3.6): Median aller Systeme, Notebooks und Desktops aktualisieren (Hilfsmodus der Oberfläche)
+    [switch]$MedianAktualisieren,
     # Allgemein
     [switch]$KiOhneAnonymisierung,
     # Hilfswerkzeuge (PawnIO, smartmontools per winget) nach dem Lauf: entfernen oder auf diesem PC behalten; leer = gespeicherte Wahl

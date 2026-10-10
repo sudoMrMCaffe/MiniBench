@@ -39,6 +39,8 @@ Describe 'Selbsttest der Oberfläche' {
         @{ Fall = 'Netzlaufwerk.Pfad' }
         @{ Fall = 'Netzlaufwerk.Konfiguration' }
         @{ Fall = 'Netzlaufwerk.Ergebnis' }
+        @{ Fall = 'Wartung.Vertragszeile' }
+        @{ Fall = 'Dialog.Farbschema' }
     ) {
         Assert-GuiSelbsttest $Fall
     }
@@ -84,6 +86,29 @@ Describe 'Verträge zwischen Oberfläche und Arbeitsprozess' {
         $get = @([regex]::Matches($script:Gui, 'Get(?:C|Cb)\(d, "([^"]+)"') | ForEach-Object { $_.Groups[1].Value })
         $put.Count | Should -BeGreaterThan 15
         foreach ($k in $put) { $get | Should -Contain $k }
+    }
+    It 'jede Methode mit new Form() ruft UI.ThemeDialog auf' {
+        $csDateien = Get-ChildItem -Path (Join-Path $PSScriptRoot '..\src\Oberflaeche') -Filter '*.cs'
+        $methodenMitForm = 0
+        foreach ($datei in $csDateien) {
+            $text = [IO.File]::ReadAllText($datei.FullName, [Text.Encoding]::UTF8)
+            $mMatches = [regex]::Matches($text, '(?m)^\s*(?:public|private|internal|protected|static|\s)*\b[\w<>\[\]]+\s+(\w+)\s*\([^)]*\)\s*\{')
+            foreach ($m in $mMatches) {
+                $idx = $m.Index + $m.Length
+                $depth = 1
+                while ($depth -gt 0 -and $idx -lt $text.Length) {
+                    if ($text[$idx] -eq '{') { $depth++ }
+                    elseif ($text[$idx] -eq '}') { $depth-- }
+                    $idx++
+                }
+                $body = $text.Substring($m.Index, $idx - $m.Index)
+                if ($body -match 'new Form\(') {
+                    $methodenMitForm++
+                    $body | Should -Match 'UI\.ThemeDialog\(' -Because "$($m.Groups[1].Value) in $($datei.Name) erzeugt eine Form und muss UI.ThemeDialog aufrufen"
+                }
+            }
+        }
+        $methodenMitForm | Should -BeGreaterOrEqual 5
     }
 }
 

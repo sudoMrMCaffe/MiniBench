@@ -194,7 +194,9 @@ if ($script:Stability) {
     if ($script:Stability.Erklaerung) { foreach ($l in @(Split-TextLines $script:Stability.Erklaerung 94)) { [void]$head.AppendLine('    ' + $l) } }
     [void]$head.AppendLine()
 }
-[void]$head.AppendLine(('  ERGEBNIS: {0} kritisch, {1} Warnungen, {2} Hinweise' -f $nK, $nW, $nI))
+$ergText = '  ERGEBNIS: {0} kritisch, {1} Warnungen, {2} Hinweise' -f $nK, $nW, $nI
+if ($script:AblaufAkkubetrieb) { $ergText += ' (Hinweis: Benchmark im Akkubetrieb, Werte niedriger und nicht vergleichbar)' }
+[void]$head.AppendLine($ergText)
 [void]$head.AppendLine('  ' + ('-' * 98))
 if ($sorted.Count) {
     foreach ($f in $sorted) { [void]$head.AppendLine(('  [{0,-8}] {1,-14} {2}' -f $f.Stufe, $f.Bereich, $f.Befund)) }
@@ -218,10 +220,7 @@ try { New-HtmlReport -Path $htmlFile -Sorted $sorted -NK $nK -NW $nW -NI $nI -St
 catch { Write-Warning ('HTML-Bericht konnte nicht erstellt werden: {0}' -f $_.Exception.Message); $htmlFile = '' }
 
 try {
-    $dashPath = Export-BenchDashboardHtml -ErrorAction SilentlyContinue
-    if ($dashPath -and (Test-Path -LiteralPath $dashPath)) {
-        Copy-Item -LiteralPath $dashPath -Destination (Join-Path $OutputDir 'Dashboard.html') -Force -ErrorAction SilentlyContinue
-    }
+    [void](Export-BenchDashboardHtml -ErrorAction SilentlyContinue)
 } catch { }
 
 if ($script:GuiLog) { try { $script:GuiLog.Close(); $script:GuiLog = $null } catch { } }

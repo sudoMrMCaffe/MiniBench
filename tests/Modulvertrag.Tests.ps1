@@ -17,7 +17,7 @@ BeforeAll {
     }
     function ConvertTo-SortedJson($o) { (ConvertTo-Sorted $o) | ConvertTo-Json -Depth 8 -Compress }
     # Allgemeine Parameter, die zu keinem Modul gehören
-    $general = @('Module', 'KiOhneAnonymisierung', 'DatenDir', 'OutputDir', 'ImportOrdner', 'Vergleich', 'Rueckgaengig', 'EventMode', 'WerkzeugeBehalten', 'GpuAufloesung', 'GpuAnzeige', 'GpuAuswahl', 'StartAuswertung', 'Datenpflege', 'ArchivDir', 'Dashboard', 'DashboardExport', 'DashboardSysteme', 'SoftwareInstallieren', 'Abgleich', 'AbgleichLoeschen', 'AbgleichNeu', 'Entfernen', 'Umbenennen', 'NeuerName')
+    $general = @('Module', 'KiOhneAnonymisierung', 'DatenDir', 'OutputDir', 'ImportOrdner', 'Vergleich', 'Rueckgaengig', 'EventMode', 'WerkzeugeBehalten', 'GpuAufloesung', 'GpuAnzeige', 'GpuAuswahl', 'StartAuswertung', 'Datenpflege', 'ArchivDir', 'Dashboard', 'DashboardExport', 'DashboardSysteme', 'SoftwareInstallieren', 'Abgleich', 'AbgleichLoeschen', 'AbgleichNeu', 'Entfernen', 'Umbenennen', 'NeuerName', 'MedianAktualisieren')
 }
 
 Describe 'Verträge im Skript' {
@@ -202,7 +202,19 @@ Describe 'Abgleich mit der Oberfläche' {
     It 'Kurzfassung für die Oberfläche hat feste Spaltenzahl' {
         foreach ($l in (MinibenchTest\Get-ContractGuiLines)) {
             $n = ($l -split '\|').Count
-            if ($l.StartsWith('M|')) { $n | Should -Be 7 } else { $n | Should -Be 11 }
+            if ($l.StartsWith('M|')) { $n | Should -Be 7 } else { $n | Should -Be 12 }
+        }
+    }
+    It 'jede Maßnahme der Wartung hat eine Gruppe aus der Liste' {
+        $validGroups = @(
+            'Systemdateien und Komponentenspeicher',
+            'Bereinigung und Speicherplatz',
+            'Windows Update, Netzwerk und Zeit',
+            'Dienste, Geräte und Energie'
+        )
+        $rep = (MinibenchTest\Get-ModuleContract 'Wartung').Schritte
+        foreach ($s in $rep) {
+            $validGroups | Should -Contain $s.Gruppe -Because "Schritt $($s.Key) hat Gruppe $($s.Gruppe)"
         }
     }
     It 'Reparaturreihenfolge im Skript kommt aus dem Vertrag' {

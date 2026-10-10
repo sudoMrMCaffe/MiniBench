@@ -194,8 +194,8 @@ Invoke-Section 'Prozessor' {
         Add-Finding INFO 'Sensoren' 'ARM64-Architektur erkannt: Tiefgehende Kern- und Mainboard-Sensoren erfordern x86/x64-Treiber und stehen nur eingeschränkt zur Verfügung.'
     }
     $script:LogicalCpus = ($cpus | Measure-Object NumberOfLogicalProcessors -Sum).Sum
-    $script:BenchShort.CPU = Get-ShortCpuName @($cpus)[0].Name
-    $script:Facts['Prozessor'] = (($cpus | ForEach-Object { '{0} ({1} Kerne, {2} Threads)' -f $_.Name.Trim(), $_.NumberOfCores, $_.NumberOfLogicalProcessors }) -join '; ')
+    $script:BenchShort.CPU = Get-CpuAnzeigename @($cpus)[0].Name
+    $script:Facts['Prozessor'] = (($cpus | ForEach-Object { '{0} ({1} Kerne, {2} Threads)' -f (Get-CpuAnzeigename $_.Name.Trim()), $_.NumberOfCores, $_.NumberOfLogicalProcessors }) -join '; ')
 }
 
 Invoke-Section 'Arbeitsspeicher' {
@@ -249,14 +249,19 @@ Invoke-Section 'Grafik und Monitore' {
         $p = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue
         try { if ($p.DriverDesc -and $p.'HardwareInformation.qwMemorySize') { $vram[$p.DriverDesc] = [long]$p.'HardwareInformation.qwMemorySize' } } catch { }
     }
+    $adapters = @(Get-GpuAdapters)
+    $adapterMap = @{}
+    foreach ($a in $adapters) { $adapterMap[$a.Name] = $a }
     Get-CimCached Win32_VideoController | ForEach-Object {
+        $ad = if ($adapterMap.ContainsKey(([string]$_.Name).Trim())) { $adapterMap[([string]$_.Name).Trim()] } else { $null }
+        $isDesk = if ($ad) { [bool]$ad.Desktop } else { [bool]$_.CurrentHorizontalResolution }
         [pscustomobject][ordered]@{
             'Name'          = $_.Name
-            'Art'           = $(switch (Get-GpuKind ([string]$_.Name)) { 'dGPU' { 'dedizierte Grafikkarte' } 'iGPU' { 'Prozessorgrafik (integriert)' } 'virtuell' { 'virtueller Adapter' } default { 'unbekannt' } }) + $(if ($_.CurrentHorizontalResolution) { ', gibt den Desktop aus' } else { '' })
+            'Art'           = $(switch (Get-GpuKind ([string]$_.Name)) { 'dGPU' { 'dedizierte Grafikkarte' } 'iGPU' { 'Prozessorgrafik (integriert)' } 'virtuell' { 'virtueller Adapter' } default { 'unbekannt' } }) + $(if ($isDesk) { ', gibt den Desktop aus' } else { '' })
             'VRAM'          = $(if ($vram.ContainsKey($_.Name)) { Format-Size $vram[$_.Name] } else { Format-Size $_.AdapterRAM })
             'Treiber'       = $_.DriverVersion
             'Treiberdatum'  = $(if ($_.DriverDate) { $_.DriverDate.ToString('dd.MM.yyyy') })
-            'Auflösung'     = $(if ($_.CurrentHorizontalResolution) { '{0}x{1} @ {2} Hz' -f $_.CurrentHorizontalResolution, $_.CurrentVerticalResolution, $_.CurrentRefreshRate })
+            'Auflösung'     = $(if ($isDesk -and $_.CurrentHorizontalResolution) { '{0}x{1} @ {2} Hz' -f $_.CurrentHorizontalResolution, $_.CurrentVerticalResolution, $_.CurrentRefreshRate })
             'Status'        = $_.Status
         }
     } | Out-Report -List
@@ -422,7 +427,10 @@ Invoke-Section 'Akku' {
         $fullC  = $(if ($r -and $r.VollmWh) { $r.VollmWh } elseif ($full.Count -gt $i -and $full[$i].FullChargedCapacity) { [double]$full[$i].FullChargedCapacity } else { $null })
         $cycles = $(if ($r -and $null -ne $r.Zyklen) { $r.Zyklen } elseif ($cyc.Count -gt $i -and $cyc[$i].CycleCount) { [double]$cyc[$i].CycleCount } else { $null })
         $info = New-BatteryInfo $(if ($r -and $r.Name) { $r.Name } else { $bat[$i].Name }) $(if ($r) { $r.Hersteller } elseif ($static.Count -gt $i) { $static[$i].ManufactureName }) $(if ($r) { $r.Chemie }) $design $fullC $cycles
-        if ($r) { $info.LaufzeitVoll = $r.LaufzeitVoll; $info.LaufzeitDesign = $r.LaufzeitDesign; $info.Verlauf = @($r.Verlauf) }
+        if ($r) {
+            $info.LaufzeitVoll = $r.LaufzeitVoll; $info.LaufzeitDesign = $r.LaufzeitDesign; $info.Verlauf = @($r.Verlauf)
+            if ($r.PSObject.Properties['DesignHinweis'] -and $r.DesignHinweis) { $info | Add-Member -NotePropertyName DesignHinweis -NotePropertyValue $r.DesignHinweis -Force }
+        }
         $info | Add-Member -NotePropertyName Ladestand -NotePropertyValue $bat[$i].EstimatedChargeRemaining -Force
         $info | Add-Member -NotePropertyName Netzteil -NotePropertyValue $(if ($stat.Count -gt $i) { [bool]$stat[$i].PowerOnline } else { $null }) -Force
         $info | Add-Member -NotePropertyName Quelle -NotePropertyValue $(if ($r) { $repSrc } else { 'WMI' }) -Force
@@ -431,10 +439,10 @@ Invoke-Section 'Akku' {
             'Akku'                      = $info.Name
             'Hersteller, Chemie'        = (@($info.Hersteller, $info.Chemie) | Where-Object { $_ }) -join ', '
             'Ladestand'                 = $(if ($null -ne $info.Ladestand) { '{0} %{1}' -f $info.Ladestand, $(if ($info.Netzteil) { ', am Netzteil' } elseif ($info.Netzteil -eq $false) { ', im Akkubetrieb' }) })
-            'Designkapazität'           = $(if ($info.DesignmWh) { '{0:N0} mWh' -f $info.DesignmWh })
+            'Designkapazität'           = $(if ($info.PSObject.Properties['DesignHinweis'] -and $info.DesignHinweis) { '{0:N0} mWh ({1})' -f $info.DesignmWh, $info.DesignHinweis } elseif ($info.DesignmWh) { '{0:N0} mWh' -f $info.DesignmWh })
             'Volle Ladekapazität'       = $(if ($info.VollmWh) { '{0:N0} mWh' -f $info.VollmWh })
             'Verschleiß'                = $(if ($null -ne $info.VerschleissProzent) { '{0:N1} %' -f $info.VerschleissProzent } else { 'nicht ermittelbar' })
-            'Ladezyklen'                = $(if ($null -ne $info.Zyklen) { '{0:N0}' -f $info.Zyklen } else { 'nicht gemeldet' })
+            'Ladezyklen'                = $(if ($null -ne $info.Zyklen -and $info.Zyklen -gt 0) { '{0:N0}' -f $info.Zyklen } else { 'nicht gemeldet' })
             'Laufzeit (volle Ladung)'   = $(if ($info.LaufzeitVoll) { (Format-Duration $info.LaufzeitVoll) + ' geschätzt' } else { 'keine Schätzung' })
             'Laufzeit (Neuzustand)'     = $(if ($info.LaufzeitDesign) { (Format-Duration $info.LaufzeitDesign) + ' geschätzt' } else { '' })
             'Quelle'                    = $info.Quelle
@@ -449,7 +457,7 @@ Invoke-Section 'Akku' {
         $f = Get-BatteryFinding $info
         if ($f) { Add-Finding $f.Stufe 'Akku' $f.Text }
     }
-    if ($script:BatteryInfo.Count) { $b0 = $script:BatteryInfo[0]; $script:Facts['Akku'] = ('{0}: {1}{2}' -f $b0.Name, $(if ($null -ne $b0.VerschleissProzent) { '{0:N0} % Verschleiß' -f $b0.VerschleissProzent } else { 'Verschleiß nicht ermittelbar' }), $(if ($null -ne $b0.Zyklen) { ', {0:N0} Zyklen' -f $b0.Zyklen } else { '' })) }
+    if ($script:BatteryInfo.Count) { $b0 = $script:BatteryInfo[0]; $script:Facts['Akku'] = ('{0}: {1}{2}' -f $b0.Name, $(if ($null -ne $b0.VerschleissProzent) { '{0:N0} % Verschleiß' -f $b0.VerschleissProzent } else { 'Verschleiß nicht ermittelbar' }), $(if ($null -ne $b0.Zyklen -and $b0.Zyklen -gt 0) { ', {0:N0} Zyklen' -f $b0.Zyklen } else { '' })) }
     Add-Line '  Ausführlicher Akkubericht: Akkubericht.html im Anhang'
 }
 
@@ -839,9 +847,12 @@ if ($script:Opt['RamTest']) {
         if (-not $TypesLoaded) { Add-Line '  Übersprungen: C#-Testroutinen nicht verfügbar (Constrained Language Mode / AppLocker).'; return }
         $os = Get-CimCached Win32_OperatingSystem | Select-Object -First 1
         $free = [long]$os.FreePhysicalMemory * 1KB
-        $target = [long]($free * $RamTestPercent / 100)
-        if (-not [Environment]::Is64BitProcess) { $target = [math]::Min($target, 1.2GB) }
-        Add-Line ('  Freier RAM: {0}, davon getestet werden {1} % ({2}).' -f (Format-Size $free), $RamTestPercent, (Format-Size $target))
+        $rawTarget = [long]($free * $RamTestPercent / 100)
+        if (-not [Environment]::Is64BitProcess) { $rawTarget = [math]::Min($rawTarget, 1024MB) }
+        $target = [long]([math]::Floor([double]$rawTarget / 256MB) * 256MB)
+        if ($target -lt 256MB) { $target = 256MB }
+        $actualPct = [math]::Round([double]$target / [double]$free * 100)
+        Add-Line ('  Freier RAM: {0}, davon getestet werden {1} % ({2}).' -f (Format-Size $free), $actualPct, (Format-Size $target))
         Add-Line '  Hinweis: Ein Test unter Windows erreicht nicht jeden physischen Speicherbereich. Für eine vollständige Prüfung die Windows-Speicherdiagnose oder MemTest86 nutzen.'
         $task = [DiagRam]::RunAsync($target, $RamTestPasses)
         while (-not $task.IsCompleted) {

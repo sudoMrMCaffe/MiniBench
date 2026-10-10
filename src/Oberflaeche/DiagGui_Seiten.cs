@@ -886,6 +886,7 @@ public partial class DiagGui
             p.Controls.Add(rowButtons);
             dlg.Controls.Add(p);
             dlg.AcceptButton = btnOk; dlg.CancelButton = btnCancel;
+            UI.ThemeDialog(dlg);
             dlg.ShowDialog(this);
             if (lblDbPath != null) SetText(lblDbPath, NasAblage.AblageText(dataDir));
             if (jetztAbgleichen) RefreshAndSync();
@@ -904,6 +905,7 @@ public partial class DiagGui
             Button ok = UI.Primary("Verbinden"); ok.Location = new Point(UI.S(226), UI.S(98)); ok.Size = new Size(UI.S(95), UI.S(32)); ok.DialogResult = DialogResult.OK;
             Button ab = UI.Secondary("Abbrechen"); ab.Location = new Point(UI.S(328), UI.S(98)); ab.Size = new Size(UI.S(96), UI.S(32)); ab.DialogResult = DialogResult.Cancel;
             dlg.Controls.Add(l); dlg.Controls.Add(tb); dlg.Controls.Add(ok); dlg.Controls.Add(ab); dlg.AcceptButton = ok; dlg.CancelButton = ab;
+            UI.ThemeDialog(dlg);
             return dlg.ShowDialog(this) == DialogResult.OK ? tb.Text : null;
         }
     }

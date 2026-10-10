@@ -266,7 +266,13 @@ function New-CompareReport([string[]]$Paths) {
         $bf = $s.Befunde
         $dat = $s.Datum; try { $dat = [datetime]::ParseExact($s.Datum, 'yyyy-MM-dd HH:mm', $script:Inv).ToString('dd.MM.yyyy HH:mm') } catch { }
         [void]$sb.Append(('<div class="sys k{0}"><h3><i class="sw c{0}"></i>{1}</h3><p class="meta">{2}{3}</p><dl>' -f ($i % 6), (ConvertTo-HtmlText $s.Label), (ConvertTo-HtmlText $dat), $(if ($s.Messdauer -and $s.Messdauer -ne 'normal') { ' &middot; Messdauer ' + (ConvertTo-HtmlText $s.Messdauer) } else { '' })))
-        foreach ($kv in @(@('Prozessor', $hw.CPU), @('RAM', $hw.RAM), @('Grafik', $(if ($hw.GPUGemessen -and [string]$hw.GPUGemessen -notlike ('*' + [string]$hw.GPU + '*')) { '{0} (gemessen: {1})' -f $hw.GPU, $hw.GPUGemessen } elseif ($hw.IGPU) { '{0} + {1}' -f $hw.GPU, $hw.IGPU } else { $hw.GPU })), @('System', $s.System), @('Windows', ($hw.Betriebssystem -replace '^Microsoft\s+', '')), @('Installiert', $hw.WindowsInstalliert), @('Schnellstes LW', $s.Fastest))) {
+        $cpuDisp = Get-CpuAnzeigename $hw.CPU
+        if ($hw.Kerne -and $hw.Threads) {
+            $cpuDisp = '{0} ({1} Kerne, {2} Threads)' -f $cpuDisp, $hw.Kerne, $hw.Threads
+        } elseif ($hw.CPU -match '(\d+)\s*Kerne,\s*(\d+)\s*Threads') {
+            $cpuDisp = '{0} ({1} Kerne, {2} Threads)' -f (Get-CpuAnzeigename $hw.CPU), $Matches[1], $Matches[2]
+        }
+        foreach ($kv in @(@('Prozessor', $cpuDisp), @('RAM', $hw.RAM), @('Grafik', $(if ($hw.GPUGemessen -and [string]$hw.GPUGemessen -notlike ('*' + [string]$hw.GPU + '*')) { '{0} (gemessen: {1})' -f $hw.GPU, $hw.GPUGemessen } elseif ($hw.IGPU) { '{0} + {1}' -f $hw.GPU, $hw.IGPU } else { $hw.GPU })), @('System', $s.System), @('Windows', ($hw.Betriebssystem -replace '^Microsoft\s+', '')), @('Installiert', $hw.WindowsInstalliert), @('Schnellstes LW', $s.Fastest))) {
             if ($kv[1]) { [void]$sb.Append(('<dt>{0}</dt><dd>{1}</dd>' -f $kv[0], (ConvertTo-HtmlText (Get-Short ([string]$kv[1]) 70)))) }
         }
         [void]$sb.Append('</dl>')

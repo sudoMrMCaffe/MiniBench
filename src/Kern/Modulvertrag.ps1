@@ -127,7 +127,7 @@ function Resolve-ModuleList([string]$Text) {
 
 # Kurzfassung der Verträge für die Oberfläche, eine Zeile je Eintrag:
 #   M|Name|Titel|Kurz|Admin|Risiko|Neustart
-#   S|Modul|Key|Typ|Risiko|Neustart|Rueckgaengig|Minuten|Vorauswahl|Ueblich|Text
+#   S|Modul|Key|Typ|Risiko|Neustart|Rueckgaengig|Minuten|Vorauswahl|Ueblich|Text|Gruppe
 function Get-ContractGuiLines {
     $l = New-Object System.Collections.Generic.List[string]
     $clean = { param($v) (([string]$v) -replace '[\r\n|]+', ' ').Trim() }
@@ -135,7 +135,7 @@ function Get-ContractGuiLines {
         $l.Add(('M|{0}|{1}|{2}|{3}|{4}|{5}' -f $c.Name, (& $clean $c.Seite.Titel), (& $clean $c.Seite.Kurz), $(if ($c.Admin) { '1' } else { '0' }), $c.Risiko, $c.Neustart))
         foreach ($s in $c.Schritte) {
             $txt = $(if ($s.Text) { $s.Text } else { $s.Titel })
-            $l.Add(('S|{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}|{8}|{9}' -f $c.Name, $s.Key, $s.Typ, $s.Risiko, $s.Neustart, $s.Rueckgaengig, [int]$s.Minuten, $(if ($s.Vorauswahl) { '1' } else { '0' }), $(if ($s.Ueblich) { '1' } else { '0' }), (& $clean $txt)))
+            $l.Add(('S|{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}|{8}|{9}|{10}' -f $c.Name, $s.Key, $s.Typ, $s.Risiko, $s.Neustart, $s.Rueckgaengig, [int]$s.Minuten, $(if ($s.Vorauswahl) { '1' } else { '0' }), $(if ($s.Ueblich) { '1' } else { '0' }), (& $clean $txt), (& $clean $s.Gruppe)))
         }
     }
     return $l.ToArray()

@@ -52,7 +52,6 @@ function Export-BenchDashboardData {
         foreach ($cand in $candidates) {
             if (-not (Test-Path -LiteralPath $cand)) { continue }
             $rawCsv = Join-Path $cand 'Lasttest-Verlauf.csv'
-            $benchCsv = Join-Path $cand 'Benchmark-Sensoren.csv'
             $zipPath = Join-Path $cand 'Anhang.zip'
             if (Test-Path -LiteralPath $rawCsv) {
                 try { $lines = @([System.IO.File]::ReadAllLines($rawCsv, [System.Text.Encoding]::UTF8)); if ($lines.Count -gt 1) { break } } catch { }
@@ -62,7 +61,6 @@ function Export-BenchDashboardData {
                     Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
                     $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
                     $entry = $zip.GetEntry('Lasttest-Verlauf.csv')
-                    if (-not $entry) { $entry = $zip.GetEntry('Benchmark-Sensoren.csv') }
                     if ($entry) {
                         $sr = New-Object System.IO.StreamReader($entry.Open(), [System.Text.Encoding]::UTF8)
                         $zipLines = [System.Collections.Generic.List[string]]::new()
@@ -73,11 +71,80 @@ function Export-BenchDashboardData {
                     $zip.Dispose()
                 } catch { }
             }
-            if (Test-Path -LiteralPath $benchCsv) {
-                try { $lines = @([System.IO.File]::ReadAllLines($benchCsv, [System.Text.Encoding]::UTF8)); if ($lines.Count -gt 1) { break } } catch { }
-            }
         }
         return $lines
+    }
+
+    $extractReportTxt = {
+        param([string]$LeafFolder)
+        $candidates = [System.Collections.Generic.List[string]]::new()
+        if ($LeafFolder) {
+            if ([System.IO.Path]::IsPathRooted($LeafFolder)) {
+                $candidates.Add($LeafFolder)
+            } elseif ($repDir) {
+                $candidates.Add((Join-Path (Split-Path $repDir -Parent) $LeafFolder))
+                $candidates.Add((Join-Path $repDir (Split-Path $LeafFolder -Leaf)))
+            }
+        }
+        foreach ($cand in $candidates) {
+            if (-not (Test-Path -LiteralPath $cand)) { continue }
+            $txtPath = Join-Path $cand 'Diagnosebericht.txt'
+            if (Test-Path -LiteralPath $txtPath) {
+                try { return [System.IO.File]::ReadAllText($txtPath, [System.Text.Encoding]::UTF8) } catch { }
+            }
+            $zipPath = Join-Path $cand 'Anhang.zip'
+            if (Test-Path -LiteralPath $zipPath) {
+                try {
+                    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+                    $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+                    $entry = $zip.GetEntry('Diagnosebericht.txt')
+                    if ($entry) {
+                        $sr = New-Object System.IO.StreamReader($entry.Open(), [System.Text.Encoding]::UTF8)
+                        $content = $sr.ReadToEnd()
+                        $sr.Dispose()
+                        $zip.Dispose()
+                        return $content
+                    }
+                    $zip.Dispose()
+                } catch { }
+            }
+        }
+        return ''
+    }
+
+    $getLasttestArt = {
+        param([string]$Summary, [int]$SeriesDuration = 0)
+        $min = 0
+        if ($Summary -match 'Dauer\s*(\d+):(\d+):(\d+)') {
+            $hrs = [int]$matches[1]; $m = [int]$matches[2]; $s = [int]$matches[3]
+            $min = [math]::Max(1, [int][math]::Round(($hrs * 3600 + $m * 60 + $s) / 60.0))
+        } elseif ($SeriesDuration -gt 0) {
+            $min = [math]::Max(1, [int][math]::Round($SeriesDuration / 60.0))
+        }
+        $minStr = if ($min -gt 0) { ' {0} Min.' -f $min } else { '' }
+
+        $hasCpu = ($Summary -match '\bProzessor\b')
+        $hasGpu = ($Summary -match '\bGrafik\b')
+        $hasRam = ($Summary -match '\bArbeitsspeicher\b')
+        $hasDisk = ($Summary -match '\bDatenträger\b|\bDatentraeger\b')
+
+        if ($hasCpu -and $hasGpu -and ($hasRam -or $hasDisk)) {
+            return ('Lasttest Voll{0}' -f $minStr)
+        } elseif ($hasCpu -and $hasGpu) {
+            return ('Lasttest CPU & Grafik{0}' -f $minStr)
+        } elseif ($hasCpu) {
+            return ('Lasttest CPU{0}' -f $minStr)
+        } elseif ($hasGpu) {
+            return ('Lasttest Grafik{0}' -f $minStr)
+        } elseif ($hasRam) {
+            return ('Lasttest RAM{0}' -f $minStr)
+        } elseif ($Summary -match '^Lasttest\s+(.+)$') {
+            return $Summary
+        } elseif ($min -gt 0) {
+            return ('Lasttest{0}' -f $minStr)
+        } else {
+            return 'Lasttest'
+        }
     }
 
     # Hilfsfunktion: Konvertierung eines JSON-Objekts in die Dashboard-Systemstruktur
@@ -115,7 +182,32 @@ function Export-BenchDashboardData {
         }
 
         # Hardware-Infos
-        $cpu = $(if ($j.Hardware -and $j.Hardware.CPU) { [string]$j.Hardware.CPU } else { '' })
+        $cpuRaw = $(if ($j.Hardware -and $j.Hardware.CPU) { [string]$j.Hardware.CPU } else { '' })
+        $kerne = $(if ($j.Hardware -and $null -ne $j.Hardware.Kerne) { [int]$j.Hardware.Kerne } else { $null })
+        $threads = $(if ($j.Hardware -and $null -ne $j.Hardware.Threads) { [int]$j.Hardware.Threads } else { $null })
+
+        if ($null -eq $kerne -or $null -eq $threads) {
+            if ($cpuRaw -match '(\d+)\s*Kerne,\s*(\d+)\s*Threads') {
+                $kerne = [int]$Matches[1]; $threads = [int]$Matches[2]
+            } else {
+                $txtReport = & $extractReportTxt ([string]$j.Ordner)
+                if ($txtReport -and $txtReport -match '(?m)^\s*Kerne\s*/\s*Threads\s*:\s*(\d+)\s*/\s*(\d+)') {
+                    $kerne = [int]$Matches[1]; $threads = [int]$Matches[2]
+                } elseif ($txtReport -and $txtReport -match '(\d+)\s*Kerne,\s*(\d+)\s*Threads') {
+                    $kerne = [int]$Matches[1]; $threads = [int]$Matches[2]
+                }
+            }
+        }
+
+        $cleanCpu = if (Get-Command Get-CpuAnzeigename -ErrorAction SilentlyContinue) { Get-CpuAnzeigename $cpuRaw } else { $cpuRaw }
+        if ($null -ne $kerne -and $null -ne $threads -and $kerne -gt 0 -and $threads -gt 0) {
+            $cpuFull = '{0} ({1} Kerne, {2} Threads)' -f $cleanCpu, $kerne, $threads
+            $ktDisplay = '{0} / {1}' -f $kerne, $threads
+        } else {
+            $cpuFull = $cleanCpu
+            $ktDisplay = 'n/v'
+        }
+
         $ram = $(if ($j.Hardware -and $j.Hardware.RAM) { [string]$j.Hardware.RAM } else { '' })
         $gpu = $(if ($j.Hardware -and $j.Hardware.GPU) { [string]$j.Hardware.GPU } elseif ($j.Hardware -and $j.Hardware.GPUGemessen) { [string]$j.Hardware.GPUGemessen } else { '' })
         $diskInfo = $(if ($j.Hardware -and $j.Hardware.Datentraeger) { [string]$j.Hardware.Datentraeger } else { '' })
@@ -346,62 +438,47 @@ function Export-BenchDashboardData {
             $header = @($csvLines[0] -split ';') | ForEach-Object { $_.Trim('"').Trim() }
             $idxT = [array]::IndexOf($header, 'T')
             $idxMhz = [array]::IndexOf($header, 'MHz')
+            if ($idxMhz -lt 0) { $idxMhz = [array]::IndexOf($header, 'CpuMHzMax') }
             $idxCpuTemp = [array]::IndexOf($header, 'CpuTemp')
             if ($idxCpuTemp -lt 0) { $idxCpuTemp = [array]::IndexOf($header, 'Temp') }
-            $idxGpuTemp = [array]::IndexOf($header, 'GpuTemp')
             $idxCpuW = [array]::IndexOf($header, 'CpuW')
+            if ($idxCpuW -lt 0) { $idxCpuW = [array]::IndexOf($header, 'Leistung') }
+            $idxGpuTemp = [array]::IndexOf($header, 'GpuTemp')
+            $idxGpuMhz = [array]::IndexOf($header, 'GpuMHz')
+            $idxGpuW = [array]::IndexOf($header, 'GpuW')
+            $idxIGpuTemp = [array]::IndexOf($header, 'IGpuTemp')
+            $idxIGpuMhz = [array]::IndexOf($header, 'IGpuMHz')
+            $idxIGpuW = [array]::IndexOf($header, 'IGpuW')
             $idxFps = [array]::IndexOf($header, 'Fps')
 
             $step = [math]::Max(1, [int][math]::Floor(($csvLines.Count - 1) / 70))
             for ($r = 1; $r -lt $csvLines.Count; $r += $step) {
                 $cols = @($csvLines[$r] -split ';') | ForEach-Object { $_.Trim('"').Trim() }
-                if ($cols.Count -le $idxT -or -not $cols[$idxT]) { continue }
+                if ($cols.Count -le $idxT -or $cols[$idxT] -eq '') { continue }
                 $t = 0.0; [double]::TryParse($cols[$idxT].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$t) | Out-Null
-                $mhz = 0.0; if ($idxMhz -ge 0 -and $cols.Count -gt $idxMhz) { [double]::TryParse($cols[$idxMhz].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$mhz) | Out-Null }
-                $temp = 0.0; if ($idxCpuTemp -ge 0 -and $cols.Count -gt $idxCpuTemp) { [double]::TryParse($cols[$idxCpuTemp].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$temp) | Out-Null }
-                $gTemp = 0.0; if ($idxGpuTemp -ge 0 -and $cols.Count -gt $idxGpuTemp) { [double]::TryParse($cols[$idxGpuTemp].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$gTemp) | Out-Null }
-                $w = 0.0; if ($idxCpuW -ge 0 -and $cols.Count -gt $idxCpuW) { [double]::TryParse($cols[$idxCpuW].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$w) | Out-Null }
-                $fps = 0.0; if ($idxFps -ge 0 -and $cols.Count -gt $idxFps) { [double]::TryParse($cols[$idxFps].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$fps) | Out-Null }
+                $mhz = 0.0; if ($idxMhz -ge 0 -and $cols.Count -gt $idxMhz -and $cols[$idxMhz]) { [double]::TryParse($cols[$idxMhz].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$mhz) | Out-Null }
+                $temp = 0.0; if ($idxCpuTemp -ge 0 -and $cols.Count -gt $idxCpuTemp -and $cols[$idxCpuTemp]) { [double]::TryParse($cols[$idxCpuTemp].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$temp) | Out-Null }
+                $gTemp = 0.0; if ($idxGpuTemp -ge 0 -and $cols.Count -gt $idxGpuTemp -and $cols[$idxGpuTemp]) { [double]::TryParse($cols[$idxGpuTemp].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$gTemp) | Out-Null }
+                $w = 0.0; if ($idxCpuW -ge 0 -and $cols.Count -gt $idxCpuW -and $cols[$idxCpuW]) { [double]::TryParse($cols[$idxCpuW].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$w) | Out-Null }
+                $gMhz = 0.0; if ($idxGpuMhz -ge 0 -and $cols.Count -gt $idxGpuMhz -and $cols[$idxGpuMhz]) { [double]::TryParse($cols[$idxGpuMhz].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$gMhz) | Out-Null }
+                $gW = 0.0; if ($idxGpuW -ge 0 -and $cols.Count -gt $idxGpuW -and $cols[$idxGpuW]) { [double]::TryParse($cols[$idxGpuW].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$gW) | Out-Null }
+                $igTemp = 0.0; if ($idxIGpuTemp -ge 0 -and $cols.Count -gt $idxIGpuTemp -and $cols[$idxIGpuTemp]) { [double]::TryParse($cols[$idxIGpuTemp].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$igTemp) | Out-Null }
+                $igMhz = 0.0; if ($idxIGpuMhz -ge 0 -and $cols.Count -gt $idxIGpuMhz -and $cols[$idxIGpuMhz]) { [double]::TryParse($cols[$idxIGpuMhz].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$igMhz) | Out-Null }
+                $igW = 0.0; if ($idxIGpuW -ge 0 -and $cols.Count -gt $idxIGpuW -and $cols[$idxIGpuW]) { [double]::TryParse($cols[$idxIGpuW].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$igW) | Out-Null }
+                $fps = 0.0; if ($idxFps -ge 0 -and $cols.Count -gt $idxFps -and $cols[$idxFps]) { [double]::TryParse($cols[$idxFps].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$fps) | Out-Null }
 
                 $series.Add([ordered]@{
-                    T       = [math]::Round($t, 1)
-                    Temp    = $(if ($temp -gt 0) { [math]::Round($temp, 1) } else { $null })
-                    MHz     = $(if ($mhz -gt 0) { [math]::Round($mhz, 0) } else { $null })
-                    GpuTemp = $(if ($gTemp -gt 0) { [math]::Round($gTemp, 1) } else { $null })
-                    CpuW    = $(if ($w -gt 0) { [math]::Round($w, 1) } else { $null })
-                    Fps     = $(if ($fps -gt 0) { [math]::Round($fps, 1) } else { $null })
-                })
-            }
-        }
-
-        # Falls keine CSV-Zeilen verfügbar sind: repräsentative Kurve synthetisieren
-        if ($series.Count -lt 5) {
-            $baseTIdle = $(if ($null -ne $cpuTIdle -and $cpuTIdle -gt 20) { $cpuTIdle } else { 42.0 })
-            $baseTMax  = $(if ($null -ne $cpuTMax -and $cpuTMax -gt 35) { $cpuTMax } else { 76.0 })
-            $baseMhz   = $(if ($null -ne $cpuMHzAvg -and $cpuMHzAvg -gt 500) { $cpuMHzAvg } elseif ($cpuMHzMax -gt 500) { $cpuMHzMax * 0.92 } else { 3850.0 })
-            $dropRatio = $(if ($taktAbfall -gt 0) { $taktAbfall / 100.0 } elseif ($drosselung -eq 'thermisch') { 0.22 } elseif ($drosselung -eq 'Leistungsgrenze') { 0.14 } elseif ($drosselung -eq 'Firmware') { 0.18 } else { 0.0 })
-
-            for ($sec = 0; $sec -le 120; $sec += 4) {
-                if ($sec -lt 16) {
-                    $p = $sec / 16.0
-                    $tVal = $baseTIdle + ($baseTMax - $baseTIdle) * $p
-                    $mVal = $baseMhz * 1.04 - ($baseMhz * 0.04 * $p)
-                } elseif ($sec -le 96) {
-                    $throttled = ($sec -ge 28 -and $dropRatio -gt 0)
-                    $tVal = $(if ($throttled) { $baseTMax - 0.4 * [math]::Sin($sec * 0.2) } else { $baseTMax * 0.96 + 1.8 * [math]::Sin($sec * 0.15) })
-                    $mVal = $(if ($throttled) { $baseMhz * (1.0 - $dropRatio) + 15.0 * [math]::Cos($sec * 0.25) } else { $baseMhz + 25.0 * [math]::Sin($sec * 0.2) })
-                } else {
-                    $cool = ($sec - 96.0) / 24.0
-                    $tVal = $baseTMax - (($baseTMax - $baseTIdle) * 0.65 * $cool)
-                    $mVal = $baseMhz * 0.65
-                }
-                $series.Add([ordered]@{
-                    T       = $sec
-                    Temp    = [math]::Round($tVal, 1)
-                    MHz     = [math]::Round($mVal, 0)
-                    GpuTemp = $(if ($null -ne $gpuTMax) { [math]::Round([math]::Max(35.0, $gpuTMax * 0.94), 1) } else { $null })
-                    CpuW    = $(if ($sec -le 96 -and $sec -ge 16) { 65.0 } else { 20.0 })
-                    Fps     = $(if ($gpuRend -gt 0) { [math]::Round($gpuRend, 1) } else { $null })
+                    T        = [math]::Round($t, 1)
+                    Temp     = $(if ($temp -gt 0) { [math]::Round($temp, 1) } else { $null })
+                    MHz      = $(if ($mhz -gt 0) { [math]::Round($mhz, 0) } else { $null })
+                    CpuW     = $(if ($w -gt 0) { [math]::Round($w, 1) } else { $null })
+                    GpuTemp  = $(if ($gTemp -gt 0) { [math]::Round($gTemp, 1) } else { $null })
+                    GpuMHz   = $(if ($gMhz -gt 0) { [math]::Round($gMhz, 0) } else { $null })
+                    GpuW     = $(if ($gW -gt 0) { [math]::Round($gW, 1) } else { $null })
+                    IGpuTemp = $(if ($igTemp -gt 0) { [math]::Round($igTemp, 1) } else { $null })
+                    IGpuMHz  = $(if ($igMhz -gt 0) { [math]::Round($igMhz, 0) } else { $null })
+                    IGpuW    = $(if ($igW -gt 0) { [math]::Round($igW, 1) } else { $null })
+                    Fps      = $(if ($fps -gt 0) { [math]::Round($fps, 1) } else { $null })
                 })
             }
         }
@@ -417,35 +494,41 @@ function Export-BenchDashboardData {
 
         # Ermittlung des Berichts-Pfads für Direktverlinkung (v3.52)
         $reportUrl = ''
-        if ($j.BerichtPfad) {
-            $reportUrl = [string]$j.BerichtPfad
-        } elseif ($j.Ordner) {
-            $pOrd = [string]$j.Ordner
-            $pNorm = $pOrd -replace '\\', '/'
-            if ($pNorm -match 'Diagnosebericht\.html$') {
-                $reportUrl = $pNorm
-            } else {
-                $reportUrl = $pNorm.TrimEnd('/') + '/Diagnosebericht.html'
-            }
-        } elseif ($FilePath) {
-            $parentDir = Split-Path $FilePath -Parent
-            $candRel = Join-Path (Split-Path $parentDir -Parent) ('Berichte\' + (Split-Path $parentDir -Leaf) + '\Diagnosebericht.html')
-            if (Test-Path -LiteralPath $candRel) {
-                $reportUrl = (Split-Path $parentDir -Leaf) + '/Diagnosebericht.html'
-            } else {
-                # Suche nach Diagnosebericht.html im Geschwister-Ordner Berichte
-                $candRep = Join-Path (Split-Path (Split-Path $FilePath -Parent) -Parent) 'Berichte'
-                if (Test-Path -LiteralPath $candRep) {
-                    $found = @(Get-ChildItem -LiteralPath $candRep -Filter 'Diagnosebericht.html' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*$($j.Computer)*" })
-                    if ($found.Count) {
-                        $folderLeaf = Split-Path (Split-Path $found[0].FullName -Parent) -Leaf
-                        $reportUrl = $folderLeaf + '/Diagnosebericht.html'
+        if (-not $isRef) {
+            if ($j.BerichtPfad) {
+                $reportUrl = [string]$j.BerichtPfad
+            } elseif ($j.Ordner) {
+                $pOrd = [string]$j.Ordner
+                $pNorm = $pOrd -replace '\\', '/'
+                if ($pNorm -match 'Diagnosebericht\.html$') {
+                    $reportUrl = $pNorm
+                } else {
+                    $reportUrl = $pNorm.TrimEnd('/') + '/Diagnosebericht.html'
+                }
+            } elseif ($sourceFile -and (Split-Path $sourceFile -Parent)) {
+                $parentDir = Split-Path $sourceFile -Parent
+                $grandParent = Split-Path $parentDir -Parent
+                if ($grandParent) {
+                    $candRel = Join-Path $grandParent ('Berichte\' + (Split-Path $parentDir -Leaf) + '\Diagnosebericht.html')
+                    if (Test-Path -LiteralPath $candRel) {
+                        $reportUrl = (Split-Path $parentDir -Leaf) + '/Diagnosebericht.html'
+                    } else {
+                        # Suche nach Diagnosebericht.html im Geschwister-Ordner Berichte
+                        $candRep = Join-Path $grandParent 'Berichte'
+                        if (Test-Path -LiteralPath $candRep) {
+                            $found = @(Get-ChildItem -LiteralPath $candRep -Filter 'Diagnosebericht.html' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*$($j.Computer)*" })
+                            if ($found.Count) {
+                                $folderLeaf = Split-Path (Split-Path $found[0].FullName -Parent) -Leaf
+                                $reportUrl = $folderLeaf + '/Diagnosebericht.html'
+                            }
+                        }
                     }
                 }
             }
-        }
-        if (-not $reportUrl -and $j.Datum -and $j.Computer) {
-            $reportUrl = ('{0}_{1}/Diagnosebericht.html' -f ($j.Datum -replace '[- :]', ''), $j.Computer)
+            if (-not $reportUrl -and $j.Datum -and $j.Computer) {
+                $dClean = ($j.Datum -replace '-', '') -replace ' ', '_' -replace ':', ''
+                $reportUrl = ('{0}_{1}/Diagnosebericht.html' -f $j.Computer, $dClean)
+            }
         }
 
         # URL-Pfad normalisieren: Relative Links relativ zu Dashboard.html (in Berichte/ gelegen)
@@ -460,6 +543,9 @@ function Export-BenchDashboardData {
             $reportUrl = $reportUrl.TrimStart('/')
         }
 
+        $seriesDur = if ($series.Count -gt 0) { [int]$series[$series.Count - 1].T } else { 0 }
+        $lasttestArt = & $getLasttestArt ([string]$j.Lasttest) $seriesDur
+
         return [ordered]@{
             Id          = $id
             ReportUrl   = $reportUrl
@@ -469,7 +555,13 @@ function Export-BenchDashboardData {
             IsReference = $isRef
             OS          = $os
             Hardware    = [ordered]@{
-                CPU                = $cpu
+                CPU                = $cpuRaw
+                CpuKurz            = $cleanCpu
+                CleanCpu           = $cleanCpu
+                CpuDisplay         = $cpuFull
+                Kerne              = $kerne
+                Threads            = $threads
+                KerneThreads       = $ktDisplay
                 RAM                = $ram
                 GPU                = $gpu
                 Datentraeger       = $diskInfo
@@ -506,6 +598,7 @@ function Export-BenchDashboardData {
                 DisksByClass  = $disksByClass
             }
             Telemetry   = [ordered]@{
+                TestType                 = $lasttestArt
                 CpuTempMax               = $cpuTMax
                 CpuTempLeerlauf          = $cpuTIdle
                 TjMax                    = $tjMax
@@ -1377,30 +1470,16 @@ function Get-BenchDashboardHtmlTemplate {
     </div>
   </section>
 
-  <!-- BEFUNDE-VERGLEICH -->
-  <section class="dash-card">
-    <div class="card-head">
-      <div>
-        <h2>🔍 Befunde der Systeme im Vergleich</h2>
-        <p>Synoptische Gegenüberstellung aller Diagnose-Befunde (Kritisch, Warnungen, Hinweise).</p>
-      </div>
-    </div>
-    <div id="findingsGrid" class="findings-grid">
-      <!-- Generiert durch JavaScript -->
-    </div>
-  </section>
-
   <!-- INTERAKTIVER SYSTEMVERGLEICH-CHART -->
   <section class="dash-card">
     <div class="card-head">
       <div>
-        <h2>🔥 Lasttest-Telemetrie &amp; Multi-System-Sensorverlauf</h2>
-        <p>Zeitreihen für Temperatur (°C) und Kerntakt (GHz) über die Belastungsdauer mit Farbcodierung je System.</p>
+        <h2>Lasttest-Telemetrie &amp; Multi-System-Sensorverlauf</h2>
+        <p>Sensorverlauf über die Belastungsdauer mit Farbcodierung je System.</p>
       </div>
       <div class="chart-controls">
-        <button id="btnModeTemp" class="chart-btn active" type="button">🌡️ Temperatur (°C) aller Systeme</button>
-        <button id="btnModeMhz" class="chart-btn" type="button">⚡ Kerntakt (GHz) aller Systeme</button>
-        <button id="btnModeBase" class="chart-btn" type="button">📊 Basissystem Detailansicht</button>
+        <button id="btnModeCpu" class="chart-btn active" type="button">CPU</button>
+        <button id="btnModeGpu" class="chart-btn" type="button">GPU</button>
       </div>
     </div>
 
@@ -1411,6 +1490,19 @@ function Get-BenchDashboardHtmlTemplate {
     </div>
 
     <div id="chartLegend" class="chart-legend">
+      <!-- Generiert durch JavaScript -->
+    </div>
+  </section>
+
+  <!-- BEFUNDE-VERGLEICH -->
+  <section class="dash-card">
+    <div class="card-head">
+      <div>
+        <h2>Befunde der Systeme im Vergleich</h2>
+        <p>Synoptische Gegenüberstellung aller Diagnose-Befunde (Kritisch, Warnungen, Hinweise).</p>
+      </div>
+    </div>
+    <div id="findingsGrid" class="findings-grid">
       <!-- Generiert durch JavaScript -->
     </div>
   </section>
@@ -1433,7 +1525,17 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
   let baseSystem = null;
   let comparedSystems = [];
   let selectedCompareIds = new Set();
-  let chartMode = 'temp'; // 'temp', 'mhz', 'base'
+  let chartMode = 'cpu'; // 'cpu', 'gpu'
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 
   // Farbpalette für bis zu N Systeme
   const SYSTEM_COLORS = [
@@ -1466,9 +1568,8 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
   const tooltip = document.getElementById('chartTooltip');
   const chartLegend = document.getElementById('chartLegend');
 
-  const btnModeTemp = document.getElementById('btnModeTemp');
-  const btnModeMhz = document.getElementById('btnModeMhz');
-  const btnModeBase = document.getElementById('btnModeBase');
+  const btnModeCpu = document.getElementById('btnModeCpu');
+  const btnModeGpu = document.getElementById('btnModeGpu');
 
   const btnSelectAll = document.getElementById('btnSelectAll');
   const btnSelectNone = document.getElementById('btnSelectNone');
@@ -1661,18 +1762,16 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     });
 
     // Chart Modus-Umschalter
-    btnModeTemp.addEventListener('click', () => { setChartMode('temp'); });
-    btnModeMhz.addEventListener('click', () => { setChartMode('mhz'); });
-    btnModeBase.addEventListener('click', () => { setChartMode('base'); });
+    btnModeCpu.addEventListener('click', () => { setChartMode('cpu'); });
+    btnModeGpu.addEventListener('click', () => { setChartMode('gpu'); });
 
     window.addEventListener('resize', renderChart);
   }
 
   function setChartMode(mode) {
     chartMode = mode;
-    btnModeTemp.classList.toggle('active', mode === 'temp');
-    btnModeMhz.classList.toggle('active', mode === 'mhz');
-    btnModeBase.classList.toggle('active', mode === 'base');
+    btnModeCpu.classList.toggle('active', mode === 'cpu');
+    btnModeGpu.classList.toggle('active', mode === 'gpu');
     renderChart();
   }
 
@@ -1783,11 +1882,13 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     comparedSystems.forEach((s, idx) => {
       const color = getSysColor(idx, isDark);
       const isBase = (idx === 0);
-      const nameHtml = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" title="Diagnosebericht für ${s.DisplayName || s.Computer} im Browser öffnen" style="color:inherit; text-decoration:underline; font-weight:600; cursor:pointer;">${s.DisplayName || s.Computer}</a>`
-        : `<span>${s.DisplayName || s.Computer}</span>`;
-      const repBadge = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" class="report-badge-btn" title="Diagnosebericht öffnen" style="margin-left:auto; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; font-size:0.75rem; border-radius:4px; background:var(--accent-subtle); color:var(--accent); text-decoration:none; border:1px solid var(--accent); font-weight:600; cursor:pointer;">📄 Bericht</a>`
+      const sName = escapeHtml(s.DisplayName || s.Computer);
+      const repUrl = s.ReportUrl ? escapeHtml(s.ReportUrl) : '';
+      const nameHtml = repUrl
+        ? `<a href="${repUrl}" target="_blank" title="Diagnosebericht für ${sName} im Browser öffnen" style="color:inherit; text-decoration:underline; font-weight:600; cursor:pointer;">${sName}</a>`
+        : `<span>${sName}</span>`;
+      const repBadge = repUrl
+        ? `<a href="${repUrl}" target="_blank" class="report-badge-btn" title="Diagnosebericht öffnen" style="margin-left:auto; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; font-size:0.75rem; border-radius:4px; background:var(--accent-subtle); color:var(--accent); text-decoration:none; border:1px solid var(--accent); font-weight:600; cursor:pointer;">Bericht</a>`
         : '';
       html += `<th>
         <div style="display: flex; align-items: center; gap: 6px;">
@@ -1796,21 +1897,22 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           ${isBase ? '<span class="pill ok">Basis</span>' : ''}
           ${repBadge}
         </div>
-        <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">${s.Datum || 'Referenz'}</div>
+        <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">${escapeHtml(s.Datum || 'Referenz')}</div>
       </th>`;
     });
     html += '</tr></thead><tbody>';
 
     const rows = [
-      { key: 'Bericht', label: 'Diagnosebericht', get: s => s.ReportUrl ? `<a href="${s.ReportUrl}" target="_blank" style="color:var(--accent); text-decoration:underline; font-weight:600;">📄 Diagnosebericht.html öffnen</a>` : '<span style="color:var(--text-muted);">-</span>' },
-      { key: 'Computer', label: 'Rechnername', get: s => s.Computer || '-' },
-      { key: 'CPU', label: 'Prozessor (CPU)', get: s => s.Hardware?.CPU || '-' },
-      { key: 'RAM', label: 'Arbeitsspeicher (RAM)', get: s => s.Hardware?.RAM || '-' },
-      { key: 'GPU', label: 'Grafikkarte (GPU)', get: s => s.Hardware?.GPU || '-' },
-      { key: 'Disk', label: 'Datenträger', get: s => s.Hardware?.Datentraeger || s.Hardware?.FastestDisk || '-' },
-      { key: 'Mainboard', label: 'Mainboard / System', get: s => s.Hardware?.Mainboard || s.Hardware?.System || '-' },
-      { key: 'OS', label: 'Betriebssystem', get: s => s.OS || s.Hardware?.Betriebssystem || '-' },
-      { key: 'Installiert', label: 'Windows installiert', get: s => s.Hardware?.WindowsInstalliert || '-' },
+      { key: 'Bericht', label: 'Diagnosebericht', get: s => s.ReportUrl ? `<a href="${escapeHtml(s.ReportUrl)}" target="_blank" style="color:var(--accent); text-decoration:underline; font-weight:600;">Diagnosebericht.html öffnen</a>` : '<span style="color:var(--text-muted);">-</span>' },
+      { key: 'Computer', label: 'Rechnername', get: s => escapeHtml(s.Computer || '-') },
+      { key: 'CPU', label: 'Prozessor (CPU)', get: s => escapeHtml(s.Hardware?.CpuKurz || s.Hardware?.CPU || '-') },
+      { key: 'KerneThreads', label: 'Kerne / Threads', get: s => escapeHtml((s.Hardware?.Kerne && s.Hardware?.Threads) ? `${s.Hardware.Kerne} / ${s.Hardware.Threads}` : (s.Hardware?.KerneThreads || 'n/v')) },
+      { key: 'RAM', label: 'Arbeitsspeicher (RAM)', get: s => escapeHtml(s.Hardware?.RAM || '-') },
+      { key: 'GPU', label: 'Grafikkarte (GPU)', get: s => escapeHtml(s.Hardware?.GPU || '-') },
+      { key: 'Disk', label: 'Datenträger', get: s => escapeHtml(s.Hardware?.Datentraeger || s.Hardware?.FastestDisk || '-') },
+      { key: 'Mainboard', label: 'Mainboard / System', get: s => escapeHtml(s.Hardware?.Mainboard || s.Hardware?.System || '-') },
+      { key: 'OS', label: 'Betriebssystem', get: s => escapeHtml(s.OS || s.Hardware?.Betriebssystem || '-') },
+      { key: 'Installiert', label: 'Windows installiert', get: s => escapeHtml(s.Hardware?.WindowsInstalliert || '-') },
       { key: 'Befunde', label: 'Diagnose-Befunde', get: s => {
         const b = s.Befunde || { Kritisch: 0, Warnungen: 0, Hinweise: 0 };
         return `<span class="badge ${b.Kritisch > 0 ? 'crit' : 'neutral'}">${b.Kritisch} kritisch</span>
@@ -1837,9 +1939,9 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
     const profiles = [
-      { key: 'Gaming', title: '🎮 Gaming', desc: 'GPU- & Single-Thread-Fokus' },
-      { key: 'Desktop', title: '💼 Büro / Desktop', desc: 'Reaktionszeit & SSD-Leistung' },
-      { key: 'Workstation', title: '⚙️ Workstation', desc: 'Mehrkern- & RAM-Durchsatz' }
+      { key: 'Gaming', title: 'Gaming', desc: 'GPU- & Single-Thread-Fokus' },
+      { key: 'Desktop', title: 'Büro / Desktop', desc: 'Reaktionszeit & SSD-Leistung' },
+      { key: 'Workstation', title: 'Workstation', desc: 'Mehrkern- & RAM-Durchsatz' }
     ];
 
     let html = '';
@@ -1847,21 +1949,54 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       const baseScore = baseSystem?.Scores?.[p.key] || 0;
       html += `<div class="profile-card">
         <div class="profile-header">
-          <span>${p.title}</span>
-          <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: normal;">${p.desc}</span>
+          <span>${escapeHtml(p.title)}</span>
+          <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: normal;">${escapeHtml(p.desc)}</span>
         </div>
         <div class="profile-sys-list">`;
 
-      comparedSystems.forEach((s, idx) => {
-        const sc = s.Scores?.[p.key] || 0;
-        const isBase = (idx === 0);
-        const color = getSysColor(idx, isDark);
-        const delta = isBase ? 0 : calcDelta(sc, baseScore);
-        const deltaHtml = isBase ? '<span class="pill ok">100 % (Basis)</span>' : renderPill(delta);
+      const items = comparedSystems.map((s, idx) => {
+        const sc = s.Scores?.[p.key];
+        const hasScore = (typeof sc === 'number' && sc > 0);
+        const isBase = (String(s.Id) === String(baseSystem?.Id));
+        return {
+          sys: s,
+          idx: idx,
+          score: hasScore ? sc : 0,
+          hasScore: hasScore,
+          isBase: isBase
+        };
+      });
 
-        const nameLink = s.ReportUrl
-          ? `<a href="${s.ReportUrl}" target="_blank" title="Diagnosebericht für ${s.DisplayName || s.Computer} öffnen" style="color:inherit; text-decoration:underline; cursor:pointer;">${s.DisplayName || s.Computer}</a>`
-          : `<span>${s.DisplayName || s.Computer}</span>`;
+      items.sort((a, b) => {
+        if (a.hasScore && b.hasScore) return b.score - a.score;
+        if (a.hasScore && !b.hasScore) return -1;
+        if (!a.hasScore && b.hasScore) return 1;
+        return a.idx - b.idx;
+      });
+
+      items.forEach(item => {
+        const s = item.sys;
+        const sc = item.score;
+        const isBase = item.isBase;
+        const color = getSysColor(item.idx, isDark);
+        const sName = escapeHtml(s.DisplayName || s.Computer);
+        const repUrl = s.ReportUrl ? escapeHtml(s.ReportUrl) : '';
+
+        const delta = isBase ? 0 : (item.hasScore && baseScore > 0 ? calcDelta(sc, baseScore) : null);
+        let deltaHtml = '';
+        if (isBase) {
+          deltaHtml = '<span class="pill ok">100 % (Basis)</span>';
+        } else if (delta !== null) {
+          deltaHtml = renderPill(delta);
+        } else {
+          deltaHtml = '<span class="pill neutral">n/v</span>';
+        }
+
+        const scoreText = item.hasScore ? fmtNum(sc) : 'n/v';
+
+        const nameLink = repUrl
+          ? `<a href="${repUrl}" target="_blank" title="Diagnosebericht für ${sName} öffnen" style="color:inherit; text-decoration:underline; cursor:pointer;">${sName}</a>`
+          : `<span>${sName}</span>`;
 
         html += `<div class="profile-sys-row ${isBase ? 'is-base' : ''}">
           <div style="display: flex; align-items: center; gap: 6px;">
@@ -1869,7 +2004,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
             <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nameLink}</span>
           </div>
           <div style="display: flex; align-items: center; gap: 4px;">
-            <span style="font-weight: 700;">${fmtNum(sc)}</span>
+            <span style="font-weight: 700;">${scoreText}</span>
             ${deltaHtml}
           </div>
         </div>`;
@@ -1890,11 +2025,13 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     comparedSystems.forEach((s, idx) => {
       const color = getSysColor(idx, isDark);
       const isBase = (idx === 0);
-      const nameLink = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" title="Diagnosebericht für ${s.DisplayName || s.Computer} im Browser öffnen" style="color:inherit; text-decoration:underline; font-weight:600; cursor:pointer;">${s.DisplayName || s.Computer}</a>`
-        : `<span>${s.DisplayName || s.Computer}</span>`;
-      const repBtn = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" title="Diagnosebericht öffnen" style="font-size:0.75rem; color:var(--accent); text-decoration:none; margin-left:4px;">📄</a>`
+      const sName = escapeHtml(s.DisplayName || s.Computer);
+      const repUrl = s.ReportUrl ? escapeHtml(s.ReportUrl) : '';
+      const nameLink = repUrl
+        ? `<a href="${repUrl}" target="_blank" title="Diagnosebericht für ${sName} im Browser öffnen" style="color:inherit; text-decoration:underline; font-weight:600; cursor:pointer;">${sName}</a>`
+        : `<span>${sName}</span>`;
+      const repBtn = repUrl
+        ? `<a href="${repUrl}" target="_blank" title="Diagnosebericht öffnen" style="font-size:0.75rem; color:var(--accent); text-decoration:none; margin-left:4px;">Bericht</a>`
         : '';
       html += `<th style="text-align: right;">
         <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
@@ -2002,11 +2139,13 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       const b = s.Befunde || { Kritisch: 0, Warnungen: 0, Hinweise: 0, Liste: [] };
       const list = b.Liste || [];
 
-      const nameLink = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" title="Diagnosebericht für ${s.DisplayName || s.Computer} im Browser öffnen" style="color:inherit; text-decoration:underline; font-weight:600; cursor:pointer;">${s.DisplayName || s.Computer}</a>`
-        : `<span>${s.DisplayName || s.Computer}</span>`;
-      const repBadge = s.ReportUrl
-        ? `<a href="${s.ReportUrl}" target="_blank" class="report-badge-btn" title="Diagnosebericht öffnen" style="margin-left:auto; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; font-size:0.75rem; border-radius:4px; background:var(--accent-subtle); color:var(--accent); text-decoration:none; border:1px solid var(--accent); font-weight:600; cursor:pointer;">📄 Bericht</a>`
+      const sName = escapeHtml(s.DisplayName || s.Computer);
+      const repUrl = s.ReportUrl ? escapeHtml(s.ReportUrl) : '';
+      const nameLink = repUrl
+        ? `<a href="${repUrl}" target="_blank" title="Diagnosebericht für ${sName} im Browser öffnen" style="color:inherit; text-decoration:underline; font-weight:600; cursor:pointer;">${sName}</a>`
+        : `<span>${sName}</span>`;
+      const repBadge = repUrl
+        ? `<a href="${repUrl}" target="_blank" class="report-badge-btn" title="Diagnosebericht öffnen" style="margin-left:auto; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; font-size:0.75rem; border-radius:4px; background:var(--accent-subtle); color:var(--accent); text-decoration:none; border:1px solid var(--accent); font-weight:600; cursor:pointer;">Bericht</a>`
         : '';
 
       html += `<div class="finding-card">
@@ -2033,7 +2172,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
 
           html += `<div class="finding-item">
             <span class="badge ${bCls}" style="flex-shrink: 0;">${bCls.toUpperCase()}</span>
-            <span>${txt.replace(/^\[\w+\]\s*/, '')}</span>
+            <span>${escapeHtml(txt.replace(/^\[\w+\]\s*/, ''))}</span>
           </div>`;
         });
         html += `</div></details>`;
@@ -2053,22 +2192,18 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
     let html = '';
-    if (chartMode === 'base') {
-      html = `
-        <div class="legend-item"><div class="legend-color" style="background: var(--curve-temp);"></div><span>Basis CPU Temperatur (°C)</span></div>
-        <div class="legend-item"><div class="legend-color" style="background: var(--curve-mhz);"></div><span>Basis CPU Takt (GHz)</span></div>
-        <div class="legend-item"><div class="legend-color" style="background: #E81123; border: 1px dashed #E81123; height: 2px;"></div><span>TjMax Grenze</span></div>
-      `;
-    } else {
-      comparedSystems.forEach((s, idx) => {
-        const color = getSysColor(idx, isDark);
-        const label = (idx === 0 ? '🎯 Basis: ' : '') + (s.DisplayName || s.Computer);
-        html += `<div class="legend-item">
-          <div class="legend-color" style="background: ${color};"></div>
-          <span>${label}</span>
-        </div>`;
-      });
-    }
+    comparedSystems.forEach((s, idx) => {
+      const color = getSysColor(idx, isDark);
+      const isBase = (String(s.Id) === String(baseSystem?.Id));
+      const sName = escapeHtml(s.DisplayName || s.Computer);
+      const label = (isBase ? 'Basis: ' : '') + sName;
+      const hasSeries = (s.Telemetry?.Series && s.Telemetry.Series.length > 0);
+      const testType = hasSeries ? (s.Telemetry?.TestType || 'Lasttest') : 'keine Zeitreihe';
+      html += `<div class="legend-item">
+        <div class="legend-color" style="background: ${color};"></div>
+        <span>${label} (${escapeHtml(testType)})</span>
+      </div>`;
+    });
 
     chartLegend.innerHTML = html;
   }
@@ -2104,57 +2239,36 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     const chartW = width - padding.left - padding.right;
     const chartH = height - padding.top - padding.bottom;
 
-    // Maximale Zeit & Y-Werte über alle aktiven Systeme ermitteln
+    // Maximale Zeit ermitteln
     let tMax = 120;
-    let maxMhz = 5000;
     comparedSystems.forEach(s => {
       const srs = s.Telemetry?.Series || [];
       if (srs.length > 0) {
         const lastT = srs[srs.length - 1].T;
         if (lastT > tMax) tMax = lastT;
-        srs.forEach(pt => { if (pt.MHz && pt.MHz > maxMhz) maxMhz = pt.MHz * 1.1; });
       }
     });
 
     const tempMax = 110;
     const getX = t => padding.left + (t / tMax) * chartW;
     const getYTemp = temp => padding.top + chartH - (temp / tempMax) * chartH;
-    const getYMhz = mhz => padding.top + chartH - (mhz / maxMhz) * chartH;
 
-    // GRID LINES
+    // GRID LINES (Temperaturskala 0..100 °C)
     ctx.strokeStyle = isDark ? '#363636' : '#ECEFF1';
     ctx.lineWidth = 1;
     ctx.fillStyle = isDark ? '#808080' : '#888888';
     ctx.font = '11px system-ui, sans-serif';
 
-    if (chartMode === 'temp' || chartMode === 'base') {
-      [0, 25, 50, 75, 100].forEach(deg => {
-        const y = getYTemp(deg);
-        ctx.beginPath();
-        ctx.moveTo(padding.left, y);
-        ctx.lineTo(padding.left + chartW, y);
-        ctx.stroke();
+    [0, 25, 50, 75, 100].forEach(deg => {
+      const y = getYTemp(deg);
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(padding.left + chartW, y);
+      ctx.stroke();
 
-        ctx.textAlign = 'right';
-        ctx.fillText(deg + ' °C', padding.left - 8, y + 4);
-      });
-    }
-
-    if (chartMode === 'mhz' || chartMode === 'base') {
-      const align = (chartMode === 'mhz') ? 'right' : 'left';
-      const xPos = (chartMode === 'mhz') ? padding.left - 8 : padding.left + chartW + 8;
-      [0, 2000, 4000, 6000].filter(m => m <= maxMhz).forEach(m => {
-        const y = getYMhz(m);
-        if (chartMode === 'mhz') {
-          ctx.beginPath();
-          ctx.moveTo(padding.left, y);
-          ctx.lineTo(padding.left + chartW, y);
-          ctx.stroke();
-        }
-        ctx.textAlign = align;
-        ctx.fillText((m / 1000).toFixed(1) + ' GHz', xPos, y + 4);
-      });
-    }
+      ctx.textAlign = 'right';
+      ctx.fillText(deg + ' °C', padding.left - 8, y + 4);
+    });
 
     // X Axis Time Labels
     ctx.textAlign = 'center';
@@ -2168,95 +2282,43 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     }
 
     // KURVEN ZEICHNEN
-    if (chartMode === 'base') {
-      // Detailansicht Basissystem (Temperatur + Takt)
-      const baseSrs = baseSystem?.Telemetry?.Series || [];
-      const tjMax = baseSystem?.Telemetry?.TjMax || 100;
+    comparedSystems.forEach((s, idx) => {
+      const srs = s.Telemetry?.Series || [];
+      if (srs.length < 2) return;
+      const color = getSysColor(idx, isDark);
+      const isBase = (String(s.Id) === String(baseSystem?.Id));
 
-      // TjMax Referenz
-      const yTj = getYTemp(tjMax);
       ctx.save();
-      ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = 'rgba(232, 17, 35, 0.6)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(padding.left, yTj);
-      ctx.lineTo(padding.left + chartW, yTj);
-      ctx.stroke();
-      ctx.fillStyle = 'rgba(232, 17, 35, 0.85)';
-      ctx.textAlign = 'left';
-      ctx.fillText('TjMax (' + tjMax + ' °C)', padding.left + 8, yTj - 6);
-      ctx.restore();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = isBase ? 3.0 : 2.0;
+      if (!isBase && idx % 2 === 1) ctx.setLineDash([6, 3]);
 
-      // CPU Clock
-      ctx.save();
-      ctx.strokeStyle = isDark ? '#4CC2FF' : '#0078D4';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      let startedMhz = false;
-      baseSrs.forEach(pt => {
-        if (pt.MHz) {
+      let inSegment = false;
+      srs.forEach(pt => {
+        const val = (chartMode === 'cpu')
+          ? pt.Temp
+          : (pt.GpuTemp != null ? pt.GpuTemp : pt.IGpuTemp);
+
+        if (val != null && val > 0) {
           const x = getX(pt.T);
-          const y = getYMhz(pt.MHz);
-          if (!startedMhz) { ctx.moveTo(x, y); startedMhz = true; } else { ctx.lineTo(x, y); }
-        }
-      });
-      ctx.stroke();
-      ctx.restore();
-
-      // CPU Temp
-      ctx.save();
-      ctx.strokeStyle = isDark ? '#FF5A5A' : '#E81123';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      let startedTemp = false;
-      baseSrs.forEach(pt => {
-        if (pt.Temp) {
-          const x = getX(pt.T);
-          const y = getYTemp(pt.Temp);
-          if (!startedTemp) { ctx.moveTo(x, y); startedTemp = true; } else { ctx.lineTo(x, y); }
-        }
-      });
-      ctx.stroke();
-
-      if (baseSrs.length > 1) {
-        ctx.lineTo(getX(baseSrs[baseSrs.length - 1].T), padding.top + chartH);
-        ctx.lineTo(getX(baseSrs[0].T), padding.top + chartH);
-        ctx.closePath();
-        const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
-        grad.addColorStop(0, isDark ? 'rgba(255, 90, 90, 0.2)' : 'rgba(232, 17, 35, 0.15)');
-        grad.addColorStop(1, 'rgba(232, 17, 35, 0.0)');
-        ctx.fillStyle = grad;
-        ctx.fill();
-      }
-      ctx.restore();
-
-    } else {
-      // Multi-System Überlagerung: Temperatur oder Kerntakt
-      comparedSystems.forEach((s, idx) => {
-        const srs = s.Telemetry?.Series || [];
-        if (srs.length < 2) return;
-        const color = getSysColor(idx, isDark);
-
-        ctx.save();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = (idx === 0) ? 3.0 : 2.0; // Basissystem etwas dicker
-        if (idx > 0 && idx % 2 === 1) ctx.setLineDash([6, 3]); // Jedes zweite Vergleichssystem leicht gestrichelt
-        ctx.beginPath();
-        let started = false;
-
-        srs.forEach(pt => {
-          const val = (chartMode === 'temp') ? pt.Temp : pt.MHz;
-          if (val) {
-            const x = getX(pt.T);
-            const y = (chartMode === 'temp') ? getYTemp(val) : getYMhz(val);
-            if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
+          const y = getYTemp(val);
+          if (!inSegment) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            inSegment = true;
+          } else {
+            ctx.lineTo(x, y);
           }
-        });
-        ctx.stroke();
-        ctx.restore();
+        } else {
+          if (inSegment) {
+            ctx.stroke();
+            inSegment = false;
+          }
+        }
       });
-    }
+      if (inSegment) ctx.stroke();
+      ctx.restore();
+    });
 
     // HOVER INTERACTION
     canvas.onmousemove = function(e) {
@@ -2291,7 +2353,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
 
       let tipHtml = `
         <div style="font-weight: 700; margin-bottom: 6px; border-bottom: 1px solid var(--card-border); padding-bottom: 3px;">
-          ⏱️ Zeit: ${timeStr} (${targetT.toFixed(0)} s)
+          Zeit: ${timeStr} (${targetT.toFixed(0)} s)
         </div>
       `;
 
@@ -2307,38 +2369,48 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
         });
 
         const color = getSysColor(idx, isDark);
-        const name = (idx === 0 ? '🎯 Basis: ' : '') + (s.DisplayName || s.Computer);
+        const isBase = (String(s.Id) === String(baseSystem?.Id));
+        const sName = escapeHtml(s.DisplayName || s.Computer);
+        const name = (isBase ? 'Basis: ' : '') + sName;
 
-        if (chartMode === 'temp') {
+        if (chartMode === 'cpu') {
+          const tempStr = closest.Temp != null ? closest.Temp.toFixed(1) + ' °C' : 'n/v';
+          const mhzStr = closest.MHz != null ? closest.MHz.toFixed(0) + ' MHz' : 'n/v';
+          const wattStr = closest.CpuW != null ? closest.CpuW.toFixed(1) + ' W' : 'n/v';
+
           tipHtml += `<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 3px;">
             <span style="color: ${color}; font-weight: 600;">● ${name}</span>
-            <span style="font-weight: 700;">${closest.Temp ? closest.Temp.toFixed(1) + ' °C' : '-'}</span>
+            <span style="font-weight: 700;">${tempStr} &middot; ${mhzStr} &middot; ${wattStr}</span>
           </div>`;
-          if (closest.Temp) {
+
+          if (closest.Temp != null && closest.Temp > 0) {
             ctx.fillStyle = color;
             ctx.beginPath();
             ctx.arc(cx, getYTemp(closest.Temp), 4.5, 0, Math.PI * 2);
             ctx.fill();
           }
-        } else if (chartMode === 'mhz') {
+        } else {
+          // GPU
+          const gTemp = closest.GpuTemp != null ? closest.GpuTemp : closest.IGpuTemp;
+          const gMhz = closest.GpuMHz != null ? closest.GpuMHz : closest.IGpuMHz;
+          const gWatt = closest.GpuW != null ? closest.GpuW : closest.IGpuW;
+
+          const tempStr = gTemp != null ? gTemp.toFixed(1) + ' °C' : 'n/v';
+          const mhzStr = gMhz != null ? gMhz.toFixed(0) + ' MHz' : 'n/v';
+          const wattStr = gWatt != null ? gWatt.toFixed(1) + ' W' : 'n/v';
+          const fpsStr = closest.Fps != null ? (' &middot; ' + closest.Fps.toFixed(0) + ' Bilder/s') : '';
+
           tipHtml += `<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 3px;">
             <span style="color: ${color}; font-weight: 600;">● ${name}</span>
-            <span style="font-weight: 700;">${closest.MHz ? (closest.MHz / 1000).toFixed(2) + ' GHz' : '-'}</span>
+            <span style="font-weight: 700;">${tempStr} &middot; ${mhzStr} &middot; ${wattStr}${fpsStr}</span>
           </div>`;
-          if (closest.MHz) {
+
+          if (gTemp != null && gTemp > 0) {
             ctx.fillStyle = color;
             ctx.beginPath();
-            ctx.arc(cx, getYMhz(closest.MHz), 4.5, 0, Math.PI * 2);
+            ctx.arc(cx, getYTemp(gTemp), 4.5, 0, Math.PI * 2);
             ctx.fill();
           }
-        } else {
-          // Basis Detail
-          tipHtml += `
-            <div style="color: var(--curve-temp); font-weight: 600;">🌡️ CPU-Temp: ${closest.Temp ? closest.Temp.toFixed(1) + ' °C' : '-'}</div>
-            <div style="color: var(--curve-mhz); font-weight: 600;">⚡ CPU-Takt: ${closest.MHz ? (closest.MHz / 1000).toFixed(2) + ' GHz' : '-'}</div>
-            ${closest.GpuTemp ? '<div style="color: var(--curve-gpu);">🎮 GPU-Temp: ' + closest.GpuTemp.toFixed(1) + ' °C</div>' : ''}
-            ${closest.CpuW ? '<div>💡 CPU-Paket: ' + closest.CpuW.toFixed(1) + ' W</div>' : ''}
-          `;
         }
       });
 
@@ -2348,7 +2420,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       tooltip.style.display = 'block';
 
       let tooltipX = cx + 15;
-      if (tooltipX + 220 > width) tooltipX = cx - 230;
+      if (tooltipX + 240 > width) tooltipX = cx - 250;
       tooltip.style.left = Math.max(10, tooltipX) + 'px';
       tooltip.style.top = (padding.top + 10) + 'px';
     };
@@ -2397,6 +2469,7 @@ function New-BenchDashboardHtml {
     }
 
     $json = $data | ConvertTo-Json -Depth 10 -Compress
+    $json = $json -replace '</', '<\/'
     $template = Get-BenchDashboardHtmlTemplate
 
     # Daten einbetten

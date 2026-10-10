@@ -497,6 +497,39 @@ Describe 'Momentaufnahme: Plausibilität' {
         $rd[0].Wert = 900
         @(MinibenchTest\Get-SensorSnapshotFindings $rd $l).Count | Should -Be 0
     }
+    It 'nennt Leerlauf nur bei geringer Last, sonst bei Last und Watt' {
+        $lIdle = [pscustomobject]@{ CpuTemp = 84; CpuTempQ = 'LHM'; CpuLoad = 5; CpuW = 15; GpuTemp = $null }
+        $fIdle = @(MinibenchTest\Get-SensorSnapshotFindings @() $lIdle)
+        $fIdle[0].Text | Should -Match 'im Leerlauf 84 °C'
+
+        $lLoad = [pscustomobject]@{ CpuTemp = 95; CpuTempQ = 'LHM'; CpuLoad = 35; CpuW = 28.7; GpuTemp = $null }
+        $fLoad = @(MinibenchTest\Get-SensorSnapshotFindings @() $lLoad)
+        $fLoad[0].Text | Should -Match '95 °C bei 35 % Last, 29 W'
+    }
+    It 'Temperaturen unter 5 °C werden als unplausibel verworfen' {
+        $rd = New-Rd 'Datenträger' 'Temperatur' 'Temperature' 1 'NVMe Disk'
+        $why = MinibenchTest\Get-SensorImplausibility $rd $null
+        $why | Should -Match 'unter 5 °C ist als Komponententemperatur unplausibel'
+    }
+    It 'identische Spannungen über 1,5 V auf mehreren Schienen desselben Geräts im Leerlauf werden verworfen' {
+        $l = New-Object System.Collections.Generic.List[object]
+        $l.Add((New-Rd 'CPU' 'Spannung' 'Core Voltage' 1.55 'Ryzen 3 5300U'))
+        $l.Add((New-Rd 'CPU' 'Spannung' 'SoC Voltage' 1.55 'Ryzen 3 5300U'))
+        MinibenchTest\Set-SensorClassification $l $null
+        $l[0].Status | Should -Be 'unplausibel'
+        $l[1].Status | Should -Be 'unplausibel'
+        [double]::IsNaN($l[0].Wert) | Should -BeTrue
+        [double]::IsNaN($l[1].Wert) | Should -BeTrue
+    }
+    It 'Test-OnBattery erkennt Akkubetrieb und Netzbetrieb' {
+        Mock -ModuleName MinibenchTest Get-CimInstance { [pscustomobject]@{ PowerOnline = $false } } -ParameterFilter { $ClassName -eq 'BatteryStatus' }
+        Mock -ModuleName MinibenchTest Get-CimInstance { }
+        MinibenchTest\Test-OnBattery | Should -BeTrue
+
+        Mock -ModuleName MinibenchTest Get-CimInstance { [pscustomobject]@{ PowerOnline = $true } } -ParameterFilter { $ClassName -eq 'BatteryStatus' }
+        Mock -ModuleName MinibenchTest Get-CimInstance { }
+        MinibenchTest\Test-OnBattery | Should -BeFalse
+    }
 }
 
 Describe 'Sensorwerkzeuge mit festen Prüfsummen' {

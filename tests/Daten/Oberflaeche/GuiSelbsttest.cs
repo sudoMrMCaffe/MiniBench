@@ -24,6 +24,8 @@ public static class GuiSelbsttest
         Fall("Netzlaufwerk.Pfad", NasPfad);
         Fall("Netzlaufwerk.Konfiguration", NasKonfiguration);
         Fall("Netzlaufwerk.Ergebnis", NasErgebnis);
+        Fall("Wartung.Vertragszeile", WartungVertragszeile);
+        Fall("Dialog.Farbschema", DialogFarbschema);
         foreach (string l in outLines) System.Console.WriteLine(l);
         return 0;
     }
@@ -216,5 +218,75 @@ public static class GuiSelbsttest
         Ist(!NasAblage.Angehalten("1|3|2|1|0|0|1|0") && !NasAblage.Angehalten("1|3|2|1|0|0|1"), "nicht angehalten");
         t = NasAblage.ErgebnisText("", out ok, out erreichbar);
         Ist(!ok && t.StartsWith("Keine"), t);
+    }
+
+    static void WartungVertragszeile()
+    {
+        string alt = "S|Wartung|Temp|Massnahme|Eingriff|nie|keins|3|0|1|Temporäre Dateien löschen";
+        string neu = "S|Wartung|Temp|Massnahme|Eingriff|nie|keins|3|0|1|Temporäre Dateien löschen|Bereinigung und Speicherplatz";
+        string[] xAlt = alt.Split('|');
+        string[] xNeu = neu.Split('|');
+        ContractStep cAlt = new ContractStep();
+        cAlt.Module = xAlt[1]; cAlt.Key = xAlt[2]; cAlt.Typ = xAlt[3]; cAlt.Risiko = xAlt[4]; cAlt.Neustart = xAlt[5]; cAlt.Rueckgaengig = xAlt[6];
+        int mAlt; int.TryParse(xAlt[7], out mAlt); cAlt.Minuten = mAlt; cAlt.Vorauswahl = xAlt[8] == "1"; cAlt.Ueblich = xAlt[9] == "1"; cAlt.Text = xAlt[10];
+        if (xAlt.Length >= 12) cAlt.Gruppe = xAlt[11];
+        Ist(cAlt.Key == "Temp" && cAlt.Gruppe == "", "alt: 11 Felder, Gruppe leer");
+
+        ContractStep cNeu = new ContractStep();
+        cNeu.Module = xNeu[1]; cNeu.Key = xNeu[2]; cNeu.Typ = xNeu[3]; cNeu.Risiko = xNeu[4]; cNeu.Neustart = xNeu[5]; cNeu.Rueckgaengig = xNeu[6];
+        int mNeu; int.TryParse(xNeu[7], out mNeu); cNeu.Minuten = mNeu; cNeu.Vorauswahl = xNeu[8] == "1"; cNeu.Ueblich = xNeu[9] == "1"; cNeu.Text = xNeu[10];
+        if (xNeu.Length >= 12) cNeu.Gruppe = xNeu[11];
+        Ist(cNeu.Key == "Temp" && cNeu.Gruppe == "Bereinigung und Speicherplatz", "neu: 12 Felder, Gruppe gelesen");
+    }
+
+    static void DialogFarbschema()
+    {
+        bool altDark = UI.IsDark;
+        try
+        {
+            UI.SetTheme(true);
+            using (Form dlg = new Form())
+            {
+                FlowLayoutPanel p = new FlowLayoutPanel();
+                Label l = new Label(); l.Text = "Beispiel";
+                CheckBox cb = new CheckBox(); cb.Text = "Option";
+                RadioButton rb = new RadioButton(); rb.Text = "Wahl";
+                TextBox tb = new TextBox(); tb.Text = "Eingabe";
+                ComboBox cmb = new ComboBox(); cmb.Items.Add("Auswahl");
+                LinkLabel ll = new LinkLabel(); ll.Text = "Verweis";
+                Button btn = new Button(); btn.Text = "Schaltfläche";
+                p.Controls.Add(l);
+                p.Controls.Add(cb);
+                p.Controls.Add(rb);
+                p.Controls.Add(tb);
+                p.Controls.Add(cmb);
+                p.Controls.Add(ll);
+                p.Controls.Add(btn);
+                dlg.Controls.Add(p);
+                UI.ThemeDialog(dlg);
+
+                Ist(dlg.BackColor == UI.Bg, "Dialog BackColor gesetzt");
+                Ist(dlg.ForeColor != System.Drawing.Color.Black && dlg.ForeColor != System.Drawing.SystemColors.ControlText, "Dialog ForeColor nicht schwarz");
+
+                System.Collections.Generic.Queue<System.Windows.Forms.Control> q = new System.Collections.Generic.Queue<System.Windows.Forms.Control>();
+                q.Enqueue(dlg);
+                while (q.Count > 0)
+                {
+                    System.Windows.Forms.Control c = q.Dequeue();
+                    if (c != dlg)
+                    {
+                        Ist(c.ForeColor != System.Drawing.Color.Black &&
+                            c.ForeColor != System.Drawing.SystemColors.ControlText &&
+                            c.ForeColor.ToArgb() != System.Drawing.Color.Black.ToArgb(),
+                            c.GetType().Name + " hat im dunklen Schema keine schwarze Schrift (ist: " + c.ForeColor + ")");
+                    }
+                    foreach (System.Windows.Forms.Control kind in c.Controls) q.Enqueue(kind);
+                }
+            }
+        }
+        finally
+        {
+            UI.SetTheme(altDark);
+        }
     }
 }

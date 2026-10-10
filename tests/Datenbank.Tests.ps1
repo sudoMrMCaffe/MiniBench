@@ -5,9 +5,10 @@ BeforeAll {
     # Kern\Datenordner.ps1 nur als einzelne Funktionen laden: der Teil ermittelt beim Laden sofort den Datenordner
     # (unter Windows Dokumente\Leos Minibench samt Referenzdateien, unter Linux scheitert Join-Path an einem leeren
     # Dokumente-Pfad und das Testmodul lädt gar nicht).
-    Import-MinibenchTestModule -Parts 'Kern\Risiko.ps1', 'Kern\Modulvertrag.ps1', 'Kern\Geraeteidentitaet.ps1', 'Kern\Datenpflege.ps1', 'Kern\Referenzen_Eingebettet.ps1', 'Kern\Referenz_Vergleich.ps1' `
+    Import-MinibenchTestModule -Parts 'Kern\Risiko.ps1', 'Kern\Modulvertrag.ps1', 'Kern\Geraeteidentitaet.ps1', 'Kern\Datenpflege.ps1', 'Kern\Referenzen_Eingebettet.ps1', 'Kern\Referenz_Vergleich.ps1', 'Kern\Berichtshilfen.ps1' `
         -Functions 'Read-JsonFile', 'ConvertTo-ValueTable', 'Get-DbEntries', 'Get-DbLatest', 'Get-SafeName', 'Save-DbEntry', 'Get-CurrentRefValues', 'Import-BenchReference', 'Get-Median', 'Add-Line',
-                   'Test-WritableDir', 'Resolve-DataDir', 'Test-IsNetworkPath', 'Initialize-DbDir' `
+                   'Test-WritableDir', 'Resolve-DataDir', 'Test-IsNetworkPath', 'Initialize-DbDir',
+                   'Test-EntryIsNotebook', 'Test-DbEntryIsBattery', 'Update-BenchReferenceMedians' `
         -Setup @'
 $script:DbFormat = 'PC-Diagnose-DB/2'
 $script:Report = New-Object System.Text.StringBuilder
@@ -124,6 +125,37 @@ Describe 'Lesen und Toleranz der Datenbank' {
             $ref = Get-ModuleVar 'Ref'
             $ref.Name | Should -Match 'Median von 2 Systemen'
         } finally { $env:COMPUTERNAME = 'TESTPC'; & (Get-Module MinibenchTest) { $script:ReferenzDatei = '' } }
+    }
+    It 'Test-EntryIsNotebook erkennt Mobilgeräte an Akku oder Modellname' {
+        $nbAkku = [pscustomobject]@{ Akku = @([pscustomobject]@{ DesignmWh = 50000; VollmWh = 48000 }) }
+        (MinibenchTest\Test-EntryIsNotebook $nbAkku) | Should -BeTrue
+
+        $nbName = [pscustomobject]@{ System = 'ASUS ZenBook UX425'; Akku = @() }
+        (MinibenchTest\Test-EntryIsNotebook $nbName) | Should -BeTrue
+
+        $dt = [pscustomobject]@{ System = 'Gigabyte B650 GAMING X'; Name = 'TORRENT'; Akku = @() }
+        (MinibenchTest\Test-EntryIsNotebook $dt) | Should -BeFalse
+    }
+    It 'Update-BenchReferenceMedians erzeugt Referenzdateien für alle, Notebooks und Desktops' {
+        $db = New-Db
+        $dataDir = New-TestDir 'data'
+        Set-ModuleVar 'DbDir' $db
+        Set-ModuleVar 'DataDir' $dataDir
+        $res = MinibenchTest\Update-BenchReferenceMedians -DataDir $dataDir
+        $res.Aktualisiert | Should -BeGreaterThan 0
+        Test-Path (Join-Path $dataDir 'Referenz.json') | Should -BeTrue
+        $refJson = Read-DatenpflegeJson (Join-Path $dataDir 'Referenz.json')
+        $refJson.Format | Should -Be 'PC-Diagnose-DB/2'
+        $refJson.Name | Should -Match 'Median aller Systeme'
+        $refJson.Werte.'CPU|ST' | Should -BeGreaterThan 0
+    }
+    It 'Import-BenchReference lädt Geräteklassen-Mediane' {
+        $null = New-Db
+        try {
+            & (Get-Module MinibenchTest) { $script:ReferenzDatei = '*median:desktop'; Import-BenchReference }
+            $ref = Get-ModuleVar 'Ref'
+            $ref.Name | Should -Match 'Desktop-PCs'
+        } finally { & (Get-Module MinibenchTest) { $script:ReferenzDatei = '' } }
     }
     It 'überspringt beschädigte JSON-Dateien' {
         $td = New-TestDir 'kaputt'

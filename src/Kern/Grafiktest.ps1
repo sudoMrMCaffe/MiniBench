@@ -129,11 +129,18 @@ function ConvertTo-RenderResult($Run, $Adapter) {
         if ($p99 -le 0 -and $avgMs -gt 0) { $p99 = $avgMs }
         if ($maxMs -le 0 -and $avgMs -gt 0) { $maxMs = $avgMs }
     }
+    $stutterRel = 0.0
+    $fmz = @($Run.FrameMs)
+    if ($fmz.Count -gt 0 -and $med -gt 0) {
+        $threshRel = 2.0 * $med
+        $badCount = @($fmz | Where-Object { [double]$_ -gt $threshRel }).Count
+        $stutterRel = [math]::Round(($badCount / $fmz.Count) * 100.0, 2)
+    }
     [pscustomobject]@{
         Name = $(if ($Run.AdapterName) { [string]$Run.AdapterName } else { [string]$Adapter.Name }); Art = [string]$Adapter.Art; Bezeichnung = [string]$Adapter.Bezeichnung; Index = [int]$Adapter.Index
         Ok = ([bool]$Run.Ok -and -not $hung); Fehler = $err; Haengt = $hung; Aufloesung = ('{0}x{1}' -f $Run.Width, $Run.Height); Width = [int]$Run.Width; Height = [int]$Run.Height
         Ebene = [string]$Run.FeatureLevel; Sekunden = [math]::Round($sec, 1); Bilder = [long]$Run.MeasuredFrames
-        Fps = [math]::Round($fps, 1); Low1 = [math]::Round($low1, 1); Low01 = [math]::Round($low01, 1); Mikroruckler = [math]::Round([double]$Run.StutterPct, 2); MinFps = [math]::Round([double]$Run.MinFps, 1); MaxFps = [math]::Round([double]$Run.MaxFps, 1)
+        Fps = [math]::Round($fps, 1); Low1 = [math]::Round($low1, 1); Low01 = [math]::Round($low01, 1); Mikroruckler = [math]::Round([double]$Run.StutterPct, 2); MikrorucklerRel = $stutterRel; MinFps = [math]::Round([double]$Run.MinFps, 1); MaxFps = [math]::Round([double]$Run.MaxFps, 1)
         MedianMs = [math]::Round($med, 2); P99Ms = [math]::Round($p99, 2); MaxMs = [math]::Round($maxMs, 1); Punkte = [math]::Round([double]$Run.Score)
         Treiberreset = [bool]$Run.DeviceRemoved; ResetGrund = [string]$Run.RemovedReason; Esc = [bool]$Run.EscPressed
         Bildpruefungen = [int]$Run.ImageChecks; Bildfehler = [int]$Run.ImageErrors; Referenzbild = [string]$Run.RefHash

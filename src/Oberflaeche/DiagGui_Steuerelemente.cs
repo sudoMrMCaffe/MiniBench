@@ -202,6 +202,86 @@ public static class UI
     {
         return Secondary("Diesen Schritt überspringen");
     }
+
+    public static void ThemeDialog(Form f)
+    {
+        if (f == null) return;
+        f.BackColor = Bg;
+        f.ForeColor = Text;
+        if (f.Font == null || f.Font.Name != "Segoe UI")
+        {
+            f.Font = new Font("Segoe UI", 9.5f);
+        }
+        ThemeDialogControls(f.Controls);
+    }
+
+    public static void ThemeDialogControls(Control.ControlCollection controls)
+    {
+        if (controls == null) return;
+        foreach (Control c in controls)
+        {
+            ThemeDialogControl(c);
+        }
+    }
+
+    public static void ThemeDialogControl(Control c)
+    {
+        if (c == null) return;
+        if (c is TextBox || c is ComboBox)
+        {
+            c.BackColor = Panel;
+            c.ForeColor = Text;
+        }
+        else if (c is LinkLabel)
+        {
+            LinkLabel ll = (LinkLabel)c;
+            ll.LinkColor = Accent;
+            ll.ActiveLinkColor = AccentHover;
+            ll.ForeColor = Text;
+        }
+        else if (c is CheckBox || c is RadioButton)
+        {
+            c.ForeColor = c.Enabled ? Text : Muted;
+            c.BackColor = Color.Transparent;
+        }
+        else if (c is Label)
+        {
+            Color fc = c.ForeColor;
+            if (fc == Color.FromArgb(95, 99, 104) || fc == Color.FromArgb(156, 163, 175) || fc == Color.Gray)
+            {
+                c.ForeColor = Muted;
+            }
+            else
+            {
+                c.ForeColor = Text;
+            }
+        }
+        else if (c is ListView || c is ListBox)
+        {
+            c.BackColor = Panel;
+            c.ForeColor = Text;
+        }
+        else if (c is Button)
+        {
+            Button b = (Button)c;
+            if (b.ForeColor == SystemColors.ControlText || b.ForeColor.ToArgb() == Color.Black.ToArgb())
+            {
+                b.ForeColor = Text;
+                if (b.BackColor == SystemColors.Control) b.BackColor = Panel;
+            }
+        }
+        else
+        {
+            if (c.ForeColor == SystemColors.ControlText || c.ForeColor.ToArgb() == Color.Black.ToArgb())
+            {
+                c.ForeColor = Text;
+            }
+        }
+        if (c.HasChildren)
+        {
+            ThemeDialogControls(c.Controls);
+        }
+    }
 }
 
 // Moderner Windows 11 DropDown / ComboBox (Dark & Light Mode fähig)

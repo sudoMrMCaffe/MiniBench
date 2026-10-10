@@ -4,7 +4,7 @@
 BeforeAll {
     . (Join-Path $PSScriptRoot 'Hilfen.ps1')
     Import-MinibenchTestModule -Functions 'Get-RamRatedSpeed', 'Get-BugcheckName', 'Test-MemoryBugcheck', 'Get-PowerLossInfo', 'Get-GeoMean', 'Get-Median', 'Get-RefPct',
-        'Format-Size', 'Format-SizeDec', 'ConvertTo-HtmlText', 'Get-ShortCpuName', 'Get-ShortGpuName', 'Protect-Text', 'Add-Private', 'Get-CbsEntries', 'Get-StatusRank', 'Get-ShortText', 'Split-List' `
+        'Format-Size', 'Format-SizeDec', 'ConvertTo-HtmlText', 'Get-ShortCpuName', 'Get-ShortGpuName', 'Get-CpuAnzeigename', 'Protect-Text', 'Add-Private', 'Get-CbsEntries', 'Get-StatusRank', 'Get-ShortText', 'Split-List' `
         -Setup @'
 $script:Private = New-Object 'System.Collections.Generic.Dictionary[string,string]'
 $script:UserNames = @()
@@ -126,6 +126,11 @@ Describe 'Texte und Datenschutz' {
         MinibenchTest\Get-ShortCpuName 'AMD Ryzen 5 7600X 6-Core Processor' | Should -Be 'AMD Ryzen 5 7600X'
         MinibenchTest\Get-ShortCpuName 'Intel(R) Core(TM) i5-8500 CPU @ 3.00GHz' | Should -Be 'Intel Core i5-8500'
     }
+    It 'Get-CpuAnzeigename liefert CPU-Namen ohne Hersteller, Takt und Kerne' -ForEach @(
+        @{ Roh = 'Intel(R) Core(TM) i5-8265U CPU @ 1.60GHz'; Anzeige = 'Core i5-8265U' }
+        @{ Roh = 'AMD Ryzen 5 7600X 6-Core Processor'; Anzeige = 'Ryzen 5 7600X' }
+        @{ Roh = 'Snapdragon X Elite - X1E78100 - Qualcomm Oryon CPU'; Anzeige = 'Snapdragon X Elite X1E78100' }
+    ) { MinibenchTest\Get-CpuAnzeigename $_.Roh | Should -Be $_.Anzeige }
     It 'kurze Grafiknamen' { MinibenchTest\Get-ShortGpuName 'AMD Radeon RX 6800' | Should -Be 'Radeon RX 6800' }
     It 'Listen aus Komma oder Semikolon' { MinibenchTest\Split-List 'CPU, RAM;;GPU ' | Should -Be @('CPU', 'RAM', 'GPU') }
     It 'KI-Datei: Seriennummern, PC-Name, MAC, SID und E-Mail werden unkenntlich' {
@@ -305,8 +310,8 @@ Describe 'Absturzabbilder (Minidump)' {
 
 Describe 'Grafiktreiber-Gesundheitscheck' {
     BeforeAll {
-        Import-MinibenchTestModule -Functions 'Add-Finding', 'Send-GuiEvent', 'Get-GpuKind', 'Format-Size', 'Get-CimCached', 'Get-TdrEvents', 'Get-Ev', 'Out-Report', 'Add-Sub', 'Add-Line', 'Get-MainGpu', 'Get-GpuFactText', 'Get-ShortGpuName', 'Add-Private' `
-            -Setup '$script:Facts = [ordered]@{}; $script:BenchShort = @{}; $script:CimCache = @{}; $script:Report = New-Object System.Text.StringBuilder; $script:FindKeys = $null'
+        Import-MinibenchTestModule -Functions 'Add-Finding', 'Send-GuiEvent', 'Get-GpuKind', 'Get-GpuAdapters', 'Format-Size', 'Get-CimCached', 'Get-TdrEvents', 'Get-Ev', 'Out-Report', 'Add-Sub', 'Add-Line', 'Get-MainGpu', 'Get-GpuFactText', 'Get-ShortGpuName', 'Add-Private', 'Test-OnBattery', 'Test-LaptopGpu' `
+            -Setup '$script:Facts = [ordered]@{}; $script:BenchShort = @{}; $script:CimCache = @{}; $script:Report = New-Object System.Text.StringBuilder; $script:FindKeys = $null; $script:IsLaptop = $false; function Test-OnBattery { $false }; function Test-LaptopGpu { $false }'
         # Abschnitt "Grafik und Monitore" der Diagnose, so wie er im zusammengebauten Skript steht
         $cmd = (Get-MinibenchAst).Find({ param($a) $a -is [System.Management.Automation.Language.CommandAst] -and $a.GetCommandName() -eq 'Invoke-Section' -and $a.CommandElements.Count -ge 3 -and $a.CommandElements[1].Extent.Text -eq "'Grafik und Monitore'" }, $true)
         $sbe = @($cmd.CommandElements | Where-Object { $_ -is [System.Management.Automation.Language.ScriptBlockExpressionAst] })[0]
@@ -353,5 +358,90 @@ Describe 'Grafiktreiber-Gesundheitscheck' {
         $f.Count | Should -Be 0
         (Get-ModuleVar 'Facts')['Grafik'] | Should -Be 'Testgrafik'
         (Get-ModuleVar 'Report').ToString() | Should -Match 'AMD Radeon RX 6800'
+    }
+}
+
+Describe 'Akkuverschleiß und Verlauf (Praxistest v3.6)' {
+    BeforeAll {
+        Import-MinibenchTestModule -Functions 'ConvertFrom-BatteryReportXml', 'ConvertFrom-BatteryReportHtml', 'Get-BatteryFinding', 'New-BatteryInfo', 'ConvertTo-NullableNumber', 'Get-XmlLocal', 'ConvertFrom-IsoDuration'
+    }
+    It 'Oma HP: Wenn gemeldetes Design gleich voller Ladung ist, wird der höhere Designwert aus dem Verlauf genutzt' {
+        $xmlPath = Join-Path $global:MinibenchTestData 'Akku\Oma_HP_Akkubericht.xml'
+        $rep = @(MinibenchTest\ConvertFrom-BatteryReportXml ([IO.File]::ReadAllText($xmlPath)))
+        $rep.Count | Should -BeGreaterThan 0
+        $b = $rep[0]
+        $b.DesignmWh | Should -Be 40733
+        $b.VollmWh | Should -Be 35075
+        $b.VerschleissProzent | Should -BeGreaterThan 13.0
+        $b.VerschleissProzent | Should -BeLessThan 15.0
+        $b.DesignHinweis | Should -Match 'höchster Wert aus dem Verlauf'
+    }
+    It 'Ladezyklen 0 wird nicht im Befund ausgegeben' {
+        $info = MinibenchTest\New-BatteryInfo 'Primary' 'HP' 'LIon' 40733 35075 0
+        $f = MinibenchTest\Get-BatteryFinding $info
+        if ($f) { $f.Text | Should -Not -Match '0 Ladezyklen' }
+    }
+    It 'Nathalie Asus: Sprunghafter Abfall der vollen Ladung erzeugt eine Warnung mit Hinweis' {
+        $xmlPath = Join-Path $global:MinibenchTestData 'Akku\Nathalie_Asus_Akkubericht.xml'
+        $rep = @(MinibenchTest\ConvertFrom-BatteryReportXml ([IO.File]::ReadAllText($xmlPath)))
+        $rep.Count | Should -BeGreaterThan 0
+        $b = $rep[0]
+        $f = MinibenchTest\Get-BatteryFinding $b
+        $f | Should -Not -BeNullOrEmpty
+        $f.Stufe | Should -Be 'WARNUNG'
+        $f.Text | Should -Match 'sprunghaft von 45[.,]532 mWh auf 17[.,]957 mWh ab'
+        $f.Text | Should -Match 'vollen Ladung erneut prüfen'
+    }
+}
+
+Describe 'Windows-Installationsverlauf (Build >= 22000 als Windows 11)' {
+    BeforeAll {
+        Import-MinibenchTestModule -Functions 'Get-WindowsInstallInfo' -Setup @'
+function Get-ItemProperty { param($Path) [pscustomobject]@{ InstallDate = 1600000000; CurrentBuild = 22631; UBR = 4387; DisplayVersion = '23H2'; ProductName = 'Windows 10 Home' } }
+function Get-ChildItem { param($Path) @([pscustomobject]@{ PSChildName = 'Source OS (Updated on 10/01/2026 12:00:00)'; PSPath = 'HKLM:\SYSTEM\Setup\Source OS' }) }
+'@
+    }
+    It 'zeigt Windows 11 ab Build 22000 auch wenn die Registry Windows 10 nennt' {
+        $ii = MinibenchTest\Get-WindowsInstallInfo
+        $ii.Upgrades.Count | Should -Be 1
+        $ii.Upgrades[0].Produkt | Should -Be 'Windows 11 Home'
+        $ii.Upgrades[0].Build | Should -Match '^22631'
+    }
+}
+
+Describe 'Hybridgrafik Optimus (Desktop-Ausgabe)' {
+    BeforeAll {
+        Import-MinibenchTestModule -Functions 'Get-GpuAdapters', 'Get-GpuKind', 'Test-LaptopGpu', 'Test-OnBattery', 'Get-CimCached' -Setup @'
+$script:IsLaptop = $true
+function Test-OnBattery { $false }
+'@
+    }
+    It 'auf Notebooks mit iGPU und dGPU gibt nur die iGPU den Desktop aus' {
+        $gpus = @(
+            [pscustomobject]@{ Name = 'Intel(R) UHD Graphics 620'; CurrentHorizontalResolution = 1920; DriverVersion = '30.0.1'; Status = 'OK' },
+            [pscustomobject]@{ Name = 'NVIDIA GeForce GTX 1050 with Max-Q Design'; CurrentHorizontalResolution = 1920; DriverVersion = '32.0.1'; Status = 'OK' }
+        )
+        Mock -ModuleName MinibenchTest Get-CimCached { $gpus }
+        $adapters = @(MinibenchTest\Get-GpuAdapters)
+        $igpu = @($adapters | Where-Object { $_.Art -eq 'iGPU' })[0]
+        $dgpu = @($adapters | Where-Object { $_.Art -eq 'dGPU' })[0]
+        $igpu.Desktop | Should -BeTrue
+        $dgpu.Desktop | Should -BeFalse
+    }
+}
+
+Describe 'Relative Mikroruckler (GPU|STUTTERREL)' {
+    BeforeAll {
+        Import-MinibenchTestModule -Functions 'ConvertTo-RenderResult'
+    }
+    It 'berechnet MikrorucklerRel als Anteil der Bildzeiten über dem Doppelten des Medians' {
+        # 100 Bilder: 90 Bilder mit 16 ms (Median 16 ms), 10 Bilder mit 40 ms (> 2 * 16 ms = 32 ms)
+        $frameTimes = @(1..90 | ForEach-Object { 16.0 }) + @(1..10 | ForEach-Object { 40.0 })
+        $run = [pscustomobject]@{
+            Errors = 0; DeviceReset = $false; MinFps = 25.0; MaxFps = 62.5; StutterPct = 0.0;
+            FrameMs = $frameTimes; MedianMs = 16.0; MeasuredFrames = 100
+        }
+        $res = MinibenchTest\ConvertTo-RenderResult $run 1280 720 'GPU' 'Test' 1.6
+        $res.MikrorucklerRel | Should -Be 10.0
     }
 }

@@ -375,14 +375,14 @@ Describe 'Bewertungswort und Profilkarten' {
 
 Describe 'Interaktives Dashboard' {
     BeforeAll {
-        Import-MinibenchTestModule -Parts 'Kern\Referenzen_Eingebettet.ps1', 'Bericht\Bausteine_Dashboard.ps1'
+        Import-MinibenchTestModule -Parts 'Kern\Berichtshilfen.ps1', 'Kern\Referenzen_Eingebettet.ps1', 'Bericht\Bausteine_Dashboard.ps1'
         $script:Root = New-DashboardDaten
         $script:Daten = MinibenchTest\Export-BenchDashboardData -DatabaseDir $script:Root -ReportDir (Join-Path $script:Root 'Berichte')
         # Datenordner mit Lasttest-Verlauf.csv im Berichtsordner (PC-T) und einem Lauf ohne Verlaufsdatei (PC-K)
         $script:RootCsv = New-DashboardDaten @()
         $ordner = Join-Path (Join-Path $script:RootCsv 'Berichte') 'PC-T_20261001_1200'
         New-Item -ItemType Directory -Path $ordner -Force | Out-Null
-        $zeilen = @('T;MHz;CpuTemp;GpuTemp;CpuW;Fps') + @(for ($i = 0; $i -lt 8; $i++) { '{0};{1};{2};{3};{4};{5}' -f (2 * $i), (3800 + 50 * $i), ('{0},5' -f (60 + $i)), (50 + $i), ('{0},2' -f (80 + $i)), $(if ($i) { 100 + $i } else { '' }) })
+        $zeilen = @('T;MHz;CpuTemp;GpuTemp;CpuW;Fps;GpuMHz;GpuW;IGpuTemp;IGpuMHz;IGpuW') + @(for ($i = 0; $i -lt 8; $i++) { '{0};{1};{2};{3};{4};{5};{6};{7};{8};{9};{10}' -f (2 * $i), (3800 + 50 * $i), ('{0},5' -f (60 + $i)), (50 + $i), ('{0},2' -f (80 + $i)), $(if ($i) { 100 + $i } else { '' }), (1500 + 10 * $i), (120 + $i), ('{0},5' -f (45 + $i)), (1100 + 10 * $i), (25 + $i) })
         [IO.File]::WriteAllLines((Join-Path $ordner 'Lasttest-Verlauf.csv'), [string[]]$zeilen, (New-Object Text.UTF8Encoding($true)))
         Add-DbEintrag $script:RootCsv 'PC-T.json' @{ Format = 'PC-Diagnose-DB/2'; Name = 'PC-T'; Computer = 'PC-T'; Datum = '2026-10-01 12:00'; Ordner = 'Berichte\PC-T_20261001_1200'
             Sensoren = @{ Last = @{ CpuTempMax = 91; CpuTempLeerlauf = 38; TjMax = 95; Drosselung = 'thermisch'; TaktAbfall = 12; Unterbrechungen = '3 über 50 ms, längste 180 ms' } } } | Out-Null
@@ -432,6 +432,49 @@ Describe 'Interaktives Dashboard' {
             $t.Befunde.Hinweise | Should -Be 5
             @($t.Befunde.Liste).Count | Should -Be 6
             @($t.Befunde.Liste)[0] | Should -Match '^\[WARNUNG\] Lizenz:'
+        }
+        It 'Export-BenchDashboardData liefert Kerne und Threads, auch aus einem älteren Eintrag über Diagnosebericht.txt' {
+            $root = New-DashboardDaten @()
+            Add-DbEintrag $root 'Neu.json' @{
+                Format = 'PC-Diagnose-DB/2'; Name = 'Neu-PC'; Computer = 'NEU-PC'; Datum = '2026-10-01 10:00'
+                Hardware = @{ CPU = 'AMD Ryzen 5 7600X'; Kerne = 6; Threads = 12 }
+            } | Out-Null
+            $repDir = Join-Path $root 'Berichte\Alt-PC_20260930_120000'
+            New-Item -ItemType Directory -Path $repDir -Force | Out-Null
+            Set-Content -LiteralPath (Join-Path $repDir 'Diagnosebericht.txt') -Value @(
+                '===================================================================================================='
+                '  SYSTEM UND BETRIEBSSYSTEM'
+                '===================================================================================================='
+                'Prozessor        : Intel(R) Core(TM) i5-8265U CPU @ 1.60GHz'
+                'Kerne / Threads  : 4 / 8'
+            ) -Encoding UTF8
+            Add-DbEintrag $root 'Alt.json' @{
+                Format = 'PC-Diagnose-DB/1'; Name = 'Alt-PC'; Computer = 'ALT-PC'; Datum = '2026-09-30 12:00'
+                Ordner = 'Berichte\Alt-PC_20260930_120000'
+                Hardware = @{ CPU = 'Intel(R) Core(TM) i5-8265U CPU @ 1.60GHz' }
+            } | Out-Null
+            Add-DbEintrag $root 'Ohne.json' @{
+                Format = 'PC-Diagnose-DB/1'; Name = 'Ohne-PC'; Computer = 'OHNE-PC'; Datum = '2026-09-30 13:00'
+                Hardware = @{ CPU = 'Intel(R) Core(TM) i3-4000M CPU @ 2.40GHz' }
+            } | Out-Null
+
+            $daten = MinibenchTest\Export-BenchDashboardData -DatabaseDir $root -ReportDir (Join-Path $root 'Berichte') -IncludeReferences:$false
+            $neu = Get-SystemNachName $daten 'NEU-PC'
+            $neu.Hardware.Kerne | Should -Be 6
+            $neu.Hardware.Threads | Should -Be 12
+            $neu.Hardware.KerneThreads | Should -Be '6 / 12'
+            $neu.Hardware.CleanCpu | Should -Be 'Ryzen 5 7600X'
+            $neu.Hardware.CpuDisplay | Should -Be 'Ryzen 5 7600X (6 Kerne, 12 Threads)'
+
+            $alt = Get-SystemNachName $daten 'ALT-PC'
+            $alt.Hardware.Kerne | Should -Be 4
+            $alt.Hardware.Threads | Should -Be 8
+            $alt.Hardware.KerneThreads | Should -Be '4 / 8'
+            $alt.Hardware.CleanCpu | Should -Be 'Core i5-8265U'
+            $alt.Hardware.CpuDisplay | Should -Be 'Core i5-8265U (4 Kerne, 8 Threads)'
+
+            $ohne = Get-SystemNachName $daten 'OHNE-PC'
+            $ohne.Hardware.KerneThreads | Should -Be 'n/v'
         }
         It 'Gesamtwert und Nutzungsprofile ordnen die Praxis-PCs nach Leistung' {
             $t = Get-SystemNachName $script:Daten 'TORRENT'; $l = Get-SystemNachName $script:Daten 'LIZZZ'; $d = Get-SystemNachName $script:Daten 'DESKTOP-F9HRMRR'
@@ -515,8 +558,7 @@ Describe 'Interaktives Dashboard' {
             $url = (Get-SystemNachName (Get-EingebetteteDaten ([IO.File]::ReadAllText($seite, [Text.Encoding]::UTF8))) 'PC-A').ReportUrl
             Test-Path -LiteralPath (Join-Path (Split-Path $seite -Parent) $url) | Should -BeTrue
         }
-        # bekannter Fehler, Behebung offen: Ersatz-Ordnername wird als Datum_PC (202609302159_TORRENT) statt PC_Datum_Zeit gebaut
-        It 'ohne Ordnerangabe zeigt der Link auf den Berichtsordner PC_Datum_Zeit' -Skip {
+        It 'ohne Ordnerangabe zeigt der Link auf den Berichtsordner PC_Datum_Zeit' {
             $t = Get-SystemNachName $script:Daten 'TORRENT'
             $t.ReportUrl | Should -Be 'TORRENT_20260930_2159/Diagnosebericht.html'
         }
@@ -535,6 +577,14 @@ Describe 'Interaktives Dashboard' {
             $s[3].CpuW | Should -Be 83.2
             $s[3].Fps | Should -Be 103
         }
+        It 'bei vorhandener Lasttest-Verlauf.csv enthält die Zeitreihe auch die GPU-Spalten' {
+            $s = @((Get-SystemNachName $script:DatenCsv 'PC-T').Telemetry.Series)
+            $s[3].GpuMHz | Should -Be 1530
+            $s[3].GpuW | Should -Be 123
+            $s[3].IGpuTemp | Should -Be 48.5
+            $s[3].IGpuMHz | Should -Be 1130
+            $s[3].IGpuW | Should -Be 28
+        }
         It 'Drosselung, TjMax und Unterbrechungen aus den Sensorwerten des Lasttests' {
             $t = (Get-SystemNachName $script:DatenCsv 'PC-T').Telemetry
             $t.CpuTempMax | Should -Be 91
@@ -548,8 +598,7 @@ Describe 'Interaktives Dashboard' {
             $k.UnterbrechungenUeber50ms | Should -BeFalse
             @($k.ThrottleEvents).Count | Should -Be 0
         }
-        # bekannter Fehler, Behebung offen: ohne CSV wird eine synthetische Telemetriekurve erfunden und als Messung gezeigt
-        It 'ohne Verlaufsdatei gibt es keine Kurve (keine erfundenen Messpunkte)' -Skip {
+        It 'ohne Verlaufsdatei gibt es keine Kurve (keine erfundenen Messpunkte)' {
             @((Get-SystemNachName $script:Daten 'TORRENT').Telemetry.Series).Count | Should -Be 0
             @((Get-SystemNachName $script:DatenCsv 'PC-K').Telemetry.Series).Count | Should -Be 0
         }
@@ -617,10 +666,26 @@ Describe 'Interaktives Dashboard' {
                 foreach ($n in $p) { $erlaubt | Should -Contain $n }
             }
         }
-        # bekannter Fehler, Behebung offen: Systemnamen und Befundtexte werden ohne HTML-Maskierung über innerHTML eingesetzt
-        It 'Systemnamen werden nicht ungeschützt als HTML eingesetzt' -Skip {
+        It 'Systemnamen werden nicht ungeschützt als HTML eingesetzt' {
             $script:Vorlage | Should -Not -Match '\$\{s\.DisplayName'
             $script:Vorlage | Should -Not -Match '\$\{s\.Computer\}'
+        }
+        It 'Telemetrieblock steht vor den Befunden und btnModeBase existiert nicht' {
+            $idxTelemetry = $script:Vorlage.IndexOf('Lasttest-Telemetrie')
+            $idxFindings = $script:Vorlage.IndexOf('Befunde der Systeme im Vergleich')
+            $idxTelemetry | Should -BeGreaterThan 0
+            $idxFindings | Should -BeGreaterThan 0
+            $idxTelemetry | Should -BeLessThan $idxFindings
+            $script:Vorlage | Should -Not -Match 'btnModeBase'
+        }
+        It 'ein Systemname mit spitzen Klammern oder Script-Tags wird in HTML maskiert' {
+            $script:Vorlage | Should -Match 'function escapeHtml\(str\)'
+            $script:Vorlage | Should -Match 'escapeHtml\((?:sys|s)\.(?:DisplayName|Computer)'
+            $dCopy = MinibenchTest\Export-BenchDashboardData -DatabaseDir $script:Root -ReportDir (Join-Path $script:Root 'Berichte')
+            $dCopy.Systems[0].DisplayName = 'Test <script>alert(1)</script>'
+            $htmlOut = MinibenchTest\New-BenchDashboardHtml -DashboardData $dCopy -PassThru
+            $htmlOut.Contains('<script>alert(1)</script>') | Should -BeFalse
+            $htmlOut | Should -Match 'alert\(1\)'
         }
     }
 }

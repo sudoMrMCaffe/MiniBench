@@ -221,3 +221,19 @@ function ConvertTo-HtmlText([string]$Text) {
     return (($Text -replace '&', '&amp;') -replace '<', '&lt;' -replace '>', '&gt;' -replace '"', '&quot;')
 }
 
+function Get-CpuAnzeigename([string]$Name) {
+    if (-not $Name) { return '' }
+    $s = (($Name -as [string]) -replace '\s+', ' ').Trim()
+    $s = $s -replace '\((R|TM|tm)\)', ''
+    $s = $s -replace '\s*@\s*[\d.]+\s*[GM]Hz.*$', ''
+    $s = $s -replace '\s*-\s*Qualcomm\s+Oryon\s+CPU.*$', ''
+    $s = $s -replace '\s*Qualcomm\s+Oryon\s+CPU.*$', ''
+    $s = $s -replace '\s*(-?\s*\d+-Core)?\s*(Processor|Prozessor).*$', ''
+    $s = $s -replace '\s*\d+-Core.*$', ''
+    $s = $s -replace '\s+CPU$', ''
+    $s = $s -replace '\b(Intel|AMD)\b\s*', ''
+    $s = ($s -replace '\s+-\s+', ' ').Trim()
+    $s = ($s -replace '\s+', ' ').Trim()
+    return $s
+}
+

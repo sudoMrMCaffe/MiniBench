@@ -10,8 +10,23 @@ function Save-DbEntry {
     $w = Get-CurrentRefValues
     if ($Kurztest -and -not $w.Count) { return '' }
     try { New-Item -ItemType Directory -Path $script:DbDir -Force -ErrorAction Stop | Out-Null } catch { return '' }
+    $kerne = $null; $threads = $null
+    if ($script:Facts['Prozessor'] -match '(\d+)\s*Kerne,\s*(\d+)\s*Threads') {
+        $kerne = [int]$Matches[1]; $threads = [int]$Matches[2]
+    } else {
+        try {
+            $cpus = @(Get-CimCached Win32_Processor)
+            if ($cpus.Count) {
+                $kerne = [int](($cpus | Measure-Object NumberOfCores -Sum).Sum)
+                $threads = [int](($cpus | Measure-Object NumberOfLogicalProcessors -Sum).Sum)
+            }
+        } catch { }
+    }
+    $cpuRaw = $(if ($script:BenchShort.CPU) { $script:BenchShort.CPU } else { [string]$script:Facts['Prozessor'] })
     $hw = [ordered]@{
-        CPU = $(if ($script:BenchShort.CPU) { $script:BenchShort.CPU } else { [string]$script:Facts['Prozessor'] })
+        CPU = $(if ($cpuRaw) { if (Get-Command 'Get-CpuAnzeigename' -ErrorAction SilentlyContinue) { Get-CpuAnzeigename $cpuRaw } else { $cpuRaw } } else { '' })
+        Kerne = $kerne
+        Threads = $threads
         RAM = $(if ($script:BenchShort.RAM) { $script:BenchShort.RAM } else { [string]$script:Facts['Arbeitsspeicher'] })
         GPU = $(if ($script:BenchShort.GPU) { $script:BenchShort.GPU } else { [string]$script:Facts['Grafik'] })
         IGPU = $(try { [string](@(Get-GpuAdapters | Where-Object { $_.Art -eq 'iGPU' } | ForEach-Object { Get-ShortGpuName $_.Name }) | Select-Object -First 1) } catch { '' })
@@ -43,7 +58,11 @@ function Save-DbEntry {
         # ab v2.6: Rendertest je Grafikeinheit und Schreibzugriffe auf den Datenträger des Datenordners
         Rendertest = @($script:GpuRender | ForEach-Object { [ordered]@{ Grafik = $_.Name; Art = $_.Art; Aufloesung = $_.Aufloesung; Fps = $_.Fps; Low1 = $_.Low1; Punkte = $_.Punkte; Bildfehler = $_.Bildfehler; Treiberreset = $_.Treiberreset; Fehler = $_.Fehler } })
         Schreibzugriffe = $(if ($script:WriteInfo) { [ordered]@{ Laufwerk = $script:WriteInfo.Laufwerk; Art = $script:WriteInfo.Art; Vorgaenge = $script:WriteInfo.Vorgaenge; MB = $script:WriteInfo.MB } } else { $null })
-        Ablauf    = $(if ($SchnellerModus) { 'schneller Modus' } else { 'normal' })
+        Ablauf    = [ordered]@{
+            Modus           = $(if ($SchnellerModus) { 'schneller Modus' } else { 'normal' })
+            Hintergrundlast = [bool]$script:AblaufHintergrundlast
+            Akkubetrieb     = [bool]$script:AblaufAkkubetrieb
+        }
         Sensoren  = $(if ($script:SensorDb.Count) { $script:SensorDb } else { [ordered]@{} })
         # ab v2.8: Modul Optimierung (angewendete Einträge und Kennzahlen vorher und nachher)
         Optimierung = $(if (@($script:OptLog).Count) { [ordered]@{ Eintraege = @($script:OptLog | ForEach-Object { [ordered]@{ Id = $_.Id; Ergebnis = $_.Ergebnis; Aenderungen = $_.Aenderungen } }); Vorher = $script:OptMetricsBefore; Nachher = $script:OptMetricsAfter } } else { $null })
@@ -113,11 +132,22 @@ function Import-LegacyRun([string]$Folder) {
         $list = @([regex]::Matches($txt, '(?m)^  \[(KRITISCH|WARNUNG|INFO)\s*\]\s+(\S+)\s+(.+?)\s*$') | ForEach-Object { '[{0}] {1}: {2}' -f $_.Groups[1].Value, $_.Groups[2].Value, $_.Groups[3].Value })
 
         foreach ($e in (Get-DbEntries)) { if ($e.Computer -eq $computer -and $e.Datum -eq $datum) { return ('{0}: {1} vom {2} ist bereits in der Datenbank.' -f $name, $computer, $datum) } }
-        $hw = [ordered]@{
-            CPU = $(if ($short.CPU) { $short.CPU } else { [string]$facts['Prozessor'] }); RAM = $(if ($short.RAM) { $short.RAM } else { [string]$facts['Arbeitsspeicher'] })
-            GPU = $(if ($short.GPU) { $short.GPU } else { [string]$facts['Grafik'] }); Datentraeger = [string]$facts['Datenträger']; Betriebssystem = [string]$facts['Betriebssystem']; Mainboard = ''; WindowsInstalliert = ''
+        $kerne = $null; $threads = $null
+        if ($txt -match '(?m)^\s*Kerne\s*/\s*Threads\s*:\s*(\d+)\s*/\s*(\d+)') {
+            $kerne = [int]$Matches[1]; $threads = [int]$Matches[2]
+        } elseif ($txt -match '(\d+)\s*Kerne,\s*(\d+)\s*Threads') {
+            $kerne = [int]$Matches[1]; $threads = [int]$Matches[2]
         }
-        $cpuS = ($hw.CPU -replace '^(AMD|Intel\(R\))\s*', '' -replace '\((R|TM)\)', '').Trim()
+        $rawCpu = $(if ($short.CPU) { $short.CPU } else { [string]$facts['Prozessor'] })
+        $hw = [ordered]@{
+            CPU = $(if ($rawCpu) { Get-CpuAnzeigename $rawCpu } else { '' })
+            Kerne = $kerne
+            Threads = $threads
+            RAM = $(if ($short.RAM) { $short.RAM } else { [string]$facts['Arbeitsspeicher'] })
+            GPU = $(if ($short.GPU) { $short.GPU } else { [string]$facts['Grafik'] })
+            Datentraeger = [string]$facts['Datenträger']; Betriebssystem = [string]$facts['Betriebssystem']; Mainboard = ''; WindowsInstalliert = ''
+        }
+        $cpuS = $(if ($hw.CPU) { $hw.CPU } else { '' })
         $gpuS = ($hw.GPU -replace '^(AMD|NVIDIA|Intel\(R\))\s*', '').Trim()
         $o = [ordered]@{
             Format = $script:DbFormat; Name = ('{0} ({1})' -f $computer, ((@($cpuS, $hw.RAM, $gpuS) | Where-Object { $_ }) -join ', ')); Computer = $computer

@@ -27,11 +27,11 @@ if (($ModBench -or $ModLast) -and -not $ModDiag) {
         $script:Facts['Betriebssystem'] = ('{0} {1} (Build {2}.{3})' -f $os.Caption, $cv.DisplayVersion, $os.BuildNumber, $cv.UBR)
         if ($ii.Erstinstallation) { $script:Facts['Windows installiert'] = ('{0:dd.MM.yyyy} (vor {1}){2}' -f $ii.Erstinstallation, (Format-Age $ii.AlterTage -Dativ), $(if ($ii.Upgrades.Count) { ', seitdem {0} Funktionsupdate(s), zuletzt {1:dd.MM.yyyy}' -f $ii.Upgrades.Count, $ii.AktuellSeit } else { ', seitdem kein Funktionsupdate' })) }
         $script:Facts['BIOS/UEFI']      = ('{0} vom {1:dd.MM.yyyy}' -f $bios.SMBIOSBIOSVersion, $bios.ReleaseDate)
-        $script:Facts['Prozessor']      = (($cpus | ForEach-Object { '{0} ({1} Kerne, {2} Threads)' -f $_.Name.Trim(), $_.NumberOfCores, $_.NumberOfLogicalProcessors }) -join '; ')
+        $script:Facts['Prozessor']      = (($cpus | ForEach-Object { '{0} ({1} Kerne, {2} Threads)' -f (Get-CpuAnzeigename $_.Name.Trim()), $_.NumberOfCores, $_.NumberOfLogicalProcessors }) -join '; ')
         if ($mods.Count) { $script:Facts['Arbeitsspeicher'] = ('{0} ({1}x {2} {3}, {4} MT/s)' -f (Format-Size $total), $mods.Count, (Format-Size $mods[0].Capacity), $typ0, $spd0) }
         $script:Facts['Grafik']         = $(try { Get-GpuFactText } catch { $(if ($gMain) { [string]$gMain.Name } else { '' }) })
         $script:Facts['Datenträger']    = (($pd | ForEach-Object { '{0} ({1}, {2})' -f $_.FriendlyName, (Format-Size $_.Size), $_.BusType }) -join "`n")
-        $script:BenchShort.CPU = Get-ShortCpuName $cpus[0].Name
+        $script:BenchShort.CPU = Get-CpuAnzeigename $cpus[0].Name
         if ($mods.Count) { $script:BenchShort.RAM = ('{0} GB {1}-{2}' -f [math]::Round($total / 1GB), $(if ($typ0) { $typ0 } else { 'RAM' }), $spd0) }
         if ($gMain) { $script:BenchShort.GPU = Get-ShortGpuName $gMain.Name }
         $script:DiskNames = @{}
@@ -78,6 +78,12 @@ function Initialize-Bench {
     else { Add-Line '  Keine Referenz festgelegt, Prozentwerte entfallen. Zur Referenz wird ein PC mit dem Haken "Dieses System als Referenz festlegen".' }
     if ($script:CmpSystems.Count) { Add-Line ('  Eingeblendete Vergleichssysteme: {0}' -f (($script:CmpSystems | ForEach-Object { '{0} ({1})' -f $_.Computer, $_.Datum }) -join ', ')) }
     Add-Line '  Für aussagekräftige Werte andere Programme schließen und den PC am Netzteil betreiben.'
+    if (Test-OnBattery) {
+        $script:AblaufAkkubetrieb = $true
+        Add-Finding WARNUNG 'Benchmark' 'Benchmark im Akkubetrieb, Werte niedriger und nicht vergleichbar'
+        Add-Line '  Hinweis: Benchmark im Akkubetrieb, Werte niedriger und nicht vergleichbar.'
+    }
+    Test-HintergrundlastVorMessung -Phase 'Benchmark'
     $idle = Get-CpuSample
     $script:BenchStartLoad = [int]$idle.Last
     if ($idle.Last -gt 15) { Add-Finding INFO 'Leistung' ('Beim Benchmark-Start lag bereits {0} % CPU-Last an, die Werte können niedriger ausfallen.' -f $idle.Last) }
@@ -226,8 +232,10 @@ if ($script:BenchSel['CPU']) {
             if ($sha -gt 0) { Add-BenchResult -Gruppe 'CPU' -Komponente 'CPU' -Messung 'SHA-256 Prüfsumme' -Wert ([math]::Round($sha)) -Einheit 'MB/s' -Anzeige ('{0:N0} MB/s' -f $sha) -Key ($keyCpu + '|SHA') -RefKey 'CPU|SHA' -Hinweis $(if ($sha -ge 1500) { 'ein Thread, SHA-Befehlssatz aktiv' } else { 'ein Thread' }) }
             $tD = [DiagBench]::DeflateAsync($threads, $ms); [void](Wait-TaskProgress $tD 'Benchmark Prozessor' ('Kompression, {0} Threads' -f $threads) ($ms + 1500)); $defl = [double]$tD.Result
             if ($defl -gt 0) { Add-BenchResult -Gruppe 'CPU' -Komponente 'CPU' -Messung 'Kompression (Deflate)' -Wert ([math]::Round($defl)) -Einheit 'MB/s' -Anzeige ('{0:N0} MB/s' -f $defl) -Key ($keyCpu + '|DEFL') -RefKey 'CPU|DEFL' -Hinweis ('ZIP-Kompression von Textdaten auf {0} Threads, Durchsatz der Eingangsdaten' -f $threads) }
-            $script:BenchHead['CPU'] = '{0} · Einzelkern {1:N0} · Mehrkern {2:N0} Punkte' -f ($cpuName -replace '\s*(\d+-Core|Processor|CPU @.*$)', '' -replace '\((R|TM)\)', ''), $ptsST, $ptsMT
-            $script:BenchShort.CPU = Get-ShortCpuName $cpuName
+            $dispCpu = Get-CpuAnzeigename $cpuName
+            $dispCpuFull = if ($cores -gt 0 -and $threads -gt 0) { '{0} ({1} Kerne, {2} Threads)' -f $dispCpu, $cores, $threads } else { $dispCpu }
+            $script:BenchHead['CPU'] = '{0} · Einzelkern {1:N0} · Mehrkern {2:N0} Punkte' -f $dispCpuFull, $ptsST, $ptsMT
+            $script:BenchShort.CPU = $dispCpu
         } catch { Write-BenchError 'Prozessor' $_ }
         Send-BenchGroup 'CPU'
         Add-BenchHeadLine 'CPU'
@@ -405,6 +413,7 @@ if ($script:BenchSel['GPU']) {
                         Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Rendertest 1-%-Low' + $suffix) -Wert $res.Low1 -Einheit 'Bilder/s' -Anzeige ('{0:N0} Bilder/s' -f $res.Low1) -Key ('GPU|' + $res.Name + '|REND1|' + $res.Aufloesung) -RefKey $(if ($isLead -and $res.Aufloesung -eq '1280x720') { 'GPU|REND1' } else { '' }) -Hinweis 'Bilder/s aus den langsamsten 1 % der Bildzeiten (Ruckler)'
                         Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Rendertest 0,1-%-Low' + $suffix) -Wert $res.Low01 -Einheit 'Bilder/s' -Anzeige ('{0:N0} Bilder/s' -f $res.Low01) -Key ('GPU|' + $res.Name + '|REND01|' + $res.Aufloesung) -RefKey $(if ($isLead -and $res.Aufloesung -eq '1280x720') { 'GPU|REND01' } else { '' }) -Hinweis 'Bilder/s aus dem 99,9. Perzentil der Bildzeiten (0,1 % Low)'
                         Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Mikroruckler-Anteil' + $suffix) -Wert $res.Mikroruckler -Einheit '%' -Anzeige ('{0:N1} %' -f $res.Mikroruckler) -Key ('GPU|' + $res.Name + '|STUTTER') -RefKey $(if ($isLead) { 'GPU|STUTTER' } else { '' }) -Hinweis 'Anteil der Bilder mit Bildzeit über 50 ms'
+                        Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Mikroruckler (relativ)' + $suffix) -Wert $res.MikrorucklerRel -Einheit '%' -Anzeige ('{0:N1} %' -f $res.MikrorucklerRel) -Key ('GPU|' + $res.Name + '|STUTTERREL') -RefKey $(if ($isLead) { 'GPU|STUTTERREL' } else { '' }) -Hinweis 'Anteil der Bilder mit Bildzeit über das Doppelte des Medians'
                         Add-BenchResult -Gruppe 'GPU' -Komponente 'GPU' -Messung ('Rendertest Punktzahl' + $suffix) -Wert $res.Punkte -Einheit 'Punkte' -Anzeige ('{0:N0} Punkte' -f $res.Punkte) -Key ('GPU|' + $res.Name + '|RPKT') -RefKey $(if ($isLead) { 'GPU|RPKT' } else { '' }) -Hinweis 'Ø Bilder/s x Pixel je Bild / 10 000, vergleichbar über die Auflösungen'
                         Add-Line ('  {0} ({1}): Ø {2:N1} Bilder/s, 1-%-Low {3:N1}, 0,1-%-Low {4:N1}, Mikroruckler {5:N1} %, Punktzahl {6:N0}, {7:N0} Bilder in {8:N1} s' -f $res.Name, $res.Bezeichnung, $res.Fps, $res.Low1, $res.Low01, $res.Mikroruckler, $res.Punkte, $res.Bilder, $res.Sekunden)
                         try {

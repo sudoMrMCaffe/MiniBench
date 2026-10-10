@@ -33,6 +33,7 @@ $script:MetricDefs = @(
     @{ K = 'GPU|REND1';     N = 'Rendertest 1-%-Low';      U = 'Bilder/s'; F = 'N0' }
     @{ K = 'GPU|REND01';    N = 'Rendertest 0,1-%-Low';    U = 'Bilder/s'; F = 'N0' }
     @{ K = 'GPU|STUTTER';   N = 'Mikroruckler-Anteil';     U = '%';        F = 'N1'; L = $true }
+    @{ K = 'GPU|STUTTERREL'; N = 'Mikroruckler (relativ)'; U = '%';        F = 'N1'; L = $true }
     @{ K = 'GPU|RPKT';      N = 'Rendertest Punktzahl';    U = 'Punkte';   F = 'N0' }
 )
 $script:DiskClassNames = [ordered]@{ 'NVMe5' = 'NVMe PCIe 5.0'; 'NVMe4' = 'NVMe PCIe 4.0'; 'NVMe3' = 'NVMe PCIe 3.0'; 'SATA-SSD' = 'SATA-SSD'; 'HDD' = 'Festplatte' }
@@ -59,6 +60,8 @@ function Get-DbEntries {
             Werte = (ConvertTo-ValueTable $j.Werte); Messwerte = (ConvertTo-ValueTable $j.Messwerte); Messdauer = [string]$j.Messdauer
             Hardware = $j.Hardware; Befunde = $j.Befunde; Laufwerke = @($j.Laufwerke); Ordner = [string]$j.Ordner
             Format = [string]$j.Format; GeraetId = $(if ($j.Geraet) { [string]$j.Geraet.Id } else { '' }); Version = [string]$j.Version; Quelle = [string]$j.Quelle
+            System = $(if ($j.System) { [string]$j.System } elseif ($j.Hardware -and $j.Hardware.System) { [string]$j.Hardware.System } else { '' })
+            Akku = @($j.Akku); Ablauf = $j.Ablauf
         })
     }
     Set-DbDeviceKeys $list
@@ -73,7 +76,7 @@ function Get-DbLatest($Entries, [switch]$ExcludeCurrent) {
 }
 
 # Kleinere Werte sind besser (Latenzen)
-function Test-LowerBetterKey([string]$Key) { return ($Key -match '\|(Latenz|STUTTER)$') }
+function Test-LowerBetterKey([string]$Key) { return ($Key -match '\|(Latenz|STUTTER|STUTTERREL)$') }
 
 # Gespeicherte Referenz (Referenz.json im Datenordner, ältere Ablage PC-Diagnose-Referenz.json), sonst $null
 function Get-SavedReference([string]$Path = '') {
@@ -122,20 +125,143 @@ function Get-SavedReference([string]$Path = '') {
     return $null
 }
 
+function Test-DbEntryIsBattery($Entry) {
+    if (-not $Entry) { return $false }
+    if ($Entry.Ablauf -is [psobject] -and $Entry.Ablauf.Akkubetrieb) { return $true }
+    if ($Entry.Befunde -and $Entry.Befunde.Liste -and (@($Entry.Befunde.Liste) -match 'Akkubetrieb')) { return $true }
+    return $false
+}
+
+function Test-EntryIsNotebook($Entry) {
+    if (-not $Entry) { return $false }
+    if ($Entry.Akku) {
+        foreach ($b in @($Entry.Akku)) {
+            if ($b -and ($b.DesignmWh -gt 0 -or $b.VollmWh -gt 0)) { return $true }
+        }
+    }
+    $text = ('{0} {1} {2}' -f $Entry.System, $Entry.Name, $(if ($Entry.Hardware) { '{0} {1}' -f $Entry.Hardware.CPU, $Entry.Hardware.Mainboard } else { '' }))
+    if ($text -match '(?i)\b(Laptop|Notebook|Convertible|Subnotebook|Tablet|ZenBook|EliteBook|Latitude|Precision \d{4})\b') {
+        return $true
+    }
+    return $false
+}
+
+function Update-BenchReferenceMedians([string]$DataDir = $script:DataDir) {
+    $res = [pscustomobject]@{ Aktualisiert = 0; Dateien = [System.Collections.Generic.List[string]]::new(); Zeilen = [System.Collections.Generic.List[string]]::new() }
+    if (-not $DataDir) { return $res }
+    $allEntries = @(Get-DbLatest (Get-DbEntries) | Where-Object { -not (Test-DbEntryIsBattery $_) })
+    if (-not $allEntries.Count) {
+        $res.Zeilen.Add('Keine validen Systeme in der Vergleichsdatenbank gefunden.')
+        return $res
+    }
+    $targets = @(
+        @{ Name = 'aller Systeme'; File = 'Referenz.json'; Items = $allEntries }
+        @{ Name = 'Notebooks'; File = 'Referenz_Notebook.json'; Items = @($allEntries | Where-Object { Test-EntryIsNotebook $_ }) }
+        @{ Name = 'Desktop-PCs'; File = 'Referenz_Desktop.json'; Items = @($allEntries | Where-Object { -not (Test-EntryIsNotebook $_) }) }
+    )
+    foreach ($t in $targets) {
+        $items = @($t.Items)
+        if (-not $items.Count) { continue }
+        $w = [ordered]@{}
+        $h = [ordered]@{}
+        $keys = @($items | ForEach-Object { $_.Werte.Keys } | Where-Object { $_ -ne 'GPU|STUTTER' } | Select-Object -Unique)
+        foreach ($k in $keys) {
+            $vals = @($items | ForEach-Object { $_.Werte[$k] } | Where-Object { $null -ne $_ -and $_ -gt 0 })
+            if ($vals.Count) {
+                $m = Get-Median $vals
+                if ($null -ne $m) {
+                    $def = @($script:MetricDefs | Where-Object { $_.K -eq $k }) | Select-Object -First 1
+                    if ($def -and $def.F -eq 'N0') {
+                        $w[$k] = [math]::Round($m)
+                    } elseif ($k -match '^DISK\|.*\|(SR|SW|R1|R8|W1)$') {
+                        $w[$k] = [math]::Round($m)
+                    } else {
+                        $w[$k] = [math]::Round($m, 1)
+                    }
+                    $h[$k] = ('Median aus {0} Systemen' -f $vals.Count)
+                }
+            }
+        }
+        $obj = [ordered]@{
+            Format   = 'PC-Diagnose-DB/2'
+            Name     = ('Median {0} ({1} {2})' -f $t.Name, $items.Count, $(if ($items.Count -eq 1) { 'System' } else { 'Systeme' }))
+            Computer = 'Median'
+            Datum    = (Get-Date).ToString('yyyy-MM-dd', $script:Inv)
+            Version  = $ScriptVersion
+            Quelle   = 'Vergleichsdatenbank'
+            Hardware = [ordered]@{
+                CPU = 'Median-Referenz'
+                RAM = 'n/v'
+                GPU = 'n/v'
+                Datentraeger = 'n/v'
+                Betriebssystem = 'n/v'
+                Mainboard = 'n/v'
+                WindowsInstalliert = ''
+            }
+            Werte    = $w
+            Herkunft = $h
+            Befunde  = [ordered]@{ Kritisch = 0; Warnungen = 0; Hinweise = 0; Liste = @() }
+        }
+        $dest = Join-Path $DataDir $t.File
+        try {
+            [IO.File]::WriteAllText($dest, ($obj | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding($true)))
+            $res.Dateien.Add($dest)
+            $res.Aktualisiert++
+            $res.Zeilen.Add(('{0}: {1} Werte aus {2} Systemen gespeichert' -f $t.File, $w.Count, $items.Count))
+        } catch {
+            $res.Zeilen.Add(('Fehler beim Schreiben von {0}: {1}' -f $t.File, $_.Exception.Message))
+        }
+    }
+    return $res
+}
+
 function Import-BenchReference {
     $script:Ref = $script:RefNone
-    if ($ReferenzDatei -eq '*median') {
-        $entries = @(Get-DbLatest (Get-DbEntries) -ExcludeCurrent)
+    $medType = $null
+    if ($ReferenzDatei -match '^\*median(?::(notebook|desktop|all))?$') {
+        $medType = $(if ($Matches[1]) { $Matches[1].ToLower() } else { 'all' })
+    }
+    if ($medType) {
+        $targetFile = switch ($medType) {
+            'notebook' { 'Referenz_Notebook.json' }
+            'desktop'  { 'Referenz_Desktop.json' }
+            default    { 'Referenz.json' }
+        }
+        $specificPath = $(if ($script:DataDir) { Join-Path $script:DataDir $targetFile } else { '' })
+        if ($specificPath -and (Test-Path -LiteralPath $specificPath)) {
+            $r = Get-SavedReference $specificPath
+            if ($r -and $r.Werte -and $r.Werte.Count) {
+                $script:Ref = $r
+                return
+            }
+        }
+        $allEntries = @(Get-DbLatest (Get-DbEntries) -ExcludeCurrent | Where-Object { -not (Test-DbEntryIsBattery $_) })
+        $entries = switch ($medType) {
+            'notebook' { @($allEntries | Where-Object { Test-EntryIsNotebook $_ }) }
+            'desktop'  { @($allEntries | Where-Object { -not (Test-EntryIsNotebook $_) }) }
+            default    { $allEntries }
+        }
         if ($entries.Count) {
             $w = @{}
-            $keys = @($entries | ForEach-Object { $_.Werte.Keys } | Select-Object -Unique)
-            foreach ($k in $keys) { $m = Get-Median @($entries | ForEach-Object { $_.Werte[$k] } | Where-Object { $_ -gt 0 }); if ($m) { $w[$k] = [math]::Round($m, 1) } }
-            $script:Ref = @{ Name = ('Median von {0} Systemen der Vergleichsdatenbank' -f $entries.Count); Datum = (Get-Date).ToString('yyyy-MM-dd', $script:Inv); Werte = $w; Herkunft = @{}; Quelle = 'Vergleichsdatenbank' }
+            $keys = @($entries | ForEach-Object { $_.Werte.Keys } | Where-Object { $_ -ne 'GPU|STUTTER' } | Select-Object -Unique)
+            foreach ($k in $keys) {
+                $vals = @($entries | ForEach-Object { $_.Werte[$k] } | Where-Object { $null -ne $_ -and $_ -gt 0 })
+                if ($vals.Count) {
+                    $m = Get-Median $vals
+                    if ($null -ne $m) { $w[$k] = [math]::Round($m, 1) }
+                }
+            }
+            $label = switch ($medType) {
+                'notebook' { 'Median von {0} Notebooks der Vergleichsdatenbank' -f $entries.Count }
+                'desktop'  { 'Median von {0} Desktop-PCs der Vergleichsdatenbank' -f $entries.Count }
+                default    { 'Median von {0} Systemen der Vergleichsdatenbank' -f $entries.Count }
+            }
+            $script:Ref = @{ Name = $label; Datum = (Get-Date).ToString('yyyy-MM-dd', $script:Inv); Werte = $w; Herkunft = @{}; Quelle = 'Vergleichsdatenbank' }
             return
         }
-        Add-Line '  Die Vergleichsdatenbank enthält noch keine anderen Systeme, daher gilt die gespeicherte Referenz.'
+        Add-Line ('  Die Vergleichsdatenbank enthält noch keine passenden Systeme ({0}), daher gilt die gespeicherte Referenz.' -f $medType)
     }
-    $r = Get-SavedReference $(if ($ReferenzDatei -and $ReferenzDatei -ne '*median') { $ReferenzDatei } else { '' })
+    $r = Get-SavedReference $(if ($ReferenzDatei -and -not $medType) { $ReferenzDatei } else { '' })
     if ($r) { $script:Ref = $r }
 }
 
@@ -295,7 +421,7 @@ function Get-CompareRows {
     $sys = @($script:CmpSystems)
     $latest = @(Get-DbLatest (Get-DbEntries) -ExcludeCurrent)
     $defs = [System.Collections.Generic.List[object]]::new()
-    foreach ($d in $script:MetricDefs) { $defs.Add($d) }
+    foreach ($d in $script:MetricDefs) { if ($d.K -ne 'GPU|STUTTER') { $defs.Add($d) } }
     foreach ($cls in $script:DiskClassNames.Keys) {
         $has = $cur.ContainsKey("DISK|$cls|SR") -or @($sys | Where-Object { $_.Werte.ContainsKey("DISK|$cls|SR") }).Count
         if (-not $has) { continue }
@@ -500,3 +626,11 @@ function New-MultiLineSvg {
     return $sb.ToString()
 }
 
+if ($MedianAktualisieren) {
+    $res = Update-BenchReferenceMedians -DataDir $script:DataDir
+    foreach ($z in $res.Zeilen) { Write-Host ('  ' + $z) }
+    $kurz = ('{0} Referenzdateien aktualisiert' -f $res.Dateien.Count)
+    Write-Host ('Median-Referenz: {0}.' -f $kurz)
+    Send-GuiEvent 'RESULT' $kurz
+    exit 0
+}
