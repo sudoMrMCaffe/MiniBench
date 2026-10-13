@@ -1,4 +1,4 @@
-﻿# Leos Minibench: Projektstand
+# Leos Minibench: Projektstand
 
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
@@ -18,11 +18,13 @@ Inhalt von 3.63 (Einzelheiten in Doku\Änderungen_v3.63.txt):
 5. Robuste Absicherung & Non-Interactive Tests: Saubere Anzeige von "n/v (kein Leistungssensor)" bei sensorlosen Systemen; Testen.cmd
    beendet Testläufe ohne Tastendruck.
 
-Testlauf Windows (Windows PowerShell 5.1, Pester 6.2.0): 805 bestanden, 0 fehlgeschlagen, 99 übersprungen
+Testlauf Windows (Windows PowerShell 5.1, Pester 6.2.0): 806 bestanden, 0 fehlgeschlagen, 99 übersprungen
 (in Lauf.Tests.ps1; gewollt ohne -Gesamtlauf). Alle Fachgebiets-Tests erfolgreich.
 
-Hotfix v3.63 (13.10.2026): JavaScript-Syntaxfehler in Bausteine_Dashboard.ps1 behoben (doppeltes 'else' im Telemetrie-Tooltip-Handler verhinderte das Laden des Dashboards).
-Aktualisierung (13.10.2026): Alle 20 HTML-Berichte und Datenbankeinträge mit Aktualisiere-Berichte.ps1 neu gerendert (Kerne/Threads, gemessene Sensor-Leistungsaufnahmen aus Anhang.zip, Systemleistungs-Profile, Stromkostenrechner und Referenzwerte ergänzt; 29 veraltete/redundante Dateien ins Archiv überführt).
+Hotfix & Redesign v3.63 (13.10.2026):
+1. JavaScript-Syntaxfehler in Bausteine_Dashboard.ps1 behoben (doppeltes 'else' im Telemetrie-Tooltip-Handler verhinderte das Laden des Dashboards).
+2. Modernisierte Bericht-Kopfzeile in HtmlBericht.ps1 implementiert: Befunde kompakt zusammengefasst (K/W/H), flankiert von Multicore-Score, Grafik-FPS, SSD-Spitzenleserate (GB/s) und Effizienz-Index (Pkt/100 W).
+3. Aktualisiere-Berichte.ps1: Alle 21 HTML-Berichte und Datenbankeinträge neu gerendert und vollständig auf den modernen v3.63 Standard überführt (Kerne/Threads, Sensorwerte aus Anhang.zip, Section-Tags für Reiterwechsel, Befunde-Filterleiste, Profilkarten, interaktiver Stromkostenrechner; veraltete/redundante Dateien archiviert).
 
 ## Offene Befunde
 Keine offenen Befunde.

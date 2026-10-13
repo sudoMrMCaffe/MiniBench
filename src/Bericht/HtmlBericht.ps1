@@ -1,4 +1,4 @@
-﻿function Get-TelemetryTip {
+function Get-TelemetryTip {
     param($Sample)
     $t = [int]$Sample.T
     $mm = [int][math]::Floor($t / 60); $ss = [int]($t % 60)
@@ -418,13 +418,78 @@ function New-HtmlReport {
             $script:Facts['Geschätzter Gesamtsystemverbrauch (Volllast)'] = 'n/v (kein Leistungssensor)'
         }
     }
-    $pwrCard = ''
-    if ($pProfile -and $pProfile.Volllast -and $pProfile.Volllast.Verfuegbar) {
-        $subTxt = $(if ($pProfile.Leerlauf -and $pProfile.Leerlauf.Verfuegbar) { '~{0:N0} W Leerlauf' -f $pProfile.Leerlauf.P_AC } else { 'Volllast geschätzt' })
-        $pwrCard = ('<div class="card pwr hit" data-tip="{0}"><b>~{1:N0} W</b><span>Verbrauch Last ({2})</span></div>' -f `
-            (ConvertTo-HtmlText $pProfile.Volllast.Aufschluesselung), [math]::Round($pProfile.Volllast.P_AC), (ConvertTo-HtmlText $subTxt))
+
+    # Befunde-Kachel (Zusammenfassung von kritisch, Warnungen, Hinweise)
+    $totBefunde = $NK + $NW + $NI
+    $befCls = $(if ($NK -gt 0) { 'crit' } elseif ($NW -gt 0) { 'warn' } elseif ($NI -gt 0) { 'info' } else { 'ok' })
+    $befSub = $(if ($totBefunde -eq 0) { 'Keine Auffälligkeiten' } else { '{0} kritisch &middot; {1} Warn. &middot; {2} Hinw.' -f $NK, $NW, $NI })
+    $befTip = $(if ($totBefunde -eq 0) { 'Keine Auffälligkeiten gefunden' } else { '{0} kritische Befunde, {1} Warnungen, {2} Hinweise' -f $NK, $NW, $NI })
+    $befCard = ('<div class="card {0} hit" data-tip="{1}"><b>{2}</b><span>Befunde ({3})</span></div>' -f `
+        $befCls, (ConvertTo-HtmlText $befTip), $totBefunde, $befSub)
+
+    # Multicore-Score
+    $mtCard = ''
+    $mtVal = $null
+    if ($script:BenchResults) {
+        $r = @($script:BenchResults | Where-Object { $_.RefKey -eq 'CPU|MT' -and [double]$_.Wert -gt 0 }) | Select-Object -First 1
+        if ($r) { $mtVal = [double]$r.Wert }
     }
-    [void]$sb.Append(('<section class="cards" data-section="system"><div class="card crit"><b>{0}</b><span>kritisch</span></div><div class="card warn"><b>{1}</b><span>Warnungen</span></div><div class="card info"><b>{2}</b><span>Hinweise</span></div>{3}{4}{5}</section>' -f $NK, $NW, $NI, $stCard, $benchCard, $pwrCard))
+    if ($null -eq $mtVal -and $script:BenchNew) {
+        $r = @($script:BenchNew | Where-Object { ($_.Key -eq 'CPU|MT' -or $_.RefKey -eq 'CPU|MT') -and [double]$_.Wert -gt 0 }) | Select-Object -First 1
+        if ($r) { $mtVal = [double]$r.Wert }
+    }
+    if ($null -ne $mtVal) {
+        $mtCard = ('<div class="card metric cpu"><b>{0:N0}</b><span>Multicore-Score (CPU)</span></div>' -f $mtVal)
+    }
+
+    # Grafik / FPS (Renderleistung)
+    $fpsCard = ''
+    $fpsVal = $null
+    if ($script:BenchResults) {
+        $r = @($script:BenchResults | Where-Object { $_.RefKey -in 'GPU|REND', 'GPU|REND1' -and [double]$_.Wert -gt 0 }) | Select-Object -First 1
+        if ($r) { $fpsVal = [double]$r.Wert }
+    }
+    if ($null -eq $fpsVal -and $script:GpuRender) {
+        $r = @($script:GpuRender | Where-Object { [double]$_.Fps -gt 0 }) | Select-Object -First 1
+        if ($r) { $fpsVal = [double]$r.Fps }
+    }
+    if ($null -eq $fpsVal -and $script:LoadSummary -and "$script:LoadSummary" -match '(\d+(?:[.,]\d+)?)\s*Bilder/s') {
+        $fpsVal = [double]($matches[1] -replace ',', '.')
+    }
+    if ($null -ne $fpsVal) {
+        $fpsCard = ('<div class="card metric gpu"><b>{0:N0} FPS</b><span>Grafik (Rendertest)</span></div>' -f $fpsVal)
+    }
+
+    # Schnellster Lesewert einer SSD in GB/s
+    $ssdCard = ''
+    $maxSsdSr = $null
+    if ($script:BenchDisks) {
+        $srList = @($script:BenchDisks | ForEach-Object { [double]$_.SR } | Where-Object { $_ -gt 0 })
+        if ($srList.Count) { $maxSsdSr = ($srList | Measure-Object -Maximum).Maximum }
+    }
+    if ($null -ne $maxSsdSr -and $maxSsdSr -gt 0) {
+        $ssdGb = [math]::Round($maxSsdSr / 1000.0, 1)
+        $ssdCard = ('<div class="card metric disk"><b>{0:N1} GB/s</b><span>Schnellste SSD (Lesen)</span></div>' -f $ssdGb)
+    }
+
+    # Effizienz-Wert prominent statt Verbrauch Last
+    $effCard = ''
+    if ($pProfile) {
+        if ($pProfile.Effizienz -and $pProfile.Effizienz.System_PerWatt -and [double]$pProfile.Effizienz.System_PerWatt -gt 0) {
+            $subTxt = $(if ($pProfile.Volllast -and $pProfile.Volllast.Verfuegbar) { '~{0:N0} W Volllast' -f $pProfile.Volllast.P_AC } else { 'Gesamteffizienz' })
+            $effCard = ('<div class="card eff hit" data-tip="{0}"><b>{1:N1} <small>Pkt/100W</small></b><span>Effizienz ({2})</span></div>' -f `
+                (ConvertTo-HtmlText $pProfile.Volllast.Aufschluesselung), [double]$pProfile.Effizienz.System_PerWatt, (ConvertTo-HtmlText $subTxt))
+        } elseif ($pProfile.Effizienz -and $pProfile.Effizienz.CpuMT_PerWatt -and [double]$pProfile.Effizienz.CpuMT_PerWatt -gt 0) {
+            $subTxt = $(if ($pProfile.Volllast -and $pProfile.Volllast.Verfuegbar) { '~{0:N0} W Volllast' -f $pProfile.Volllast.P_AC } else { 'CPU-Effizienz' })
+            $effCard = ('<div class="card eff hit" data-tip="{0}"><b>{1:N0} <small>Pkt/W</small></b><span>CPU-Effizienz ({2})</span></div>' -f `
+                (ConvertTo-HtmlText $pProfile.Volllast.Aufschluesselung), [double]$pProfile.Effizienz.CpuMT_PerWatt, (ConvertTo-HtmlText $subTxt))
+        } elseif ($pProfile.Volllast -and $pProfile.Volllast.Verfuegbar) {
+            $subTxt = $(if ($pProfile.Leerlauf -and $pProfile.Leerlauf.Verfuegbar) { '~{0:N0} W Leerlauf' -f $pProfile.Leerlauf.P_AC } else { 'Volllast geschätzt' })
+            $effCard = ('<div class="card pwr hit" data-tip="{0}"><b>~{1:N0} W</b><span>Verbrauch Last ({2})</span></div>' -f `
+                (ConvertTo-HtmlText $pProfile.Volllast.Aufschluesselung), [math]::Round($pProfile.Volllast.P_AC), (ConvertTo-HtmlText $subTxt))
+        }
+    }
+    [void]$sb.Append(('<section class="cards" data-section="system">{0}{1}{2}{3}{4}{5}{6}</section>' -f $befCard, $benchCard, $mtCard, $fpsCard, $ssdCard, $effCard, $stCard))
     if ($script:Stability -and $script:Stability.Erklaerung) { [void]$sb.Append(('<section class="box stab {0}" data-section="system"><h2>Zuverlässigkeit {1:N1} von 10</h2><p>{2}</p></section>' -f $script:Stability.Klasse, $script:Stability.Index, (ConvertTo-HtmlText $script:Stability.Erklaerung))) }
 
     if ($script:Facts.Count) {

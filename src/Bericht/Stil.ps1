@@ -1,4 +1,4 @@
-﻿function Get-ReportCss {
+function Get-ReportCss {
     return @'
 :root{--bg:#f5f6f8;--panel:#fff;--text:#1c2330;--muted:#5f6878;--line:#e2e5ea;--code:#f1f3f6;
 --accent:#0067c0;--accent-hover:#005a9e;--accent-soft:#ebf3fb;--accent-border:#bdd7ee;
@@ -52,10 +52,17 @@ th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;le
 .card.crit{border-left-color:var(--crit)} .card.crit b{color:var(--crit)}
 .card.warn{border-left-color:var(--warn)} .card.warn b{color:var(--warn)}
 .card.info{border-left-color:var(--info)} .card.info b{color:var(--info)}
+.card.ok{border-left-color:var(--ok)} .card.ok b{color:var(--ok)}
 .cards{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
 .card.st,.card.st.ok,.card.st.info,.card.st.warn{background:var(--panel);color:var(--text)}
 .card.st.ok{border-left-color:var(--ok)} .card.st.ok b{color:var(--ok)} .card.st.info{border-left-color:var(--info)} .card.st.info b{color:var(--info)} .card.st.warn{border-left-color:var(--warn)} .card.st.warn b{color:var(--warn)}
 .card.bench{background:var(--panel);color:var(--text);border-left-color:var(--accent,#2563eb)} .card.bench b{color:var(--accent,#2563eb)} .card.pwr{background:var(--panel);color:var(--text);border-left-color:#d97706} .card.pwr b{color:#d97706}
+.card.eff{background:var(--panel);color:var(--text);border-left-color:#10b981} .card.eff b{color:#10b981}
+.card.metric{background:var(--panel);color:var(--text);border-left-color:var(--accent,#2563eb)} .card.metric b{color:var(--accent,#2563eb)}
+.card.metric.cpu{border-left-color:var(--info)} .card.metric.cpu b{color:var(--info)}
+.card.metric.gpu{border-left-color:#c2410c} .card.metric.gpu b{color:#c2410c}
+.card.metric.disk{border-left-color:#0f766e} .card.metric.disk b{color:#0f766e}
+.card b small{font-size:14px;font-weight:600;color:var(--muted);margin-left:2px}
 .box.stab,.box.stab.warn,.box.stab.info,.box.stab.ok{background:var(--panel);color:var(--text);border-left:6px solid var(--line)}
 .box.stab.warn{border-left-color:var(--warn)} .box.stab.info{border-left-color:var(--info)} .box.stab p{margin:0}
 .empty{color:var(--muted);margin:0}

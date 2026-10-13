@@ -1,4 +1,4 @@
-﻿function Add-Line([string]$Text = '') { [void]$script:Report.AppendLine($Text) }
+function Add-Line([string]$Text = '') { [void]$script:Report.AppendLine($Text) }
 
 function Add-Section([string]$Title, [string]$Prefix = '') {
     Add-Line; Add-Line ('=' * 100); Add-Line ('  ' + $Title.ToUpper()); Add-Line ('=' * 100)
@@ -509,6 +509,11 @@ function Get-SystemPowerProfile($Entry = $null) {
     $overallScore = 0.0
 
     if ($Entry) {
+        if ($Entry.Score -and [double]$Entry.Score -gt 0) {
+            $overallScore = [double]$Entry.Score
+        } elseif ($Entry.Scores -and $Entry.Scores.Overall -and [double]$Entry.Scores.Overall -gt 0) {
+            $overallScore = [double]$Entry.Scores.Overall
+        }
         if ($Entry.Werte) {
             $wMt = if ($Entry.Werte -is [System.Collections.IDictionary]) { $Entry.Werte['CPU|MT'] } else { $Entry.Werte.'CPU|MT' }
             if ($null -ne $wMt -and [double]$wMt -gt 0) { $cpuMtScore = [double]$wMt }
@@ -518,6 +523,24 @@ function Get-SystemPowerProfile($Entry = $null) {
                 $wGpu = if ($Entry.Werte -is [System.Collections.IDictionary]) { $Entry.Werte['GPU|REND'] } else { $Entry.Werte.'GPU|REND' }
             }
             if ($null -ne $wGpu -and [double]$wGpu -gt 0) { $gpuScore = [double]$wGpu }
+
+            if ($overallScore -le 0 -or $overallScore -gt 500) {
+                # Relative Referenzwerte: CPU MT ~28000, GPU ~100 FPS / Rendertest, RAM ~50 GB/s
+                $wSum = 0.0; $logSum = 0.0
+                $cPct = if ($cpuMtScore -gt 0) { ($cpuMtScore / 28000.0) * 100.0 } else { 0.0 }
+                $gPct = if ($gpuScore -gt 0) { ($gpuScore / 100.0) * 100.0 } elseif ($Entry.Werte['GPU|VMB']) { ([double]$Entry.Werte['GPU|VMB'] / 300.0) * 100.0 } else { 0.0 }
+                $rPct = if ($Entry.Werte['RAM|Lesen']) { ([double]$Entry.Werte['RAM|Lesen'] / 50.0) * 100.0 } else { 0.0 }
+                if ($cPct -gt 0) { $logSum += 2.0 * [math]::Log($cPct); $wSum += 2.0 }
+                if ($gPct -gt 0) { $logSum += 2.0 * [math]::Log($gPct); $wSum += 2.0 }
+                if ($rPct -gt 0) { $logSum += 1.0 * [math]::Log($rPct); $wSum += 1.0 }
+                if ($wSum -gt 0) { $overallScore = [int][math]::Round([math]::Exp($logSum / $wSum), 0) }
+            }
+        }
+        if ($Entry.Sensoren -and $Entry.Sensoren.Verbrauch -and $Entry.Sensoren.Verbrauch.Effizienz) {
+            $eEff = $Entry.Sensoren.Verbrauch.Effizienz
+            if ($null -ne $eEff.CpuMT_PerWatt -and "$($eEff.CpuMT_PerWatt)" -ne '') { $eff.CpuMT_PerWatt = [double]$eEff.CpuMT_PerWatt }
+            if ($null -ne $eEff.Gpu_PerWatt -and "$($eEff.Gpu_PerWatt)" -ne '') { $eff.Gpu_PerWatt = [double]$eEff.Gpu_PerWatt }
+            if ($null -ne $eEff.System_PerWatt -and "$($eEff.System_PerWatt)" -ne '') { $eff.System_PerWatt = [double]$eEff.System_PerWatt }
         }
     } else {
         if ($script:BenchResults) {
@@ -532,13 +555,13 @@ function Get-SystemPowerProfile($Entry = $null) {
         }
     }
 
-    if ($cpuMtScore -gt 0 -and $null -ne $cpuWMax -and $cpuWMax -gt 0) {
+    if ($null -eq $eff.CpuMT_PerWatt -and $cpuMtScore -gt 0 -and $null -ne $cpuWMax -and $cpuWMax -gt 0) {
         $eff.CpuMT_PerWatt = [math]::Round($cpuMtScore / $cpuWMax, 1)
     }
-    if ($gpuScore -gt 0 -and $null -ne $gpuWMax -and $gpuWMax -gt 0) {
+    if ($null -eq $eff.Gpu_PerWatt -and $gpuScore -gt 0 -and $null -ne $gpuWMax -and $gpuWMax -gt 0) {
         $eff.Gpu_PerWatt = [math]::Round($gpuScore / $gpuWMax, 2)
     }
-    if ($overallScore -gt 0 -and $pLoad.Verfuegbar -and $pLoad.P_AC -gt 0) {
+    if ($null -eq $eff.System_PerWatt -and $overallScore -gt 0 -and $pLoad.Verfuegbar -and $pLoad.P_AC -gt 0) {
         $eff.System_PerWatt = [math]::Round(($overallScore / $pLoad.P_AC) * 100.0, 1)
     }
 
