@@ -125,7 +125,15 @@
 
                               ]
                 },
-    "Lasttest":  null,
+    "Lasttest":  {
+                     "CpuTempMax":  72,
+                     "GpuTempMax":  74,
+                     "CpuWMax":  76,
+                     "GpuWMax":  135,
+                     "Drosselung":  "keine",
+                     "Taktstabilitaet":  97.0,
+                     "TaktAbfall":  3.0
+                 },
     "Rendertest":  [
                        {
                            "Grafik":  "Radeon RX 570 Series",

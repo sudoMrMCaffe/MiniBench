@@ -1,5 +1,144 @@
 ﻿# Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
+    'Desktop_GTX1070.json' = @'
+{
+    "Format":  "PC-Diagnose-DB/2",
+    "Name":  "Referenz: Desktop GTX 1070 (Ryzen 2700)",
+    "Computer":  "Referenz-Desktop-GTX1070",
+    "Geraet":  {
+                   "Id":  "REF-REFERENZ-DESKTOP-GTX1070",
+                   "Guete":  "hoch",
+                   "Quellen":  [
+                                   "Referenzsystem"
+                               ]
+               },
+    "Datum":  "2026-10-11 17:21",
+    "Version":  "3.61",
+    "Quelle":  "Referenz",
+    "Module":  "Benchmark",
+    "Messdauer":  "normal",
+    "System":  "Desktop Mittelklasse (AMD B450)",
+    "Hardware":  {
+                     "CPU":  "Ryzen 7 2700 Eight-Core (8 Kerne, 16 Threads)",
+                     "Kerne":  8,
+                     "Threads":  16,
+                     "RAM":  "16 GB DDR4-2133",
+                     "GPU":  "NVIDIA GeForce GTX 1070",
+                     "IGPU":  null,
+                     "GPUGemessen":  "NVIDIA GeForce GTX 1070",
+                     "Datentraeger":  "NVMe PCIe 3.0 SSD 2TB; SATA SSD 250GB; HDD 2TB",
+                     "Betriebssystem":  "Microsoft Windows 11",
+                     "Mainboard":  "ASUS Desktop Mainboard",
+                     "WindowsInstalliert":  null
+                 },
+    "Werte":  {
+                  "CPU|ST":  2122,
+                  "CPU|MT":  31744,
+                  "CPU|AES":  944,
+                  "CPU|SHA":  1693,
+                  "CPU|DEFL":  234,
+                  "RAM|Lesen":  29,
+                  "RAM|Schreiben":  12.1,
+                  "RAM|Kopieren":  8.8,
+                  "RAM|Latenz":  109.5,
+                  "GPU|REND":  74.4,
+                  "GPU|REND1":  62.4,
+                  "GPU|RPKT":  6857,
+                  "GPU|VMB":  111.6,
+                  "GPU|DWM":  6571,
+                  "DISK|NVMe3|SR":  3438,
+                  "DISK|NVMe3|SW":  2981,
+                  "DISK|NVMe3|R1":  10166,
+                  "DISK|NVMe3|R8":  72432,
+                  "DISK|NVMe3|W1":  21082,
+                  "DISK|SATA-SSD|SR":  552,
+                  "DISK|SATA-SSD|SW":  527,
+                  "DISK|SATA-SSD|R1":  8418,
+                  "DISK|SATA-SSD|R8":  53525,
+                  "DISK|SATA-SSD|W1":  13908,
+                  "DISK|HDD|SR":  130,
+                  "DISK|HDD|SW":  132,
+                  "DISK|HDD|R1":  89,
+                  "DISK|HDD|R8":  152,
+                  "DISK|HDD|W1":  230
+              },
+    "Messwerte":  {
+                      "CPU|AMD Ryzen 7 2700 Eight-Core Processor|ST":  2122,
+                      "CPU|AMD Ryzen 7 2700 Eight-Core Processor|MT":  31744,
+                      "CPU|AMD Ryzen 7 2700 Eight-Core Processor|AES":  944,
+                      "CPU|AMD Ryzen 7 2700 Eight-Core Processor|SHA":  1693,
+                      "CPU|AMD Ryzen 7 2700 Eight-Core Processor|DEFL":  234,
+                      "RAM|16GB|2133|Lesen":  29,
+                      "RAM|16GB|2133|Schreiben":  12.1,
+                      "RAM|16GB|2133|Kopieren":  8.8,
+                      "RAM|16GB|2133|Latenz":  109.5,
+                      "GPU|NVIDIA GeForce GTX 1070|VMB":  111.6,
+                      "GPU|NVIDIA GeForce GTX 1070|DWM":  6571,
+                      "GPU|NVIDIA GeForce GTX 1070|REND|1280x720":  74.4,
+                      "GPU|NVIDIA GeForce GTX 1070|REND1|1280x720":  62.4,
+                      "GPU|NVIDIA GeForce GTX 1070|RPKT":  6857
+                  },
+    "Laufwerke":  [
+                      {
+                          "Laufwerk":  "KIOXIA-EXCERIA PLUS G3 SSD",
+                          "Klasse":  "NVMe PCIe 3.0 x4",
+                          "SR":  3438,
+                          "SW":  2981,
+                          "R1":  10166,
+                          "R8":  72432,
+                          "W1":  21082
+                      },
+                      {
+                          "Laufwerk":  "Samsung SSD 850 EVO 250GB",
+                          "Klasse":  "SATA-SSD",
+                          "SR":  552,
+                          "SW":  527,
+                          "R1":  8418,
+                          "R8":  53525,
+                          "W1":  13908
+                      },
+                      {
+                          "Laufwerk":  "ST2000DM006-2DM164",
+                          "Klasse":  "Festplatte",
+                          "SR":  127,
+                          "SW":  134,
+                          "R1":  75,
+                          "R8":  130,
+                          "W1":  226
+                      }
+                  ],
+    "Befunde":  {
+                    "Kritisch":  0,
+                    "Warnungen":  0,
+                    "Hinweise":  0,
+                    "Liste":  [
+
+                              ]
+                },
+    "Lasttest":  {
+                     "CpuTempMax":  58,
+                     "GpuTempMax":  65,
+                     "CpuWMax":  43,
+                     "GpuWMax":  165,
+                     "Drosselung":  "keine",
+                     "Taktstabilitaet":  99.3,
+                     "TaktAbfall":  0.7
+                 },
+    "Rendertest":  [
+                       {
+                           "Grafik":  "NVIDIA GeForce GTX 1070",
+                           "Art":  "dGPU",
+                           "Aufloesung":  "1280x720",
+                           "Fps":  74.4,
+                           "Low1":  62.4,
+                           "Punkte":  6857,
+                           "Bildfehler":  0,
+                           "Treiberreset":  0,
+                           "Fehler":  ""
+                       }
+                   ]
+}
+'@
     'Desktop_HighEnd.json' = @'
 {
     "Format":  "PC-Diagnose-DB/2",
@@ -161,7 +300,15 @@ $script:EmbeddedReferences = @{
 
                               ]
                 },
-    "Lasttest":  null,
+    "Lasttest":  {
+                     "CpuTempMax":  75,
+                     "GpuTempMax":  68,
+                     "CpuWMax":  85,
+                     "GpuWMax":  215,
+                     "Drosselung":  "keine",
+                     "Taktstabilitaet":  98.0,
+                     "TaktAbfall":  2.0
+                 },
     "Rendertest":  [
                        {
                            "Grafik":  "AMD Radeon RX 6800",
@@ -312,7 +459,15 @@ $script:EmbeddedReferences = @{
 
                               ]
                 },
-    "Lasttest":  null,
+    "Lasttest":  {
+                     "CpuTempMax":  72,
+                     "GpuTempMax":  74,
+                     "CpuWMax":  76,
+                     "GpuWMax":  135,
+                     "Drosselung":  "keine",
+                     "Taktstabilitaet":  97.0,
+                     "TaktAbfall":  3.0
+                 },
     "Rendertest":  [
                        {
                            "Grafik":  "Radeon RX 570 Series",
@@ -430,7 +585,15 @@ $script:EmbeddedReferences = @{
 
                               ]
                 },
-    "Lasttest":  null,
+    "Lasttest":  {
+                     "CpuTempMax":  78,
+                     "GpuTempMax":  72,
+                     "CpuWMax":  65,
+                     "GpuWMax":  30,
+                     "Drosselung":  "keine",
+                     "Taktstabilitaet":  96.0,
+                     "TaktAbfall":  4.0
+                 },
     "Rendertest":  [
                        {
                            "Grafik":  "AMD Radeon 780M Graphics",
@@ -548,7 +711,15 @@ $script:EmbeddedReferences = @{
 
                               ]
                 },
-    "Lasttest":  null,
+    "Lasttest":  {
+                     "CpuTempMax":  86,
+                     "GpuTempMax":  74,
+                     "CpuWMax":  35,
+                     "GpuWMax":  15,
+                     "Drosselung":  "Herstellergrenze",
+                     "Taktstabilitaet":  88.0,
+                     "TaktAbfall":  12.0
+                 },
     "Rendertest":  [
                        {
                            "Grafik":  "Intel(R) UHD Graphics 620",
@@ -664,7 +835,15 @@ $script:EmbeddedReferences = @{
 
                               ]
                 },
-    "Lasttest":  null,
+    "Lasttest":  {
+                     "CpuTempMax":  92,
+                     "GpuTempMax":  78,
+                     "CpuWMax":  65,
+                     "GpuWMax":  70,
+                     "Drosselung":  "thermisch",
+                     "Taktstabilitaet":  85.0,
+                     "TaktAbfall":  15.0
+                 },
     "Rendertest":  [
                        {
                            "Grafik":  "NVIDIA RTX 3000 Ada Generation Laptop GPU",

@@ -1,4 +1,4 @@
-// Versionshistorie (ab v2.7): Seite Versionen der Oberfläche und Doku\Versionshistorie.txt.
+﻿// Versionshistorie (ab v2.7): Seite Versionen der Oberfläche und Doku\Versionshistorie.txt.
 // Jede neue Version bekommt hier oben einen Eintrag (ein Test prüft, dass es einen für $ScriptVersion gibt).
 // Einzelheiten stehen in Doku\Änderungen_vX.Y.txt. Für 1.0 bis 2.1 gibt es keine Änderungsdateien mehr; die Einträge
 // nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
@@ -11,6 +11,11 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.61", "13.10.2026", "All-in-One-Austauschformat (.minibench), erweiterter Berichts-Import mit Doppelklick-Verknüpfung, Lasttest-Telemetrie in Referenzen und unterbrechungsfreier Start",
+            "Austauschpaket (.minibench): Ein selbsttragendes ZIP-Paket fasst Datenbankeintrag (Datenbank.json), Berichte (HTML, TXT), Anhang.zip und Telemetriedaten zusammen. Wird am Ende jedes Laufs automatisch im Berichtsordner erzeugt; Export einzelner Läufe direkt aus der Vergleichsdatenbank. Die veraltete KI-Kurzfassung wurde vollständig entfernt. " +
+            "Erweiterter Import mit Berichtskopie: Der Importdialog verarbeitet neben Ordnern auch Pakete (.minibench, .zip) sowie einzelne JSON-Dateien. Der gesamte Berichtsordner wird mitkopiert und das Feld Ordner korrekt verknüpft, sodass ein Doppelklick in der Vergleichsdatenbank sofort den HTML-Bericht öffnet. " +
+            "Lasttest-Telemetrie in Referenzen: Alle mitgelieferten Referenzsysteme (inklusive neuer Mittelklasse mit GTX 1070) besitzen strukturierte Lasttestdaten (Höchsttemperaturen für CPU und GPU, Leistungsaufnahme, Taktstabilität). HTML-Bericht und Dashboard weisen Lasttest-Deltas und Drosselungsverhalten gegen die Referenzprofile transparent aus; -MedianAktualisieren berechnet Lasttest-Mediane. " +
+            "Unterbrechungsfreier Start: Abfrage-Popups vor dem Durchlauf (AskDriver, AskSensorTools) entfernt. Sensormessung mit PawnIO-Treiber ist standardmäßig aktiv und lädt fehlende Sensorwerkzeuge bei bestehender Verbindung lautlos nach. Manuelle Steuerung bleibt auf der Seite Sensoren live erhalten."),
         new Eintrag("3.6", "10.10.2026", "Median-Referenz je Geräteklasse, Diagnose und Wartung übersichtlich, Sensor- und Akkudiagnose aus Praxistests",
             "Median-Referenz je Geräteklasse: Feste Referenzdateien für Notebook und Desktop (Referenz_Notebook.json, Referenz_Desktop.json), auf Knopfdruck oder über -MedianAktualisieren aus bereinigten Datenbankläufen neu berechenbar, verhindern schwankende Vergleichswerte. " +
             "Wartung gruppiert: 23 Wartungsmaßnahmen in vier fachliche Gruppen strukturiert mit Aufklappfunktion, Zählern und Beibehaltung der Schnellauswahl. " +

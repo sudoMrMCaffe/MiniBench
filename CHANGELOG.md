@@ -1,6 +1,13 @@
-# Changelog - Leos Minibench
+﻿# Changelog - Leos Minibench
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
+
+## v3.61 (13.10.2026)
+
+* **All-in-One-Austauschformat (`.minibench`):** Jeder erfolgreiche Durchlauf erzeugt im Berichtsordner automatisch ein komprimiertes Komplettpaket (`.minibench`), das `Datenbank.json`, `Diagnosebericht.html`, `Diagnosebericht.txt`, `Anhang.zip` und Telemetrie bündelt. Über die Schaltfläche und das Kontextmenü „Lauf exportieren …“ auf der Seite Vergleichsdatenbank kann jeder Lauf exportiert werden (`-ExportLauf`). Die veraltete `KI-Kurzfassung.txt` und die zugehörige Zwischenablage-Schaltfläche wurden restlos entfernt.
+* **Erweiterter Import & Doppelklick-Verknüpfung:** Der Import-Dialog unterstützt neben Verzeichnissen auch Austauschpakete (`.minibench`, `.zip`) und einzelne `.json`-Dateien. Berichtsordner werden beim Import automatisch nach `Minibench-Daten\Berichte` übertragen und das Feld `Ordner` im Datenbankeintrag verknüpft. Ein Doppelklick auf importierte Läufe in der Vergleichsdatenbank öffnet direkt den HTML-Bericht.
+* **Lasttest-Telemetrie in Referenzsystemen:** Die eingebetteten Referenzprofile (`Desktop_HighEnd`, `Desktop_Mittelklasse`, `Desktop_GTX1070`, `MiniPC_APU`, `Notebook_Standard`, `Workstation_Mobil`) enthalten strukturierte Lasttest-Referenzwerte (Höchsttemperaturen, TDP/Leistungsaufnahme, Taktstabilität). HTML-Bericht und Dashboard-Matrix weisen Lasttest-Deltas (K und W) sowie Drosselungsverhalten transparent aus. `-MedianAktualisieren` ermittelt Lasttest-Mediane aus der Datenbank.
+* **Unterbrechungsfreier Durchlauf-Start:** Die vorgeschalteten Bestätigungsdialoge (`AskDriver`, `AskSensorTools`) vor dem Start von Diagnose, Benchmark und Lasttest wurden entfernt. Vollständige Sensormessung mit PawnIO-Treiber ist standardmäßig aktiv (`drv = true`). Fehlen Sensorwerkzeuge, werden sie bei bestehender Internetverbindung lautlos nachgeladen, andernfalls wird ohne Blockade auf Windows-/ACPI-Sensoren zurückgegriffen. Die manuelle Treibereinstellung bleibt auf der Seite „Sensoren live“ erhalten.
 
 ## v3.6 (10.10.2026)
 

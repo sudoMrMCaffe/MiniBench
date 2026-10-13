@@ -92,7 +92,15 @@
 
                               ]
                 },
-    "Lasttest":  null,
+    "Lasttest":  {
+                     "CpuTempMax":  86,
+                     "GpuTempMax":  74,
+                     "CpuWMax":  35,
+                     "GpuWMax":  15,
+                     "Drosselung":  "Herstellergrenze",
+                     "Taktstabilitaet":  88.0,
+                     "TaktAbfall":  12.0
+                 },
     "Rendertest":  [
                        {
                            "Grafik":  "Intel(R) UHD Graphics 620",

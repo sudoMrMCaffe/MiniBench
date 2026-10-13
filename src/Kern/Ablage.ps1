@@ -589,6 +589,94 @@ function Rename-DbLauf([string]$Pfad, [string]$NeuerName, [string]$DataDir = $sc
     return $res
 }
 
+# ab v3.61: All-in-One-Austauschpaket (.minibench) für einen Durchlauf erzeugen
+function New-MinibenchBundle {
+    param(
+        [Parameter(Mandatory = $true)][string]$ReportDir,
+        [string]$DbFile = '',
+        [Parameter(Mandatory = $true)][string]$DestinationPath
+    )
+    if (-not (Test-Path -LiteralPath $ReportDir -PathType Container)) {
+        throw ('Berichtsordner nicht gefunden: {0}' -f $ReportDir)
+    }
+    $destDir = Split-Path $DestinationPath -Parent
+    if ($destDir -and -not (Test-Path -LiteralPath $destDir)) {
+        New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+    }
+    $staging = Join-Path $(if ($script:DataDir) { Join-Path $script:DataDir 'Laufzeit' } else { [IO.Path]::GetTempPath() }) ('Bundle_' + [guid]::NewGuid().ToString('N'))
+    try {
+        New-Item -ItemType Directory -Path $staging -Force | Out-Null
+        # Alle Dateien des Berichtsordners (außer .minibench und KI-Kurzfassung) kopieren
+        foreach ($f in @(Get-ChildItem -LiteralPath $ReportDir -File -Force -ErrorAction SilentlyContinue)) {
+            if ($f.Extension -ieq '.minibench') { continue }
+            if ($f.Name -like 'KI-Kurzfassung*') { continue }
+            Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $staging $f.Name) -Force
+        }
+        # Datenbankdatei als Datenbank.json einbinden
+        $dbSrc = $null
+        if ($DbFile -and (Test-Path -LiteralPath $DbFile)) {
+            $dbSrc = $DbFile
+        } elseif (Test-Path -LiteralPath (Join-Path $ReportDir 'Datenbank.json')) {
+            $dbSrc = Join-Path $ReportDir 'Datenbank.json'
+        }
+        if ($dbSrc) {
+            Copy-Item -LiteralPath $dbSrc -Destination (Join-Path $staging 'Datenbank.json') -Force
+        }
+        if (Test-Path -LiteralPath $DestinationPath) {
+            Remove-Item -LiteralPath $DestinationPath -Force -ErrorAction SilentlyContinue
+        }
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+        if ('System.IO.Compression.ZipFile' -as [type]) {
+            [System.IO.Compression.ZipFile]::CreateFromDirectory($staging, $DestinationPath)
+        } else {
+            $tempZip = Join-Path ([IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString('N') + '.zip')
+            Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $tempZip -Force
+            Move-Item -LiteralPath $tempZip -Destination $DestinationPath -Force
+        }
+        return $DestinationPath
+    } finally {
+        if ($staging -and (Test-Path -LiteralPath $staging)) {
+            Remove-Item -LiteralPath $staging -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+# ab v3.61: Lauf als .minibench-Austauschpaket exportieren (Datenbankeintrag und Berichtsordner)
+function Export-DbLauf([string]$Pfad, [string]$Ziel = '', [string]$DataDir = $script:DataDir) {
+    $res = [pscustomobject]@{ Ok = $false; Pfad = ''; Text = '' }
+    if (-not (Test-Path -LiteralPath $Pfad)) {
+        $res.Text = ('Datenbankdatei nicht gefunden: {0}' -f $Pfad)
+        return $res
+    }
+    $e = $null
+    try {
+        $e = Get-Content -LiteralPath $Pfad -Raw -Encoding UTF8 | ConvertFrom-Json
+    } catch {
+        $res.Text = ('Datenbankdatei nicht lesbar: {0}' -f $_.Exception.Message)
+        return $res
+    }
+    $ordner = Get-LaufOrdner $e $DataDir
+    if (-not $ordner -or -not (Test-Path -LiteralPath $ordner)) {
+        $res.Text = ('Berichtsordner für {0} nicht gefunden.' -f (Split-Path $Pfad -Leaf))
+        return $res
+    }
+    if (-not $Ziel) {
+        $base = [IO.Path]::GetFileNameWithoutExtension($Pfad)
+        $desk = [Environment]::GetFolderPath('Desktop')
+        if (-not $desk) { $desk = [IO.Path]::GetTempPath() }
+        $Ziel = Join-Path $desk ($base + '.minibench')
+    }
+    try {
+        $out = New-MinibenchBundle -ReportDir $ordner -DbFile $Pfad -DestinationPath $Ziel
+        $res.Ok = $true
+        $res.Pfad = $out
+        $res.Text = ('Lauf erfolgreich nach {0} exportiert.' -f $out)
+    } catch {
+        $res.Text = ('Export fehlgeschlagen: {0}' -f $_.Exception.Message)
+    }
+    return $res
+}
+
 # ---------- Start und Hilfsmodi der Oberfläche ----------
 if ($script:DataDir) { try { foreach ($z in (Move-AlteNasKonfig $script:DataDir)) { Write-Verbose $z } } catch { } }
 
@@ -613,6 +701,14 @@ if ($Entfernen) {
 if ($Umbenennen) {
     $r = Rename-DbLauf ([string]$Umbenennen).Trim('"') $NeuerName $script:DataDir
     Write-Host $r.Text
+    Send-GuiEvent 'RESULT' $(if ($r.Ok) { '1' } else { '0' }) $r.Pfad
+    exit $(if ($r.Ok) { 0 } else { 1 })
+}
+# Lauf exportieren: -ExportLauf "Pfad" [-ExportZiel "Ziel"], @@RESULT|1 oder 0|Pfad
+if ($ExportLauf) {
+    $r = Export-DbLauf ([string]$ExportLauf).Trim('"') ([string]$ExportZiel).Trim('"') $script:DataDir
+    Write-Host $r.Text
+    Send-GuiEvent 'LOG' $r.Text
     Send-GuiEvent 'RESULT' $(if ($r.Ok) { '1' } else { '0' }) $r.Pfad
     exit $(if ($r.Ok) { 0 } else { 1 })
 }

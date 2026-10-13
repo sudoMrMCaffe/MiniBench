@@ -91,7 +91,7 @@ function Get-SavedReference([string]$Path = '') {
         if (-not $w.Count) { continue }
         $h = @{}
         if ($j.Herkunft) { foreach ($p in $j.Herkunft.PSObject.Properties) { $h[$p.Name] = [string]$p.Value } }
-        return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = $f; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId }
+        return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = $f; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId; Lasttest = $j.Lasttest }
     }
     # Ab v3.0: Standard-Referenzprofil Desktop_Mittelklasse.json laden, wenn noch keine Referenz definiert ist
     if (-not $Path) {
@@ -106,7 +106,7 @@ function Get-SavedReference([string]$Path = '') {
             if (-not $w.Count) { continue }
             $h = @{}
             if ($j.Herkunft) { foreach ($p in $j.Herkunft.PSObject.Properties) { $h[$p.Name] = [string]$p.Value } }
-            return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = $df; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId }
+            return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = $df; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId; Lasttest = $j.Lasttest }
         }
         if ($script:EmbeddedReferences -and $script:EmbeddedReferences.ContainsKey('Desktop_Mittelklasse.json')) {
             try {
@@ -116,7 +116,7 @@ function Get-SavedReference([string]$Path = '') {
                     if ($w.Count) {
                         $h = @{}
                         if ($j.Herkunft) { foreach ($p in $j.Herkunft.PSObject.Properties) { $h[$p.Name] = [string]$p.Value } }
-                        return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = 'Eingebettet (Desktop_Mittelklasse.json)'; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId }
+                        return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = 'Eingebettet (Desktop_Mittelklasse.json)'; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId; Lasttest = $j.Lasttest }
                     }
                 }
             } catch { }
@@ -182,6 +182,41 @@ function Update-BenchReferenceMedians([string]$DataDir = $script:DataDir) {
                 }
             }
         }
+        $cpuTemps = @(); $gpuTemps = @(); $cpuWs = @(); $gpuWs = @(); $abfalls = @()
+        foreach ($it in $items) {
+            if ($it.Sensoren -and $it.Sensoren.Last) {
+                if ($it.Sensoren.Last.CpuTempMax) { $cpuTemps += [double]$it.Sensoren.Last.CpuTempMax }
+                if ($it.Sensoren.Last.GpuTempMax) { $gpuTemps += [double]$it.Sensoren.Last.GpuTempMax }
+                if ($it.Sensoren.Last.CpuWMax) { $cpuWs += [double]$it.Sensoren.Last.CpuWMax }
+                if ($it.Sensoren.Last.GpuWMax) { $gpuWs += [double]$it.Sensoren.Last.GpuWMax }
+                if ($null -ne $it.Sensoren.Last.TaktAbfall) { $abfalls += [double]$it.Sensoren.Last.TaktAbfall }
+            } elseif ($it.Lasttest -is [psobject]) {
+                if ($it.Lasttest.CpuTempMax) { $cpuTemps += [double]$it.Lasttest.CpuTempMax }
+                if ($it.Lasttest.GpuTempMax) { $gpuTemps += [double]$it.Lasttest.GpuTempMax }
+                if ($it.Lasttest.CpuWMax) { $cpuWs += [double]$it.Lasttest.CpuWMax }
+                if ($it.Lasttest.GpuWMax) { $gpuWs += [double]$it.Lasttest.GpuWMax }
+                if ($null -ne $it.Lasttest.TaktAbfall) { $abfalls += [double]$it.Lasttest.TaktAbfall }
+            } elseif ($it.Lasttest -is [string]) {
+                if ($it.Lasttest -match 'CPU max (\d+)\s*°?C') { $cpuTemps += [double]$Matches[1] }
+                if ($it.Lasttest -match 'Abfall ([\d.,]+)\s*%') { $abfalls += [double]($Matches[1] -replace ',', '.') }
+            }
+        }
+        $medCpuTemp = if ($cpuTemps.Count) { Get-Median $cpuTemps } else { $null }
+        $medGpuTemp = if ($gpuTemps.Count) { Get-Median $gpuTemps } else { $null }
+        $medCpuW    = if ($cpuWs.Count) { Get-Median $cpuWs } else { $null }
+        $medGpuW    = if ($gpuWs.Count) { Get-Median $gpuWs } else { $null }
+        $medAbfall  = if ($abfalls.Count) { Get-Median $abfalls } else { $null }
+
+        $isNb = ($t.File -match 'Notebook')
+        $objLasttest = [ordered]@{
+            CpuTempMax     = $(if ($null -ne $medCpuTemp) { [math]::Round($medCpuTemp) } else { $(if ($isNb) { 86 } else { 75 }) })
+            GpuTempMax     = $(if ($null -ne $medGpuTemp) { [math]::Round($medGpuTemp) } else { $(if ($isNb) { 74 } else { 68 }) })
+            CpuWMax        = $(if ($null -ne $medCpuW) { [math]::Round($medCpuW) } else { $(if ($isNb) { 45 } else { 85 }) })
+            GpuWMax        = $(if ($null -ne $medGpuW) { [math]::Round($medGpuW) } else { $(if ($isNb) { 35 } else { 160 }) })
+            Drosselung     = 'keine'
+            Taktstabilitaet = $(if ($null -ne $medAbfall) { [math]::Round(100 - $medAbfall, 1) } else { $(if ($isNb) { 88.0 } else { 98.0 }) })
+            TaktAbfall     = $(if ($null -ne $medAbfall) { [math]::Round($medAbfall, 1) } else { $(if ($isNb) { 12.0 } else { 2.0 }) })
+        }
         $obj = [ordered]@{
             Format   = 'PC-Diagnose-DB/2'
             Name     = ('Median {0} ({1} {2})' -f $t.Name, $items.Count, $(if ($items.Count -eq 1) { 'System' } else { 'Systeme' }))
@@ -201,6 +236,7 @@ function Update-BenchReferenceMedians([string]$DataDir = $script:DataDir) {
             Werte    = $w
             Herkunft = $h
             Befunde  = [ordered]@{ Kritisch = 0; Warnungen = 0; Hinweise = 0; Liste = @() }
+            Lasttest = $objLasttest
         }
         $dest = Join-Path $DataDir $t.File
         try {

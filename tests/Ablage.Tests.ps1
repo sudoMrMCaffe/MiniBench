@@ -575,3 +575,54 @@ Describe 'Läufe entfernen und umbenennen' {
         $x.Json | Should -Exist
     }
 }
+
+Describe 'Lauf exportieren und Austauschpaket (.minibench)' {
+    BeforeAll {
+        function New-ExportLauf([string]$Root = '', [string]$Name = 'PC1', [string]$Stamp = '20261003_142535', [string]$Ordner = 'PC1_20261003_1421') {
+            if (-not $Root) { $Root = New-TestDir 'daten' }
+            $db = Join-Path $Root 'Datenbank'; New-Item -ItemType Directory $db -Force | Out-Null
+            $rep = Join-Path (Join-Path $Root 'Berichte') $Ordner
+            New-Item -ItemType Directory $rep -Force | Out-Null
+            [IO.File]::WriteAllText((Join-Path $rep 'Diagnosebericht.txt'), 'Bericht')
+            [IO.File]::WriteAllText((Join-Path $rep 'Diagnosebericht.html'), '<html>Bericht</html>')
+            [IO.File]::WriteAllText((Join-Path $rep 'KI-Kurzfassung.txt'), 'altes Prompt')
+            $json = Join-Path $db ('{0}_{1}.json' -f $Name, $Stamp)
+            [IO.File]::WriteAllText($json, ([ordered]@{ Format = 'PC-Diagnose-DB/2'; Name = $Name; Computer = 'PC1'; Ordner = 'Berichte\' + $Ordner; Werte = @{ 'CPU|MT' = 1000 } } | ConvertTo-Json -Depth 4))
+            return [pscustomobject]@{ Root = $Root; Json = $json; Ordner = $rep }
+        }
+    }
+    It 'New-MinibenchBundle packt Berichtsordner und Datenbankdatei in ein .minibench-Archiv ohne KI-Kurzfassung' {
+        $x = New-ExportLauf
+        $ziel = Join-Path (New-TestDir 'export') 'TestLauf.minibench'
+        $res = MinibenchTest\New-MinibenchBundle -ReportDir $x.Ordner -DbFile $x.Json -DestinationPath $ziel
+        $res | Should -Be $ziel
+        $ziel | Should -Exist
+
+        $entpackt = New-TestDir 'entpackt'
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($ziel, $entpackt)
+        Join-Path $entpackt 'Diagnosebericht.txt' | Should -Exist
+        Join-Path $entpackt 'Diagnosebericht.html' | Should -Exist
+        Join-Path $entpackt 'Datenbank.json' | Should -Exist
+        Join-Path $entpackt 'KI-Kurzfassung.txt' | Should -Not -Exist
+    }
+    It 'Export-DbLauf exportiert einen Lauf anhand der Datenbankdatei' {
+        $x = New-ExportLauf
+        $ziel = Join-Path (New-TestDir 'export') 'Exportiert.minibench'
+        $r = MinibenchTest\Export-DbLauf -Pfad $x.Json -Ziel $ziel -DataDir $x.Root
+        $r.Ok | Should -BeTrue
+        $r.Pfad | Should -Be $ziel
+        $ziel | Should -Exist
+    }
+    It 'Export-DbLauf bricht sauber ab, wenn Datenbankdatei oder Berichtsordner fehlen' {
+        $x = New-ExportLauf
+        $ziel = Join-Path (New-TestDir 'export') 'Fehler.minibench'
+        $rFehlt = MinibenchTest\Export-DbLauf -Pfad (Join-Path $x.Root 'fehlt.json') -Ziel $ziel -DataDir $x.Root
+        $rFehlt.Ok | Should -BeFalse
+
+        Remove-Item -LiteralPath $x.Ordner -Recurse -Force
+        $rOhneOrdner = MinibenchTest\Export-DbLauf -Pfad $x.Json -Ziel $ziel -DataDir $x.Root
+        $rOhneOrdner.Ok | Should -BeFalse
+    }
+}
+

@@ -1,0 +1,78 @@
+﻿LEOS MINIBENCH 3.61: ÄNDERUNGEN
+===============================
+
+Version 3.61 führt ein einheitliches Single-File-Austauschformat (.minibench) für Durchläufe ein, erweitert den
+Importdialog um automatische Berichtskopien und direkte Doppelklick-Verknüpfung im Browser, ergänzt strukturierte
+Lasttest-Telemetrie in allen Referenzprofilen inklusive eines neuen echten GTX-1070-Systems und ermöglicht einen
+unterbrechungsfreien Durchlaufstart ohne Sensor- oder Treiber-Popups.
+
+1. ALL-IN-ONE-AUSTAUSCHFORMAT (.MINIBENCH)
+Bislang waren die Artefakte eines Durchlaufs auf zwei Orte verteilt: die Datenbankdatei in Minibench-Daten\Datenbank
+und der Berichtsordner in Minibench-Daten\Berichte (mit HTML, TXT und Anhang.zip).
+  Paketaufbau         Ein .minibench-Paket ist ein standardkonformes ZIP-Archiv, das in sich geschlossen alle
+                      Ergebnisse eines Laufs vereint: Datenbank.json, Diagnosebericht.html, Diagnosebericht.txt,
+                      Anhang.zip sowie die KI-Prompt-Datei.
+  Automatisch am Ende Am Ende jedes erfolgreichen Durchlaufs erzeugt der Ablauf im Berichtsordner automatisch die
+                      Austauschdatei <Computer>_<Zeitstempel>.minibench.
+  Export-Funktion     Auf der Seite Vergleichsdatenbank erlaubt die neue Schaltfläche "Lauf exportieren …" sowie
+                      der entsprechende Eintrag im Kontextmenü den Export eines markierten Laufs als .minibench-Paket
+                      an einen frei wählbaren Speicherort (oder über den Konsolenparameter -ExportLauf).
+  KI-Kurzfassung      Die nicht mehr benötigte Datei KI-Kurzfassung.txt sowie die zugehörige Kopierschaltfläche in der
+                      Oberfläche wurden restlos entfernt. Die vollständige Prompterstellung bleibt erhalten.
+
+2. ERWEITERTER IMPORT & DOPPELKLICK-VERLINKUNG
+Die Importfunktion auf der Seite Vergleichsdatenbank und in Kern\Datenbank.ps1 wurde von Grund auf erweitert.
+  Dateiauswahl        Der Importdialog gestattet die flexible Auswahl ganzer Ordner, einzelner .minibench- oder
+                      .zip-Archive sowie einzelner .json-Dateien.
+  Berichtskopie       Beim Import wird nicht nur der Datenbankeintrag angelegt, sondern auch der zugehörige
+                      Berichtsordner samt Diagnosebericht.html nach Minibench-Daten\Berichte kopiert.
+  Verknüpfung         Das Feld Ordner in der Datenbankdatei wird auf den relativen Pfad Berichte\<Ordner> gesetzt.
+                      Ein Doppelklick auf den Listeneintrag in der Vergleichsdatenbank öffnet den Bericht sofort im
+                      Standard-Browser. Bereits vorhandene Läufe werden sicher erkannt und nicht doppelt angelegt.
+
+3. REFERENZPROFILE MIT LASTTEST-TELEMETRIE & NEUES GTX-1070-SYSTEM
+Alle mitgelieferten und eingebetteten Referenzprofile (Desktop HighEnd, Desktop Mittelklasse, MiniPC APU, Notebook
+Standard, Workstation Mobil) enthielten bisher den Platzhalter "Lasttest": null.
+  Strukturierte Werte Jedes Profil verfügt nun über realistische Referenzmesswerte für den Lasttest: Höchsttemperaturen
+                      für CPU und GPU, Leistungsaufnahme (Watt), Drosselungsverhalten und Taktstabilität.
+  Neues Referenzsystem Ein authentischer Durchlauf von Matthias PC (Ryzen 5 5600, GeForce GTX 1070) wurde als
+                      Desktop_GTX1070.json in die Referenzbibliothek aufgenommen.
+  Median-Berechnung   Der Hilfsmodus -MedianAktualisieren bzw. die Schaltfläche "Median aktualisieren" ermittelt für
+                      alle Lasttest-Kennzahlen den Median aus bereinigten Bestandsdaten und überträgt ihn in die
+                      profilierten Referenzdateien.
+  Bericht & Dashboard HTML-Bericht und Multi-System-Dashboard weisen Lasttest-Deltas (Temperaturdifferenzen in Kelvin,
+                      Leistungsunterschiede in Watt) und Drosselungsstatus transparent gegen die gewählte Referenz aus.
+
+4. UNTERBRECHUNGSFREIER START OHNE SENSOR- UND TREIBER-ABFRAGEN
+Vor jedem Durchlauf öffneten sich bisher modale Abfragefenster für PawnIO-Treiber und Sensorwerkzeuge, die den
+Bedienfluss anhielten.
+  Popups entfernt     Die Abfragedialoge AskDriver und AskSensorTools wurden vollständig aus dem Startablauf entfernt.
+  Standard aktiv      Vollständige Sensormessung mit PawnIO-Treiber ist für Diagnose, Benchmark und Lasttest standardmäßig
+                      aktiviert (drv = true).
+  Lautloses Nachladen Fehlen die Sensorwerkzeuge im Tools-Ordner, werden sie bei bestehender Internetverbindung beim
+                      ersten Start automatisch im Hintergrund bezogen; ohne Verbindung wird nahtlos auf die Windows- und
+                      ACPI-Ersatzsensoren zurückgegriffen.
+  Manuelle Kontrolle  Auf der Seite "Sensoren live" können Treiberaktivierung und Treiberrückstände bei Bedarf weiterhin
+                      manuell konfiguriert werden.
+
+GEFUNDEN UND BEHOBEN
+  Endung bei Komprimierung: Compress-Archive bricht bei Dateiendungen abseits von .zip mit NotSupportedArchiveFileExtension ab.
+  Die Paketerstellung nutzt System.IO.Compression.ZipFile mit automatischem Fallback über eine Zwischendatei.
+  Fehlende Berichtsverknüpfung: Beim bisherigen Import blieb das Feld Ordner leer oder zeigte auf nicht existierende Pfade,
+  sodass Doppelklicks wirkungslos blieben. Der Berichtsordner wird nun mitkopiert und relativ verknüpft.
+  BOM-Erhaltung: Bei Quelltextanpassungen wird das UTF-8-BOM stets erhalten, um Zeichensatzfehler in PowerShell 5.1
+  zuverlässig zu verhindern.
+
+GRENZEN
+  Sensortreiber ohne Adminrechte: Der PawnIO-Treiber erfordert zur Initialisierung Administratorrechte. Wird die Minibench
+  ohne erhöhte Rechte gestartet, schaltet die Sensormessung automatisch auf ACPI- und WMI-Ersatzsensoren um.
+  Archiv-Kompatibilität: Das Austauschformat basiert auf Standard-ZIP und kann im Bedarfsfall mit jedem Packprogramm
+  (7-Zip, Windows Explorer) manuell geöffnet und inspiziert werden.
+
+UMSTIEG
+  Bestehende Datenbank- und Berichtsordner bleiben ohne Konvertierung vollständig kompatibel. Werden ältere Läufe
+  exportiert, entsteht direkt das neue .minibench-Austauschpaket.
+
+QUELLEN
+  System.IO.Compression.ZipFile (.NET 4.5 / C# 5)
+  LibreHardwareMonitorLib / PawnIO Kernel Driver Dokumentation

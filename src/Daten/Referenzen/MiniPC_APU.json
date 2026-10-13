@@ -92,7 +92,15 @@
 
                               ]
                 },
-    "Lasttest":  null,
+    "Lasttest":  {
+                     "CpuTempMax":  78,
+                     "GpuTempMax":  72,
+                     "CpuWMax":  65,
+                     "GpuWMax":  30,
+                     "Drosselung":  "keine",
+                     "Taktstabilitaet":  96.0,
+                     "TaktAbfall":  4.0
+                 },
     "Rendertest":  [
                        {
                            "Grafik":  "AMD Radeon 780M Graphics",

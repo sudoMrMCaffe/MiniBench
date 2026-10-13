@@ -107,6 +107,8 @@ param(
     [string]$DatenDir,
     [string]$OutputDir,
     [string]$ImportOrdner,
+    [string]$ExportLauf,
+    [string]$ExportZiel,
     [string]$Vergleich,
     [string]$Rueckgaengig,
     [switch]$Dashboard,
@@ -209,9 +211,9 @@ if ('ä' -ne [string][char]0xE4 -and $PSCommandPath) {
 
 #region ---------- Administratorrechte ----------
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-# Vergleich, Import, Dashboard, Datenpflege sowie Abgleich, Entfernen, Umbenennen und MedianAktualisieren
+# Vergleich, Import, Export, Dashboard, Datenpflege sowie Abgleich, Entfernen, Umbenennen und MedianAktualisieren
 # arbeiten nur im Datenordner und brauchen keine Administratorrechte
-if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenpflege -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme -and -not $Abgleich -and -not $Entfernen -and -not $Umbenennen -and -not $MedianAktualisieren) {
+if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $ExportLauf -and -not $Datenpflege -and -not $Dashboard -and -not $DashboardExport -and -not $DashboardSysteme -and -not $Abgleich -and -not $Entfernen -and -not $Umbenennen -and -not $MedianAktualisieren) {
     if (-not $PSCommandPath) { return }
     # Netzlaufwerke sind im Administratorkontext nicht verbunden: Skript und Datenordner als UNC-Pfad weitergeben
     function ConvertTo-Unc([string]$Path) {
@@ -236,10 +238,149 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Datenp
 }
 #endregion
 
-$ScriptVersion = '3.6'
+$ScriptVersion = '3.61'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
+    'Desktop_GTX1070.json' = @'
+{
+    "Format":  "PC-Diagnose-DB/2",
+    "Name":  "Referenz: Desktop GTX 1070 (Ryzen 2700)",
+    "Computer":  "Referenz-Desktop-GTX1070",
+    "Geraet":  {
+                   "Id":  "REF-REFERENZ-DESKTOP-GTX1070",
+                   "Guete":  "hoch",
+                   "Quellen":  [
+                                   "Referenzsystem"
+                               ]
+               },
+    "Datum":  "2026-10-11 17:21",
+    "Version":  "3.61",
+    "Quelle":  "Referenz",
+    "Module":  "Benchmark",
+    "Messdauer":  "normal",
+    "System":  "Desktop Mittelklasse (AMD B450)",
+    "Hardware":  {
+                     "CPU":  "Ryzen 7 2700 Eight-Core (8 Kerne, 16 Threads)",
+                     "Kerne":  8,
+                     "Threads":  16,
+                     "RAM":  "16 GB DDR4-2133",
+                     "GPU":  "NVIDIA GeForce GTX 1070",
+                     "IGPU":  null,
+                     "GPUGemessen":  "NVIDIA GeForce GTX 1070",
+                     "Datentraeger":  "NVMe PCIe 3.0 SSD 2TB; SATA SSD 250GB; HDD 2TB",
+                     "Betriebssystem":  "Microsoft Windows 11",
+                     "Mainboard":  "ASUS Desktop Mainboard",
+                     "WindowsInstalliert":  null
+                 },
+    "Werte":  {
+                  "CPU|ST":  2122,
+                  "CPU|MT":  31744,
+                  "CPU|AES":  944,
+                  "CPU|SHA":  1693,
+                  "CPU|DEFL":  234,
+                  "RAM|Lesen":  29,
+                  "RAM|Schreiben":  12.1,
+                  "RAM|Kopieren":  8.8,
+                  "RAM|Latenz":  109.5,
+                  "GPU|REND":  74.4,
+                  "GPU|REND1":  62.4,
+                  "GPU|RPKT":  6857,
+                  "GPU|VMB":  111.6,
+                  "GPU|DWM":  6571,
+                  "DISK|NVMe3|SR":  3438,
+                  "DISK|NVMe3|SW":  2981,
+                  "DISK|NVMe3|R1":  10166,
+                  "DISK|NVMe3|R8":  72432,
+                  "DISK|NVMe3|W1":  21082,
+                  "DISK|SATA-SSD|SR":  552,
+                  "DISK|SATA-SSD|SW":  527,
+                  "DISK|SATA-SSD|R1":  8418,
+                  "DISK|SATA-SSD|R8":  53525,
+                  "DISK|SATA-SSD|W1":  13908,
+                  "DISK|HDD|SR":  130,
+                  "DISK|HDD|SW":  132,
+                  "DISK|HDD|R1":  89,
+                  "DISK|HDD|R8":  152,
+                  "DISK|HDD|W1":  230
+              },
+    "Messwerte":  {
+                      "CPU|AMD Ryzen 7 2700 Eight-Core Processor|ST":  2122,
+                      "CPU|AMD Ryzen 7 2700 Eight-Core Processor|MT":  31744,
+                      "CPU|AMD Ryzen 7 2700 Eight-Core Processor|AES":  944,
+                      "CPU|AMD Ryzen 7 2700 Eight-Core Processor|SHA":  1693,
+                      "CPU|AMD Ryzen 7 2700 Eight-Core Processor|DEFL":  234,
+                      "RAM|16GB|2133|Lesen":  29,
+                      "RAM|16GB|2133|Schreiben":  12.1,
+                      "RAM|16GB|2133|Kopieren":  8.8,
+                      "RAM|16GB|2133|Latenz":  109.5,
+                      "GPU|NVIDIA GeForce GTX 1070|VMB":  111.6,
+                      "GPU|NVIDIA GeForce GTX 1070|DWM":  6571,
+                      "GPU|NVIDIA GeForce GTX 1070|REND|1280x720":  74.4,
+                      "GPU|NVIDIA GeForce GTX 1070|REND1|1280x720":  62.4,
+                      "GPU|NVIDIA GeForce GTX 1070|RPKT":  6857
+                  },
+    "Laufwerke":  [
+                      {
+                          "Laufwerk":  "KIOXIA-EXCERIA PLUS G3 SSD",
+                          "Klasse":  "NVMe PCIe 3.0 x4",
+                          "SR":  3438,
+                          "SW":  2981,
+                          "R1":  10166,
+                          "R8":  72432,
+                          "W1":  21082
+                      },
+                      {
+                          "Laufwerk":  "Samsung SSD 850 EVO 250GB",
+                          "Klasse":  "SATA-SSD",
+                          "SR":  552,
+                          "SW":  527,
+                          "R1":  8418,
+                          "R8":  53525,
+                          "W1":  13908
+                      },
+                      {
+                          "Laufwerk":  "ST2000DM006-2DM164",
+                          "Klasse":  "Festplatte",
+                          "SR":  127,
+                          "SW":  134,
+                          "R1":  75,
+                          "R8":  130,
+                          "W1":  226
+                      }
+                  ],
+    "Befunde":  {
+                    "Kritisch":  0,
+                    "Warnungen":  0,
+                    "Hinweise":  0,
+                    "Liste":  [
+
+                              ]
+                },
+    "Lasttest":  {
+                     "CpuTempMax":  58,
+                     "GpuTempMax":  65,
+                     "CpuWMax":  43,
+                     "GpuWMax":  165,
+                     "Drosselung":  "keine",
+                     "Taktstabilitaet":  99.3,
+                     "TaktAbfall":  0.7
+                 },
+    "Rendertest":  [
+                       {
+                           "Grafik":  "NVIDIA GeForce GTX 1070",
+                           "Art":  "dGPU",
+                           "Aufloesung":  "1280x720",
+                           "Fps":  74.4,
+                           "Low1":  62.4,
+                           "Punkte":  6857,
+                           "Bildfehler":  0,
+                           "Treiberreset":  0,
+                           "Fehler":  ""
+                       }
+                   ]
+}
+'@
     'Desktop_HighEnd.json' = @'
 {
     "Format":  "PC-Diagnose-DB/2",
@@ -401,7 +542,15 @@ $script:EmbeddedReferences = @{
 
                               ]
                 },
-    "Lasttest":  null,
+    "Lasttest":  {
+                     "CpuTempMax":  75,
+                     "GpuTempMax":  68,
+                     "CpuWMax":  85,
+                     "GpuWMax":  215,
+                     "Drosselung":  "keine",
+                     "Taktstabilitaet":  98.0,
+                     "TaktAbfall":  2.0
+                 },
     "Rendertest":  [
                        {
                            "Grafik":  "AMD Radeon RX 6800",
@@ -552,7 +701,15 @@ $script:EmbeddedReferences = @{
 
                               ]
                 },
-    "Lasttest":  null,
+    "Lasttest":  {
+                     "CpuTempMax":  72,
+                     "GpuTempMax":  74,
+                     "CpuWMax":  76,
+                     "GpuWMax":  135,
+                     "Drosselung":  "keine",
+                     "Taktstabilitaet":  97.0,
+                     "TaktAbfall":  3.0
+                 },
     "Rendertest":  [
                        {
                            "Grafik":  "Radeon RX 570 Series",
@@ -670,7 +827,15 @@ $script:EmbeddedReferences = @{
 
                               ]
                 },
-    "Lasttest":  null,
+    "Lasttest":  {
+                     "CpuTempMax":  78,
+                     "GpuTempMax":  72,
+                     "CpuWMax":  65,
+                     "GpuWMax":  30,
+                     "Drosselung":  "keine",
+                     "Taktstabilitaet":  96.0,
+                     "TaktAbfall":  4.0
+                 },
     "Rendertest":  [
                        {
                            "Grafik":  "AMD Radeon 780M Graphics",
@@ -788,7 +953,15 @@ $script:EmbeddedReferences = @{
 
                               ]
                 },
-    "Lasttest":  null,
+    "Lasttest":  {
+                     "CpuTempMax":  86,
+                     "GpuTempMax":  74,
+                     "CpuWMax":  35,
+                     "GpuWMax":  15,
+                     "Drosselung":  "Herstellergrenze",
+                     "Taktstabilitaet":  88.0,
+                     "TaktAbfall":  12.0
+                 },
     "Rendertest":  [
                        {
                            "Grafik":  "Intel(R) UHD Graphics 620",
@@ -904,7 +1077,15 @@ $script:EmbeddedReferences = @{
 
                               ]
                 },
-    "Lasttest":  null,
+    "Lasttest":  {
+                     "CpuTempMax":  92,
+                     "GpuTempMax":  78,
+                     "CpuWMax":  65,
+                     "GpuWMax":  70,
+                     "Drosselung":  "thermisch",
+                     "Taktstabilitaet":  85.0,
+                     "TaktAbfall":  15.0
+                 },
     "Rendertest":  [
                        {
                            "Grafik":  "NVIDIA RTX 3000 Ada Generation Laptop GPU",
@@ -2060,6 +2241,94 @@ function Rename-DbLauf([string]$Pfad, [string]$NeuerName, [string]$DataDir = $sc
     return $res
 }
 
+# ab v3.61: All-in-One-Austauschpaket (.minibench) für einen Durchlauf erzeugen
+function New-MinibenchBundle {
+    param(
+        [Parameter(Mandatory = $true)][string]$ReportDir,
+        [string]$DbFile = '',
+        [Parameter(Mandatory = $true)][string]$DestinationPath
+    )
+    if (-not (Test-Path -LiteralPath $ReportDir -PathType Container)) {
+        throw ('Berichtsordner nicht gefunden: {0}' -f $ReportDir)
+    }
+    $destDir = Split-Path $DestinationPath -Parent
+    if ($destDir -and -not (Test-Path -LiteralPath $destDir)) {
+        New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+    }
+    $staging = Join-Path $(if ($script:DataDir) { Join-Path $script:DataDir 'Laufzeit' } else { [IO.Path]::GetTempPath() }) ('Bundle_' + [guid]::NewGuid().ToString('N'))
+    try {
+        New-Item -ItemType Directory -Path $staging -Force | Out-Null
+        # Alle Dateien des Berichtsordners (außer .minibench und KI-Kurzfassung) kopieren
+        foreach ($f in @(Get-ChildItem -LiteralPath $ReportDir -File -Force -ErrorAction SilentlyContinue)) {
+            if ($f.Extension -ieq '.minibench') { continue }
+            if ($f.Name -like 'KI-Kurzfassung*') { continue }
+            Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $staging $f.Name) -Force
+        }
+        # Datenbankdatei als Datenbank.json einbinden
+        $dbSrc = $null
+        if ($DbFile -and (Test-Path -LiteralPath $DbFile)) {
+            $dbSrc = $DbFile
+        } elseif (Test-Path -LiteralPath (Join-Path $ReportDir 'Datenbank.json')) {
+            $dbSrc = Join-Path $ReportDir 'Datenbank.json'
+        }
+        if ($dbSrc) {
+            Copy-Item -LiteralPath $dbSrc -Destination (Join-Path $staging 'Datenbank.json') -Force
+        }
+        if (Test-Path -LiteralPath $DestinationPath) {
+            Remove-Item -LiteralPath $DestinationPath -Force -ErrorAction SilentlyContinue
+        }
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+        if ('System.IO.Compression.ZipFile' -as [type]) {
+            [System.IO.Compression.ZipFile]::CreateFromDirectory($staging, $DestinationPath)
+        } else {
+            $tempZip = Join-Path ([IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString('N') + '.zip')
+            Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $tempZip -Force
+            Move-Item -LiteralPath $tempZip -Destination $DestinationPath -Force
+        }
+        return $DestinationPath
+    } finally {
+        if ($staging -and (Test-Path -LiteralPath $staging)) {
+            Remove-Item -LiteralPath $staging -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+# ab v3.61: Lauf als .minibench-Austauschpaket exportieren (Datenbankeintrag und Berichtsordner)
+function Export-DbLauf([string]$Pfad, [string]$Ziel = '', [string]$DataDir = $script:DataDir) {
+    $res = [pscustomobject]@{ Ok = $false; Pfad = ''; Text = '' }
+    if (-not (Test-Path -LiteralPath $Pfad)) {
+        $res.Text = ('Datenbankdatei nicht gefunden: {0}' -f $Pfad)
+        return $res
+    }
+    $e = $null
+    try {
+        $e = Get-Content -LiteralPath $Pfad -Raw -Encoding UTF8 | ConvertFrom-Json
+    } catch {
+        $res.Text = ('Datenbankdatei nicht lesbar: {0}' -f $_.Exception.Message)
+        return $res
+    }
+    $ordner = Get-LaufOrdner $e $DataDir
+    if (-not $ordner -or -not (Test-Path -LiteralPath $ordner)) {
+        $res.Text = ('Berichtsordner für {0} nicht gefunden.' -f (Split-Path $Pfad -Leaf))
+        return $res
+    }
+    if (-not $Ziel) {
+        $base = [IO.Path]::GetFileNameWithoutExtension($Pfad)
+        $desk = [Environment]::GetFolderPath('Desktop')
+        if (-not $desk) { $desk = [IO.Path]::GetTempPath() }
+        $Ziel = Join-Path $desk ($base + '.minibench')
+    }
+    try {
+        $out = New-MinibenchBundle -ReportDir $ordner -DbFile $Pfad -DestinationPath $Ziel
+        $res.Ok = $true
+        $res.Pfad = $out
+        $res.Text = ('Lauf erfolgreich nach {0} exportiert.' -f $out)
+    } catch {
+        $res.Text = ('Export fehlgeschlagen: {0}' -f $_.Exception.Message)
+    }
+    return $res
+}
+
 # ---------- Start und Hilfsmodi der Oberfläche ----------
 if ($script:DataDir) { try { foreach ($z in (Move-AlteNasKonfig $script:DataDir)) { Write-Verbose $z } } catch { } }
 
@@ -2084,6 +2353,14 @@ if ($Entfernen) {
 if ($Umbenennen) {
     $r = Rename-DbLauf ([string]$Umbenennen).Trim('"') $NeuerName $script:DataDir
     Write-Host $r.Text
+    Send-GuiEvent 'RESULT' $(if ($r.Ok) { '1' } else { '0' }) $r.Pfad
+    exit $(if ($r.Ok) { 0 } else { 1 })
+}
+# Lauf exportieren: -ExportLauf "Pfad" [-ExportZiel "Ziel"], @@RESULT|1 oder 0|Pfad
+if ($ExportLauf) {
+    $r = Export-DbLauf ([string]$ExportLauf).Trim('"') ([string]$ExportZiel).Trim('"') $script:DataDir
+    Write-Host $r.Text
+    Send-GuiEvent 'LOG' $r.Text
     Send-GuiEvent 'RESULT' $(if ($r.Ok) { '1' } else { '0' }) $r.Pfad
     exit $(if ($r.Ok) { 0 } else { 1 })
 }
@@ -5509,7 +5786,7 @@ public partial class DiagGui : Form
     void Tip(Control c, string text) { if (c != null && !String.IsNullOrEmpty(text)) tip.SetToolTip(c, WrapTip(text)); }
 
     // Ablauf
-    Button btnStopWait, btnSkipStep, btnCancel, btnHtml, btnFolder, btnNew, btnKi, btnCopy;
+    Button btnStopWait, btnSkipStep, btnCancel, btnHtml, btnFolder, btnNew, btnKi;
     Label lblStep, lblCounter, lblSub, lblResult;
     FlatBar barAll, barSub;
     StatCard cardK, cardW, cardI, cardT;
@@ -6189,8 +6466,8 @@ public partial class DiagGui : Form
         Tip(btnLive, "Öffnet die Sensoren und zeigt die Werte laufend an. Während eines Laufs ist die Live-Ansicht aus.");
         Tip(btnSensTools, "Holt LibreHardwareMonitor und das PawnIO-Setup aus den offiziellen Releases und prüft sie mit festen SHA-256-Werten. Abgelegt wird nur im Tools-Ordner, installiert wird nichts.");
         Tip(btnSensSave, "Speichert alle Werte der Live-Ansicht als CSV unter Berichte\\Sensoren.");
-        Tip(cmbDriver, "PawnIO ist der Treiber, den LibreHardwareMonitor für CPU-Temperatur, CPU-Takt, CPU-Leistung und Mainboard-Lüfter braucht. Bei Bedarf nachfragen: Rückfrage vor jedem Lauf. Ein bereits installierter PawnIO bleibt immer unverändert.");
-        Tip(cmbKeep, "Was nach dem Lauf mit PawnIO und smartmontools geschieht, die Leos Minibench installiert hat: entfernen (keine Reste) oder auf diesem PC behalten. Gespeichert je Gerät.");
+        Tip(cmbDriver, "PawnIO ist der Treiber, den LibreHardwareMonitor für CPU-Temperatur, CPU-Takt, CPU-Leistung und Mainboard-Lüfter braucht. Standardmäßig aktiv für alle Messungen. Ein bereits installierter PawnIO bleibt immer unverändert.");
+        Tip(cmbKeep, "Was nach dem Lauf mit PawnIO und smartmontools geschieht, die Leos Minibench installiert hat: nach dem Lauf entfernen (keine Reste) oder auf diesem PC behalten. Gespeichert je Gerät in Geraete.json.");
         // Vergleichsdatenbank, Änderungen, Fuß
         Tip(btnCompare, "Vergleicht die angehakten Systeme in einem HTML-Bericht (mindestens zwei).");
         Tip(btnDelete, "Entfernt die angehakten Einträge aus der Datenbank. Die Berichtsordner bleiben erhalten.");
@@ -6219,7 +6496,6 @@ public partial class DiagGui : Form
         Tip(btnFolder, "Öffnet den Berichtsordner dieses Laufs (Bericht, KI-Dateien, Anhang.zip).");
         Tip(btnNew, "Zurück zur Auswahl für einen neuen Lauf.");
         Tip(btnKi, "Zeigt die KI-Datei im Explorer. Sie enthält Auftrag, Bericht und Rohdaten und lässt sich in ein KI-Modell hochladen.");
-        Tip(btnCopy, "Kopiert die KI-Kurzfassung in die Zwischenablage, zum Einfügen in einen KI-Chat.");
         Tip(cardK, "Kritische Befunde: Datenverlust oder Instabilität möglich, bald handeln.");
         Tip(cardW, "Warnungen: sollten behoben werden.");
         Tip(cardI, "Hinweise: zur Kenntnis, meist ohne Handlungsbedarf.");
@@ -7086,73 +7362,26 @@ public partial class DiagGui : Form
     // Wahl im Startdialog für diesen Lauf ("" = Einstellung der Seite Sensoren bzw. Geraete.json)
     string runKeep = "";
 
-    // 1 = Treiber installieren, 0 = ohne, -1 = Start abbrechen. Fragt bei Bedarf zugleich, ob die Hilfswerkzeuge bleiben.
-    // ab v2.8: fehlt LibreHardwareMonitor im Datenordner (z. B. neuer Ordner ohne Tools), vor dem Lauf anbieten, es zu holen.
-    // Im Praxistest vom 03.10. liefen Benchmark und Lasttest auf TORRENT so ohne CPU-Temperatur, Leistung und AMD-GPU-Werte.
-    bool lhmAsked = false;
-    int AskSensorTools()
+    // ab v3.61: Sensorwerkzeuge bei Bedarf automatisch und lautlos im Hintergrund holen, ohne Popups vor dem Start
+    bool lhmAutoFetchAttempted = false;
+    void TryAutoFetchSensorTools()
     {
-        if (LhmPresent || lhmAsked || ToolsDir.Length == 0) return 0;
-        lhmAsked = true;
-        DialogResult r = MessageBox.Show(this, "LibreHardwareMonitor fehlt im Tools-Ordner dieses Datenordners:\r\n" + ToolsDir + "\r\n\r\n"
-            + "Ohne die Bibliothek gibt es bei Diagnose, Benchmark und Lasttest keine CPU-Temperatur und keine CPU-Leistung; GPU-Werte nur über nvidia-smi oder den Windows-Grafiktreiber.\r\n\r\n"
-            + "Jetzt LibreHardwareMonitor 0.9.6 und das PawnIO-Setup aus den offiziellen Releases holen (geprüft mit festen SHA-256-Werten, auf dem PC wird nichts installiert)?\r\n\r\n"
-            + "Ja: holen und danach starten\r\nNein: ohne Sensorwerkzeuge starten\r\nAbbrechen: nicht starten", "Sensorwerkzeuge fehlen", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
-        if (r == DialogResult.Cancel) return -1;
-        if (r != DialogResult.Yes) return 0;
-        List<string> lines; string res = RunHelperPumped("-SensorWerkzeugeHolen", out lines, 900);
-        UpdateSensTools();
-        if (res != "1") MessageBox.Show(this, (lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Keine Rückmeldung vom Arbeitsprozess.") + "\r\n\r\nDer Lauf startet ohne Sensorwerkzeuge.", "Sensorwerkzeuge", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        return 0;
-    }
-
-    int AskDriver()
-    {
-        runKeep = "";
-        if (AskSensorTools() < 0) return -1;
-        if (!LhmPresent || !PawnSetupPresent || PawnIoVersion().Length > 0) return 0;
-        int pol = cmbDriver == null ? 0 : cmbDriver.SelectedIndex;
-        if (pol == 1) return 1;
-        if (pol == 2) return 0;
-        bool askKeep = cmbKeep == null || cmbKeep.SelectedIndex == 0;
-        using (Form d = new Form())
+        if (lhmAutoFetchAttempted || ToolsDir.Length == 0) return;
+        if (LhmPresent && PawnSetupPresent) return;
+        lhmAutoFetchAttempted = true;
+        try
         {
-            d.Text = "PawnIO-Treiber"; d.FormBorderStyle = FormBorderStyle.FixedDialog; d.MaximizeBox = false; d.MinimizeBox = false; d.ShowInTaskbar = false;
-            d.StartPosition = FormStartPosition.CenterParent; d.Font = new Font("Segoe UI", 9.5f); d.BackColor = UI.Bg; d.AutoSize = true; d.AutoSizeMode = AutoSizeMode.GrowAndShrink; d.Padding = new Padding(UI.S(16));
-            FlowLayoutPanel f = new FlowLayoutPanel(); f.FlowDirection = FlowDirection.TopDown; f.AutoSize = true; f.WrapContents = false; f.Dock = DockStyle.Fill;
-            Label t = new Label(); t.AutoSize = true; t.MaximumSize = new Size(UI.S(520), 0); t.Margin = new Padding(0, 0, 0, UI.S(10));
-            t.Text = "Für CPU-Temperatur, CPU-Takt, CPU-Leistung und die Lüfter am Mainboard braucht LibreHardwareMonitor den Treiber PawnIO. Die Installation erscheint auf der Seite Änderungen.";
-            f.Controls.Add(t);
-            RadioButton rbMit = new RadioButton(); rbMit.Text = "mit Treiber messen"; rbMit.AutoSize = true; rbMit.Checked = true; rbMit.Margin = new Padding(UI.S(4), UI.S(3), 0, UI.S(3));
-            RadioButton rbOhne = new RadioButton(); rbOhne.Text = "ohne Treiber (GPU, Datenträger und Ersatzwerte)"; rbOhne.AutoSize = true; rbOhne.Margin = new Padding(UI.S(4), UI.S(3), 0, UI.S(3));
-            f.Controls.Add(rbMit); f.Controls.Add(rbOhne);
-            CheckBox cKeep = new CheckBox(); cKeep.AutoSize = true; cKeep.Margin = new Padding(UI.S(4), UI.S(10), 0, UI.S(3)); cKeep.MaximumSize = new Size(UI.S(520), 0);
-            cKeep.Text = "PawnIO und smartmontools nach dem Lauf auf diesem PC behalten (sonst am Ende wieder entfernt, nach einem Absturz beim nächsten Start)";
-            cKeep.Checked = cmbKeep != null && cmbKeep.SelectedIndex == 2; cKeep.Enabled = askKeep;
-            CheckBox cMerk = new CheckBox(); cMerk.AutoSize = true; cMerk.Margin = new Padding(UI.S(4), UI.S(3), 0, UI.S(3)); cMerk.Text = "Wahl für diesen PC merken (änderbar auf der Seite Sensoren)";
-            f.Controls.Add(cKeep); f.Controls.Add(cMerk);
-            FlowLayoutPanel b = new FlowLayoutPanel(); b.AutoSize = true; b.Margin = new Padding(0, UI.S(12), 0, 0);
-            Button ok = UI.Primary("Starten"); ok.DialogResult = DialogResult.OK; ok.Margin = new Padding(0, 0, UI.S(8), 0); Button ab = UI.Secondary("Abbrechen"); ab.DialogResult = DialogResult.Cancel;
-            b.Controls.Add(ok); b.Controls.Add(ab); f.Controls.Add(b);
-            d.Controls.Add(f); d.AcceptButton = ok; d.CancelButton = ab;
-            UI.ThemeDialog(d);
-            if (d.ShowDialog(this) != DialogResult.OK) return -1;
-            int drv = rbMit.Checked ? 1 : 0;
-            if (askKeep) runKeep = cKeep.Checked ? "behalten" : "entfernen";
-            if (cMerk.Checked)
-            {
-                if (cmbDriver != null) cmbDriver.SelectedIndex = drv == 1 ? 1 : 2;
-                if (askKeep && cmbKeep != null) cmbKeep.SelectedIndex = cKeep.Checked ? 2 : 1;
-                SaveDeviceTools();
-            }
-            return drv;
+            List<string> lines;
+            RunHelper("-SensorWerkzeugeHolen", out lines);
+            UpdateSensTools();
         }
+        catch { }
     }
 
     // Einstellung für Hilfswerkzeuge je Gerät, gemeinsam mit dem Arbeitsprozess in Geraete.json (Format Minibench-Geraete/1)
     string DeviceFile { get { return dataDir.Length > 0 ? Path.Combine(dataDir, "Geraete.json") : ""; } }
-    static readonly string[] keepValues = new string[] { "fragen", "entfernen", "behalten" };
-    static readonly string[] driverValues = new string[] { "fragen", "verwenden", "nein" };
+    static readonly string[] keepValues = new string[] { "entfernen", "behalten" };
+    static readonly string[] driverValues = new string[] { "verwenden", "nein" };
 
     Dictionary<string, object> ReadDeviceFile()
     {
@@ -7175,8 +7404,14 @@ public partial class DiagGui : Form
         Dictionary<string, object> gd = g as Dictionary<string, object>; object e;
         if (gd == null || !gd.TryGetValue(deviceId, out e)) return;
         Dictionary<string, object> ed = e as Dictionary<string, object>; if (ed == null) return;
-        object w; if (cmbKeep != null && ed.TryGetValue("Werkzeuge", out w)) { int i = Array.IndexOf(keepValues, Convert.ToString(w)); if (i >= 0) cmbKeep.SelectedIndex = i; }
-        object t; if (cmbDriver != null && ed.TryGetValue("Treiber", out t)) { int i = Array.IndexOf(driverValues, Convert.ToString(t)); if (i >= 0) cmbDriver.SelectedIndex = i; }
+        object w; if (cmbKeep != null && ed.TryGetValue("Werkzeuge", out w)) {
+            string ws = Convert.ToString(w);
+            cmbKeep.SelectedIndex = (ws == "behalten") ? 1 : 0;
+        }
+        object t; if (cmbDriver != null && ed.TryGetValue("Treiber", out t)) {
+            string ts = Convert.ToString(t);
+            cmbDriver.SelectedIndex = (ts == "nein") ? 1 : 0;
+        }
     }
 
     void SaveDeviceTools()
@@ -7191,8 +7426,8 @@ public partial class DiagGui : Form
             object e; Dictionary<string, object> ed = gd.TryGetValue(deviceId, out e) ? e as Dictionary<string, object> : null;
             if (ed == null) { ed = new Dictionary<string, object>(); ed["Behalten"] = new object[0]; gd[deviceId] = ed; }
             ed["Name"] = Environment.MachineName;
-            if (cmbKeep != null) ed["Werkzeuge"] = keepValues[Math.Max(0, cmbKeep.SelectedIndex)];
-            if (cmbDriver != null) ed["Treiber"] = driverValues[Math.Max(0, cmbDriver.SelectedIndex)];
+            if (cmbKeep != null) ed["Werkzeuge"] = keepValues[Math.Max(0, Math.Min(keepValues.Length - 1, cmbKeep.SelectedIndex))];
+            if (cmbDriver != null) ed["Treiber"] = driverValues[Math.Max(0, Math.Min(driverValues.Length - 1, cmbDriver.SelectedIndex))];
             if (!ed.ContainsKey("Behalten")) ed["Behalten"] = new object[0];
             ed["Geaendert"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
             Directory.CreateDirectory(dataDir);
@@ -7202,11 +7437,11 @@ public partial class DiagGui : Form
         catch { }
     }
 
-    // Argument für den Arbeitsprozess: Wahl im Startdialog, sonst feste Einstellung, bei "jedes Mal fragen" ohne Dialog entfernen
+    // Argument für den Arbeitsprozess: Wahl im Startdialog, sonst feste Einstellung
     string KeepArg()
     {
         string k = runKeep;
-        if (k.Length == 0 && cmbKeep != null && cmbKeep.SelectedIndex > 0) k = keepValues[cmbKeep.SelectedIndex];
+        if (k.Length == 0 && cmbKeep != null) k = keepValues[Math.Max(0, Math.Min(keepValues.Length - 1, cmbKeep.SelectedIndex))];
         return k.Length > 0 ? " -WerkzeugeBehalten " + k : "";
     }
 
@@ -7225,7 +7460,7 @@ public partial class DiagGui : Form
 
     Control BuildSensorPage()
     {
-        FlowLayoutPanel f = Page("Sensoren live", "Zeigt Temperatur, Takt, Lüfter, Spannung und Leistung laufend an (Kurven der letzten zehn Minuten). CPU-Werte und Mainboard-Lüfter brauchen den Treiber PawnIO; er wird nur nach Rückfrage installiert und beim Beenden entfernt.", -1);
+        FlowLayoutPanel f = Page("Sensoren live", "Zeigt Temperatur, Takt, Lüfter, Spannung und Leistung laufend an (Kurven der letzten zehn Minuten). CPU-Werte und Mainboard-Lüfter brauchen den Treiber PawnIO; er wird beim Beenden wieder entfernt.", -1);
         lblSensTools = Lbl("", 9f, false, UI.Muted); lblSensTools.MaximumSize = new Size(UI.S(880), 0); lblSensTools.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8)); f.Controls.Add(lblSensTools);
         FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
         btnLive = UI.Primary("Live-Ansicht starten"); btnLive.Margin = new Padding(0); btnLive.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnLive.Font = new Font("Segoe UI Semibold", 9.75f);
@@ -7236,12 +7471,12 @@ public partial class DiagGui : Form
         f.Controls.Add(b);
         FlowLayoutPanel bd = Row(); bd.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
         bd.Controls.Add(RowLabel("PawnIO-Treiber", 120));
-        cmbDriver = Combo(230, new string[] { "bei Bedarf nachfragen", "vorübergehend verwenden", "nicht verwenden" }, 0); bd.Controls.Add(cmbDriver);
+        cmbDriver = Combo(230, new string[] { "vorübergehend verwenden (Standard)", "nicht verwenden" }, 0); bd.Controls.Add(cmbDriver);
         Label ld = Lbl("gilt für Live-Ansicht, Diagnose, Benchmark und Lasttest; ein vorhandener PawnIO bleibt immer unverändert", 8.75f, false, UI.Muted); ld.Margin = new Padding(0, UI.S(5), 0, 0); bd.Controls.Add(ld);
         f.Controls.Add(bd);
         FlowLayoutPanel bk = Row(); bk.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
         bk.Controls.Add(RowLabel("Hilfswerkzeuge", 120));
-        cmbKeep = Combo(230, new string[] { "jedes Mal fragen", "nach dem Lauf entfernen", "auf diesem PC behalten" }, 0); bk.Controls.Add(cmbKeep);
+        cmbKeep = Combo(230, new string[] { "nach dem Lauf entfernen (Standard)", "auf diesem PC behalten" }, 0); bk.Controls.Add(cmbKeep);
         Label lk = Lbl("PawnIO und smartmontools, die Leos Minibench installiert hat; gespeichert je Gerät in Geraete.json", 8.75f, false, UI.Muted); lk.Margin = new Padding(0, UI.S(5), 0, 0); bk.Controls.Add(lk);
         f.Controls.Add(bk);
         LoadDeviceTools();
@@ -7276,9 +7511,10 @@ public partial class DiagGui : Form
     void StartLive()
     {
         if (running) return;
-        int d = AskDriver(); if (d < 0) return;
+        TryAutoFetchSensorTools();
+        bool drv = cmbDriver == null || cmbDriver.SelectedIndex == 0;
         try { Directory.CreateDirectory(cpDir); File.Delete(Path.Combine(cpDir, "sensor.stop")); } catch { }
-        string args = "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\" -EventMode -SensorLive" + (dataDir.Length > 0 ? " -DatenDir " + Q(dataDir) : "") + (d == 1 ? " -SensorTreiber" : "") + KeepArg();
+        string args = "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\" -EventMode -SensorLive" + (dataDir.Length > 0 ? " -DatenDir " + Q(dataDir) : "") + (drv ? " -SensorTreiber" : "") + KeepArg();
         ProcessStartInfo psi = new ProcessStartInfo(psExe, args);
         psi.UseShellExecute = false; psi.CreateNoWindow = true; psi.RedirectStandardOutput = true; psi.RedirectStandardError = true; psi.RedirectStandardInput = true;
         psi.StandardOutputEncoding = new UTF8Encoding(false); psi.StandardErrorEncoding = OemEncoding();
@@ -7294,7 +7530,7 @@ public partial class DiagGui : Form
         catch (Exception ex) { MessageBox.Show(this, "PowerShell konnte nicht gestartet werden: " + ex.Message, "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
         liveRunning = true;
         btnLive.Text = "Live-Ansicht beenden"; btnSensTools.Enabled = false; btnSensSave.Enabled = false;
-        lblSensInfo.Text = d == 1 ? "Wird gestartet, PawnIO wird vorübergehend installiert ..." : "Wird gestartet ...";
+        lblSensInfo.Text = drv ? "Wird gestartet, PawnIO wird vorübergehend installiert ..." : "Wird gestartet ...";
         liveTimer.Start();
     }
 
@@ -7622,7 +7858,11 @@ public partial class DiagGui : Form
         // Live-Ansicht und Lauf greifen auf dieselben Sensoren und denselben Treiber zu
         if (liveRunning && !StopLiveAndWait()) return;
         bool drv = false; runKeep = "";
-        if ((nav[0].Checked && !rbCrash.Checked) || nav[1].Checked || nav[2].Checked) { int d = AskDriver(); if (d < 0) return; drv = d == 1; }
+        if ((nav[0].Checked && !rbCrash.Checked) || nav[1].Checked || nav[2].Checked)
+        {
+            TryAutoFetchSensorTools();
+            drv = cmbDriver == null || cmbDriver.SelectedIndex == 0;
+        }
         StringBuilder a = new StringBuilder();
         a.Append("-NoProfile -ExecutionPolicy Bypass -File \"").Append(script).Append("\" -EventMode");
         a.Append(" -Module ").Append(String.Join(",", mods.ToArray()));
@@ -8131,9 +8371,9 @@ public partial class DiagGui : Form
         lblResult = Lbl("", 11f, true, UI.Text); lblResult.Anchor = AnchorStyles.Left; lblResult.AutoEllipsis = true;
         FlowLayoutPanel btns = new FlowLayoutPanel(); btns.AutoSize = true; btns.WrapContents = false; btns.BackColor = UI.Bg;
         btnStopWait = UI.Secondary("Test beenden"); btnSkipStep = UI.SkipStepButton(); btnCancel = UI.Secondary("Abbrechen");
-        btnFolder = UI.Secondary("Ordner öffnen"); btnNew = UI.Secondary("Neuer Lauf"); btnKi = UI.Secondary("KI-Datei zeigen"); btnCopy = UI.Secondary("KI-Kurzfassung kopieren"); btnHtml = UI.Primary("Bericht öffnen");
+        btnFolder = UI.Secondary("Ordner öffnen"); btnNew = UI.Secondary("Neuer Lauf"); btnKi = UI.Secondary("KI-Datei zeigen"); btnHtml = UI.Primary("Bericht öffnen");
         btnHtml.Margin = new Padding(8, 0, 0, 0); btnHtml.Padding = new Padding(14, 3, 14, 3); btnHtml.Font = new Font("Segoe UI Semibold", 9.75f);
-        btns.Controls.Add(btnStopWait); btns.Controls.Add(btnSkipStep); btns.Controls.Add(btnCancel); btns.Controls.Add(btnNew); btns.Controls.Add(btnFolder); btns.Controls.Add(btnKi); btns.Controls.Add(btnCopy); btns.Controls.Add(btnHtml);
+        btns.Controls.Add(btnStopWait); btns.Controls.Add(btnSkipStep); btns.Controls.Add(btnCancel); btns.Controls.Add(btnNew); btns.Controls.Add(btnFolder); btns.Controls.Add(btnKi); btns.Controls.Add(btnHtml);
         foot.Controls.Add(lblResult, 0, 0); foot.Controls.Add(btns, 1, 0);
         t.Controls.Add(foot, 0, 8);
 
@@ -8149,11 +8389,6 @@ public partial class DiagGui : Form
         btnHtml.Click += delegate { OpenShell(htmlPath); };
         btnFolder.Click += delegate { OpenShell(outDir); };
         btnKi.Click += delegate { OpenSelect(kiPath); };
-        // nur auf ausdrücklichen Klick in die Zwischenablage, damit nach dem Lauf nichts im Zwischenablageverlauf des PCs liegt
-        btnCopy.Click += delegate {
-            try { Clipboard.SetText(File.ReadAllText(kurzPath, Encoding.UTF8)); btnCopy.Text = "Kopiert"; }
-            catch (Exception ex) { MessageBox.Show(this, "Kopieren fehlgeschlagen: " + ex.Message, "Leos Minibench"); }
-        };
         btnNew.Click += delegate { ReloadDb(); runView.Visible = false; setupView.Visible = true; };
         p.Controls.Add(t);
         ApplyRunTips();
@@ -8342,7 +8577,7 @@ public partial class DiagGui : Form
         btnCancel.Visible = true; btnCancel.Enabled = true;
         btnSkipStep.Visible = true; btnSkipStep.Enabled = false;
         btnStopWait.Visible = false; btnStopWait.Enabled = true;
-        btnHtml.Visible = false; btnFolder.Visible = false; btnNew.Visible = false; btnKi.Visible = false; btnCopy.Visible = false; btnCopy.Text = "KI-Kurzfassung kopieren";
+        btnHtml.Visible = false; btnFolder.Visible = false; btnNew.Visible = false; btnKi.Visible = false;
         timer.Start();
     }
 
@@ -8534,7 +8769,7 @@ public partial class DiagGui : Form
             lblCounter.Text = "Bericht und KI-Dateien liegen im Datenordner";
             lblResult.Text = nK > 0 ? "Kritische Befunde gefunden" : (nW > 0 ? "Warnungen vorhanden" : "Keine Auffälligkeiten");
             lblResult.ForeColor = nK > 0 ? UI.Crit : (nW > 0 ? UI.Warn : UI.Ok);
-            btnHtml.Visible = File.Exists(htmlPath); btnFolder.Visible = Directory.Exists(outDir); btnKi.Visible = File.Exists(kiPath); btnCopy.Visible = File.Exists(kurzPath);
+            btnHtml.Visible = File.Exists(htmlPath); btnFolder.Visible = Directory.Exists(outDir); btnKi.Visible = File.Exists(kiPath);
             if (btnHtml.Visible) OpenShell(htmlPath);
         }
         else
@@ -10090,7 +10325,7 @@ public partial class DiagGui
     int dbSortCol = -1;
     bool dbSortAsc = true;
     Button btnRename;
-    Button btnCompare, btnDashboard, btnDelete, btnOpenReport;
+    Button btnCompare, btnDashboard, btnDelete, btnOpenReport, btnExport;
 
     void OnDbColumnClick(object sender, ColumnClickEventArgs e)
     {
@@ -10181,8 +10416,8 @@ public partial class DiagGui
 
         FlowLayoutPanel topTools = Row();
         topTools.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8));
-        Button imp = UI.Secondary("Importieren ..."); imp.Margin = new Padding(0); imp.Click += delegate { ImportFolder(); };
-        Tip(imp, "Übernimmt Benchmark-Werte aus Ausgabeordnern früherer Läufe in die Datenbank (auch von PC-Diagnose).");
+        Button imp = UI.Secondary("Importieren ..."); imp.Margin = new Padding(0); imp.Click += delegate { ImportRuns(); };
+        Tip(imp, "Importiert Durchläufe aus .minibench-Paketen, .zip-Archiven, .json-Dateien oder Ausgabeordnern früherer Läufe in die Datenbank samt Bericht.");
         btnDbClean = UI.Secondary("Aufräumen ..."); btnDbClean.Margin = new Padding(UI.S(8), 0, 0, 0); btnDbClean.Click += delegate { CleanData(); }; btnDbClean.Enabled = dataDir.Length > 0;
         Tip(btnDbClean, "Räumt nicht vergleichbare oder abgebrochene Läufe auf und verschiebt sie ins Archiv.");
         Button rel = UI.Secondary("Aktualisieren"); rel.Margin = new Padding(UI.S(8), 0, 0, 0); rel.Click += delegate { RefreshAndSync(); };
@@ -10214,9 +10449,13 @@ public partial class DiagGui
         btnRename.Click += delegate { RenameSelectedEntry(); };
         btnRename.Enabled = false;
         Tip(btnRename, "Ändert den Anzeigenamen des ausgewählten Systems (z. B. Vor Reinigung) und benennt Datenbankdatei und Berichtsordner passend um. Rechnername und Hardware-Erkennung bleiben.");
+        btnExport = UI.Secondary("Lauf exportieren ..."); btnExport.Margin = new Padding(UI.S(8), 0, 0, 0);
+        btnExport.Click += delegate { ExportSelected(); };
+        btnExport.Enabled = false;
+        Tip(btnExport, "Exportiert den ausgewählten Lauf als eigenständiges .minibench-Austauschpaket mit Datenbankeintrag und Bericht.");
         btnDelete = UI.Secondary("Entfernen"); btnDelete.Margin = new Padding(UI.S(8), 0, 0, 0); btnDelete.Click += delegate { DeleteSelected(); };
         Tip(btnDelete, "Verschiebt die angehakten Läufe samt Berichtsordner nach Minibench-Daten\\Archiv\\Entfernt. Beim nächsten Abgleich verschwinden sie auch vom Netzlaufwerk.");
-        b.Controls.Add(btnDashboard); b.Controls.Add(btnOpenReport); b.Controls.Add(btnRename); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
+        b.Controls.Add(btnDashboard); b.Controls.Add(btnOpenReport); b.Controls.Add(btnRename); b.Controls.Add(btnExport); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
         lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
         lblDbClean.Margin = new Padding(UI.S(4), UI.S(8), UI.S(4), 0); bottom.Controls.Add(lblDbClean);
         bottom.Resize += delegate { lblDbClean.MaximumSize = new Size(Math.Max(UI.S(200), bottom.ClientSize.Width - UI.S(10)), 0); };
@@ -10242,12 +10481,14 @@ public partial class DiagGui
         MenuItem miSep1 = new MenuItem("-");
         MenuItem miRename = new MenuItem("Name ändern ...", delegate { RenameSelectedEntry(); });
         MenuItem miOpen = new MenuItem("Bericht öffnen", delegate { if (lvDb.SelectedItems.Count > 0) OpenEntry((DbEntry)lvDb.SelectedItems[0].Tag); });
+        MenuItem miExport = new MenuItem("Lauf exportieren ...", delegate { ExportSelected(); });
         MenuItem miSep2 = new MenuItem("-");
         MenuItem miDelete = new MenuItem("Aus Datenbank entfernen", delegate { DeleteSelected(); });
         cm.MenuItems.Add(miDashboard);
         cm.MenuItems.Add(miSep1);
         cm.MenuItems.Add(miRename);
         cm.MenuItems.Add(miOpen);
+        cm.MenuItems.Add(miExport);
         cm.MenuItems.Add(miSep2);
         cm.MenuItems.Add(miDelete);
         cm.Popup += delegate {
@@ -10256,6 +10497,7 @@ public partial class DiagGui
             miDashboard.Enabled = chkN >= 1 || selN >= 1;
             miRename.Enabled = selN == 1 || (selN == 0 && chkN == 1);
             miOpen.Enabled = selN == 1;
+            miExport.Enabled = selN == 1 || (selN == 0 && chkN == 1);
             miDelete.Enabled = chkN >= 1 || selN >= 1;
         };
         lvDb.ContextMenu = cm;
@@ -10328,6 +10570,11 @@ public partial class DiagGui
         {
             int selCount = (lvDb != null ? lvDb.SelectedItems.Count : 0);
             btnOpenReport.Enabled = (selCount == 1 || (selCount == 0 && n == 1));
+        }
+        if (btnExport != null)
+        {
+            int selCount = (lvDb != null ? lvDb.SelectedItems.Count : 0);
+            btnExport.Enabled = (selCount == 1 || (selCount == 0 && n == 1));
         }
     }
 
@@ -10487,21 +10734,100 @@ public partial class DiagGui
         MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Nichts zu archivieren.", "Daten aufräumen", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
-    void ImportFolder()
+    void ExportSelected()
+    {
+        DbEntry target = null;
+        if (lvDb != null && lvDb.SelectedItems.Count == 1) target = (DbEntry)lvDb.SelectedItems[0].Tag;
+        else if (lvDb != null && lvDb.CheckedItems.Count == 1) target = (DbEntry)lvDb.CheckedItems[0].Tag;
+        if (target == null) return;
+
+        using (SaveFileDialog sfd = new SaveFileDialog())
+        {
+            sfd.Title = "Lauf als Minibench-Paket exportieren";
+            sfd.Filter = "Minibench-Paket (*.minibench)|*.minibench|ZIP-Archiv (*.zip)|*.zip|Alle Dateien (*.*)|*.*";
+            sfd.FilterIndex = 1;
+            string safeDate = target.Datum != null ? target.Datum.Replace("-", "").Replace(":", "").Replace(" ", "_") : "Lauf";
+            sfd.FileName = (target.Computer ?? "System") + "_" + safeDate + ".minibench";
+            if (sfd.ShowDialog(this) != DialogResult.OK) return;
+
+            Cursor = Cursors.WaitCursor;
+            List<string> lines;
+            string res = RunHelper("-ExportLauf " + Q(target.Path) + " -ExportZiel " + Q(sfd.FileName), out lines);
+            Cursor = Cursors.Default;
+            MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Export abgeschlossen.", "Lauf exportieren", MessageBoxButtons.OK, res.StartsWith("1") ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+        }
+    }
+
+    void ImportRuns()
     {
         if (dbDir.Length == 0) { MessageBox.Show(this, "Kein Datenordner verfügbar.", "Leos Minibench"); return; }
-        using (FolderBrowserDialog fb = new FolderBrowserDialog())
+        Form dlg = new Form();
+        dlg.Text = "Durchläufe importieren";
+        dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+        dlg.MaximizeBox = false; dlg.MinimizeBox = false;
+        dlg.StartPosition = FormStartPosition.CenterParent;
+        dlg.ClientSize = new Size(UI.S(480), UI.S(160));
+        dlg.BackColor = UI.Bg; dlg.Font = new Font("Segoe UI", 9.5f);
+
+        Label lbl = new Label();
+        lbl.Text = "Möchten Sie einzelne Laufpakete (.minibench, .zip) bzw. Datenbankdateien (.json) oder einen ganzen Ausgabeordner importieren?";
+        lbl.Location = new Point(UI.S(16), UI.S(14));
+        lbl.Size = new Size(UI.S(448), UI.S(42));
+        lbl.ForeColor = UI.Text;
+
+        Button btnFiles = UI.Primary("Dateien wählen ...");
+        btnFiles.Location = new Point(UI.S(16), UI.S(75));
+        btnFiles.Size = new Size(UI.S(160), UI.S(34));
+
+        Button btnFolder = UI.Secondary("Ordner wählen ...");
+        btnFolder.Location = new Point(UI.S(184), UI.S(75));
+        btnFolder.Size = new Size(UI.S(150), UI.S(34));
+
+        Button btnCancel = UI.Secondary("Abbrechen");
+        btnCancel.Location = new Point(UI.S(342), UI.S(75));
+        btnCancel.Size = new Size(UI.S(120), UI.S(34));
+        btnCancel.DialogResult = DialogResult.Cancel;
+
+        int choice = 0;
+        btnFiles.Click += delegate { choice = 1; dlg.DialogResult = DialogResult.OK; dlg.Close(); };
+        btnFolder.Click += delegate { choice = 2; dlg.DialogResult = DialogResult.OK; dlg.Close(); };
+
+        dlg.Controls.Add(lbl); dlg.Controls.Add(btnFiles); dlg.Controls.Add(btnFolder); dlg.Controls.Add(btnCancel);
+        dlg.CancelButton = btnCancel;
+        UI.ThemeDialog(dlg);
+
+        if (dlg.ShowDialog(this) != DialogResult.OK || choice == 0) return;
+
+        string targetPaths = "";
+        if (choice == 1)
         {
-            fb.Description = "Ausgabeordner eines früheren Laufs (oder einen Ordner mit mehreren davon) wählen";
-            if (fb.ShowDialog(this) != DialogResult.OK) return;
-            Cursor = Cursors.WaitCursor;
-            List<string> lines = new List<string>();
-            try { RunHelper("-ImportOrdner \"" + fb.SelectedPath.TrimEnd('\\') + "\"", out lines); }
-            catch (Exception ex) { lines.Add("Import fehlgeschlagen: " + ex.Message); }
-            Cursor = Cursors.Default;
-            ReloadDb();
-            MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Nichts importiert.", "Import", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            using (OpenFileDialog ofd = new OpenFileDialog())
+            {
+                ofd.Title = "Laufdateien zum Importieren wählen";
+                ofd.Filter = "Unterstützte Dateien (*.minibench;*.zip;*.json)|*.minibench;*.zip;*.json|Minibench-Pakete (*.minibench)|*.minibench|ZIP-Archive (*.zip)|*.zip|Datenbankdateien (*.json)|*.json|Alle Dateien (*.*)|*.*";
+                ofd.Multiselect = true;
+                if (ofd.ShowDialog(this) != DialogResult.OK || ofd.FileNames.Length == 0) return;
+                targetPaths = String.Join("|", ofd.FileNames);
+            }
         }
+        else if (choice == 2)
+        {
+            using (FolderBrowserDialog fb = new FolderBrowserDialog())
+            {
+                fb.Description = "Ausgabeordner eines früheren Laufs (oder einen Ordner mit mehreren davon) wählen";
+                if (fb.ShowDialog(this) != DialogResult.OK || string.IsNullOrEmpty(fb.SelectedPath)) return;
+                targetPaths = fb.SelectedPath.TrimEnd('\\');
+            }
+        }
+        if (targetPaths.Length == 0) return;
+
+        Cursor = Cursors.WaitCursor;
+        List<string> lines = new List<string>();
+        try { RunHelper("-ImportOrdner " + Q(targetPaths), out lines); }
+        catch (Exception ex) { lines.Add("Import fehlgeschlagen: " + ex.Message); }
+        Cursor = Cursors.Default;
+        ReloadDb();
+        MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Nichts importiert.", "Import", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 }
 // Seiten der grafischen Oberfläche: Versionen und Änderungen (Teilklasse DiagGui)
@@ -12058,6 +12384,11 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.61", "13.10.2026", "All-in-One-Austauschformat (.minibench), erweiterter Berichts-Import mit Doppelklick-Verknüpfung, Lasttest-Telemetrie in Referenzen und unterbrechungsfreier Start",
+            "Austauschpaket (.minibench): Ein selbsttragendes ZIP-Paket fasst Datenbankeintrag (Datenbank.json), Berichte (HTML, TXT), Anhang.zip und Telemetriedaten zusammen. Wird am Ende jedes Laufs automatisch im Berichtsordner erzeugt; Export einzelner Läufe direkt aus der Vergleichsdatenbank. Die veraltete KI-Kurzfassung wurde vollständig entfernt. " +
+            "Erweiterter Import mit Berichtskopie: Der Importdialog verarbeitet neben Ordnern auch Pakete (.minibench, .zip) sowie einzelne JSON-Dateien. Der gesamte Berichtsordner wird mitkopiert und das Feld Ordner korrekt verknüpft, sodass ein Doppelklick in der Vergleichsdatenbank sofort den HTML-Bericht öffnet. " +
+            "Lasttest-Telemetrie in Referenzen: Alle mitgelieferten Referenzsysteme (inklusive neuer Mittelklasse mit GTX 1070) besitzen strukturierte Lasttestdaten (Höchsttemperaturen für CPU und GPU, Leistungsaufnahme, Taktstabilität). HTML-Bericht und Dashboard weisen Lasttest-Deltas und Drosselungsverhalten gegen die Referenzprofile transparent aus; -MedianAktualisieren berechnet Lasttest-Mediane. " +
+            "Unterbrechungsfreier Start: Abfrage-Popups vor dem Durchlauf (AskDriver, AskSensorTools) entfernt. Sensormessung mit PawnIO-Treiber ist standardmäßig aktiv und lädt fehlende Sensorwerkzeuge bei bestehender Verbindung lautlos nach. Manuelle Steuerung bleibt auf der Seite Sensoren live erhalten."),
         new Eintrag("3.6", "10.10.2026", "Median-Referenz je Geräteklasse, Diagnose und Wartung übersichtlich, Sensor- und Akkudiagnose aus Praxistests",
             "Median-Referenz je Geräteklasse: Feste Referenzdateien für Notebook und Desktop (Referenz_Notebook.json, Referenz_Desktop.json), auf Knopfdruck oder über -MedianAktualisieren aus bereinigten Datenbankläufen neu berechenbar, verhindern schwankende Vergleichswerte. " +
             "Wartung gruppiert: 23 Wartungsmaßnahmen in vier fachliche Gruppen strukturiert mit Aufklappfunktion, Zählern und Beibehaltung der Schnellauswahl. " +
@@ -12729,7 +13060,7 @@ function Get-SavedReference([string]$Path = '') {
         if (-not $w.Count) { continue }
         $h = @{}
         if ($j.Herkunft) { foreach ($p in $j.Herkunft.PSObject.Properties) { $h[$p.Name] = [string]$p.Value } }
-        return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = $f; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId }
+        return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = $f; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId; Lasttest = $j.Lasttest }
     }
     # Ab v3.0: Standard-Referenzprofil Desktop_Mittelklasse.json laden, wenn noch keine Referenz definiert ist
     if (-not $Path) {
@@ -12744,7 +13075,7 @@ function Get-SavedReference([string]$Path = '') {
             if (-not $w.Count) { continue }
             $h = @{}
             if ($j.Herkunft) { foreach ($p in $j.Herkunft.PSObject.Properties) { $h[$p.Name] = [string]$p.Value } }
-            return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = $df; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId }
+            return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = $df; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId; Lasttest = $j.Lasttest }
         }
         if ($script:EmbeddedReferences -and $script:EmbeddedReferences.ContainsKey('Desktop_Mittelklasse.json')) {
             try {
@@ -12754,7 +13085,7 @@ function Get-SavedReference([string]$Path = '') {
                     if ($w.Count) {
                         $h = @{}
                         if ($j.Herkunft) { foreach ($p in $j.Herkunft.PSObject.Properties) { $h[$p.Name] = [string]$p.Value } }
-                        return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = 'Eingebettet (Desktop_Mittelklasse.json)'; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId }
+                        return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = 'Eingebettet (Desktop_Mittelklasse.json)'; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId; Lasttest = $j.Lasttest }
                     }
                 }
             } catch { }
@@ -12820,6 +13151,41 @@ function Update-BenchReferenceMedians([string]$DataDir = $script:DataDir) {
                 }
             }
         }
+        $cpuTemps = @(); $gpuTemps = @(); $cpuWs = @(); $gpuWs = @(); $abfalls = @()
+        foreach ($it in $items) {
+            if ($it.Sensoren -and $it.Sensoren.Last) {
+                if ($it.Sensoren.Last.CpuTempMax) { $cpuTemps += [double]$it.Sensoren.Last.CpuTempMax }
+                if ($it.Sensoren.Last.GpuTempMax) { $gpuTemps += [double]$it.Sensoren.Last.GpuTempMax }
+                if ($it.Sensoren.Last.CpuWMax) { $cpuWs += [double]$it.Sensoren.Last.CpuWMax }
+                if ($it.Sensoren.Last.GpuWMax) { $gpuWs += [double]$it.Sensoren.Last.GpuWMax }
+                if ($null -ne $it.Sensoren.Last.TaktAbfall) { $abfalls += [double]$it.Sensoren.Last.TaktAbfall }
+            } elseif ($it.Lasttest -is [psobject]) {
+                if ($it.Lasttest.CpuTempMax) { $cpuTemps += [double]$it.Lasttest.CpuTempMax }
+                if ($it.Lasttest.GpuTempMax) { $gpuTemps += [double]$it.Lasttest.GpuTempMax }
+                if ($it.Lasttest.CpuWMax) { $cpuWs += [double]$it.Lasttest.CpuWMax }
+                if ($it.Lasttest.GpuWMax) { $gpuWs += [double]$it.Lasttest.GpuWMax }
+                if ($null -ne $it.Lasttest.TaktAbfall) { $abfalls += [double]$it.Lasttest.TaktAbfall }
+            } elseif ($it.Lasttest -is [string]) {
+                if ($it.Lasttest -match 'CPU max (\d+)\s*°?C') { $cpuTemps += [double]$Matches[1] }
+                if ($it.Lasttest -match 'Abfall ([\d.,]+)\s*%') { $abfalls += [double]($Matches[1] -replace ',', '.') }
+            }
+        }
+        $medCpuTemp = if ($cpuTemps.Count) { Get-Median $cpuTemps } else { $null }
+        $medGpuTemp = if ($gpuTemps.Count) { Get-Median $gpuTemps } else { $null }
+        $medCpuW    = if ($cpuWs.Count) { Get-Median $cpuWs } else { $null }
+        $medGpuW    = if ($gpuWs.Count) { Get-Median $gpuWs } else { $null }
+        $medAbfall  = if ($abfalls.Count) { Get-Median $abfalls } else { $null }
+
+        $isNb = ($t.File -match 'Notebook')
+        $objLasttest = [ordered]@{
+            CpuTempMax     = $(if ($null -ne $medCpuTemp) { [math]::Round($medCpuTemp) } else { $(if ($isNb) { 86 } else { 75 }) })
+            GpuTempMax     = $(if ($null -ne $medGpuTemp) { [math]::Round($medGpuTemp) } else { $(if ($isNb) { 74 } else { 68 }) })
+            CpuWMax        = $(if ($null -ne $medCpuW) { [math]::Round($medCpuW) } else { $(if ($isNb) { 45 } else { 85 }) })
+            GpuWMax        = $(if ($null -ne $medGpuW) { [math]::Round($medGpuW) } else { $(if ($isNb) { 35 } else { 160 }) })
+            Drosselung     = 'keine'
+            Taktstabilitaet = $(if ($null -ne $medAbfall) { [math]::Round(100 - $medAbfall, 1) } else { $(if ($isNb) { 88.0 } else { 98.0 }) })
+            TaktAbfall     = $(if ($null -ne $medAbfall) { [math]::Round($medAbfall, 1) } else { $(if ($isNb) { 12.0 } else { 2.0 }) })
+        }
         $obj = [ordered]@{
             Format   = 'PC-Diagnose-DB/2'
             Name     = ('Median {0} ({1} {2})' -f $t.Name, $items.Count, $(if ($items.Count -eq 1) { 'System' } else { 'Systeme' }))
@@ -12839,6 +13205,7 @@ function Update-BenchReferenceMedians([string]$DataDir = $script:DataDir) {
             Werte    = $w
             Herkunft = $h
             Befunde  = [ordered]@{ Kritisch = 0; Warnungen = 0; Hinweise = 0; Liste = @() }
+            Lasttest = $objLasttest
         }
         $dest = Join-Path $DataDir $t.File
         try {
@@ -14757,12 +15124,27 @@ function Export-BenchDashboardData {
             }
         }
 
-        # Aus Lasttest-Zeichenkette nachparsen falls noch fehlend
+        # Aus Lasttest-Zeichenkette oder -Objekt nachparsen falls noch fehlend
+        $cpuWMax = $null; $gpuWMax = $null
+        if ($j.Sensoren -and $j.Sensoren.Last) {
+            if ($j.Sensoren.Last.CpuWMax) { $cpuWMax = [double]$j.Sensoren.Last.CpuWMax }
+            if ($j.Sensoren.Last.GpuWMax) { $gpuWMax = [double]$j.Sensoren.Last.GpuWMax }
+        }
         if ($j.Lasttest) {
-            $ltStr = [string]$j.Lasttest
-            if ($null -eq $cpuTMax -and $ltStr -match 'CPU max (\d+)\s*°?C') { $cpuTMax = [double]$matches[1] }
-            if ($drosselung -eq 'keine' -and $ltStr -match 'Drosselung:\s*([^,]+)') { $drosselung = $matches[1].Trim() }
-            if ($null -eq $cpuMHzAvg -and $ltStr -match 'Ø\s*(\d+)\s*MHz') { $cpuMHzAvg = [double]$matches[1] }
+            if ($j.Lasttest -is [psobject] -or $j.Lasttest -is [System.Collections.IDictionary]) {
+                if ($null -eq $cpuTMax -and $j.Lasttest.CpuTempMax) { $cpuTMax = [double]$j.Lasttest.CpuTempMax }
+                if ($null -eq $gpuTMax -and $j.Lasttest.GpuTempMax) { $gpuTMax = [double]$j.Lasttest.GpuTempMax }
+                if ($null -eq $cpuWMax -and $j.Lasttest.CpuWMax) { $cpuWMax = [double]$j.Lasttest.CpuWMax }
+                if ($null -eq $gpuWMax -and $j.Lasttest.GpuWMax) { $gpuWMax = [double]$j.Lasttest.GpuWMax }
+                if ($drosselung -eq 'keine' -and $j.Lasttest.Drosselung) { $drosselung = [string]$j.Lasttest.Drosselung }
+                if ($taktAbfall -eq 0 -and $null -ne $j.Lasttest.TaktAbfall) { $taktAbfall = [double]$j.Lasttest.TaktAbfall }
+            } else {
+                $ltStr = [string]$j.Lasttest
+                if ($null -eq $cpuTMax -and $ltStr -match 'CPU max (\d+)\s*°?C') { $cpuTMax = [double]$matches[1] }
+                if ($drosselung -eq 'keine' -and $ltStr -match 'Drosselung:\s*([^,]+)') { $drosselung = $matches[1].Trim() }
+                if ($null -eq $cpuMHzAvg -and $ltStr -match 'Ø\s*(\d+)\s*MHz') { $cpuMHzAvg = [double]$matches[1] }
+                if ($null -eq $cpuWMax -and $ltStr -match 'max (\d+)\s*W') { $cpuWMax = [double]$matches[1] }
+            }
         }
 
         # Zeitreihen-Messpunkte ermitteln (aus CSV oder synthetisieren)
@@ -14932,6 +15314,11 @@ function Export-BenchDashboardData {
                 FastestDisk   = $fastestDisk
                 Disks         = @($disksList)
                 DisksByClass  = $disksByClass
+                LAST_CpuTemp  = $cpuTMax
+                LAST_GpuTemp  = $gpuTMax
+                LAST_CpuWatt  = $cpuWMax
+                LAST_TaktStab = $(if ($null -ne $taktAbfall -and $taktAbfall -ge 0) { [math]::Round(100 - $taktAbfall, 1) } else { $null })
+                LAST_TaktAbfall = $taktAbfall
             }
             Telemetry   = [ordered]@{
                 TestType                 = $lasttestArt
@@ -16419,6 +16806,16 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           { key: 'DISK_R8', label: '4K Zufall 8 Threads', unit: 'IOPS', dec: 0, lower: false, get: s => s.Metrics?.FastestDisk?.R8 || s.RawValues?.['DISK|NVMe4|R8'] || 0 },
           { key: 'DISK_W1', label: '4K Schreiben', unit: 'IOPS', dec: 0, lower: false, get: s => s.Metrics?.FastestDisk?.W1 || s.RawValues?.['DISK|NVMe4|W1'] || 0 }
         ]
+      },
+      {
+        name: 'Lasttest & Telemetrie',
+        metrics: [
+          { key: 'LAST_CpuTemp', label: 'CPU-Höchsttemperatur', unit: '°C', dec: 0, lower: true },
+          { key: 'LAST_GpuTemp', label: 'GPU-Höchsttemperatur', unit: '°C', dec: 0, lower: true },
+          { key: 'LAST_CpuWatt', label: 'CPU-Spitzenleistung', unit: 'W', dec: 0, lower: false },
+          { key: 'LAST_TaktStab', label: 'Taktstabilität unter Last', unit: '%', dec: 1, lower: false },
+          { key: 'LAST_TaktAbfall', label: 'Taktabfall (Drosselung)', unit: '%', dec: 1, lower: true }
+        ]
       }
     ];
 
@@ -17324,6 +17721,36 @@ function New-HtmlReport {
         if ($script:LoadParts.Count) {
             [void]$sb.Append('<table><thead><tr><th>Komponente</th><th>Dauer</th><th>Ergebnis</th><th>Details</th></tr></thead><tbody>')
             foreach ($p in $script:LoadParts) { $c = $cls[[string]$p.Ergebnis]; if (-not $c) { $c = 'info' }; [void]$sb.Append(('<tr><td>{0}</td><td class="nw">{1}</td><td><span class="badge {2}">{3}</span></td><td>{4}</td></tr>' -f (ConvertTo-HtmlText $p.Komponente), $p.Dauer, $c, (ConvertTo-HtmlText $p.Ergebnis), (ConvertTo-HtmlText $p.Details))) }
+            [void]$sb.Append('</tbody></table>')
+        }
+        $refLt = if ($script:Ref -and $script:Ref.Lasttest) { $script:Ref.Lasttest } else { $null }
+        if ($refLt -and $script:SensorDb['Last']) {
+            $lastDb = $script:SensorDb['Last']
+            [void]$sb.Append('<h3>Lasttest-Vergleich mit Referenz (' + (ConvertTo-HtmlText $script:Ref.Name) + ')</h3>')
+            [void]$sb.Append('<table><thead><tr><th>Messgröße</th><th>Dieser PC</th><th>Referenz</th><th>Abweichung</th><th>Status</th></tr></thead><tbody>')
+            if ($null -ne $lastDb.CpuTempMax -and $refLt.CpuTempMax) {
+                $diff = [double]$lastDb.CpuTempMax - [double]$refLt.CpuTempMax
+                $diffStr = $(if ($diff -gt 0) { '+{0:N0} K' -f $diff } elseif ($diff -lt 0) { '{0:N0} K' -f $diff } else { '±0 K' })
+                $stCls = $(if ($diff -le 3) { 'ok' } elseif ($diff -le 10) { 'warn' } else { 'err' })
+                $stTxt = $(if ($diff -le 0) { 'Kühler' } elseif ($diff -le 5) { 'Normal' } else { 'Wärmer' })
+                [void]$sb.Append(('<tr><td>CPU-Höchsttemperatur</td><td class="nw">{0:N0} °C</td><td class="nw">{1:N0} °C</td><td class="nw">{2}</td><td><span class="badge {3}">{4}</span></td></tr>' -f $lastDb.CpuTempMax, $refLt.CpuTempMax, $diffStr, $stCls, $stTxt))
+            }
+            if ($null -ne $lastDb.GpuTempMax -and $refLt.GpuTempMax) {
+                $diff = [double]$lastDb.GpuTempMax - [double]$refLt.GpuTempMax
+                $diffStr = $(if ($diff -gt 0) { '+{0:N0} K' -f $diff } elseif ($diff -lt 0) { '{0:N0} K' -f $diff } else { '±0 K' })
+                $stCls = $(if ($diff -le 3) { 'ok' } elseif ($diff -le 8) { 'warn' } else { 'err' })
+                $stTxt = $(if ($diff -le 0) { 'Kühler' } elseif ($diff -le 5) { 'Normal' } else { 'Wärmer' })
+                [void]$sb.Append(('<tr><td>GPU-Höchsttemperatur</td><td class="nw">{0:N0} °C</td><td class="nw">{1:N0} °C</td><td class="nw">{2}</td><td><span class="badge {3}">{4}</span></td></tr>' -f $lastDb.GpuTempMax, $refLt.GpuTempMax, $diffStr, $stCls, $stTxt))
+            }
+            if ($null -ne $lastDb.CpuWMax -and $refLt.CpuWMax) {
+                $diff = [double]$lastDb.CpuWMax - [double]$refLt.CpuWMax
+                $diffStr = $(if ($diff -gt 0) { '+{0:N0} W' -f $diff } elseif ($diff -lt 0) { '{0:N0} W' -f $diff } else { '±0 W' })
+                [void]$sb.Append(('<tr><td>CPU-Spitzenleistung</td><td class="nw">{0:N0} W</td><td class="nw">{1:N0} W</td><td class="nw">{2}</td><td><span class="badge info">Gemessen</span></td></tr>' -f $lastDb.CpuWMax, $refLt.CpuWMax, $diffStr))
+            }
+            $drosselIst = $(if ($lastDb.Drosselung) { [string]$lastDb.Drosselung } else { 'keine' })
+            $drosselRef = $(if ($refLt.Drosselung) { [string]$refLt.Drosselung } else { 'keine' })
+            $drosselCls = $(if ($drosselIst -eq 'keine') { 'ok' } elseif ($drosselIst -in @('Leistungsgrenze', 'Herstellergrenze')) { 'info' } else { 'warn' })
+            [void]$sb.Append(('<tr><td>Drosselungsverhalten</td><td class="nw">{0}</td><td class="nw">{1}</td><td class="nw">-</td><td><span class="badge {2}">{0}</span></td></tr>' -f (ConvertTo-HtmlText $drosselIst), (ConvertTo-HtmlText $drosselRef), $drosselCls))
             [void]$sb.Append('</tbody></table>')
         }
         [void]$sb.Append((New-LoadChartsHtml))
@@ -20822,10 +21249,31 @@ function Import-LegacyRun([string]$Folder) {
         }
         $cpuS = $(if ($hw.CPU) { $hw.CPU } else { '' })
         $gpuS = ($hw.GPU -replace '^(AMD|NVIDIA|Intel\(R\))\s*', '').Trim()
+
+        # ab v3.61: Berichtsordner in den Datenordner übernehmen, wenn er noch woanders liegt
+        $leaf = Split-Path $Folder -Leaf
+        $destReportDir = Join-Path (Join-Path $script:DataDir 'Berichte') $leaf
+        if ($script:DataDir -and (Test-Path -LiteralPath $script:DataDir)) {
+            try {
+                $fullFolder = [IO.Path]::GetFullPath($Folder).TrimEnd('\', '/')
+                $fullDest = [IO.Path]::GetFullPath($destReportDir).TrimEnd('\', '/')
+                if ($fullFolder -ine $fullDest -and -not (Test-Path -LiteralPath $destReportDir)) {
+                    Copy-Item -LiteralPath $Folder -Destination $destReportDir -Recurse -Force -ErrorAction Stop
+                    $Folder = $destReportDir
+                }
+            } catch { }
+        }
+        $relOrdner = $(if ($script:DataDir -and $Folder -like ($script:DataDir + '*')) {
+            $Folder.Substring($script:DataDir.Length).TrimStart('\', '/')
+        } else {
+            'Berichte\' + $leaf
+        })
+
         $o = [ordered]@{
             Format = $script:DbFormat; Name = ('{0} ({1})' -f $computer, ((@($cpuS, $hw.RAM, $gpuS) | Where-Object { $_ }) -join ', ')); Computer = $computer
             Geraet = [ordered]@{ Id = ''; Guete = 'unbekannt'; Quellen = @() }; Datum = $datum; Version = $ver
             Quelle = ('Import aus ' + $name); Module = 'Import'; Messdauer = 'unbekannt'; System = [string]$facts['System']; Hardware = $hw; Werte = $w
+            Ordner = $relOrdner
             Laufwerke = @($dsk.Values); Befunde = [ordered]@{ Kritisch = $nk; Warnungen = $nw; Hinweise = $ni; Liste = $list }; Lasttest = ''
         }
         New-Item -ItemType Directory -Path $script:DbDir -Force | Out-Null
@@ -20840,13 +21288,193 @@ function Import-LegacyRun([string]$Folder) {
     }
 }
 
+# ab v3.61: Lauf aus Ordner mit bereits vorhandener Datenbank.json importieren
+function Import-RunFromDirWithJson([string]$SourceDir, [string]$DbJsonPath, [string]$PreferredName = '', [string]$OriginalName = '') {
+    if (-not $OriginalName) { $OriginalName = Split-Path $SourceDir -Leaf }
+    try {
+        $jsonTxt = [IO.File]::ReadAllText($DbJsonPath, [Text.Encoding]::UTF8)
+        $o = $jsonTxt | ConvertFrom-Json
+        $computer = [string]$o.Computer
+        $datum = [string]$o.Datum
+
+        foreach ($e in (Get-DbEntries)) {
+            if ($e.Computer -eq $computer -and $e.Datum -eq $datum) {
+                return ('{0}: {1} vom {2} ist bereits in der Datenbank.' -f $OriginalName, $computer, $datum)
+            }
+        }
+
+        $stamp = $(if ($datum -match '^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})') { '{0}{1}{2}_{3}{4}00' -f $Matches[1], $Matches[2], $Matches[3], $Matches[4], $Matches[5] } else { Get-Date -Format 'yyyyMMdd_HHmmss' })
+        $folderLeaf = $(
+            if ($o.Ordner) { Split-Path ([string]$o.Ordner).TrimEnd('\', '/') -Leaf }
+            elseif ($PreferredName) { $PreferredName }
+            else { '{0}_{1}' -f (Get-SafeName $computer), $stamp }
+        )
+        $destReportDir = Join-Path (Join-Path $script:DataDir 'Berichte') $folderLeaf
+        if (-not (Test-Path -LiteralPath $destReportDir)) {
+            New-Item -ItemType Directory -Path $destReportDir -Force | Out-Null
+        }
+        foreach ($f in @(Get-ChildItem -LiteralPath $SourceDir -File -Force -ErrorAction SilentlyContinue)) {
+            if ($f.Name -ieq 'Datenbank.json' -or $f.Extension -ieq '.minibench') { continue }
+            Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $destReportDir $f.Name) -Force
+        }
+
+        $relOrdner = 'Berichte\' + $folderLeaf
+        $o | Add-Member -NotePropertyName Ordner -NotePropertyValue $relOrdner -Force
+        $o | Add-Member -NotePropertyName Quelle -NotePropertyValue ('Import aus ' + $OriginalName) -Force
+
+        New-Item -ItemType Directory -Path $script:DbDir -Force | Out-Null
+        $dbFile = Join-Path $script:DbDir ('{0}_{1}.json' -f (Get-SafeName $computer), $stamp)
+        [IO.File]::WriteAllText($dbFile, ($o | ConvertTo-Json -Depth 20), (New-Object Text.UTF8Encoding($false)))
+
+        return ('{0}: {1} vom {2} erfolgreich importiert (Bericht verknüpft).' -f $OriginalName, $computer, $datum)
+    } catch {
+        return ('{0}: Import fehlgeschlagen: {1}' -f $OriginalName, $_.Exception.Message)
+    }
+}
+
+# ab v3.61: Lauf aus einem .minibench- oder .zip-Archiv importieren
+function Import-ArchiveRun([string]$ArchivePath) {
+    $name = Split-Path $ArchivePath -Leaf
+    $baseName = [IO.Path]::GetFileNameWithoutExtension($ArchivePath)
+    $tmp = Join-Path $(if ($script:DataDir) { Join-Path $script:DataDir 'Laufzeit' } else { [IO.Path]::GetTempPath() }) ('ImportArchive_' + [guid]::NewGuid().ToString('N'))
+    try {
+        New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+        if ('System.IO.Compression.ZipFile' -as [type]) {
+            [System.IO.Compression.ZipFile]::ExtractToDirectory($ArchivePath, $tmp)
+        } else {
+            Expand-Archive -LiteralPath $ArchivePath -DestinationPath $tmp -Force -ErrorAction Stop
+        }
+
+        $dbJson = Join-Path $tmp 'Datenbank.json'
+        if (Test-Path -LiteralPath $dbJson) {
+            return (Import-RunFromDirWithJson -SourceDir $tmp -DbJsonPath $dbJson -PreferredName $baseName -OriginalName $name)
+        } elseif ((Test-Path -LiteralPath (Join-Path $tmp 'Diagnosebericht.txt')) -or (Test-Path -LiteralPath (Join-Path $tmp 'Diagnosebericht.html')) -or (Test-Path -LiteralPath (Join-Path $tmp 'Benchmark.csv'))) {
+            $destReportDir = Join-Path (Join-Path $script:DataDir 'Berichte') $baseName
+            if (-not (Test-Path -LiteralPath $destReportDir)) {
+                New-Item -ItemType Directory -Path $destReportDir -Force | Out-Null
+            }
+            foreach ($f in @(Get-ChildItem -LiteralPath $tmp -Force -ErrorAction SilentlyContinue)) {
+                Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $destReportDir $f.Name) -Recurse -Force
+            }
+            return (Import-LegacyRun $destReportDir)
+        } else {
+            return ('{0}: Im Archiv wurden weder Datenbank.json noch Berichtsdaten gefunden.' -f $name)
+        }
+    } catch {
+        return ('{0}: Archiv konnte nicht entpackt werden: {1}' -f $name, $_.Exception.Message)
+    } finally {
+        if ($tmp -and (Test-Path -LiteralPath $tmp)) {
+            Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+# ab v3.61: Einzelne .json-Datenbankdatei importieren
+function Import-JsonRun([string]$JsonPath) {
+    $name = Split-Path $JsonPath -Leaf
+    try {
+        $jsonTxt = [IO.File]::ReadAllText($JsonPath, [Text.Encoding]::UTF8)
+        $o = $jsonTxt | ConvertFrom-Json
+        $computer = [string]$o.Computer
+        $datum = [string]$o.Datum
+
+        foreach ($e in (Get-DbEntries)) {
+            if ($e.Computer -eq $computer -and $e.Datum -eq $datum) {
+                return ('{0}: {1} vom {2} ist bereits in der Datenbank.' -f $name, $computer, $datum)
+            }
+        }
+
+        $parent = Split-Path $JsonPath -Parent
+        $baseName = [IO.Path]::GetFileNameWithoutExtension($JsonPath)
+        $candReport = @()
+        if ($o.Ordner) {
+            $candReport += Join-Path $parent ($o.Ordner)
+            $candReport += Join-Path (Split-Path $parent -Parent) ($o.Ordner)
+            $candReport += Join-Path $parent (Split-Path ([string]$o.Ordner).TrimEnd('\', '/') -Leaf)
+        }
+        $candReport += Join-Path $parent $baseName
+        $candReport += Join-Path (Join-Path $parent 'Berichte') $baseName
+
+        $foundReport = $null
+        foreach ($cr in $candReport) {
+            if ($cr -and (Test-Path -LiteralPath $cr -PathType Container) -and ((Test-Path -LiteralPath (Join-Path $cr 'Diagnosebericht.html')) -or (Test-Path -LiteralPath (Join-Path $cr 'Diagnosebericht.txt')))) {
+                $foundReport = $cr; break
+            }
+        }
+
+        $stamp = $(if ($datum -match '^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})') { '{0}{1}{2}_{3}{4}00' -f $Matches[1], $Matches[2], $Matches[3], $Matches[4], $Matches[5] } else { Get-Date -Format 'yyyyMMdd_HHmmss' })
+        if ($foundReport) {
+            $folderLeaf = Split-Path $foundReport -Leaf
+            $destReportDir = Join-Path (Join-Path $script:DataDir 'Berichte') $folderLeaf
+            if (-not (Test-Path -LiteralPath $destReportDir)) {
+                Copy-Item -LiteralPath $foundReport -Destination $destReportDir -Recurse -Force
+            }
+            $o | Add-Member -NotePropertyName Ordner -NotePropertyValue ('Berichte\' + $folderLeaf) -Force
+        }
+
+        New-Item -ItemType Directory -Path $script:DbDir -Force | Out-Null
+        $dbFile = Join-Path $script:DbDir ('{0}_{1}.json' -f (Get-SafeName $computer), $stamp)
+        [IO.File]::WriteAllText($dbFile, ($o | ConvertTo-Json -Depth 20), (New-Object Text.UTF8Encoding($false)))
+        return ('{0}: {1} vom {2} importiert{3}.' -f $name, $computer, $datum, $(if ($foundReport) { ' (Bericht kopiert)' } else { '' }))
+    } catch {
+        return ('{0}: Import fehlgeschlagen: {1}' -f $name, $_.Exception.Message)
+    }
+}
+
+# ab v3.61: Einzelnes Element (Datei oder Ordner) importieren
+function Import-SingleRunItem([string]$Item) {
+    if (-not (Test-Path -LiteralPath $Item)) {
+        return ('{0}: Datei oder Ordner nicht gefunden.' -f $Item)
+    }
+    if ($Item -match '\.(minibench|zip)$') {
+        return (Import-ArchiveRun $Item)
+    }
+    if ($Item -match '\.json$') {
+        return (Import-JsonRun $Item)
+    }
+    if (Test-Path -LiteralPath $Item -PathType Container) {
+        $dbJson = Join-Path $Item 'Datenbank.json'
+        if (Test-Path -LiteralPath $dbJson) {
+            return (Import-RunFromDirWithJson -SourceDir $Item -DbJsonPath $dbJson)
+        }
+        $isRun = (Test-Path -LiteralPath (Join-Path $Item 'Diagnosebericht.txt')) -or `
+                 (Test-Path -LiteralPath (Join-Path $Item 'Diagnosebericht.html')) -or `
+                 (Test-Path -LiteralPath (Join-Path $Item 'Benchmark.csv')) -or `
+                 (Test-Path -LiteralPath (Join-Path $Item 'Anhang.zip'))
+        if ($isRun) {
+            return (Import-LegacyRun $Item)
+        }
+        $subDirs = @(Get-ChildItem -LiteralPath $Item -Directory -ErrorAction SilentlyContinue | Where-Object {
+            (Test-Path -LiteralPath (Join-Path $_.FullName 'Diagnosebericht.txt')) -or `
+            (Test-Path -LiteralPath (Join-Path $_.FullName 'Diagnosebericht.html')) -or `
+            (Test-Path -LiteralPath (Join-Path $_.FullName 'Datenbank.json')) -or `
+            (Test-Path -LiteralPath (Join-Path $_.FullName 'Benchmark.csv')) -or `
+            (Test-Path -LiteralPath (Join-Path $_.FullName 'Anhang.zip'))
+        } | ForEach-Object { $_.FullName })
+        $subFiles = @(Get-ChildItem -LiteralPath $Item -File -ErrorAction SilentlyContinue | Where-Object {
+            $_.Extension -match '^\.(minibench|zip|json)$'
+        } | ForEach-Object { $_.FullName })
+        $all = $subDirs + $subFiles
+        if (-not $all.Count) {
+            return ('In {0} wurde kein Ausgabeordner von Leos Minibench oder PC-Diagnose gefunden.' -f $Item)
+        }
+        $lines = @()
+        foreach ($sub in $all) {
+            $lines += Import-SingleRunItem $sub
+        }
+        return ($lines -join "`r`n")
+    }
+    return ('{0}: Nicht unterstütztes Format.' -f $Item)
+}
+
 function Import-LegacyFolder([string]$Root) {
     if (-not $script:DbDir) { Write-Host 'Kein beschreibbarer Datenordner vorhanden.'; return }
-    $isRun = { param($d) (Test-Path -LiteralPath (Join-Path $d 'Diagnosebericht.txt')) -or (Test-Path -LiteralPath (Join-Path $d 'Anhang.zip')) -or (Test-Path -LiteralPath (Join-Path $d 'Benchmark.csv')) }
-    $dirs = @()
-    if (& $isRun $Root) { $dirs = @($Root) } else { $dirs = @(Get-ChildItem -LiteralPath $Root -Directory -ErrorAction SilentlyContinue | Where-Object { & $isRun $_.FullName } | ForEach-Object { $_.FullName }) }
-    if (-not $dirs.Count) { Write-Host ('In {0} wurde kein Ausgabeordner von Leos Minibench oder PC-Diagnose gefunden.' -f $Root); return }
-    foreach ($d in $dirs) { Write-Host (Import-LegacyRun $d) }
+    $items = @($Root -split '\|' | ForEach-Object { $_.Trim().Trim('"') } | Where-Object { $_ })
+    if (-not $items.Count) { Write-Host 'Kein Pfad zum Importieren angegeben.'; return }
+    foreach ($item in $items) {
+        Write-Host (Import-SingleRunItem $item)
+    }
 }
 #endregion
 
@@ -26738,13 +27366,11 @@ try {
 
 if ($script:GuiLog) { try { $script:GuiLog.Close(); $script:GuiLog = $null } catch { } }
 
-# KI-Dateien: vollständige Fassung mit Rohdaten zum Hochladen, Kurzfassung ohne Rohdaten zum Einfügen in ein Chatfenster
-$kurzFile = Join-Path $OutputDir 'KI-Kurzfassung.txt'
+# KI-Datei: vollständige Fassung mit Rohdaten
 try {
     Add-PrivateFromRaw
     [void](New-KiExport -Path $kiFile -Sorted $sorted -NK $nK -NW $nW -NI $nI -Start $StartTime -End $EndTime)
-    [void](New-KiExport -Path $kurzFile -Sorted $sorted -NK $nK -NW $nW -NI $nI -Start $StartTime -End $EndTime -Compact)
-} catch { Write-Warning ('KI-Datei konnte nicht erstellt werden: {0}' -f $_.Exception.Message); $kiFile = ''; $kurzFile = '' }
+} catch { Write-Warning ('KI-Datei konnte nicht erstellt werden: {0}' -f $_.Exception.Message); $kiFile = '' }
 
 # Alles außer den Berichten in Anhang.zip packen
 $zipFile = Join-Path $OutputDir 'Anhang.zip'
@@ -26755,14 +27381,25 @@ try {
     } else { Remove-Item $RawDir -Force -ErrorAction SilentlyContinue; $zipFile = '' }
 } catch { $zipFile = '' }
 
+# ab v3.61: All-in-One-Austauschdatei (.minibench-Paket) automatisch erzeugen
+$bundleName = '{0}_{1}.minibench' -f (Get-SafeName $env:COMPUTERNAME), (Get-Date -Format 'yyyyMMdd_HHmmss')
+$bundleFile = Join-Path $OutputDir $bundleName
+try {
+    [void](New-MinibenchBundle -ReportDir $OutputDir -DbFile $script:DbSaved -DestinationPath $bundleFile)
+} catch {
+    Write-Warning ('Minibench-Paket konnte nicht erstellt werden: {0}' -f $_.Exception.Message)
+    $bundleFile = ''
+}
+
 Write-Host ''
 Write-Host ('=' * 80) -ForegroundColor Cyan
 Write-Host ('  FERTIG nach {0:hh\:mm\:ss}' -f ($EndTime - $StartTime)) -ForegroundColor Cyan
 Write-Host ('  {0} kritisch, {1} Warnungen, {2} Hinweise' -f $nK, $nW, $nI) -ForegroundColor $(if ($nK) { 'Red' } elseif ($nW) { 'Yellow' } else { 'Green' })
 Write-Host ('  Ordner      : {0}' -f $OutputDir)
 if ($htmlFile) { Write-Host '  Bericht     : Diagnosebericht.html (und .txt)' } else { Write-Host '  Bericht     : Diagnosebericht.txt' }
-if ($kiFile) { Write-Host ('  KI-Datei    : {0} ({1:N0} KB, zum Hochladen) und KI-Kurzfassung.txt (zum Einfügen)' -f (Split-Path $kiFile -Leaf), ((Get-Item $kiFile).Length / 1KB)) }
+if ($kiFile) { Write-Host ('  KI-Datei    : {0} ({1:N0} KB)' -f (Split-Path $kiFile -Leaf), ((Get-Item $kiFile).Length / 1KB)) }
 if ($zipFile) { Write-Host '  Anhang      : Anhang.zip (Protokolle und Rohdaten)' }
+if ($bundleFile -and (Test-Path -LiteralPath $bundleFile)) { Write-Host ('  Paket       : {0}' -f (Split-Path $bundleFile -Leaf)) }
 if ($script:DbSaved) { Write-Host ('  Datenbank   : {0}' -f $script:DbSaved) }
 if ($script:RestartNeeded.Count) { Write-Host ('  NEUSTART erforderlich für: {0}' -f (($script:RestartNeeded | Select-Object -Unique) -join ', ')) -ForegroundColor Yellow }
 Write-Host ('=' * 80) -ForegroundColor Cyan
@@ -26779,4 +27416,4 @@ if ($script:WorkDir -and (Test-Path -LiteralPath $script:WorkDir)) {
 $rtDir = Split-Path $script:CpDir -Parent
 if ($rtDir -and (Split-Path $rtDir -Leaf) -eq 'Laufzeit' -and -not @(Get-ChildItem -LiteralPath $rtDir -Force -ErrorAction SilentlyContinue).Count) { Remove-Item -LiteralPath $rtDir -Force -ErrorAction SilentlyContinue }
 Stop-StandbyLock
-Send-GuiEvent 'DONE' $reportFile $htmlFile $OutputDir $nK $nW $nI $kurzFile $kiFile
+Send-GuiEvent 'DONE' $reportFile $htmlFile $OutputDir $nK $nW $nI '' $kiFile

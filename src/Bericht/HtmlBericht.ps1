@@ -455,6 +455,36 @@ function New-HtmlReport {
             foreach ($p in $script:LoadParts) { $c = $cls[[string]$p.Ergebnis]; if (-not $c) { $c = 'info' }; [void]$sb.Append(('<tr><td>{0}</td><td class="nw">{1}</td><td><span class="badge {2}">{3}</span></td><td>{4}</td></tr>' -f (ConvertTo-HtmlText $p.Komponente), $p.Dauer, $c, (ConvertTo-HtmlText $p.Ergebnis), (ConvertTo-HtmlText $p.Details))) }
             [void]$sb.Append('</tbody></table>')
         }
+        $refLt = if ($script:Ref -and $script:Ref.Lasttest) { $script:Ref.Lasttest } else { $null }
+        if ($refLt -and $script:SensorDb['Last']) {
+            $lastDb = $script:SensorDb['Last']
+            [void]$sb.Append('<h3>Lasttest-Vergleich mit Referenz (' + (ConvertTo-HtmlText $script:Ref.Name) + ')</h3>')
+            [void]$sb.Append('<table><thead><tr><th>Messgröße</th><th>Dieser PC</th><th>Referenz</th><th>Abweichung</th><th>Status</th></tr></thead><tbody>')
+            if ($null -ne $lastDb.CpuTempMax -and $refLt.CpuTempMax) {
+                $diff = [double]$lastDb.CpuTempMax - [double]$refLt.CpuTempMax
+                $diffStr = $(if ($diff -gt 0) { '+{0:N0} K' -f $diff } elseif ($diff -lt 0) { '{0:N0} K' -f $diff } else { '±0 K' })
+                $stCls = $(if ($diff -le 3) { 'ok' } elseif ($diff -le 10) { 'warn' } else { 'err' })
+                $stTxt = $(if ($diff -le 0) { 'Kühler' } elseif ($diff -le 5) { 'Normal' } else { 'Wärmer' })
+                [void]$sb.Append(('<tr><td>CPU-Höchsttemperatur</td><td class="nw">{0:N0} °C</td><td class="nw">{1:N0} °C</td><td class="nw">{2}</td><td><span class="badge {3}">{4}</span></td></tr>' -f $lastDb.CpuTempMax, $refLt.CpuTempMax, $diffStr, $stCls, $stTxt))
+            }
+            if ($null -ne $lastDb.GpuTempMax -and $refLt.GpuTempMax) {
+                $diff = [double]$lastDb.GpuTempMax - [double]$refLt.GpuTempMax
+                $diffStr = $(if ($diff -gt 0) { '+{0:N0} K' -f $diff } elseif ($diff -lt 0) { '{0:N0} K' -f $diff } else { '±0 K' })
+                $stCls = $(if ($diff -le 3) { 'ok' } elseif ($diff -le 8) { 'warn' } else { 'err' })
+                $stTxt = $(if ($diff -le 0) { 'Kühler' } elseif ($diff -le 5) { 'Normal' } else { 'Wärmer' })
+                [void]$sb.Append(('<tr><td>GPU-Höchsttemperatur</td><td class="nw">{0:N0} °C</td><td class="nw">{1:N0} °C</td><td class="nw">{2}</td><td><span class="badge {3}">{4}</span></td></tr>' -f $lastDb.GpuTempMax, $refLt.GpuTempMax, $diffStr, $stCls, $stTxt))
+            }
+            if ($null -ne $lastDb.CpuWMax -and $refLt.CpuWMax) {
+                $diff = [double]$lastDb.CpuWMax - [double]$refLt.CpuWMax
+                $diffStr = $(if ($diff -gt 0) { '+{0:N0} W' -f $diff } elseif ($diff -lt 0) { '{0:N0} W' -f $diff } else { '±0 W' })
+                [void]$sb.Append(('<tr><td>CPU-Spitzenleistung</td><td class="nw">{0:N0} W</td><td class="nw">{1:N0} W</td><td class="nw">{2}</td><td><span class="badge info">Gemessen</span></td></tr>' -f $lastDb.CpuWMax, $refLt.CpuWMax, $diffStr))
+            }
+            $drosselIst = $(if ($lastDb.Drosselung) { [string]$lastDb.Drosselung } else { 'keine' })
+            $drosselRef = $(if ($refLt.Drosselung) { [string]$refLt.Drosselung } else { 'keine' })
+            $drosselCls = $(if ($drosselIst -eq 'keine') { 'ok' } elseif ($drosselIst -in @('Leistungsgrenze', 'Herstellergrenze')) { 'info' } else { 'warn' })
+            [void]$sb.Append(('<tr><td>Drosselungsverhalten</td><td class="nw">{0}</td><td class="nw">{1}</td><td class="nw">-</td><td><span class="badge {2}">{0}</span></td></tr>' -f (ConvertTo-HtmlText $drosselIst), (ConvertTo-HtmlText $drosselRef), $drosselCls))
+            [void]$sb.Append('</tbody></table>')
+        }
         [void]$sb.Append((New-LoadChartsHtml))
         if (@($script:LoadSeries | Where-Object { $_.DiskMBs -gt 0 }).Count -gt 1) {
             $svg3 = New-LineSvg ($script:LoadSeries | Where-Object { $null -ne $_.DiskMBs } | ForEach-Object { [pscustomobject]@{ T = $_.T; V = $_.DiskMBs } }) 'MB/s'

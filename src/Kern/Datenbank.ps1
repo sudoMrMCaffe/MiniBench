@@ -149,10 +149,31 @@ function Import-LegacyRun([string]$Folder) {
         }
         $cpuS = $(if ($hw.CPU) { $hw.CPU } else { '' })
         $gpuS = ($hw.GPU -replace '^(AMD|NVIDIA|Intel\(R\))\s*', '').Trim()
+
+        # ab v3.61: Berichtsordner in den Datenordner übernehmen, wenn er noch woanders liegt
+        $leaf = Split-Path $Folder -Leaf
+        $destReportDir = Join-Path (Join-Path $script:DataDir 'Berichte') $leaf
+        if ($script:DataDir -and (Test-Path -LiteralPath $script:DataDir)) {
+            try {
+                $fullFolder = [IO.Path]::GetFullPath($Folder).TrimEnd('\', '/')
+                $fullDest = [IO.Path]::GetFullPath($destReportDir).TrimEnd('\', '/')
+                if ($fullFolder -ine $fullDest -and -not (Test-Path -LiteralPath $destReportDir)) {
+                    Copy-Item -LiteralPath $Folder -Destination $destReportDir -Recurse -Force -ErrorAction Stop
+                    $Folder = $destReportDir
+                }
+            } catch { }
+        }
+        $relOrdner = $(if ($script:DataDir -and $Folder -like ($script:DataDir + '*')) {
+            $Folder.Substring($script:DataDir.Length).TrimStart('\', '/')
+        } else {
+            'Berichte\' + $leaf
+        })
+
         $o = [ordered]@{
             Format = $script:DbFormat; Name = ('{0} ({1})' -f $computer, ((@($cpuS, $hw.RAM, $gpuS) | Where-Object { $_ }) -join ', ')); Computer = $computer
             Geraet = [ordered]@{ Id = ''; Guete = 'unbekannt'; Quellen = @() }; Datum = $datum; Version = $ver
             Quelle = ('Import aus ' + $name); Module = 'Import'; Messdauer = 'unbekannt'; System = [string]$facts['System']; Hardware = $hw; Werte = $w
+            Ordner = $relOrdner
             Laufwerke = @($dsk.Values); Befunde = [ordered]@{ Kritisch = $nk; Warnungen = $nw; Hinweise = $ni; Liste = $list }; Lasttest = ''
         }
         New-Item -ItemType Directory -Path $script:DbDir -Force | Out-Null
@@ -167,13 +188,193 @@ function Import-LegacyRun([string]$Folder) {
     }
 }
 
+# ab v3.61: Lauf aus Ordner mit bereits vorhandener Datenbank.json importieren
+function Import-RunFromDirWithJson([string]$SourceDir, [string]$DbJsonPath, [string]$PreferredName = '', [string]$OriginalName = '') {
+    if (-not $OriginalName) { $OriginalName = Split-Path $SourceDir -Leaf }
+    try {
+        $jsonTxt = [IO.File]::ReadAllText($DbJsonPath, [Text.Encoding]::UTF8)
+        $o = $jsonTxt | ConvertFrom-Json
+        $computer = [string]$o.Computer
+        $datum = [string]$o.Datum
+
+        foreach ($e in (Get-DbEntries)) {
+            if ($e.Computer -eq $computer -and $e.Datum -eq $datum) {
+                return ('{0}: {1} vom {2} ist bereits in der Datenbank.' -f $OriginalName, $computer, $datum)
+            }
+        }
+
+        $stamp = $(if ($datum -match '^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})') { '{0}{1}{2}_{3}{4}00' -f $Matches[1], $Matches[2], $Matches[3], $Matches[4], $Matches[5] } else { Get-Date -Format 'yyyyMMdd_HHmmss' })
+        $folderLeaf = $(
+            if ($o.Ordner) { Split-Path ([string]$o.Ordner).TrimEnd('\', '/') -Leaf }
+            elseif ($PreferredName) { $PreferredName }
+            else { '{0}_{1}' -f (Get-SafeName $computer), $stamp }
+        )
+        $destReportDir = Join-Path (Join-Path $script:DataDir 'Berichte') $folderLeaf
+        if (-not (Test-Path -LiteralPath $destReportDir)) {
+            New-Item -ItemType Directory -Path $destReportDir -Force | Out-Null
+        }
+        foreach ($f in @(Get-ChildItem -LiteralPath $SourceDir -File -Force -ErrorAction SilentlyContinue)) {
+            if ($f.Name -ieq 'Datenbank.json' -or $f.Extension -ieq '.minibench') { continue }
+            Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $destReportDir $f.Name) -Force
+        }
+
+        $relOrdner = 'Berichte\' + $folderLeaf
+        $o | Add-Member -NotePropertyName Ordner -NotePropertyValue $relOrdner -Force
+        $o | Add-Member -NotePropertyName Quelle -NotePropertyValue ('Import aus ' + $OriginalName) -Force
+
+        New-Item -ItemType Directory -Path $script:DbDir -Force | Out-Null
+        $dbFile = Join-Path $script:DbDir ('{0}_{1}.json' -f (Get-SafeName $computer), $stamp)
+        [IO.File]::WriteAllText($dbFile, ($o | ConvertTo-Json -Depth 20), (New-Object Text.UTF8Encoding($false)))
+
+        return ('{0}: {1} vom {2} erfolgreich importiert (Bericht verknüpft).' -f $OriginalName, $computer, $datum)
+    } catch {
+        return ('{0}: Import fehlgeschlagen: {1}' -f $OriginalName, $_.Exception.Message)
+    }
+}
+
+# ab v3.61: Lauf aus einem .minibench- oder .zip-Archiv importieren
+function Import-ArchiveRun([string]$ArchivePath) {
+    $name = Split-Path $ArchivePath -Leaf
+    $baseName = [IO.Path]::GetFileNameWithoutExtension($ArchivePath)
+    $tmp = Join-Path $(if ($script:DataDir) { Join-Path $script:DataDir 'Laufzeit' } else { [IO.Path]::GetTempPath() }) ('ImportArchive_' + [guid]::NewGuid().ToString('N'))
+    try {
+        New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+        if ('System.IO.Compression.ZipFile' -as [type]) {
+            [System.IO.Compression.ZipFile]::ExtractToDirectory($ArchivePath, $tmp)
+        } else {
+            Expand-Archive -LiteralPath $ArchivePath -DestinationPath $tmp -Force -ErrorAction Stop
+        }
+
+        $dbJson = Join-Path $tmp 'Datenbank.json'
+        if (Test-Path -LiteralPath $dbJson) {
+            return (Import-RunFromDirWithJson -SourceDir $tmp -DbJsonPath $dbJson -PreferredName $baseName -OriginalName $name)
+        } elseif ((Test-Path -LiteralPath (Join-Path $tmp 'Diagnosebericht.txt')) -or (Test-Path -LiteralPath (Join-Path $tmp 'Diagnosebericht.html')) -or (Test-Path -LiteralPath (Join-Path $tmp 'Benchmark.csv'))) {
+            $destReportDir = Join-Path (Join-Path $script:DataDir 'Berichte') $baseName
+            if (-not (Test-Path -LiteralPath $destReportDir)) {
+                New-Item -ItemType Directory -Path $destReportDir -Force | Out-Null
+            }
+            foreach ($f in @(Get-ChildItem -LiteralPath $tmp -Force -ErrorAction SilentlyContinue)) {
+                Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $destReportDir $f.Name) -Recurse -Force
+            }
+            return (Import-LegacyRun $destReportDir)
+        } else {
+            return ('{0}: Im Archiv wurden weder Datenbank.json noch Berichtsdaten gefunden.' -f $name)
+        }
+    } catch {
+        return ('{0}: Archiv konnte nicht entpackt werden: {1}' -f $name, $_.Exception.Message)
+    } finally {
+        if ($tmp -and (Test-Path -LiteralPath $tmp)) {
+            Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+# ab v3.61: Einzelne .json-Datenbankdatei importieren
+function Import-JsonRun([string]$JsonPath) {
+    $name = Split-Path $JsonPath -Leaf
+    try {
+        $jsonTxt = [IO.File]::ReadAllText($JsonPath, [Text.Encoding]::UTF8)
+        $o = $jsonTxt | ConvertFrom-Json
+        $computer = [string]$o.Computer
+        $datum = [string]$o.Datum
+
+        foreach ($e in (Get-DbEntries)) {
+            if ($e.Computer -eq $computer -and $e.Datum -eq $datum) {
+                return ('{0}: {1} vom {2} ist bereits in der Datenbank.' -f $name, $computer, $datum)
+            }
+        }
+
+        $parent = Split-Path $JsonPath -Parent
+        $baseName = [IO.Path]::GetFileNameWithoutExtension($JsonPath)
+        $candReport = @()
+        if ($o.Ordner) {
+            $candReport += Join-Path $parent ($o.Ordner)
+            $candReport += Join-Path (Split-Path $parent -Parent) ($o.Ordner)
+            $candReport += Join-Path $parent (Split-Path ([string]$o.Ordner).TrimEnd('\', '/') -Leaf)
+        }
+        $candReport += Join-Path $parent $baseName
+        $candReport += Join-Path (Join-Path $parent 'Berichte') $baseName
+
+        $foundReport = $null
+        foreach ($cr in $candReport) {
+            if ($cr -and (Test-Path -LiteralPath $cr -PathType Container) -and ((Test-Path -LiteralPath (Join-Path $cr 'Diagnosebericht.html')) -or (Test-Path -LiteralPath (Join-Path $cr 'Diagnosebericht.txt')))) {
+                $foundReport = $cr; break
+            }
+        }
+
+        $stamp = $(if ($datum -match '^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})') { '{0}{1}{2}_{3}{4}00' -f $Matches[1], $Matches[2], $Matches[3], $Matches[4], $Matches[5] } else { Get-Date -Format 'yyyyMMdd_HHmmss' })
+        if ($foundReport) {
+            $folderLeaf = Split-Path $foundReport -Leaf
+            $destReportDir = Join-Path (Join-Path $script:DataDir 'Berichte') $folderLeaf
+            if (-not (Test-Path -LiteralPath $destReportDir)) {
+                Copy-Item -LiteralPath $foundReport -Destination $destReportDir -Recurse -Force
+            }
+            $o | Add-Member -NotePropertyName Ordner -NotePropertyValue ('Berichte\' + $folderLeaf) -Force
+        }
+
+        New-Item -ItemType Directory -Path $script:DbDir -Force | Out-Null
+        $dbFile = Join-Path $script:DbDir ('{0}_{1}.json' -f (Get-SafeName $computer), $stamp)
+        [IO.File]::WriteAllText($dbFile, ($o | ConvertTo-Json -Depth 20), (New-Object Text.UTF8Encoding($false)))
+        return ('{0}: {1} vom {2} importiert{3}.' -f $name, $computer, $datum, $(if ($foundReport) { ' (Bericht kopiert)' } else { '' }))
+    } catch {
+        return ('{0}: Import fehlgeschlagen: {1}' -f $name, $_.Exception.Message)
+    }
+}
+
+# ab v3.61: Einzelnes Element (Datei oder Ordner) importieren
+function Import-SingleRunItem([string]$Item) {
+    if (-not (Test-Path -LiteralPath $Item)) {
+        return ('{0}: Datei oder Ordner nicht gefunden.' -f $Item)
+    }
+    if ($Item -match '\.(minibench|zip)$') {
+        return (Import-ArchiveRun $Item)
+    }
+    if ($Item -match '\.json$') {
+        return (Import-JsonRun $Item)
+    }
+    if (Test-Path -LiteralPath $Item -PathType Container) {
+        $dbJson = Join-Path $Item 'Datenbank.json'
+        if (Test-Path -LiteralPath $dbJson) {
+            return (Import-RunFromDirWithJson -SourceDir $Item -DbJsonPath $dbJson)
+        }
+        $isRun = (Test-Path -LiteralPath (Join-Path $Item 'Diagnosebericht.txt')) -or `
+                 (Test-Path -LiteralPath (Join-Path $Item 'Diagnosebericht.html')) -or `
+                 (Test-Path -LiteralPath (Join-Path $Item 'Benchmark.csv')) -or `
+                 (Test-Path -LiteralPath (Join-Path $Item 'Anhang.zip'))
+        if ($isRun) {
+            return (Import-LegacyRun $Item)
+        }
+        $subDirs = @(Get-ChildItem -LiteralPath $Item -Directory -ErrorAction SilentlyContinue | Where-Object {
+            (Test-Path -LiteralPath (Join-Path $_.FullName 'Diagnosebericht.txt')) -or `
+            (Test-Path -LiteralPath (Join-Path $_.FullName 'Diagnosebericht.html')) -or `
+            (Test-Path -LiteralPath (Join-Path $_.FullName 'Datenbank.json')) -or `
+            (Test-Path -LiteralPath (Join-Path $_.FullName 'Benchmark.csv')) -or `
+            (Test-Path -LiteralPath (Join-Path $_.FullName 'Anhang.zip'))
+        } | ForEach-Object { $_.FullName })
+        $subFiles = @(Get-ChildItem -LiteralPath $Item -File -ErrorAction SilentlyContinue | Where-Object {
+            $_.Extension -match '^\.(minibench|zip|json)$'
+        } | ForEach-Object { $_.FullName })
+        $all = $subDirs + $subFiles
+        if (-not $all.Count) {
+            return ('In {0} wurde kein Ausgabeordner von Leos Minibench oder PC-Diagnose gefunden.' -f $Item)
+        }
+        $lines = @()
+        foreach ($sub in $all) {
+            $lines += Import-SingleRunItem $sub
+        }
+        return ($lines -join "`r`n")
+    }
+    return ('{0}: Nicht unterstütztes Format.' -f $Item)
+}
+
 function Import-LegacyFolder([string]$Root) {
     if (-not $script:DbDir) { Write-Host 'Kein beschreibbarer Datenordner vorhanden.'; return }
-    $isRun = { param($d) (Test-Path -LiteralPath (Join-Path $d 'Diagnosebericht.txt')) -or (Test-Path -LiteralPath (Join-Path $d 'Anhang.zip')) -or (Test-Path -LiteralPath (Join-Path $d 'Benchmark.csv')) }
-    $dirs = @()
-    if (& $isRun $Root) { $dirs = @($Root) } else { $dirs = @(Get-ChildItem -LiteralPath $Root -Directory -ErrorAction SilentlyContinue | Where-Object { & $isRun $_.FullName } | ForEach-Object { $_.FullName }) }
-    if (-not $dirs.Count) { Write-Host ('In {0} wurde kein Ausgabeordner von Leos Minibench oder PC-Diagnose gefunden.' -f $Root); return }
-    foreach ($d in $dirs) { Write-Host (Import-LegacyRun $d) }
+    $items = @($Root -split '\|' | ForEach-Object { $_.Trim().Trim('"') } | Where-Object { $_ })
+    if (-not $items.Count) { Write-Host 'Kein Pfad zum Importieren angegeben.'; return }
+    foreach ($item in $items) {
+        Write-Host (Import-SingleRunItem $item)
+    }
 }
 #endregion
 

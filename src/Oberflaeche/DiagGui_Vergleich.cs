@@ -66,7 +66,7 @@ public partial class DiagGui
     int dbSortCol = -1;
     bool dbSortAsc = true;
     Button btnRename;
-    Button btnCompare, btnDashboard, btnDelete, btnOpenReport;
+    Button btnCompare, btnDashboard, btnDelete, btnOpenReport, btnExport;
 
     void OnDbColumnClick(object sender, ColumnClickEventArgs e)
     {
@@ -157,8 +157,8 @@ public partial class DiagGui
 
         FlowLayoutPanel topTools = Row();
         topTools.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8));
-        Button imp = UI.Secondary("Importieren ..."); imp.Margin = new Padding(0); imp.Click += delegate { ImportFolder(); };
-        Tip(imp, "Übernimmt Benchmark-Werte aus Ausgabeordnern früherer Läufe in die Datenbank (auch von PC-Diagnose).");
+        Button imp = UI.Secondary("Importieren ..."); imp.Margin = new Padding(0); imp.Click += delegate { ImportRuns(); };
+        Tip(imp, "Importiert Durchläufe aus .minibench-Paketen, .zip-Archiven, .json-Dateien oder Ausgabeordnern früherer Läufe in die Datenbank samt Bericht.");
         btnDbClean = UI.Secondary("Aufräumen ..."); btnDbClean.Margin = new Padding(UI.S(8), 0, 0, 0); btnDbClean.Click += delegate { CleanData(); }; btnDbClean.Enabled = dataDir.Length > 0;
         Tip(btnDbClean, "Räumt nicht vergleichbare oder abgebrochene Läufe auf und verschiebt sie ins Archiv.");
         Button rel = UI.Secondary("Aktualisieren"); rel.Margin = new Padding(UI.S(8), 0, 0, 0); rel.Click += delegate { RefreshAndSync(); };
@@ -190,9 +190,13 @@ public partial class DiagGui
         btnRename.Click += delegate { RenameSelectedEntry(); };
         btnRename.Enabled = false;
         Tip(btnRename, "Ändert den Anzeigenamen des ausgewählten Systems (z. B. Vor Reinigung) und benennt Datenbankdatei und Berichtsordner passend um. Rechnername und Hardware-Erkennung bleiben.");
+        btnExport = UI.Secondary("Lauf exportieren ..."); btnExport.Margin = new Padding(UI.S(8), 0, 0, 0);
+        btnExport.Click += delegate { ExportSelected(); };
+        btnExport.Enabled = false;
+        Tip(btnExport, "Exportiert den ausgewählten Lauf als eigenständiges .minibench-Austauschpaket mit Datenbankeintrag und Bericht.");
         btnDelete = UI.Secondary("Entfernen"); btnDelete.Margin = new Padding(UI.S(8), 0, 0, 0); btnDelete.Click += delegate { DeleteSelected(); };
         Tip(btnDelete, "Verschiebt die angehakten Läufe samt Berichtsordner nach Minibench-Daten\\Archiv\\Entfernt. Beim nächsten Abgleich verschwinden sie auch vom Netzlaufwerk.");
-        b.Controls.Add(btnDashboard); b.Controls.Add(btnOpenReport); b.Controls.Add(btnRename); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
+        b.Controls.Add(btnDashboard); b.Controls.Add(btnOpenReport); b.Controls.Add(btnRename); b.Controls.Add(btnExport); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
         lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
         lblDbClean.Margin = new Padding(UI.S(4), UI.S(8), UI.S(4), 0); bottom.Controls.Add(lblDbClean);
         bottom.Resize += delegate { lblDbClean.MaximumSize = new Size(Math.Max(UI.S(200), bottom.ClientSize.Width - UI.S(10)), 0); };
@@ -218,12 +222,14 @@ public partial class DiagGui
         MenuItem miSep1 = new MenuItem("-");
         MenuItem miRename = new MenuItem("Name ändern ...", delegate { RenameSelectedEntry(); });
         MenuItem miOpen = new MenuItem("Bericht öffnen", delegate { if (lvDb.SelectedItems.Count > 0) OpenEntry((DbEntry)lvDb.SelectedItems[0].Tag); });
+        MenuItem miExport = new MenuItem("Lauf exportieren ...", delegate { ExportSelected(); });
         MenuItem miSep2 = new MenuItem("-");
         MenuItem miDelete = new MenuItem("Aus Datenbank entfernen", delegate { DeleteSelected(); });
         cm.MenuItems.Add(miDashboard);
         cm.MenuItems.Add(miSep1);
         cm.MenuItems.Add(miRename);
         cm.MenuItems.Add(miOpen);
+        cm.MenuItems.Add(miExport);
         cm.MenuItems.Add(miSep2);
         cm.MenuItems.Add(miDelete);
         cm.Popup += delegate {
@@ -232,6 +238,7 @@ public partial class DiagGui
             miDashboard.Enabled = chkN >= 1 || selN >= 1;
             miRename.Enabled = selN == 1 || (selN == 0 && chkN == 1);
             miOpen.Enabled = selN == 1;
+            miExport.Enabled = selN == 1 || (selN == 0 && chkN == 1);
             miDelete.Enabled = chkN >= 1 || selN >= 1;
         };
         lvDb.ContextMenu = cm;
@@ -304,6 +311,11 @@ public partial class DiagGui
         {
             int selCount = (lvDb != null ? lvDb.SelectedItems.Count : 0);
             btnOpenReport.Enabled = (selCount == 1 || (selCount == 0 && n == 1));
+        }
+        if (btnExport != null)
+        {
+            int selCount = (lvDb != null ? lvDb.SelectedItems.Count : 0);
+            btnExport.Enabled = (selCount == 1 || (selCount == 0 && n == 1));
         }
     }
 
@@ -463,20 +475,99 @@ public partial class DiagGui
         MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Nichts zu archivieren.", "Daten aufräumen", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
-    void ImportFolder()
+    void ExportSelected()
+    {
+        DbEntry target = null;
+        if (lvDb != null && lvDb.SelectedItems.Count == 1) target = (DbEntry)lvDb.SelectedItems[0].Tag;
+        else if (lvDb != null && lvDb.CheckedItems.Count == 1) target = (DbEntry)lvDb.CheckedItems[0].Tag;
+        if (target == null) return;
+
+        using (SaveFileDialog sfd = new SaveFileDialog())
+        {
+            sfd.Title = "Lauf als Minibench-Paket exportieren";
+            sfd.Filter = "Minibench-Paket (*.minibench)|*.minibench|ZIP-Archiv (*.zip)|*.zip|Alle Dateien (*.*)|*.*";
+            sfd.FilterIndex = 1;
+            string safeDate = target.Datum != null ? target.Datum.Replace("-", "").Replace(":", "").Replace(" ", "_") : "Lauf";
+            sfd.FileName = (target.Computer ?? "System") + "_" + safeDate + ".minibench";
+            if (sfd.ShowDialog(this) != DialogResult.OK) return;
+
+            Cursor = Cursors.WaitCursor;
+            List<string> lines;
+            string res = RunHelper("-ExportLauf " + Q(target.Path) + " -ExportZiel " + Q(sfd.FileName), out lines);
+            Cursor = Cursors.Default;
+            MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Export abgeschlossen.", "Lauf exportieren", MessageBoxButtons.OK, res.StartsWith("1") ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+        }
+    }
+
+    void ImportRuns()
     {
         if (dbDir.Length == 0) { MessageBox.Show(this, "Kein Datenordner verfügbar.", "Leos Minibench"); return; }
-        using (FolderBrowserDialog fb = new FolderBrowserDialog())
+        Form dlg = new Form();
+        dlg.Text = "Durchläufe importieren";
+        dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+        dlg.MaximizeBox = false; dlg.MinimizeBox = false;
+        dlg.StartPosition = FormStartPosition.CenterParent;
+        dlg.ClientSize = new Size(UI.S(480), UI.S(160));
+        dlg.BackColor = UI.Bg; dlg.Font = new Font("Segoe UI", 9.5f);
+
+        Label lbl = new Label();
+        lbl.Text = "Möchten Sie einzelne Laufpakete (.minibench, .zip) bzw. Datenbankdateien (.json) oder einen ganzen Ausgabeordner importieren?";
+        lbl.Location = new Point(UI.S(16), UI.S(14));
+        lbl.Size = new Size(UI.S(448), UI.S(42));
+        lbl.ForeColor = UI.Text;
+
+        Button btnFiles = UI.Primary("Dateien wählen ...");
+        btnFiles.Location = new Point(UI.S(16), UI.S(75));
+        btnFiles.Size = new Size(UI.S(160), UI.S(34));
+
+        Button btnFolder = UI.Secondary("Ordner wählen ...");
+        btnFolder.Location = new Point(UI.S(184), UI.S(75));
+        btnFolder.Size = new Size(UI.S(150), UI.S(34));
+
+        Button btnCancel = UI.Secondary("Abbrechen");
+        btnCancel.Location = new Point(UI.S(342), UI.S(75));
+        btnCancel.Size = new Size(UI.S(120), UI.S(34));
+        btnCancel.DialogResult = DialogResult.Cancel;
+
+        int choice = 0;
+        btnFiles.Click += delegate { choice = 1; dlg.DialogResult = DialogResult.OK; dlg.Close(); };
+        btnFolder.Click += delegate { choice = 2; dlg.DialogResult = DialogResult.OK; dlg.Close(); };
+
+        dlg.Controls.Add(lbl); dlg.Controls.Add(btnFiles); dlg.Controls.Add(btnFolder); dlg.Controls.Add(btnCancel);
+        dlg.CancelButton = btnCancel;
+        UI.ThemeDialog(dlg);
+
+        if (dlg.ShowDialog(this) != DialogResult.OK || choice == 0) return;
+
+        string targetPaths = "";
+        if (choice == 1)
         {
-            fb.Description = "Ausgabeordner eines früheren Laufs (oder einen Ordner mit mehreren davon) wählen";
-            if (fb.ShowDialog(this) != DialogResult.OK) return;
-            Cursor = Cursors.WaitCursor;
-            List<string> lines = new List<string>();
-            try { RunHelper("-ImportOrdner \"" + fb.SelectedPath.TrimEnd('\\') + "\"", out lines); }
-            catch (Exception ex) { lines.Add("Import fehlgeschlagen: " + ex.Message); }
-            Cursor = Cursors.Default;
-            ReloadDb();
-            MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Nichts importiert.", "Import", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            using (OpenFileDialog ofd = new OpenFileDialog())
+            {
+                ofd.Title = "Laufdateien zum Importieren wählen";
+                ofd.Filter = "Unterstützte Dateien (*.minibench;*.zip;*.json)|*.minibench;*.zip;*.json|Minibench-Pakete (*.minibench)|*.minibench|ZIP-Archive (*.zip)|*.zip|Datenbankdateien (*.json)|*.json|Alle Dateien (*.*)|*.*";
+                ofd.Multiselect = true;
+                if (ofd.ShowDialog(this) != DialogResult.OK || ofd.FileNames.Length == 0) return;
+                targetPaths = String.Join("|", ofd.FileNames);
+            }
         }
+        else if (choice == 2)
+        {
+            using (FolderBrowserDialog fb = new FolderBrowserDialog())
+            {
+                fb.Description = "Ausgabeordner eines früheren Laufs (oder einen Ordner mit mehreren davon) wählen";
+                if (fb.ShowDialog(this) != DialogResult.OK || string.IsNullOrEmpty(fb.SelectedPath)) return;
+                targetPaths = fb.SelectedPath.TrimEnd('\\');
+            }
+        }
+        if (targetPaths.Length == 0) return;
+
+        Cursor = Cursors.WaitCursor;
+        List<string> lines = new List<string>();
+        try { RunHelper("-ImportOrdner " + Q(targetPaths), out lines); }
+        catch (Exception ex) { lines.Add("Import fehlgeschlagen: " + ex.Message); }
+        Cursor = Cursors.Default;
+        ReloadDb();
+        MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Nichts importiert.", "Import", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 }

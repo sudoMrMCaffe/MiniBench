@@ -1,9 +1,25 @@
-LEOS MINIBENCH: VERSIONSHISTORIE
+﻿LEOS MINIBENCH: VERSIONSHISTORIE
 ================================
 
 Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab 2.2). Für 1.0 bis 2.1 gibt es
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Verweis Versionshistorie oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
+
+VERSION 3.61   (13.10.2026)  ALL-IN-ONE-AUSTAUSCHFORMAT (.MINIBENCH), ERWEITERTER BERICHTS-IMPORT MIT DOPPELKLICK-VERKNÜPFUNG, LASTTEST-TELEMETRIE IN REFERENZEN UND UNTERBRECHUNGSFREIER START
+====================================================================================================
+Austauschformat (.minibench): Ein selbsttragendes ZIP-Archiv bündelt Datenbankeintrag (Datenbank.json), Berichte (HTML, TXT),
+Anhang.zip und Telemetrie für den unkomplizierten Transfer zwischen PCs. Wird am Ende jedes Durchlaufs automatisch im Berichtsordner
+erzeugt; Export beliebiger Läufe über die Schaltfläche und das Kontextmenü der Vergleichsdatenbank. Die nicht mehr benötigte
+KI-Kurzfassung wurde restlos entfernt.
+Erweiterter Import mit Berichtskopie: Importdialog akzeptiert Ordner, .minibench, .zip und .json Dateien. Beim Import wird der
+Berichtsordner vollständig nach Minibench-Daten\Berichte kopiert und im Datenbankeintrag verlinkt; Doppelklick auf einen importierten
+Eintrag öffnet sofort den Diagnosebericht im Browser.
+Lasttest-Telemetrie in Referenzprofilen: Alle mitgelieferten Referenzen (inklusive echtem GTX 1070 Profil) enthalten strukturierte
+Lasttest-Messwerte (Höchsttemperaturen, Watt, Taktstabilität). Bericht und Dashboard zeigen Lasttest-Deltas und Drosselung gegen
+die Referenzen; -MedianAktualisieren pflegt Lasttest-Mediane ein.
+Unterbrechungsfreier Durchlauf-Start: Popups vor dem Durchlauf (Treiber- und Sensorabfrage) entfernt. Sensormessung mit PawnIO-Treiber
+ist standardmäßig aktiviert; fehlende Werkzeuge werden lautlos nachgeladen oder auf ACPI-Ersatzsensoren zurückgegriffen. Manuelle
+Treiber- und Werkzeugkonfiguration bleibt auf der Seite Sensoren live verfügbar.
 
 VERSION 3.6    (10.10.2026)  MEDIAN-REFERENZ JE GERÄTEKLASSE, DIAGNOSE UND WARTUNG ÜBERSICHTLICH, SENSOR- UND AKKUDIAGNOSE AUS PRAXISTESTS
 ====================================================================================================

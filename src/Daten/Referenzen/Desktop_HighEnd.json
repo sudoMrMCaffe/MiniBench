@@ -158,7 +158,15 @@
 
                               ]
                 },
-    "Lasttest":  null,
+    "Lasttest":  {
+                     "CpuTempMax":  75,
+                     "GpuTempMax":  68,
+                     "CpuWMax":  85,
+                     "GpuWMax":  215,
+                     "Drosselung":  "keine",
+                     "Taktstabilitaet":  98.0,
+                     "TaktAbfall":  2.0
+                 },
     "Rendertest":  [
                        {
                            "Grafik":  "AMD Radeon RX 6800",

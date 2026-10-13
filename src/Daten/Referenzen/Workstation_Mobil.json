@@ -90,7 +90,15 @@
 
                               ]
                 },
-    "Lasttest":  null,
+    "Lasttest":  {
+                     "CpuTempMax":  92,
+                     "GpuTempMax":  78,
+                     "CpuWMax":  65,
+                     "GpuWMax":  70,
+                     "Drosselung":  "thermisch",
+                     "Taktstabilitaet":  85.0,
+                     "TaktAbfall":  15.0
+                 },
     "Rendertest":  [
                        {
                            "Grafik":  "NVIDIA RTX 3000 Ada Generation Laptop GPU",

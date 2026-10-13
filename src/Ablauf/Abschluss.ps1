@@ -225,13 +225,11 @@ try {
 
 if ($script:GuiLog) { try { $script:GuiLog.Close(); $script:GuiLog = $null } catch { } }
 
-# KI-Dateien: vollständige Fassung mit Rohdaten zum Hochladen, Kurzfassung ohne Rohdaten zum Einfügen in ein Chatfenster
-$kurzFile = Join-Path $OutputDir 'KI-Kurzfassung.txt'
+# KI-Datei: vollständige Fassung mit Rohdaten
 try {
     Add-PrivateFromRaw
     [void](New-KiExport -Path $kiFile -Sorted $sorted -NK $nK -NW $nW -NI $nI -Start $StartTime -End $EndTime)
-    [void](New-KiExport -Path $kurzFile -Sorted $sorted -NK $nK -NW $nW -NI $nI -Start $StartTime -End $EndTime -Compact)
-} catch { Write-Warning ('KI-Datei konnte nicht erstellt werden: {0}' -f $_.Exception.Message); $kiFile = ''; $kurzFile = '' }
+} catch { Write-Warning ('KI-Datei konnte nicht erstellt werden: {0}' -f $_.Exception.Message); $kiFile = '' }
 
 # Alles außer den Berichten in Anhang.zip packen
 $zipFile = Join-Path $OutputDir 'Anhang.zip'
@@ -242,14 +240,25 @@ try {
     } else { Remove-Item $RawDir -Force -ErrorAction SilentlyContinue; $zipFile = '' }
 } catch { $zipFile = '' }
 
+# ab v3.61: All-in-One-Austauschdatei (.minibench-Paket) automatisch erzeugen
+$bundleName = '{0}_{1}.minibench' -f (Get-SafeName $env:COMPUTERNAME), (Get-Date -Format 'yyyyMMdd_HHmmss')
+$bundleFile = Join-Path $OutputDir $bundleName
+try {
+    [void](New-MinibenchBundle -ReportDir $OutputDir -DbFile $script:DbSaved -DestinationPath $bundleFile)
+} catch {
+    Write-Warning ('Minibench-Paket konnte nicht erstellt werden: {0}' -f $_.Exception.Message)
+    $bundleFile = ''
+}
+
 Write-Host ''
 Write-Host ('=' * 80) -ForegroundColor Cyan
 Write-Host ('  FERTIG nach {0:hh\:mm\:ss}' -f ($EndTime - $StartTime)) -ForegroundColor Cyan
 Write-Host ('  {0} kritisch, {1} Warnungen, {2} Hinweise' -f $nK, $nW, $nI) -ForegroundColor $(if ($nK) { 'Red' } elseif ($nW) { 'Yellow' } else { 'Green' })
 Write-Host ('  Ordner      : {0}' -f $OutputDir)
 if ($htmlFile) { Write-Host '  Bericht     : Diagnosebericht.html (und .txt)' } else { Write-Host '  Bericht     : Diagnosebericht.txt' }
-if ($kiFile) { Write-Host ('  KI-Datei    : {0} ({1:N0} KB, zum Hochladen) und KI-Kurzfassung.txt (zum Einfügen)' -f (Split-Path $kiFile -Leaf), ((Get-Item $kiFile).Length / 1KB)) }
+if ($kiFile) { Write-Host ('  KI-Datei    : {0} ({1:N0} KB)' -f (Split-Path $kiFile -Leaf), ((Get-Item $kiFile).Length / 1KB)) }
 if ($zipFile) { Write-Host '  Anhang      : Anhang.zip (Protokolle und Rohdaten)' }
+if ($bundleFile -and (Test-Path -LiteralPath $bundleFile)) { Write-Host ('  Paket       : {0}' -f (Split-Path $bundleFile -Leaf)) }
 if ($script:DbSaved) { Write-Host ('  Datenbank   : {0}' -f $script:DbSaved) }
 if ($script:RestartNeeded.Count) { Write-Host ('  NEUSTART erforderlich für: {0}' -f (($script:RestartNeeded | Select-Object -Unique) -join ', ')) -ForegroundColor Yellow }
 Write-Host ('=' * 80) -ForegroundColor Cyan
@@ -266,4 +275,4 @@ if ($script:WorkDir -and (Test-Path -LiteralPath $script:WorkDir)) {
 $rtDir = Split-Path $script:CpDir -Parent
 if ($rtDir -and (Split-Path $rtDir -Leaf) -eq 'Laufzeit' -and -not @(Get-ChildItem -LiteralPath $rtDir -Force -ErrorAction SilentlyContinue).Count) { Remove-Item -LiteralPath $rtDir -Force -ErrorAction SilentlyContinue }
 Stop-StandbyLock
-Send-GuiEvent 'DONE' $reportFile $htmlFile $OutputDir $nK $nW $nI $kurzFile $kiFile
+Send-GuiEvent 'DONE' $reportFile $htmlFile $OutputDir $nK $nW $nI '' $kiFile

@@ -396,9 +396,9 @@ Describe 'Interaktives Dashboard' {
             @($script:Daten.Systems | ForEach-Object { $_.Computer } | Sort-Object) | Should -Be @('DESKTOP-F9HRMRR', 'LIZZZ', 'TORRENT')
             @($script:Daten.Systems | Where-Object { $_.IsReference }).Count | Should -Be 0
             $refs = @($script:Daten.References)
-            $refs.Count | Should -Be 5
+            $refs.Count | Should -Be 6
             @($refs | Where-Object { -not $_.IsReference }).Count | Should -Be 0
-            foreach ($n in '*Desktop High-End*', '*Desktop Mittelklasse*', '*Mini*PC*', '*Notebook Standard*', '*Workstation Mobil*') {
+            foreach ($n in '*Desktop High-End*', '*Desktop Mittelklasse*', '*GTX 1070*', '*Mini*PC*', '*Notebook Standard*', '*Workstation Mobil*') {
                 @($refs | Where-Object { $_.DisplayName -like $n }).Count | Should -Be 1 -Because $n
             }
             @($script:Daten.PreselectedIds).Count | Should -Be 0
@@ -518,7 +518,7 @@ Describe 'Interaktives Dashboard' {
             $d = MinibenchTest\Export-BenchDashboardData -DatabaseDir $root -SystemPaths @($ref)
             @($d.Systems | ForEach-Object { $_.Computer } | Sort-Object) | Should -Be @('DESKTOP-F9HRMRR', 'LIZZZ', 'TORRENT')
             @($d.PreselectedIds).Count | Should -Be 0
-            @($d.References).Count | Should -Be 5
+            @($d.References).Count | Should -Be 6
         }
         It 'Export als JSON-Datei (UTF-8 mit BOM, CRLF) ist wieder einlesbar' {
             $ziel = Join-Path $TestDrive 'Dashboard-Daten.json'
@@ -618,7 +618,7 @@ Describe 'Interaktives Dashboard' {
             $d = Get-EingebetteteDaten $script:SeiteText
             $d.Version | Should -Be (Get-MinibenchVersion)
             @($d.Systems | ForEach-Object { $_.Id } | Sort-Object) | Should -Be @($script:Daten.Systems | ForEach-Object { $_.Id } | Sort-Object)
-            @($d.References).Count | Should -Be 5
+            @($d.References).Count | Should -Be 6
             (@($d.Systems | Where-Object { $_.Computer -eq 'TORRENT' })[0]).Metrics.CPU_MT | Should -Be 38101
         }
         It 'lädt nichts aus dem Netz (läuft offline vom Stick)' {

@@ -107,6 +107,8 @@ param(
     [string]$DatenDir,
     [string]$OutputDir,
     [string]$ImportOrdner,
+    [string]$ExportLauf,
+    [string]$ExportZiel,
     [string]$Vergleich,
     [string]$Rueckgaengig,
     [switch]$Dashboard,

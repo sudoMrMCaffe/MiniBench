@@ -421,12 +421,27 @@ function Export-BenchDashboardData {
             }
         }
 
-        # Aus Lasttest-Zeichenkette nachparsen falls noch fehlend
+        # Aus Lasttest-Zeichenkette oder -Objekt nachparsen falls noch fehlend
+        $cpuWMax = $null; $gpuWMax = $null
+        if ($j.Sensoren -and $j.Sensoren.Last) {
+            if ($j.Sensoren.Last.CpuWMax) { $cpuWMax = [double]$j.Sensoren.Last.CpuWMax }
+            if ($j.Sensoren.Last.GpuWMax) { $gpuWMax = [double]$j.Sensoren.Last.GpuWMax }
+        }
         if ($j.Lasttest) {
-            $ltStr = [string]$j.Lasttest
-            if ($null -eq $cpuTMax -and $ltStr -match 'CPU max (\d+)\s*°?C') { $cpuTMax = [double]$matches[1] }
-            if ($drosselung -eq 'keine' -and $ltStr -match 'Drosselung:\s*([^,]+)') { $drosselung = $matches[1].Trim() }
-            if ($null -eq $cpuMHzAvg -and $ltStr -match 'Ø\s*(\d+)\s*MHz') { $cpuMHzAvg = [double]$matches[1] }
+            if ($j.Lasttest -is [psobject] -or $j.Lasttest -is [System.Collections.IDictionary]) {
+                if ($null -eq $cpuTMax -and $j.Lasttest.CpuTempMax) { $cpuTMax = [double]$j.Lasttest.CpuTempMax }
+                if ($null -eq $gpuTMax -and $j.Lasttest.GpuTempMax) { $gpuTMax = [double]$j.Lasttest.GpuTempMax }
+                if ($null -eq $cpuWMax -and $j.Lasttest.CpuWMax) { $cpuWMax = [double]$j.Lasttest.CpuWMax }
+                if ($null -eq $gpuWMax -and $j.Lasttest.GpuWMax) { $gpuWMax = [double]$j.Lasttest.GpuWMax }
+                if ($drosselung -eq 'keine' -and $j.Lasttest.Drosselung) { $drosselung = [string]$j.Lasttest.Drosselung }
+                if ($taktAbfall -eq 0 -and $null -ne $j.Lasttest.TaktAbfall) { $taktAbfall = [double]$j.Lasttest.TaktAbfall }
+            } else {
+                $ltStr = [string]$j.Lasttest
+                if ($null -eq $cpuTMax -and $ltStr -match 'CPU max (\d+)\s*°?C') { $cpuTMax = [double]$matches[1] }
+                if ($drosselung -eq 'keine' -and $ltStr -match 'Drosselung:\s*([^,]+)') { $drosselung = $matches[1].Trim() }
+                if ($null -eq $cpuMHzAvg -and $ltStr -match 'Ø\s*(\d+)\s*MHz') { $cpuMHzAvg = [double]$matches[1] }
+                if ($null -eq $cpuWMax -and $ltStr -match 'max (\d+)\s*W') { $cpuWMax = [double]$matches[1] }
+            }
         }
 
         # Zeitreihen-Messpunkte ermitteln (aus CSV oder synthetisieren)
@@ -596,6 +611,11 @@ function Export-BenchDashboardData {
                 FastestDisk   = $fastestDisk
                 Disks         = @($disksList)
                 DisksByClass  = $disksByClass
+                LAST_CpuTemp  = $cpuTMax
+                LAST_GpuTemp  = $gpuTMax
+                LAST_CpuWatt  = $cpuWMax
+                LAST_TaktStab = $(if ($null -ne $taktAbfall -and $taktAbfall -ge 0) { [math]::Round(100 - $taktAbfall, 1) } else { $null })
+                LAST_TaktAbfall = $taktAbfall
             }
             Telemetry   = [ordered]@{
                 TestType                 = $lasttestArt
@@ -2082,6 +2102,16 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           { key: 'DISK_R1', label: '4K Zufall QD1', unit: 'IOPS', dec: 0, lower: false, get: s => s.Metrics?.FastestDisk?.R1 || s.RawValues?.['DISK|NVMe4|R1'] || 0 },
           { key: 'DISK_R8', label: '4K Zufall 8 Threads', unit: 'IOPS', dec: 0, lower: false, get: s => s.Metrics?.FastestDisk?.R8 || s.RawValues?.['DISK|NVMe4|R8'] || 0 },
           { key: 'DISK_W1', label: '4K Schreiben', unit: 'IOPS', dec: 0, lower: false, get: s => s.Metrics?.FastestDisk?.W1 || s.RawValues?.['DISK|NVMe4|W1'] || 0 }
+        ]
+      },
+      {
+        name: 'Lasttest & Telemetrie',
+        metrics: [
+          { key: 'LAST_CpuTemp', label: 'CPU-Höchsttemperatur', unit: '°C', dec: 0, lower: true },
+          { key: 'LAST_GpuTemp', label: 'GPU-Höchsttemperatur', unit: '°C', dec: 0, lower: true },
+          { key: 'LAST_CpuWatt', label: 'CPU-Spitzenleistung', unit: 'W', dec: 0, lower: false },
+          { key: 'LAST_TaktStab', label: 'Taktstabilität unter Last', unit: '%', dec: 1, lower: false },
+          { key: 'LAST_TaktAbfall', label: 'Taktabfall (Drosselung)', unit: '%', dec: 1, lower: true }
         ]
       }
     ];

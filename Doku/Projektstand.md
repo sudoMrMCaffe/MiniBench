@@ -2,28 +2,22 @@
 
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
-## Stand: Version 3.6 (10.10.2026)
-Letzter gepushter Release: Commit 25ee019 (Release v3.54). Version 3.6 entsteht als Commit "Release v3.6: ..." beim
+## Stand: Version 3.61 (13.10.2026)
+Letzter Release-Commit: Commit 995e514 (Release v3.6). Version 3.61 entsteht als Commit "Release v3.61: ..." beim
 nächsten erfolgreichen Bauen.cmd.
 
-Inhalt von 3.6 (Einzelheiten in Doku\Änderungen_v3.6.txt):
-1. Feste Median-Referenzen für Geräteklassen Notebook und Desktop (Referenz_Notebook.json, Referenz_Desktop.json),
-   kontrolliert aktualisierbar auf Knopfdruck oder über -MedianAktualisieren.
-2. Wartungsmaßnahmen gegliedert: 23 Maßnahmen in 4 fachliche Gruppen gegliedert mit Klappfunktion, Auswahlanzeige
-   und synchronisierten Schaltflächen ("Übliche Auswahl", "Keine").
-3. Diagnose-Prüfungen standardmäßig eingeklappt mit dynamischer Statuszusammenfassung; automatisches Aufklappen bei
-   Profil "Benutzerdefiniert".
-4. Dunkles Farbschema konsistent: UI.ThemeDialog formatiert Formulare und Kind-Elemente (Labels, CheckBoxen,
-   RadioButtons, Eingabefelder) ohne schwarze Schrift auf dunklem Grund.
-5. Hardware-Spezifikationen: Reale Kerne und logische Threads in Datenbankeinträgen erfasst; Get-CpuAnzeigename
-   befreit Prozessornamen von Hersteller- und Taktballast ("Ryzen 5 7600X (6 Kerne, 12 Threads)").
-6. Dashboard und Telemetrie: Multi-System-Sensorverlauf vor Befunden platziert mit CPU/GPU-Reitern, Tooltips mit
-   Takt/Watt/iGPU, synthetische Kurven und redundanter Basis-Detailmodus restlos entfernt, Profilkarten nach Score sortiert.
-7. Sensor- und Praxistesthärtung aus Feldtests: Hintergrundlastprüfung vor Messungen (> 15 % verwirft Leerlauf-Etikett
-   mit 90/80 °C Schwellen), Akkuverschleiß-Historie geschützt, Optimus-Hybridgrafik sauber zugeordnet, unplausible
-   Sensorwerte (< 5 °C, doppelte Leerlaufspannungen > 1.5 V) gefiltert, Akkubetrieb beim Benchmark markiert.
+Inhalt von 3.61 (Einzelheiten in Doku\Änderungen_v3.61.txt):
+1. All-in-One-Austauschformat (.minibench): Selbsttragendes ZIP-Archiv bündelt Datenbank.json, Berichte (HTML, TXT),
+   Anhang.zip und Telemetrie. Automatisches Erstellen am Laufende und Export-Funktion in der Vergleichsdatenbank.
+   KI-Kurzfassung restlos entfernt.
+2. Erweiterter Import & Doppelklick-Verlinkung: Importiert Ordner, .minibench, .zip und .json Dateien. Kopiert Berichtsordner
+   nach Minibench-Daten\Berichte und verknüpft das Feld Ordner; Doppelklick öffnet den Bericht sofort im Browser.
+3. Referenzprofile mit Lasttest-Telemetrie: Strukturierte Lasttest-Werte in allen Profilen; neues GTX-1070-System von
+   Matthias PC hinzugefügt; Dashboard und HTML-Bericht zeigen Lasttest-Deltas; -MedianAktualisieren pflegt Lasttest-Mediane ein.
+4. Unterbrechungsfreier Start: Popups AskDriver und AskSensorTools vor dem Start restlos entfernt; PawnIO-Sensormessung
+   standardmäßig aktiv mit lautlosem Nachladen fehlender Werkzeuge; manuelle Steuerung auf Seite Sensoren live erhalten.
 
-Testlauf Windows (Windows PowerShell 5.1, Pester 6.2.0): 789 bestanden, 0 fehlgeschlagen, 100 übersprungen
+Testlauf Windows (Windows PowerShell 5.1, Pester 6.2.0): 795 bestanden, 0 fehlgeschlagen, 99 übersprungen
 (in Lauf.Tests.ps1; gewollt ohne -Gesamtlauf). Alle Fachgebiets-Tests erfolgreich.
 
 ## Offene Befunde

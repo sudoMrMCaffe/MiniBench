@@ -8,7 +8,8 @@ BeforeAll {
     Import-MinibenchTestModule -Parts 'Kern\Risiko.ps1', 'Kern\Modulvertrag.ps1', 'Kern\Geraeteidentitaet.ps1', 'Kern\Datenpflege.ps1', 'Kern\Referenzen_Eingebettet.ps1', 'Kern\Referenz_Vergleich.ps1', 'Kern\Berichtshilfen.ps1' `
         -Functions 'Read-JsonFile', 'ConvertTo-ValueTable', 'Get-DbEntries', 'Get-DbLatest', 'Get-SafeName', 'Save-DbEntry', 'Get-CurrentRefValues', 'Import-BenchReference', 'Get-Median', 'Add-Line',
                    'Test-WritableDir', 'Resolve-DataDir', 'Test-IsNetworkPath', 'Initialize-DbDir',
-                   'Test-EntryIsNotebook', 'Test-DbEntryIsBattery', 'Update-BenchReferenceMedians' `
+                   'Test-EntryIsNotebook', 'Test-DbEntryIsBattery', 'Update-BenchReferenceMedians',
+                   'Import-LegacyFolder', 'Import-SingleRunItem', 'Import-ArchiveRun', 'Import-JsonRun', 'Import-LegacyRun', 'Import-RunFromDirWithJson' `
         -Setup @'
 $script:DbFormat = 'PC-Diagnose-DB/2'
 $script:Report = New-Object System.Text.StringBuilder
@@ -587,3 +588,75 @@ Describe 'Datenpflege und Archivierung' {
         Join-Path $lz 'rest.tmp' | Should -Not -Exist
     }
 }
+
+Describe 'Lauf importieren und Verknüpfung (.minibench, .zip, .json, Ordner)' {
+    BeforeAll {
+        function New-ImportTestEnv {
+            $root = New-TestDir 'import_env'
+            $db = Join-Path $root 'Datenbank'
+            $rep = Join-Path $root 'Berichte'
+            New-Item -ItemType Directory $db -Force | Out-Null
+            New-Item -ItemType Directory $rep -Force | Out-Null
+            Set-ModuleVar 'DataDir' $root
+            Set-ModuleVar 'DbDir' $db
+            return [pscustomobject]@{ Root = $root; DbDir = $db; RepDir = $rep }
+        }
+    }
+    It 'Import-SingleRunItem importiert ein .minibench Paket mit Datenbank.json und Bericht' {
+        $env = New-ImportTestEnv
+        $bundleDir = New-TestDir 'bundle_src'
+        [IO.File]::WriteAllText((Join-Path $bundleDir 'Diagnosebericht.html'), '<html>Bericht</html>')
+        [IO.File]::WriteAllText((Join-Path $bundleDir 'Diagnosebericht.txt'), 'Text')
+        $dbContent = [ordered]@{
+            Format = 'PC-Diagnose-DB/2'
+            Name = 'ImportPC'
+            Computer = 'IMPORT-PC'
+            Datum = '2026-10-10 12:00'
+            Ordner = 'Berichte\IMPORT-PC_20261010_1200'
+            Werte = @{ 'CPU|MT' = 1200 }
+        } | ConvertTo-Json -Depth 5
+        [IO.File]::WriteAllText((Join-Path $bundleDir 'Datenbank.json'), $dbContent)
+        $pkg = Join-Path (New-TestDir 'pkg') 'ImportPC.minibench'
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [System.IO.Compression.ZipFile]::CreateFromDirectory($bundleDir, $pkg)
+
+        $msg = MinibenchTest\Import-SingleRunItem $pkg
+        $msg | Should -Match 'erfolgreich importiert'
+
+        $importedJson = Join-Path $env.DbDir 'IMPORT-PC_20261010_120000.json'
+        $importedJson | Should -Exist
+
+        $repFolder = Join-Path $env.RepDir 'IMPORT-PC_20261010_1200'
+        $repFolder | Should -Exist
+        Join-Path $repFolder 'Diagnosebericht.html' | Should -Exist
+
+        $data = Get-Content -LiteralPath $importedJson -Raw -Encoding UTF8 | ConvertFrom-Json
+        $data.Ordner | Should -Be 'Berichte\IMPORT-PC_20261010_1200'
+
+        $msg2 = MinibenchTest\Import-SingleRunItem $pkg
+        $msg2 | Should -Match 'bereits in der Datenbank'
+    }
+    It 'Import-SingleRunItem importiert einen Ordner mit Diagnosebericht.txt' {
+        $env = New-ImportTestEnv
+        $runDir = New-TestDir 'legacy_run'
+        [IO.File]::WriteAllText((Join-Path $runDir 'Diagnosebericht.txt'), "Computer: LEGACY-PC`r`nDatum: 2026-10-09 15:30`r`nVersion: 3.5`r`n[System]`r`nCPU: AMD Ryzen 5")
+        $msg = MinibenchTest\Import-SingleRunItem $runDir
+        $msg | Should -Match 'importiert'
+
+        $leaf = Split-Path $runDir -Leaf
+        Join-Path $env.RepDir $leaf | Should -Exist
+        Join-Path (Join-Path $env.RepDir $leaf) 'Diagnosebericht.txt' | Should -Exist
+    }
+    It 'Import-LegacyFolder verarbeitet Pipe-getrennte Pfadlisten' {
+        $env = New-ImportTestEnv
+        $d1 = New-TestDir 'pipe1'
+        [IO.File]::WriteAllText((Join-Path $d1 'Diagnosebericht.txt'), "Computer: PIPE1`r`nDatum: 2026-10-08 10:00")
+        $d2 = New-TestDir 'pipe2'
+        [IO.File]::WriteAllText((Join-Path $d2 'Diagnosebericht.txt'), "Computer: PIPE2`r`nDatum: 2026-10-08 11:00")
+        $pipeArg = ('"{0}"|"{1}"' -f $d1, $d2)
+        MinibenchTest\Import-LegacyFolder $pipeArg
+        Join-Path $env.RepDir (Split-Path $d1 -Leaf) | Should -Exist
+        Join-Path $env.RepDir (Split-Path $d2 -Leaf) | Should -Exist
+    }
+}
+

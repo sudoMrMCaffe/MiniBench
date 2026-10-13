@@ -234,7 +234,7 @@ public partial class DiagGui : Form
     void Tip(Control c, string text) { if (c != null && !String.IsNullOrEmpty(text)) tip.SetToolTip(c, WrapTip(text)); }
 
     // Ablauf
-    Button btnStopWait, btnSkipStep, btnCancel, btnHtml, btnFolder, btnNew, btnKi, btnCopy;
+    Button btnStopWait, btnSkipStep, btnCancel, btnHtml, btnFolder, btnNew, btnKi;
     Label lblStep, lblCounter, lblSub, lblResult;
     FlatBar barAll, barSub;
     StatCard cardK, cardW, cardI, cardT;
@@ -914,8 +914,8 @@ public partial class DiagGui : Form
         Tip(btnLive, "Öffnet die Sensoren und zeigt die Werte laufend an. Während eines Laufs ist die Live-Ansicht aus.");
         Tip(btnSensTools, "Holt LibreHardwareMonitor und das PawnIO-Setup aus den offiziellen Releases und prüft sie mit festen SHA-256-Werten. Abgelegt wird nur im Tools-Ordner, installiert wird nichts.");
         Tip(btnSensSave, "Speichert alle Werte der Live-Ansicht als CSV unter Berichte\\Sensoren.");
-        Tip(cmbDriver, "PawnIO ist der Treiber, den LibreHardwareMonitor für CPU-Temperatur, CPU-Takt, CPU-Leistung und Mainboard-Lüfter braucht. Bei Bedarf nachfragen: Rückfrage vor jedem Lauf. Ein bereits installierter PawnIO bleibt immer unverändert.");
-        Tip(cmbKeep, "Was nach dem Lauf mit PawnIO und smartmontools geschieht, die Leos Minibench installiert hat: entfernen (keine Reste) oder auf diesem PC behalten. Gespeichert je Gerät.");
+        Tip(cmbDriver, "PawnIO ist der Treiber, den LibreHardwareMonitor für CPU-Temperatur, CPU-Takt, CPU-Leistung und Mainboard-Lüfter braucht. Standardmäßig aktiv für alle Messungen. Ein bereits installierter PawnIO bleibt immer unverändert.");
+        Tip(cmbKeep, "Was nach dem Lauf mit PawnIO und smartmontools geschieht, die Leos Minibench installiert hat: nach dem Lauf entfernen (keine Reste) oder auf diesem PC behalten. Gespeichert je Gerät in Geraete.json.");
         // Vergleichsdatenbank, Änderungen, Fuß
         Tip(btnCompare, "Vergleicht die angehakten Systeme in einem HTML-Bericht (mindestens zwei).");
         Tip(btnDelete, "Entfernt die angehakten Einträge aus der Datenbank. Die Berichtsordner bleiben erhalten.");
@@ -944,7 +944,6 @@ public partial class DiagGui : Form
         Tip(btnFolder, "Öffnet den Berichtsordner dieses Laufs (Bericht, KI-Dateien, Anhang.zip).");
         Tip(btnNew, "Zurück zur Auswahl für einen neuen Lauf.");
         Tip(btnKi, "Zeigt die KI-Datei im Explorer. Sie enthält Auftrag, Bericht und Rohdaten und lässt sich in ein KI-Modell hochladen.");
-        Tip(btnCopy, "Kopiert die KI-Kurzfassung in die Zwischenablage, zum Einfügen in einen KI-Chat.");
         Tip(cardK, "Kritische Befunde: Datenverlust oder Instabilität möglich, bald handeln.");
         Tip(cardW, "Warnungen: sollten behoben werden.");
         Tip(cardI, "Hinweise: zur Kenntnis, meist ohne Handlungsbedarf.");
@@ -1811,73 +1810,26 @@ public partial class DiagGui : Form
     // Wahl im Startdialog für diesen Lauf ("" = Einstellung der Seite Sensoren bzw. Geraete.json)
     string runKeep = "";
 
-    // 1 = Treiber installieren, 0 = ohne, -1 = Start abbrechen. Fragt bei Bedarf zugleich, ob die Hilfswerkzeuge bleiben.
-    // ab v2.8: fehlt LibreHardwareMonitor im Datenordner (z. B. neuer Ordner ohne Tools), vor dem Lauf anbieten, es zu holen.
-    // Im Praxistest vom 03.10. liefen Benchmark und Lasttest auf TORRENT so ohne CPU-Temperatur, Leistung und AMD-GPU-Werte.
-    bool lhmAsked = false;
-    int AskSensorTools()
+    // ab v3.61: Sensorwerkzeuge bei Bedarf automatisch und lautlos im Hintergrund holen, ohne Popups vor dem Start
+    bool lhmAutoFetchAttempted = false;
+    void TryAutoFetchSensorTools()
     {
-        if (LhmPresent || lhmAsked || ToolsDir.Length == 0) return 0;
-        lhmAsked = true;
-        DialogResult r = MessageBox.Show(this, "LibreHardwareMonitor fehlt im Tools-Ordner dieses Datenordners:\r\n" + ToolsDir + "\r\n\r\n"
-            + "Ohne die Bibliothek gibt es bei Diagnose, Benchmark und Lasttest keine CPU-Temperatur und keine CPU-Leistung; GPU-Werte nur über nvidia-smi oder den Windows-Grafiktreiber.\r\n\r\n"
-            + "Jetzt LibreHardwareMonitor 0.9.6 und das PawnIO-Setup aus den offiziellen Releases holen (geprüft mit festen SHA-256-Werten, auf dem PC wird nichts installiert)?\r\n\r\n"
-            + "Ja: holen und danach starten\r\nNein: ohne Sensorwerkzeuge starten\r\nAbbrechen: nicht starten", "Sensorwerkzeuge fehlen", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
-        if (r == DialogResult.Cancel) return -1;
-        if (r != DialogResult.Yes) return 0;
-        List<string> lines; string res = RunHelperPumped("-SensorWerkzeugeHolen", out lines, 900);
-        UpdateSensTools();
-        if (res != "1") MessageBox.Show(this, (lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Keine Rückmeldung vom Arbeitsprozess.") + "\r\n\r\nDer Lauf startet ohne Sensorwerkzeuge.", "Sensorwerkzeuge", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        return 0;
-    }
-
-    int AskDriver()
-    {
-        runKeep = "";
-        if (AskSensorTools() < 0) return -1;
-        if (!LhmPresent || !PawnSetupPresent || PawnIoVersion().Length > 0) return 0;
-        int pol = cmbDriver == null ? 0 : cmbDriver.SelectedIndex;
-        if (pol == 1) return 1;
-        if (pol == 2) return 0;
-        bool askKeep = cmbKeep == null || cmbKeep.SelectedIndex == 0;
-        using (Form d = new Form())
+        if (lhmAutoFetchAttempted || ToolsDir.Length == 0) return;
+        if (LhmPresent && PawnSetupPresent) return;
+        lhmAutoFetchAttempted = true;
+        try
         {
-            d.Text = "PawnIO-Treiber"; d.FormBorderStyle = FormBorderStyle.FixedDialog; d.MaximizeBox = false; d.MinimizeBox = false; d.ShowInTaskbar = false;
-            d.StartPosition = FormStartPosition.CenterParent; d.Font = new Font("Segoe UI", 9.5f); d.BackColor = UI.Bg; d.AutoSize = true; d.AutoSizeMode = AutoSizeMode.GrowAndShrink; d.Padding = new Padding(UI.S(16));
-            FlowLayoutPanel f = new FlowLayoutPanel(); f.FlowDirection = FlowDirection.TopDown; f.AutoSize = true; f.WrapContents = false; f.Dock = DockStyle.Fill;
-            Label t = new Label(); t.AutoSize = true; t.MaximumSize = new Size(UI.S(520), 0); t.Margin = new Padding(0, 0, 0, UI.S(10));
-            t.Text = "Für CPU-Temperatur, CPU-Takt, CPU-Leistung und die Lüfter am Mainboard braucht LibreHardwareMonitor den Treiber PawnIO. Die Installation erscheint auf der Seite Änderungen.";
-            f.Controls.Add(t);
-            RadioButton rbMit = new RadioButton(); rbMit.Text = "mit Treiber messen"; rbMit.AutoSize = true; rbMit.Checked = true; rbMit.Margin = new Padding(UI.S(4), UI.S(3), 0, UI.S(3));
-            RadioButton rbOhne = new RadioButton(); rbOhne.Text = "ohne Treiber (GPU, Datenträger und Ersatzwerte)"; rbOhne.AutoSize = true; rbOhne.Margin = new Padding(UI.S(4), UI.S(3), 0, UI.S(3));
-            f.Controls.Add(rbMit); f.Controls.Add(rbOhne);
-            CheckBox cKeep = new CheckBox(); cKeep.AutoSize = true; cKeep.Margin = new Padding(UI.S(4), UI.S(10), 0, UI.S(3)); cKeep.MaximumSize = new Size(UI.S(520), 0);
-            cKeep.Text = "PawnIO und smartmontools nach dem Lauf auf diesem PC behalten (sonst am Ende wieder entfernt, nach einem Absturz beim nächsten Start)";
-            cKeep.Checked = cmbKeep != null && cmbKeep.SelectedIndex == 2; cKeep.Enabled = askKeep;
-            CheckBox cMerk = new CheckBox(); cMerk.AutoSize = true; cMerk.Margin = new Padding(UI.S(4), UI.S(3), 0, UI.S(3)); cMerk.Text = "Wahl für diesen PC merken (änderbar auf der Seite Sensoren)";
-            f.Controls.Add(cKeep); f.Controls.Add(cMerk);
-            FlowLayoutPanel b = new FlowLayoutPanel(); b.AutoSize = true; b.Margin = new Padding(0, UI.S(12), 0, 0);
-            Button ok = UI.Primary("Starten"); ok.DialogResult = DialogResult.OK; ok.Margin = new Padding(0, 0, UI.S(8), 0); Button ab = UI.Secondary("Abbrechen"); ab.DialogResult = DialogResult.Cancel;
-            b.Controls.Add(ok); b.Controls.Add(ab); f.Controls.Add(b);
-            d.Controls.Add(f); d.AcceptButton = ok; d.CancelButton = ab;
-            UI.ThemeDialog(d);
-            if (d.ShowDialog(this) != DialogResult.OK) return -1;
-            int drv = rbMit.Checked ? 1 : 0;
-            if (askKeep) runKeep = cKeep.Checked ? "behalten" : "entfernen";
-            if (cMerk.Checked)
-            {
-                if (cmbDriver != null) cmbDriver.SelectedIndex = drv == 1 ? 1 : 2;
-                if (askKeep && cmbKeep != null) cmbKeep.SelectedIndex = cKeep.Checked ? 2 : 1;
-                SaveDeviceTools();
-            }
-            return drv;
+            List<string> lines;
+            RunHelper("-SensorWerkzeugeHolen", out lines);
+            UpdateSensTools();
         }
+        catch { }
     }
 
     // Einstellung für Hilfswerkzeuge je Gerät, gemeinsam mit dem Arbeitsprozess in Geraete.json (Format Minibench-Geraete/1)
     string DeviceFile { get { return dataDir.Length > 0 ? Path.Combine(dataDir, "Geraete.json") : ""; } }
-    static readonly string[] keepValues = new string[] { "fragen", "entfernen", "behalten" };
-    static readonly string[] driverValues = new string[] { "fragen", "verwenden", "nein" };
+    static readonly string[] keepValues = new string[] { "entfernen", "behalten" };
+    static readonly string[] driverValues = new string[] { "verwenden", "nein" };
 
     Dictionary<string, object> ReadDeviceFile()
     {
@@ -1900,8 +1852,14 @@ public partial class DiagGui : Form
         Dictionary<string, object> gd = g as Dictionary<string, object>; object e;
         if (gd == null || !gd.TryGetValue(deviceId, out e)) return;
         Dictionary<string, object> ed = e as Dictionary<string, object>; if (ed == null) return;
-        object w; if (cmbKeep != null && ed.TryGetValue("Werkzeuge", out w)) { int i = Array.IndexOf(keepValues, Convert.ToString(w)); if (i >= 0) cmbKeep.SelectedIndex = i; }
-        object t; if (cmbDriver != null && ed.TryGetValue("Treiber", out t)) { int i = Array.IndexOf(driverValues, Convert.ToString(t)); if (i >= 0) cmbDriver.SelectedIndex = i; }
+        object w; if (cmbKeep != null && ed.TryGetValue("Werkzeuge", out w)) {
+            string ws = Convert.ToString(w);
+            cmbKeep.SelectedIndex = (ws == "behalten") ? 1 : 0;
+        }
+        object t; if (cmbDriver != null && ed.TryGetValue("Treiber", out t)) {
+            string ts = Convert.ToString(t);
+            cmbDriver.SelectedIndex = (ts == "nein") ? 1 : 0;
+        }
     }
 
     void SaveDeviceTools()
@@ -1916,8 +1874,8 @@ public partial class DiagGui : Form
             object e; Dictionary<string, object> ed = gd.TryGetValue(deviceId, out e) ? e as Dictionary<string, object> : null;
             if (ed == null) { ed = new Dictionary<string, object>(); ed["Behalten"] = new object[0]; gd[deviceId] = ed; }
             ed["Name"] = Environment.MachineName;
-            if (cmbKeep != null) ed["Werkzeuge"] = keepValues[Math.Max(0, cmbKeep.SelectedIndex)];
-            if (cmbDriver != null) ed["Treiber"] = driverValues[Math.Max(0, cmbDriver.SelectedIndex)];
+            if (cmbKeep != null) ed["Werkzeuge"] = keepValues[Math.Max(0, Math.Min(keepValues.Length - 1, cmbKeep.SelectedIndex))];
+            if (cmbDriver != null) ed["Treiber"] = driverValues[Math.Max(0, Math.Min(driverValues.Length - 1, cmbDriver.SelectedIndex))];
             if (!ed.ContainsKey("Behalten")) ed["Behalten"] = new object[0];
             ed["Geaendert"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
             Directory.CreateDirectory(dataDir);
@@ -1927,11 +1885,11 @@ public partial class DiagGui : Form
         catch { }
     }
 
-    // Argument für den Arbeitsprozess: Wahl im Startdialog, sonst feste Einstellung, bei "jedes Mal fragen" ohne Dialog entfernen
+    // Argument für den Arbeitsprozess: Wahl im Startdialog, sonst feste Einstellung
     string KeepArg()
     {
         string k = runKeep;
-        if (k.Length == 0 && cmbKeep != null && cmbKeep.SelectedIndex > 0) k = keepValues[cmbKeep.SelectedIndex];
+        if (k.Length == 0 && cmbKeep != null) k = keepValues[Math.Max(0, Math.Min(keepValues.Length - 1, cmbKeep.SelectedIndex))];
         return k.Length > 0 ? " -WerkzeugeBehalten " + k : "";
     }
 
@@ -1950,7 +1908,7 @@ public partial class DiagGui : Form
 
     Control BuildSensorPage()
     {
-        FlowLayoutPanel f = Page("Sensoren live", "Zeigt Temperatur, Takt, Lüfter, Spannung und Leistung laufend an (Kurven der letzten zehn Minuten). CPU-Werte und Mainboard-Lüfter brauchen den Treiber PawnIO; er wird nur nach Rückfrage installiert und beim Beenden entfernt.", -1);
+        FlowLayoutPanel f = Page("Sensoren live", "Zeigt Temperatur, Takt, Lüfter, Spannung und Leistung laufend an (Kurven der letzten zehn Minuten). CPU-Werte und Mainboard-Lüfter brauchen den Treiber PawnIO; er wird beim Beenden wieder entfernt.", -1);
         lblSensTools = Lbl("", 9f, false, UI.Muted); lblSensTools.MaximumSize = new Size(UI.S(880), 0); lblSensTools.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8)); f.Controls.Add(lblSensTools);
         FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
         btnLive = UI.Primary("Live-Ansicht starten"); btnLive.Margin = new Padding(0); btnLive.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnLive.Font = new Font("Segoe UI Semibold", 9.75f);
@@ -1961,12 +1919,12 @@ public partial class DiagGui : Form
         f.Controls.Add(b);
         FlowLayoutPanel bd = Row(); bd.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
         bd.Controls.Add(RowLabel("PawnIO-Treiber", 120));
-        cmbDriver = Combo(230, new string[] { "bei Bedarf nachfragen", "vorübergehend verwenden", "nicht verwenden" }, 0); bd.Controls.Add(cmbDriver);
+        cmbDriver = Combo(230, new string[] { "vorübergehend verwenden (Standard)", "nicht verwenden" }, 0); bd.Controls.Add(cmbDriver);
         Label ld = Lbl("gilt für Live-Ansicht, Diagnose, Benchmark und Lasttest; ein vorhandener PawnIO bleibt immer unverändert", 8.75f, false, UI.Muted); ld.Margin = new Padding(0, UI.S(5), 0, 0); bd.Controls.Add(ld);
         f.Controls.Add(bd);
         FlowLayoutPanel bk = Row(); bk.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
         bk.Controls.Add(RowLabel("Hilfswerkzeuge", 120));
-        cmbKeep = Combo(230, new string[] { "jedes Mal fragen", "nach dem Lauf entfernen", "auf diesem PC behalten" }, 0); bk.Controls.Add(cmbKeep);
+        cmbKeep = Combo(230, new string[] { "nach dem Lauf entfernen (Standard)", "auf diesem PC behalten" }, 0); bk.Controls.Add(cmbKeep);
         Label lk = Lbl("PawnIO und smartmontools, die Leos Minibench installiert hat; gespeichert je Gerät in Geraete.json", 8.75f, false, UI.Muted); lk.Margin = new Padding(0, UI.S(5), 0, 0); bk.Controls.Add(lk);
         f.Controls.Add(bk);
         LoadDeviceTools();
@@ -2001,9 +1959,10 @@ public partial class DiagGui : Form
     void StartLive()
     {
         if (running) return;
-        int d = AskDriver(); if (d < 0) return;
+        TryAutoFetchSensorTools();
+        bool drv = cmbDriver == null || cmbDriver.SelectedIndex == 0;
         try { Directory.CreateDirectory(cpDir); File.Delete(Path.Combine(cpDir, "sensor.stop")); } catch { }
-        string args = "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\" -EventMode -SensorLive" + (dataDir.Length > 0 ? " -DatenDir " + Q(dataDir) : "") + (d == 1 ? " -SensorTreiber" : "") + KeepArg();
+        string args = "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\" -EventMode -SensorLive" + (dataDir.Length > 0 ? " -DatenDir " + Q(dataDir) : "") + (drv ? " -SensorTreiber" : "") + KeepArg();
         ProcessStartInfo psi = new ProcessStartInfo(psExe, args);
         psi.UseShellExecute = false; psi.CreateNoWindow = true; psi.RedirectStandardOutput = true; psi.RedirectStandardError = true; psi.RedirectStandardInput = true;
         psi.StandardOutputEncoding = new UTF8Encoding(false); psi.StandardErrorEncoding = OemEncoding();
@@ -2019,7 +1978,7 @@ public partial class DiagGui : Form
         catch (Exception ex) { MessageBox.Show(this, "PowerShell konnte nicht gestartet werden: " + ex.Message, "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
         liveRunning = true;
         btnLive.Text = "Live-Ansicht beenden"; btnSensTools.Enabled = false; btnSensSave.Enabled = false;
-        lblSensInfo.Text = d == 1 ? "Wird gestartet, PawnIO wird vorübergehend installiert ..." : "Wird gestartet ...";
+        lblSensInfo.Text = drv ? "Wird gestartet, PawnIO wird vorübergehend installiert ..." : "Wird gestartet ...";
         liveTimer.Start();
     }
 
@@ -2347,7 +2306,11 @@ public partial class DiagGui : Form
         // Live-Ansicht und Lauf greifen auf dieselben Sensoren und denselben Treiber zu
         if (liveRunning && !StopLiveAndWait()) return;
         bool drv = false; runKeep = "";
-        if ((nav[0].Checked && !rbCrash.Checked) || nav[1].Checked || nav[2].Checked) { int d = AskDriver(); if (d < 0) return; drv = d == 1; }
+        if ((nav[0].Checked && !rbCrash.Checked) || nav[1].Checked || nav[2].Checked)
+        {
+            TryAutoFetchSensorTools();
+            drv = cmbDriver == null || cmbDriver.SelectedIndex == 0;
+        }
         StringBuilder a = new StringBuilder();
         a.Append("-NoProfile -ExecutionPolicy Bypass -File \"").Append(script).Append("\" -EventMode");
         a.Append(" -Module ").Append(String.Join(",", mods.ToArray()));
@@ -2856,9 +2819,9 @@ public partial class DiagGui : Form
         lblResult = Lbl("", 11f, true, UI.Text); lblResult.Anchor = AnchorStyles.Left; lblResult.AutoEllipsis = true;
         FlowLayoutPanel btns = new FlowLayoutPanel(); btns.AutoSize = true; btns.WrapContents = false; btns.BackColor = UI.Bg;
         btnStopWait = UI.Secondary("Test beenden"); btnSkipStep = UI.SkipStepButton(); btnCancel = UI.Secondary("Abbrechen");
-        btnFolder = UI.Secondary("Ordner öffnen"); btnNew = UI.Secondary("Neuer Lauf"); btnKi = UI.Secondary("KI-Datei zeigen"); btnCopy = UI.Secondary("KI-Kurzfassung kopieren"); btnHtml = UI.Primary("Bericht öffnen");
+        btnFolder = UI.Secondary("Ordner öffnen"); btnNew = UI.Secondary("Neuer Lauf"); btnKi = UI.Secondary("KI-Datei zeigen"); btnHtml = UI.Primary("Bericht öffnen");
         btnHtml.Margin = new Padding(8, 0, 0, 0); btnHtml.Padding = new Padding(14, 3, 14, 3); btnHtml.Font = new Font("Segoe UI Semibold", 9.75f);
-        btns.Controls.Add(btnStopWait); btns.Controls.Add(btnSkipStep); btns.Controls.Add(btnCancel); btns.Controls.Add(btnNew); btns.Controls.Add(btnFolder); btns.Controls.Add(btnKi); btns.Controls.Add(btnCopy); btns.Controls.Add(btnHtml);
+        btns.Controls.Add(btnStopWait); btns.Controls.Add(btnSkipStep); btns.Controls.Add(btnCancel); btns.Controls.Add(btnNew); btns.Controls.Add(btnFolder); btns.Controls.Add(btnKi); btns.Controls.Add(btnHtml);
         foot.Controls.Add(lblResult, 0, 0); foot.Controls.Add(btns, 1, 0);
         t.Controls.Add(foot, 0, 8);
 
@@ -2874,11 +2837,6 @@ public partial class DiagGui : Form
         btnHtml.Click += delegate { OpenShell(htmlPath); };
         btnFolder.Click += delegate { OpenShell(outDir); };
         btnKi.Click += delegate { OpenSelect(kiPath); };
-        // nur auf ausdrücklichen Klick in die Zwischenablage, damit nach dem Lauf nichts im Zwischenablageverlauf des PCs liegt
-        btnCopy.Click += delegate {
-            try { Clipboard.SetText(File.ReadAllText(kurzPath, Encoding.UTF8)); btnCopy.Text = "Kopiert"; }
-            catch (Exception ex) { MessageBox.Show(this, "Kopieren fehlgeschlagen: " + ex.Message, "Leos Minibench"); }
-        };
         btnNew.Click += delegate { ReloadDb(); runView.Visible = false; setupView.Visible = true; };
         p.Controls.Add(t);
         ApplyRunTips();
@@ -3067,7 +3025,7 @@ public partial class DiagGui : Form
         btnCancel.Visible = true; btnCancel.Enabled = true;
         btnSkipStep.Visible = true; btnSkipStep.Enabled = false;
         btnStopWait.Visible = false; btnStopWait.Enabled = true;
-        btnHtml.Visible = false; btnFolder.Visible = false; btnNew.Visible = false; btnKi.Visible = false; btnCopy.Visible = false; btnCopy.Text = "KI-Kurzfassung kopieren";
+        btnHtml.Visible = false; btnFolder.Visible = false; btnNew.Visible = false; btnKi.Visible = false;
         timer.Start();
     }
 
@@ -3259,7 +3217,7 @@ public partial class DiagGui : Form
             lblCounter.Text = "Bericht und KI-Dateien liegen im Datenordner";
             lblResult.Text = nK > 0 ? "Kritische Befunde gefunden" : (nW > 0 ? "Warnungen vorhanden" : "Keine Auffälligkeiten");
             lblResult.ForeColor = nK > 0 ? UI.Crit : (nW > 0 ? UI.Warn : UI.Ok);
-            btnHtml.Visible = File.Exists(htmlPath); btnFolder.Visible = Directory.Exists(outDir); btnKi.Visible = File.Exists(kiPath); btnCopy.Visible = File.Exists(kurzPath);
+            btnHtml.Visible = File.Exists(htmlPath); btnFolder.Visible = Directory.Exists(outDir); btnKi.Visible = File.Exists(kiPath);
             if (btnHtml.Visible) OpenShell(htmlPath);
         }
         else
