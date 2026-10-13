@@ -11,6 +11,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.63", "13.10.2026", "Geschätzter Gesamtsystemverbrauch, Effizienz-Metriken (Punkte pro Watt) und interaktiver Stromkostenrechner",
+            "Geschätzter Gesamtsystemverbrauch: Realistische Modellierung der internen DC-Leistung sowie des AC-Verbrauchs an der Steckdose für Desktop-PCs und Notebooks anhand gemessener CPU-/GPU-Leistungen, Plattformparametern (RAM, Mainboard, Laufwerke, VRM-Verluste) und Netzteil-Wirkungsgraden. " +
+            "Effizienz-Metriken: Ausweisung von Punkten pro Watt für Mehrkern-CPU (CPU|MT / Watt), Grafikkarte (GPU / Watt) und Gesamtsystem (Gesamt-Score / Watt) in HTML-Bericht und Vergleichs-Dashboard. " +
+            "Interaktiver Stromkostenrechner: Direkte Kalkulation der jährlichen Betriebskosten im HTML-Bericht mit Schiebereglern für tägliche Nutzungszeiten und einstellbarem Strompreis in Cent je Kilowattstunde. " +
+            "Dashboard-Telemetrie mit Leistungskurven: Multi-System Dashboard visualisiert den Verlauf der Gesamtsystem-Leistungsaufnahme (in Watt) im Zeitreihendiagramm und ergänzt Verbrauchs- und Effizienzkennzahlen in Systemkarten und Vergleichstabellen. " +
+            "Robuste Sensoreinstufung: Systeme ohne Watt-Sensoren weisen Kennzahlen sauber als n/v (kein Leistungssensor) aus; Testen.cmd beendet nach Durchläufen ohne Tastendruck."),
         new Eintrag("3.62", "13.10.2026", "Bedarfsorientierter Lauf-Export (.minibench), Kerne und Threads in allen Referenzen, kompakter Lasttest und automatischer GitHub-Push",
             "Bedarfsorientierter Lauf-Export (.minibench): Die .minibench-Austauschdatei entsteht nicht mehr automatisch bei jedem Durchlauf, sondern nur bei echtem Export-Bedarf. Nach Abschluss des Laufs steht eine neue Schaltfläche 'Lauf exportieren …' direkt in der Ergebnisansicht bereit (sowie weiterhin auf der Seite Vergleichsdatenbank). " +
             "Keine Diagnosebericht.txt bei vorhandenem HTML: Wurde der interaktive HTML-Bericht erfolgreich erzeugt, wird auf die redundante reine Textfassung verzichtet; sie dient nur noch als Sicherheitsrückfall bei Fehlern. " +

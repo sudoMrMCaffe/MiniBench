@@ -978,3 +978,121 @@ Describe 'Kurven im Bericht' {
         Set-ModuleVar 'Sens' $null
     }
 }
+
+Describe 'GeschÃ¤tzter Gesamtsystemverbrauch und Effizienz' {
+    BeforeAll {
+        Import-MinibenchTestModule -Parts 'Kern\Berichtshilfen.ps1' -Functions 'Get-GpuKind', 'Test-EntryIsNotebook'
+    }
+
+    It 'erkennt Notebooks anhand von Akku, Typbezeichnung oder Prozessorsuffix' {
+        $nbAkku = [pscustomobject]@{ Akku = @([pscustomobject]@{ DesignmWh = 50000; VollmWh = 48000 }) }
+        MinibenchTest\Test-EntryIsNotebook $nbAkku | Should -BeTrue
+
+        $nbName = [pscustomobject]@{ System = 'ThinkPad T14 Gen 2'; Akku = @() }
+        MinibenchTest\Test-EntryIsNotebook $nbName | Should -BeTrue
+
+        $nbCpuU = [pscustomobject]@{ Hardware = [pscustomobject]@{ CPU = 'AMD Ryzen 7 7730U' } }
+        MinibenchTest\Test-EntryIsNotebook $nbCpuU | Should -BeTrue
+
+        $desktop = [pscustomobject]@{ System = 'Custom Desktop PC'; Akku = @(); Hardware = [pscustomobject]@{ CPU = 'AMD Ryzen 5 7600X' } }
+        MinibenchTest\Test-EntryIsNotebook $desktop | Should -BeFalse
+    }
+
+    It 'berechnet den realistischen Desktop-Verbrauch (DC und AC an der Steckdose)' {
+        $p = MinibenchTest\Get-EstimatedSystemPower -CpuW 65 -GpuW 140 -RamGb 32 -RamLoadPct 50 -DiskCount 2
+        $p.Verfuegbar | Should -BeTrue
+        $p.IsNotebook | Should -BeFalse
+        $p.P_DC | Should -Be 240.2
+        $p.P_AC | Should -Be 273.0
+        $p.CpuW | Should -Be 65.0
+        $p.GpuW | Should -Be 140.0
+        $p.RamW | Should -Be 7.0
+        $p.BoardW | Should -Be 20.0
+        $p.DiskW | Should -Be 3.0
+        $p.VrmW | Should -Be 5.2
+        $p.Wirkungsgrad | Should -Be 0.88
+        $p.Text | Should -Be '~273 W'
+        $p.Aufschluesselung | Should -Match 'Gemessen: CPU 65 W, GPU 140 W \+ Zuschlag: Mainboard 20 W, RAM 7[,.]0 W, Laufwerke 3[,.]0 W, VRM 5[,.]2 W'
+    }
+
+    It 'berÃ¼cksichtigt Laufwerks-Volllast auf dem Desktop' {
+        $p = MinibenchTest\Get-EstimatedSystemPower -CpuW 100 -GpuW 0 -RamGb 16 -RamLoadPct 0 -DiskCount 2 -DiskLoad
+        $p.DiskW | Should -Be 10.0
+        $p.RamW | Should -Be 3.0
+        $p.VrmW | Should -Be 8.0
+        $p.BoardW | Should -Be 20.0
+        $p.P_DC | Should -Be 141.0
+        $p.P_AC | Should -Be 160.2
+    }
+
+    It 'berechnet den kompakten Notebook-Verbrauch' {
+        $p = MinibenchTest\Get-EstimatedSystemPower -CpuW 25 -IsNotebook
+        $p.Verfuegbar | Should -BeTrue
+        $p.IsNotebook | Should -BeTrue
+        $p.P_DC | Should -Be 36.2
+        $p.P_AC | Should -Be 40.2
+        $p.BoardW | Should -Be 7.0
+        $p.RamW | Should -Be 3.0
+        $p.Wirkungsgrad | Should -Be 0.90
+        $p.Text | Should -Be '~40 W'
+        $p.Aufschluesselung | Should -Match 'Display & Plattform 7 W, RAM & SSD 3 W'
+    }
+
+    It 'nutzt im Notebook-Akkubetrieb den realen Entladestrom' {
+        $p = MinibenchTest\Get-EstimatedSystemPower -CpuW 15 -IsNotebook -OnBattery -BatteryDischargeW 18.4
+        $p.Verfuegbar | Should -BeTrue
+        $p.P_DC | Should -Be 18.4
+        $p.P_AC | Should -Be 18.4
+        $p.Text | Should -Be '~18 W'
+        $p.Aufschluesselung | Should -Match 'Akkubetrieb: Reale Entladeleistung 18[,.]4 W laut Akkusensor'
+    }
+
+    It 'liefert ohne Leistungssensoren n/v statt Division durch Null' {
+        $p = MinibenchTest\Get-EstimatedSystemPower -CpuW $null -GpuW $null
+        $p.Verfuegbar | Should -BeFalse
+        $p.Text | Should -Be 'n/v (kein Leistungssensor)'
+        $p.P_AC | Should -BeNullOrEmpty
+        $p.P_DC | Should -BeNullOrEmpty
+    }
+
+    It 'erstellt ein vollstÃ¤ndiges Leistungsprofil mit Effizienz-Metriken' {
+        $entry = [pscustomobject]@{
+            System    = 'Gaming PC'
+            Hardware  = [pscustomobject]@{
+                RAM = '32 GB DDR5'
+                GPU = 'NVIDIA GeForce RTX 4070'
+            }
+            Laufwerke = @('NVMe 1 TB', 'SSD 2 TB')
+            Sensoren  = [pscustomobject]@{
+                Leerlauf = [pscustomobject]@{ CpuW = 20.0 }
+                Last     = [pscustomobject]@{ CpuWMax = 120.0; GpuWMax = 200.0 }
+            }
+            Werte     = [ordered]@{
+                'CPU|MT'   = 12000.0
+                'GPU|RPKT' = 18000.0
+            }
+        }
+        $prof = MinibenchTest\Get-SystemPowerProfile $entry
+        $prof.IsNotebook | Should -BeFalse
+        $prof.Leerlauf.Verfuegbar | Should -BeTrue
+        $prof.Volllast.Verfuegbar | Should -BeTrue
+        $prof.Teillast.Verfuegbar | Should -BeTrue
+
+        $prof.Effizienz.CpuMT_PerWatt | Should -Be 100.0
+        $prof.Effizienz.Gpu_PerWatt | Should -Be 90.0
+    }
+
+    It 'behandelt fehlende Benchmarkwerte oder Sensoren im Leistungsprofil fehlerfrei' {
+        $entryEmpty = [pscustomobject]@{
+            System   = 'Office PC'
+            Hardware = [pscustomobject]@{ RAM = '8 GB'; GPU = 'Intel UHD Graphics 630' }
+            Sensoren = [pscustomobject]@{ Leerlauf = [pscustomobject]@{ CpuW = $null } }
+            Werte    = [ordered]@{}
+        }
+        $prof = MinibenchTest\Get-SystemPowerProfile $entryEmpty
+        $prof.Volllast.Verfuegbar | Should -BeFalse
+        $prof.Effizienz.CpuMT_PerWatt | Should -BeNullOrEmpty
+        $prof.Effizienz.Gpu_PerWatt | Should -BeNullOrEmpty
+        $prof.Effizienz.System_PerWatt | Should -BeNullOrEmpty
+    }
+}

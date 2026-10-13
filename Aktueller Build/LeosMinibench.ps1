@@ -238,7 +238,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Export
 }
 #endregion
 
-$ScriptVersion = '3.62'
+$ScriptVersion = '3.63'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -12438,6 +12438,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.63", "13.10.2026", "Geschätzter Gesamtsystemverbrauch, Effizienz-Metriken (Punkte pro Watt) und interaktiver Stromkostenrechner",
+            "Geschätzter Gesamtsystemverbrauch: Realistische Modellierung der internen DC-Leistung sowie des AC-Verbrauchs an der Steckdose für Desktop-PCs und Notebooks anhand gemessener CPU-/GPU-Leistungen, Plattformparametern (RAM, Mainboard, Laufwerke, VRM-Verluste) und Netzteil-Wirkungsgraden. " +
+            "Effizienz-Metriken: Ausweisung von Punkten pro Watt für Mehrkern-CPU (CPU|MT / Watt), Grafikkarte (GPU / Watt) und Gesamtsystem (Gesamt-Score / Watt) in HTML-Bericht und Vergleichs-Dashboard. " +
+            "Interaktiver Stromkostenrechner: Direkte Kalkulation der jährlichen Betriebskosten im HTML-Bericht mit Schiebereglern für tägliche Nutzungszeiten und einstellbarem Strompreis in Cent je Kilowattstunde. " +
+            "Dashboard-Telemetrie mit Leistungskurven: Multi-System Dashboard visualisiert den Verlauf der Gesamtsystem-Leistungsaufnahme (in Watt) im Zeitreihendiagramm und ergänzt Verbrauchs- und Effizienzkennzahlen in Systemkarten und Vergleichstabellen. " +
+            "Robuste Sensoreinstufung: Systeme ohne Watt-Sensoren weisen Kennzahlen sauber als n/v (kein Leistungssensor) aus; Testen.cmd beendet nach Durchläufen ohne Tastendruck."),
         new Eintrag("3.62", "13.10.2026", "Bedarfsorientierter Lauf-Export (.minibench), Kerne und Threads in allen Referenzen, kompakter Lasttest und automatischer GitHub-Push",
             "Bedarfsorientierter Lauf-Export (.minibench): Die .minibench-Austauschdatei entsteht nicht mehr automatisch bei jedem Durchlauf, sondern nur bei echtem Export-Bedarf. Nach Abschluss des Laufs steht eine neue Schaltfläche 'Lauf exportieren …' direkt in der Ergebnisansicht bereit (sowie weiterhin auf der Seite Vergleichsdatenbank). " +
             "Keine Diagnosebericht.txt bei vorhandenem HTML: Wurde der interaktive HTML-Bericht erfolgreich erzeugt, wird auf die redundante reine Textfassung verzichtet; sie dient nur noch als Sicherheitsrückfall bei Fehlern. " +
@@ -13169,7 +13175,10 @@ function Test-EntryIsNotebook($Entry) {
         }
     }
     $text = ('{0} {1} {2}' -f $Entry.System, $Entry.Name, $(if ($Entry.Hardware) { '{0} {1}' -f $Entry.Hardware.CPU, $Entry.Hardware.Mainboard } else { '' }))
-    if ($text -match '(?i)\b(Laptop|Notebook|Convertible|Subnotebook|Tablet|ZenBook|EliteBook|Latitude|Precision \d{4})\b') {
+    if ($text -match '(?i)\b(Laptop|Notebook|Convertible|Subnotebook|Tablet|ThinkPad|ZenBook|EliteBook|Latitude|Precision \d{4}|Workstation Mobil)\b') {
+        return $true
+    }
+    if ($Entry.Hardware -and $Entry.Hardware.CPU -and $Entry.Hardware.CPU -match '(?i)\b\d{4,5}[UHY]\b|\bCore Ultra\b') {
         return $true
     }
     return $false
@@ -13938,6 +13947,306 @@ function Get-CpuAnzeigename([string]$Name) {
     return $s
 }
 
+#region ---------- Gesamtsystemverbrauch & Effizienz (ab v3.63) ----------
+# Mathematisches Modell zur realistischen Schätzung des Gesamtsystemverbrauchs (DC intern und AC an der Steckdose)
+# anhand von Messwerten (CPU Package Power, GPU Board Power) und Plattform-Parametern (Desktop vs. Notebook).
+
+
+function Test-IsNotebookSystem($Entry = $null) {
+    if ($Entry) {
+        if (Get-Command 'Test-EntryIsNotebook' -ErrorAction SilentlyContinue) { return [bool](& 'Test-EntryIsNotebook' $Entry) }
+        return $false
+    }
+    if ($script:IsLaptop) { return $true }
+    if (Get-Command 'Test-OnBattery' -ErrorAction SilentlyContinue) {
+        if (& 'Test-OnBattery') { return $true }
+    }
+    if ($script:BatteryInfo -and @($script:BatteryInfo | Where-Object { $_.DesignmWh -gt 0 -or $_.VollmWh -gt 0 }).Count -gt 0) { return $true }
+    if (Get-Command 'Get-CimCached' -ErrorAction SilentlyContinue) {
+        $chassis = @(& 'Get-CimCached' Win32_SystemEnclosure -ErrorAction SilentlyContinue | ForEach-Object { $_.ChassisTypes } | ForEach-Object { $_ })
+        foreach ($ct in $chassis) {
+            if ($ct -in 8, 9, 10, 11, 12, 14, 30, 31, 32) { return $true }
+        }
+        $cs = & 'Get-CimCached' Win32_ComputerSystem -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($cs -and ("$($cs.Manufacturer) $($cs.Model)" -match '(?i)\b(Laptop|Notebook|Convertible|Subnotebook|Tablet|ThinkPad|ZenBook|EliteBook|Latitude|Precision \d{4})\b')) {
+            return $true
+        }
+    }
+    return $false
+}
+
+function Get-EstimatedSystemPower {
+    param(
+        $CpuW,
+        $GpuW = 0.0,
+        [switch]$IsNotebook,
+        [double]$RamGb = 16.0,
+        [double]$RamLoadPct = 10.0,
+        [int]$DiskCount = 1,
+        [switch]$DiskLoad,
+        [switch]$OnBattery,
+        $BatteryDischargeW = $null
+    )
+
+    $hasCpu = ($null -ne $CpuW -and "$CpuW" -ne '' -and -not [double]::IsNaN([double]$CpuW) -and [double]$CpuW -gt 0)
+    $hasBat = ($OnBattery -and $null -ne $BatteryDischargeW -and "$BatteryDischargeW" -ne '' -and -not [double]::IsNaN([double]$BatteryDischargeW) -and [double]$BatteryDischargeW -gt 0)
+
+    if (-not $hasCpu -and -not $hasBat) {
+        return [pscustomobject]@{
+            Verfuegbar       = $false
+            Text             = 'n/v (kein Leistungssensor)'
+            P_AC             = $null
+            P_DC             = $null
+            CpuW             = $null
+            GpuW             = $null
+            RamW             = $null
+            BoardW           = $null
+            DiskW            = $null
+            VrmW             = $null
+            Wirkungsgrad     = $null
+            IsNotebook       = [bool]$IsNotebook
+            Aufschluesselung = 'Kein Leistungssensor vorhanden (RAPL/LHM erforderlich)'
+        }
+    }
+
+    $cW = $(if ($hasCpu) { [double]$CpuW } else { 0.0 })
+    $gW = $(if ($null -ne $GpuW -and "$GpuW" -ne '' -and -not [double]::IsNaN([double]$GpuW) -and [double]$GpuW -gt 0) { [double]$GpuW } else { 0.0 })
+    $rGb = $(if ($RamGb -gt 0) { [double]$RamGb } else { 16.0 })
+    $rLoad = [math]::Max(0.0, [math]::Min(100.0, [double]$RamLoadPct))
+    $dCount = [math]::Max(1, [int]$DiskCount)
+
+    if ($IsNotebook) {
+        if ($hasBat) {
+            $pDc = [double]$BatteryDischargeW
+            $pAc = $pDc
+            $eta = 1.0
+            $aufschluesselung = ('Akkubetrieb: Reale Entladeleistung {0:N1} W laut Akkusensor' -f $pDc)
+            return [pscustomobject]@{
+                Verfuegbar       = $true
+                Text             = ('~{0:N0} W' -f [math]::Round($pAc))
+                P_AC             = [math]::Round($pAc, 1)
+                P_DC             = [math]::Round($pDc, 1)
+                CpuW             = [math]::Round($cW, 1)
+                GpuW             = [math]::Round($gW, 1)
+                RamW             = 0.0
+                BoardW           = 0.0
+                DiskW            = 0.0
+                VrmW             = 0.0
+                Wirkungsgrad     = $eta
+                IsNotebook       = $true
+                Aufschluesselung = $aufschluesselung
+            }
+        }
+
+        # Notebook Netzbetrieb
+        $vrm = [math]::Round(0.05 * $cW, 1)
+        $boardDisplay = 7.0 # Display ~4 W + Plattform/WLAN ~3 W
+        $ramSsd = 3.0       # LPDDR/DDR-SO-DIMM und NVMe
+        $pDc = $cW + $gW + $vrm + $boardDisplay + $ramSsd
+        $eta = 0.90         # Ladenetzteil Wirkungsgrad ~90 %
+        $pAc = $pDc / $eta
+
+        $aufschluesselung = ('Gemessen: CPU {0:N0} W{1} + Zuschlag: Display & Plattform {2:N0} W, RAM & SSD {3:N0} W, VRM {4:N1} W = DC {5:N0} W / ~{6:N0} W an der Steckdose (Wirkungsgrad {7:N0} %)' -f `
+            $cW, $(if ($gW -gt 0) { ', GPU {0:N0} W' -f $gW } else { '' }), $boardDisplay, $ramSsd, $vrm, $pDc, $pAc, ($eta * 100))
+
+        return [pscustomobject]@{
+            Verfuegbar       = $true
+            Text             = ('~{0:N0} W' -f [math]::Round($pAc))
+            P_AC             = [math]::Round($pAc, 1)
+            P_DC             = [math]::Round($pDc, 1)
+            CpuW             = [math]::Round($cW, 1)
+            GpuW             = [math]::Round($gW, 1)
+            RamW             = $ramSsd
+            BoardW           = $boardDisplay
+            DiskW            = 0.0
+            VrmW             = $vrm
+            Wirkungsgrad     = $eta
+            IsNotebook       = $true
+            Aufschluesselung = $aufschluesselung
+        }
+    } else {
+        # Desktop
+        $vrm = [math]::Round(0.08 * $cW, 1)
+        # RAM: Basis 1.5 W + (RAM-GB / 16) * (1.5 W + Auslastung% * 2.5 W)
+        $ramW = [math]::Round(1.5 + ($rGb / 16.0) * (1.5 + ($rLoad / 100.0) * 2.5), 1)
+        # Mainboard: Chipsatz 15 W + Lüfter/RGB 5 W = 20 W
+        $boardW = 20.0
+        # Laufwerke: 1.5 W je SSD Leerlauf, +3.5 W unter Last
+        $diskW = [math]::Round($dCount * $(if ($DiskLoad) { 5.0 } else { 1.5 }), 1)
+
+        $pDc = $cW + $gW + $ramW + $boardW + $diskW + $vrm
+        $eta = 0.88 # 80-PLUS Standard ~88 %
+        $pAc = $pDc / $eta
+
+        $aufschluesselung = ('Gemessen: CPU {0:N0} W{1} + Zuschlag: Mainboard {2:N0} W, RAM {3:N1} W, Laufwerke {4:N1} W, VRM {5:N1} W = DC {6:N0} W / ~{7:N0} W an der Steckdose (Wirkungsgrad {8:N0} %)' -f `
+            $cW, $(if ($gW -gt 0) { ', GPU {0:N0} W' -f $gW } else { '' }), $boardW, $ramW, $diskW, $vrm, $pDc, $pAc, ($eta * 100))
+
+        return [pscustomobject]@{
+            Verfuegbar       = $true
+            Text             = ('~{0:N0} W' -f [math]::Round($pAc))
+            P_AC             = [math]::Round($pAc, 1)
+            P_DC             = [math]::Round($pDc, 1)
+            CpuW             = [math]::Round($cW, 1)
+            GpuW             = [math]::Round($gW, 1)
+            RamW             = $ramW
+            BoardW           = $boardW
+            DiskW            = $diskW
+            VrmW             = $vrm
+            Wirkungsgrad     = $eta
+            IsNotebook       = $false
+            Aufschluesselung = $aufschluesselung
+        }
+    }
+}
+
+function Get-SystemPowerProfile($Entry = $null) {
+    $isNb = $(if ($Entry) {
+        if (Get-Command 'Test-EntryIsNotebook' -ErrorAction SilentlyContinue) { [bool](& 'Test-EntryIsNotebook' $Entry) } else { $false }
+    } else {
+        if (Get-Command 'Test-IsNotebookSystem' -ErrorAction SilentlyContinue) { [bool](& 'Test-IsNotebookSystem') } else { $false }
+    })
+
+    # RAM-Größe in GB
+    $ramGb = 16.0
+    $ramStr = $(if ($Entry -and $Entry.Hardware -and $Entry.Hardware.RAM) { [string]$Entry.Hardware.RAM }
+                elseif ($script:Facts -and $script:Facts['Arbeitsspeicher']) { [string]$script:Facts['Arbeitsspeicher'] }
+                else { '' })
+    if ($ramStr -match '(\d+)\s*GB') { $ramGb = [double]$matches[1] }
+
+    # Laufwerksanzahl
+    $disks = $(if ($Entry -and $Entry.Laufwerke) { @($Entry.Laufwerke).Count }
+               elseif ($script:BenchDisks) { @($script:BenchDisks).Count }
+               else { 1 })
+    $diskCount = [math]::Max(1, [int]$disks)
+
+    # Dedizierte GPU vorhanden?
+    $hasDgpu = $false
+    if ($Entry) {
+        $gpuStr = $(if ($Entry.Hardware -and $Entry.Hardware.GPU) { [string]$Entry.Hardware.GPU } else { '' })
+        if ($gpuStr -and (Get-Command 'Get-GpuKind' -ErrorAction SilentlyContinue)) {
+            $hasDgpu = ((& 'Get-GpuKind' $gpuStr) -eq 'dGPU')
+        }
+    } else {
+        if (Get-Command 'Get-GpuAdapters' -ErrorAction SilentlyContinue) {
+            $gAdapters = @(& 'Get-GpuAdapters')
+            $hasDgpu = [bool](@($gAdapters | Where-Object { $_.Art -eq 'dGPU' }).Count)
+        }
+    }
+
+    # Sensorwerte: Leerlauf und Volllast
+    $cpuWIdle = $null; $gpuWIdle = $null
+    $cpuWMax = $null; $gpuWMax = $null
+
+    if ($Entry) {
+        if ($Entry.Sensoren) {
+            if ($Entry.Sensoren.Leerlauf -and $Entry.Sensoren.Leerlauf.CpuW) { $cpuWIdle = [double]$Entry.Sensoren.Leerlauf.CpuW }
+            if ($Entry.Sensoren.Last -and $Entry.Sensoren.Last.CpuWMax) { $cpuWMax = [double]$Entry.Sensoren.Last.CpuWMax }
+            if ($Entry.Sensoren.Last -and $Entry.Sensoren.Last.GpuWMax) { $gpuWMax = [double]$Entry.Sensoren.Last.GpuWMax }
+            if ($null -eq $cpuWMax -and $Entry.Sensoren.Benchmark -and $Entry.Sensoren.Benchmark.CpuWMax) { $cpuWMax = [double]$Entry.Sensoren.Benchmark.CpuWMax }
+            if ($null -eq $gpuWMax -and $Entry.Sensoren.Benchmark -and $Entry.Sensoren.Benchmark.GpuWMax) { $gpuWMax = [double]$Entry.Sensoren.Benchmark.GpuWMax }
+        }
+        if ($null -eq $cpuWMax -and $Entry.Lasttest -and $Entry.Lasttest -match 'max (\d+)\s*W') { $cpuWMax = [double]$matches[1] }
+    } else {
+        if ($script:SensorDb) {
+            if ($script:SensorDb['Leerlauf'] -and $script:SensorDb['Leerlauf'].CpuW) { $cpuWIdle = [double]$script:SensorDb['Leerlauf'].CpuW }
+            if ($script:SensorDb['Leerlauf'] -and $script:SensorDb['Leerlauf'].GpuW) { $gpuWIdle = [double]$script:SensorDb['Leerlauf'].GpuW }
+            if ($script:SensorDb['Last'] -and $script:SensorDb['Last'].CpuWMax) { $cpuWMax = [double]$script:SensorDb['Last'].CpuWMax }
+            if ($script:SensorDb['Last'] -and $script:SensorDb['Last'].GpuWMax) { $gpuWMax = [double]$script:SensorDb['Last'].GpuWMax }
+            if ($null -eq $cpuWMax -and $script:SensorDb['Benchmark'] -and $script:SensorDb['Benchmark'].CpuWMax) { $cpuWMax = [double]$script:SensorDb['Benchmark'].CpuWMax }
+            if ($null -eq $gpuWMax -and $script:SensorDb['Benchmark'] -and $script:SensorDb['Benchmark'].GpuWMax) { $gpuWMax = [double]$script:SensorDb['Benchmark'].GpuWMax }
+        }
+        if ($null -eq $cpuWMax -and $script:LoadSeries) {
+            $wVals = @($script:LoadSeries | ForEach-Object { $_.CpuW } | Where-Object { $null -ne $_ -and $_ -gt 0 })
+            if ($wVals.Count) { $cpuWMax = ($wVals | Measure-Object -Maximum).Maximum }
+        }
+        if ($null -eq $gpuWMax -and $script:LoadSeries) {
+            $gwVals = @($script:LoadSeries | ForEach-Object { $_.GpuW } | Where-Object { $null -ne $_ -and $_ -gt 0 })
+            if ($gwVals.Count) { $gpuWMax = ($gwVals | Measure-Object -Maximum).Maximum }
+        }
+    }
+
+    # Nur dGPU-Leistung werten; iGPU ist bereits im CPU-Package enthalten
+    if (-not $hasDgpu) { $gpuWIdle = 0.0; $gpuWMax = 0.0 }
+    elseif ($null -eq $gpuWIdle -and $hasDgpu) { $gpuWIdle = $(if ($isNb) { 5.0 } else { 12.0 }) }
+
+    # Teillast abschätzen (Alltagsbetrieb / Büro / Video)
+    $cpuWPart = $null; $gpuWPart = $null
+    if ($null -ne $cpuWIdle -and $null -ne $cpuWMax) {
+        $cpuWPart = [math]::Round($cpuWIdle + ($cpuWMax - $cpuWIdle) * 0.35, 1)
+    } elseif ($null -ne $cpuWMax) {
+        $cpuWPart = [math]::Round($cpuWMax * 0.40, 1)
+    } elseif ($null -ne $cpuWIdle) {
+        $cpuWPart = [math]::Round($cpuWIdle * 1.8, 1)
+    }
+
+    if ($hasDgpu) {
+        if ($null -ne $gpuWIdle -and $null -ne $gpuWMax) {
+            $gpuWPart = [math]::Round($gpuWIdle + ($gpuWMax - $gpuWIdle) * 0.20, 1)
+        } elseif ($null -ne $gpuWMax) {
+            $gpuWPart = [math]::Round($gpuWMax * 0.25, 1)
+        }
+    } else {
+        $gpuWPart = 0.0
+    }
+
+    $pIdle = Get-EstimatedSystemPower -CpuW $cpuWIdle -GpuW $gpuWIdle -IsNotebook:$isNb -RamGb $ramGb -RamLoadPct 10.0 -DiskCount $diskCount
+    $pPart = Get-EstimatedSystemPower -CpuW $cpuWPart -GpuW $gpuWPart -IsNotebook:$isNb -RamGb $ramGb -RamLoadPct 40.0 -DiskCount $diskCount
+    $pLoad = Get-EstimatedSystemPower -CpuW $cpuWMax  -GpuW $gpuWMax  -IsNotebook:$isNb -RamGb $ramGb -RamLoadPct 90.0 -DiskCount $diskCount -DiskLoad
+
+    # Effizienz-Indizes ermitteln
+    $eff = [ordered]@{
+        CpuMT_PerWatt  = $null
+        Gpu_PerWatt    = $null
+        System_PerWatt = $null
+    }
+
+    $cpuMtScore = 0.0
+    $gpuScore = 0.0
+    $overallScore = 0.0
+
+    if ($Entry) {
+        if ($Entry.Werte) {
+            $wMt = if ($Entry.Werte -is [System.Collections.IDictionary]) { $Entry.Werte['CPU|MT'] } else { $Entry.Werte.'CPU|MT' }
+            if ($null -ne $wMt -and [double]$wMt -gt 0) { $cpuMtScore = [double]$wMt }
+
+            $wGpu = if ($Entry.Werte -is [System.Collections.IDictionary]) { $Entry.Werte['GPU|RPKT'] } else { $Entry.Werte.'GPU|RPKT' }
+            if ($null -eq $wGpu) {
+                $wGpu = if ($Entry.Werte -is [System.Collections.IDictionary]) { $Entry.Werte['GPU|REND'] } else { $Entry.Werte.'GPU|REND' }
+            }
+            if ($null -ne $wGpu -and [double]$wGpu -gt 0) { $gpuScore = [double]$wGpu }
+        }
+    } else {
+        if ($script:BenchResults) {
+            $mtRow = @($script:BenchResults | Where-Object { $_.RefKey -eq 'CPU|MT' -and $_.Wert -gt 0 }) | Select-Object -First 1
+            if ($mtRow) { $cpuMtScore = [double]$mtRow.Wert }
+            $rpktRow = @($script:BenchResults | Where-Object { $_.RefKey -in 'GPU|RPKT', 'GPU|REND' -and $_.Wert -gt 0 }) | Select-Object -First 1
+            if ($rpktRow) { $gpuScore = [double]$rpktRow.Wert }
+        }
+        if (Get-Command Get-BenchOverall -ErrorAction SilentlyContinue) {
+            $ov = Get-BenchOverall
+            if ($null -ne $ov) { $overallScore = [double]$ov }
+        }
+    }
+
+    if ($cpuMtScore -gt 0 -and $null -ne $cpuWMax -and $cpuWMax -gt 0) {
+        $eff.CpuMT_PerWatt = [math]::Round($cpuMtScore / $cpuWMax, 1)
+    }
+    if ($gpuScore -gt 0 -and $null -ne $gpuWMax -and $gpuWMax -gt 0) {
+        $eff.Gpu_PerWatt = [math]::Round($gpuScore / $gpuWMax, 2)
+    }
+    if ($overallScore -gt 0 -and $pLoad.Verfuegbar -and $pLoad.P_AC -gt 0) {
+        $eff.System_PerWatt = [math]::Round(($overallScore / $pLoad.P_AC) * 100.0, 1)
+    }
+
+    return [pscustomobject]@{
+        IsNotebook  = $isNb
+        Leerlauf    = $pIdle
+        Teillast    = $pPart
+        Volllast    = $pLoad
+        Effizienz   = [pscustomobject]$eff
+    }
+}
+#endregion
 #region ---------- Schneller Modus: unabhängige Prüfungen parallel (ab v2.6, Roadmap v2.5) ----------
 # Was parallel laufen darf, steht im Modulvertrag (Parallel = $true, Nach = Schritte, die vorher fertig sein müssen,
 # Exklusiv = $true für Messungen). Im schnellen Modus starten diese Schritte als Hintergrundaufgaben in einem
@@ -14259,7 +14568,7 @@ th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;le
 .cards{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
 .card.st,.card.st.ok,.card.st.info,.card.st.warn{background:var(--panel);color:var(--text)}
 .card.st.ok{border-left-color:var(--ok)} .card.st.ok b{color:var(--ok)} .card.st.info{border-left-color:var(--info)} .card.st.info b{color:var(--info)} .card.st.warn{border-left-color:var(--warn)} .card.st.warn b{color:var(--warn)}
-.card.bench{background:var(--panel);color:var(--text);border-left-color:var(--accent,#2563eb)} .card.bench b{color:var(--accent,#2563eb)}
+.card.bench{background:var(--panel);color:var(--text);border-left-color:var(--accent,#2563eb)} .card.bench b{color:var(--accent,#2563eb)} .card.pwr{background:var(--panel);color:var(--text);border-left-color:#d97706} .card.pwr b{color:#d97706}
 .box.stab,.box.stab.warn,.box.stab.info,.box.stab.ok{background:var(--panel);color:var(--text);border-left:6px solid var(--line)}
 .box.stab.warn{border-left-color:var(--warn)} .box.stab.info{border-left-color:var(--info)} .box.stab p{margin:0}
 .empty{color:var(--muted);margin:0}
@@ -14391,6 +14700,18 @@ i.sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:
 .mini .mf{border-radius:3px}
 @media (max-width:700px){.mrow{grid-template-columns:1fr}.mb{grid-template-columns:90px 1fr 120px}}
 @media (max-width:700px){.cards{grid-template-columns:1fr}dl{grid-template-columns:1fr}dt{margin-top:6px}.bench-cols{grid-template-columns:1fr}}
+.pwr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:12px 0 16px}
+.pwr-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
+.pwr-card h4{margin:0 0 4px;font-size:12.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.pwr-card .pwr-val{font-size:24px;font-weight:700;color:var(--text);line-height:1.2}
+.pwr-card .pwr-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.calc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:10px;padding:14px;background:var(--code);border-radius:10px;border:1px solid var(--line)}
+.calc-field{display:flex;flex-direction:column;gap:4px}
+.calc-field label{font-size:12px;font-weight:600;color:var(--muted)}
+.calc-field input{font:inherit;font-size:13.5px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--text)}
+.calc-res{display:flex;flex-direction:column;justify-content:center;padding:10px 14px;background:var(--panel);border-radius:8px;border:1px solid var(--line)}
+.calc-res b{font-size:20px;color:var(--accent,#0067c0);line-height:1.2}
+.calc-res span{font-size:12px;color:var(--muted);margin-top:2px}
 @media print{body{background:#fff}button{display:none}.box{break-inside:avoid}}
 '@
 }
@@ -15210,6 +15531,12 @@ function Export-BenchDashboardData {
         # Zeitreihen-Messpunkte ermitteln (aus CSV oder synthetisieren)
         $series = [System.Collections.Generic.List[object]]::new()
         $throttleEvents = [System.Collections.Generic.List[object]]::new()
+                $isNb = if (Get-Command Test-EntryIsNotebook -ErrorAction SilentlyContinue) { Test-EntryIsNotebook $j } else { $false }
+        $ramGb = 16.0
+        $ramStr = $(if ($j.Hardware -and $j.Hardware.RAM) { [string]$j.Hardware.RAM } else { '' })
+        if ($ramStr -match '(\d+)\s*GB') { $ramGb = [double]$matches[1] }
+        $diskCount = $(if ($j.Laufwerke) { [math]::Max(1, @($j.Laufwerke).Count) } else { 1 })
+
         $csvLines = & $extractCsvSeries $repDir ([string]$j.Ordner)
 
         if ($csvLines.Count -gt 1) {
@@ -15245,6 +15572,14 @@ function Export-BenchDashboardData {
                 $igW = 0.0; if ($idxIGpuW -ge 0 -and $cols.Count -gt $idxIGpuW -and $cols[$idxIGpuW]) { [double]::TryParse($cols[$idxIGpuW].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$igW) | Out-Null }
                 $fps = 0.0; if ($idxFps -ge 0 -and $cols.Count -gt $idxFps -and $cols[$idxFps]) { [double]::TryParse($cols[$idxFps].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$fps) | Out-Null }
 
+                $sysW = $null
+                if ($w -gt 0) {
+                    $pEstPt = if (Get-Command Get-EstimatedSystemPower -ErrorAction SilentlyContinue) {
+                        Get-EstimatedSystemPower -CpuW $w -GpuW $gW -IsNotebook:$isNb -RamGb $ramGb -DiskCount $diskCount -RamLoadPct 50.0 -DiskLoad
+                    } else { $null }
+                    if ($pEstPt -and $pEstPt.Verfuegbar) { $sysW = [math]::Round($pEstPt.P_AC, 1) }
+                }
+
                 $series.Add([ordered]@{
                     T        = [math]::Round($t, 1)
                     Temp     = $(if ($temp -gt 0) { [math]::Round($temp, 1) } else { $null })
@@ -15257,6 +15592,7 @@ function Export-BenchDashboardData {
                     IGpuMHz  = $(if ($igMhz -gt 0) { [math]::Round($igMhz, 0) } else { $null })
                     IGpuW    = $(if ($igW -gt 0) { [math]::Round($igW, 1) } else { $null })
                     Fps      = $(if ($fps -gt 0) { [math]::Round($fps, 1) } else { $null })
+                    SysW     = $sysW
                 })
             }
         }
@@ -15321,6 +15657,24 @@ function Export-BenchDashboardData {
             $reportUrl = $reportUrl.TrimStart('/')
         }
 
+                $pProf = if (Get-Command Get-SystemPowerProfile -ErrorAction SilentlyContinue) { Get-SystemPowerProfile -Entry $j } else { $null }
+        $pDisplay = $(if ($pProf -and $pProf.Volllast -and $pProf.Volllast.Verfuegbar) {
+            $(if ($pProf.Leerlauf -and $pProf.Leerlauf.Verfuegbar) {
+                '~{0:N0} W / ~{1:N0} W' -f $pProf.Volllast.P_AC, $pProf.Leerlauf.P_AC
+            } else {
+                '~{0:N0} W' -f $pProf.Volllast.P_AC
+            })
+        } elseif ($pProf -and $pProf.Leerlauf -and $pProf.Leerlauf.Verfuegbar) {
+            '~{0:N0} W (Leerlauf)' -f $pProf.Leerlauf.P_AC
+        } else { 'n/v' })
+        $pLoadVal = $(if ($pProf -and $pProf.Volllast -and $pProf.Volllast.Verfuegbar) { [math]::Round($pProf.Volllast.P_AC, 1) } else { $null })
+        $pIdleVal = $(if ($pProf -and $pProf.Leerlauf -and $pProf.Leerlauf.Verfuegbar) { [math]::Round($pProf.Leerlauf.P_AC, 1) } else { $null })
+        $pLoadTip = $(if ($pProf -and $pProf.Volllast) { $pProf.Volllast.Aufschluesselung } else { '' })
+        $pIdleTip = $(if ($pProf -and $pProf.Leerlauf) { $pProf.Leerlauf.Aufschluesselung } else { '' })
+        $effCpu = $(if ($pProf -and $pProf.Effizienz) { $pProf.Effizienz.CpuMT_PerWatt } else { $null })
+        $effGpu = $(if ($pProf -and $pProf.Effizienz) { $pProf.Effizienz.Gpu_PerWatt } else { $null })
+        $effSys = $(if ($pProf -and $pProf.Effizienz) { $pProf.Effizienz.System_PerWatt } else { $null })
+
         $seriesDur = if ($series.Count -gt 0) { [int]$series[$series.Count - 1].T } else { 0 }
         $lasttestArt = & $getLasttestArt ([string]$j.Lasttest) $seriesDur
 
@@ -15348,6 +15702,11 @@ function Export-BenchDashboardData {
                 WindowsInstalliert = $winInst
                 FastestDisk        = $(if ($fastestDisk) { $fastestDisk.Model } else { '' })
                 System             = $sysBoard
+                PowerDisplay       = $pDisplay
+                PowerLoad          = $pLoadVal
+                PowerIdle          = $pIdleVal
+                PowerLoadTip       = $pLoadTip
+                PowerIdleTip       = $pIdleTip
             }
             Befunde     = $befunde
             Scores      = [ordered]@{
@@ -15379,6 +15738,11 @@ function Export-BenchDashboardData {
                 LAST_CpuWatt  = $cpuWMax
                 LAST_TaktStab = $(if ($null -ne $taktAbfall -and $taktAbfall -ge 0) { [math]::Round(100 - $taktAbfall, 1) } else { $null })
                 LAST_TaktAbfall = $taktAbfall
+                POWER_LOAD      = $pLoadVal
+                POWER_IDLE      = $pIdleVal
+                EFF_CPU         = $effCpu
+                EFF_GPU         = $effGpu
+                EFF_SYS         = $effSys
             }
             Telemetry   = [ordered]@{
                 TestType                 = $lasttestArt
@@ -15394,6 +15758,7 @@ function Export-BenchDashboardData {
                 UnterbrechungenUeber50ms = $u50
                 Series                   = @($series)
                 ThrottleEvents           = @($throttleEvents)
+                PowerProfile             = $pProf
             }
             RawValues   = $werte
         }
@@ -16263,6 +16628,7 @@ function Get-BenchDashboardHtmlTemplate {
       <div class="chart-controls">
         <button id="btnModeCpu" class="chart-btn active" type="button">CPU</button>
         <button id="btnModeGpu" class="chart-btn" type="button">GPU</button>
+        <button id="btnModeWatt" class="chart-btn" type="button">Leistung (W)</button>
       </div>
     </div>
 
@@ -16353,6 +16719,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
 
   const btnModeCpu = document.getElementById('btnModeCpu');
   const btnModeGpu = document.getElementById('btnModeGpu');
+  const btnModeWatt = document.getElementById('btnModeWatt');
 
   const btnSelectAll = document.getElementById('btnSelectAll');
   const btnSelectNone = document.getElementById('btnSelectNone');
@@ -16547,6 +16914,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     // Chart Modus-Umschalter
     btnModeCpu.addEventListener('click', () => { setChartMode('cpu'); });
     btnModeGpu.addEventListener('click', () => { setChartMode('gpu'); });
+    if (btnModeWatt) btnModeWatt.addEventListener('click', () => { setChartMode('watt'); });
 
     window.addEventListener('resize', renderChart);
   }
@@ -16555,6 +16923,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     chartMode = mode;
     btnModeCpu.classList.toggle('active', mode === 'cpu');
     btnModeGpu.classList.toggle('active', mode === 'gpu');
+    if (btnModeWatt) btnModeWatt.classList.toggle('active', mode === 'watt');
     renderChart();
   }
 
@@ -16695,7 +17064,18 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       { key: 'Disk', label: 'Datenträger', get: s => escapeHtml(s.Hardware?.Datentraeger || s.Hardware?.FastestDisk || '-') },
       { key: 'Mainboard', label: 'Mainboard / System', get: s => escapeHtml(s.Hardware?.Mainboard || s.Hardware?.System || '-') },
       { key: 'OS', label: 'Betriebssystem', get: s => escapeHtml(s.OS || s.Hardware?.Betriebssystem || '-') },
-      { key: 'Installiert', label: 'Windows installiert', get: s => escapeHtml(s.Hardware?.WindowsInstalliert || '-') },
+            { key: 'Installiert', label: 'Windows installiert', get: s => escapeHtml(s.Hardware?.WindowsInstalliert || '-') },
+      { key: 'Verbrauch', label: 'Geschätzter Systemverbrauch (Last / Leerlauf)', get: s => {
+        const v = s.Hardware?.PowerDisplay;
+        if (!v || v === 'n/v') {
+          const l = s.Metrics?.POWER_LOAD;
+          const i = s.Metrics?.POWER_IDLE;
+          if (l || i) return `~${Math.round(l || 0)} W / ~${Math.round(i || 0)} W`;
+          return '<span style="color:var(--text-muted);">n/v (kein Leistungssensor)</span>';
+        }
+        const tip = escapeHtml(s.Hardware?.PowerLoadTip || 'Mathematisch modellierter Gesamtverbrauch');
+        return `<span class="hit" title="${tip}" style="cursor:help; border-bottom:1px dotted var(--text-muted); font-weight:600; color:#d97706;">${escapeHtml(v)}</span>`;
+      }},
       { key: 'Befunde', label: 'Diagnose-Befunde', get: s => {
         const b = s.Befunde || { Kritisch: 0, Warnungen: 0, Hinweise: 0 };
         return `<span class="badge ${b.Kritisch > 0 ? 'crit' : 'neutral'}">${b.Kritisch} kritisch</span>
@@ -16781,12 +17161,16 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           ? `<a href="${repUrl}" target="_blank" title="Diagnosebericht für ${sName} öffnen" style="color:inherit; text-decoration:underline; cursor:pointer;">${sName}</a>`
           : `<span>${sName}</span>`;
 
+        const pwrVal = s.Hardware?.PowerLoad ? `~${Math.round(s.Hardware.PowerLoad)} W` : (s.Metrics?.POWER_LOAD ? `~${Math.round(s.Metrics.POWER_LOAD)} W` : '');
+        const pwrBadge = pwrVal ? `<span class="badge" title="${escapeHtml(s.Hardware?.PowerLoadTip || 'Geschätzter Volllastverbrauch')}" style="font-size:0.7rem; padding:1px 5px; background:rgba(217,119,6,0.15); color:#d97706; border:1px solid rgba(217,119,6,0.3); border-radius:3px;">⚡ ${pwrVal}</span>` : '';
+
         html += `<div class="profile-sys-row ${isBase ? 'is-base' : ''}">
           <div style="display: flex; align-items: center; gap: 6px;">
             <span class="sys-dot" style="background: ${color};"></span>
             <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nameLink}</span>
           </div>
           <div style="display: flex; align-items: center; gap: 4px;">
+            ${pwrBadge}
             <span style="font-weight: 700;">${scoreText}</span>
             ${deltaHtml}
           </div>
@@ -16875,6 +17259,16 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           { key: 'LAST_CpuWatt', label: 'CPU-Spitzenleistung', unit: 'W', dec: 0, lower: false },
           { key: 'LAST_TaktStab', label: 'Taktstabilität unter Last', unit: '%', dec: 1, lower: false },
           { key: 'LAST_TaktAbfall', label: 'Taktabfall (Drosselung)', unit: '%', dec: 1, lower: true }
+        ]
+      },
+      {
+        name: 'Energie & Effizienz (geschätzt)',
+        metrics: [
+          { key: 'POWER_LOAD', label: 'Geschätzter Volllastverbrauch', unit: 'W', dec: 0, lower: true },
+          { key: 'POWER_IDLE', label: 'Geschätzter Leerlaufverbrauch', unit: 'W', dec: 0, lower: true },
+          { key: 'EFF_CPU', label: 'CPU-Effizienz (MT-Score / CPU-Watt)', unit: 'Pkt/W', dec: 1, lower: false },
+          { key: 'EFF_GPU', label: 'GPU-Effizienz (Render-FPS / GPU-Watt)', unit: 'FPS/W', dec: 2, lower: false },
+          { key: 'EFF_SYS', label: 'Gesamtsystem-Effizienz (Gesamtscore / 100 W)', unit: 'Pkt/100W', dec: 1, lower: false }
         ]
       }
     ];
@@ -17042,26 +17436,55 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       }
     });
 
+    let maxWatt = 200;
+    if (chartMode === 'watt') {
+      comparedSystems.forEach(s => {
+        (s.Telemetry?.Series || []).forEach(pt => {
+          const w = (pt.SysW != null && pt.SysW > 0) ? pt.SysW : (pt.CpuW != null ? pt.CpuW : 0);
+          if (w > maxWatt) maxWatt = w;
+        });
+      });
+      maxWatt = Math.min(1000, Math.ceil((maxWatt * 1.15) / 50) * 50);
+    }
+
     const tempMax = 110;
     const getX = t => padding.left + (t / tMax) * chartW;
-    const getYTemp = temp => padding.top + chartH - (temp / tempMax) * chartH;
+    const getYVal = v => {
+      const top = (chartMode === 'watt') ? maxWatt : tempMax;
+      return padding.top + chartH - (v / top) * chartH;
+    };
+    const getYTemp = getYVal;
 
-    // GRID LINES (Temperaturskala 0..100 °C)
+    // GRID LINES
     ctx.strokeStyle = isDark ? '#363636' : '#ECEFF1';
     ctx.lineWidth = 1;
     ctx.fillStyle = isDark ? '#808080' : '#888888';
     ctx.font = '11px system-ui, sans-serif';
 
-    [0, 25, 50, 75, 100].forEach(deg => {
-      const y = getYTemp(deg);
-      ctx.beginPath();
-      ctx.moveTo(padding.left, y);
-      ctx.lineTo(padding.left + chartW, y);
-      ctx.stroke();
+    if (chartMode === 'watt') {
+      const stepW = maxWatt <= 300 ? 50 : 100;
+      for (let w = 0; w <= maxWatt; w += stepW) {
+        const y = getYVal(w);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(padding.left + chartW, y);
+        ctx.stroke();
 
-      ctx.textAlign = 'right';
-      ctx.fillText(deg + ' °C', padding.left - 8, y + 4);
-    });
+        ctx.textAlign = 'right';
+        ctx.fillText(w + ' W', padding.left - 8, y + 4);
+      }
+    } else {
+      [0, 25, 50, 75, 100].forEach(deg => {
+        const y = getYTemp(deg);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(padding.left + chartW, y);
+        ctx.stroke();
+
+        ctx.textAlign = 'right';
+        ctx.fillText(deg + ' °C', padding.left - 8, y + 4);
+      });
+    }
 
     // X Axis Time Labels
     ctx.textAlign = 'center';
@@ -17090,7 +17513,9 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       srs.forEach(pt => {
         const val = (chartMode === 'cpu')
           ? pt.Temp
-          : (pt.GpuTemp != null ? pt.GpuTemp : pt.IGpuTemp);
+          : (chartMode === 'gpu')
+            ? (pt.GpuTemp != null ? pt.GpuTemp : pt.IGpuTemp)
+            : (pt.SysW != null ? pt.SysW : pt.CpuW);
 
         if (val != null && val > 0) {
           const x = getX(pt.T);
@@ -17202,6 +17627,25 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
             ctx.fillStyle = color;
             ctx.beginPath();
             ctx.arc(cx, getYTemp(gTemp), 4.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else {
+          // Watt
+          const sysWStr = closest.SysW != null ? '~' + closest.SysW.toFixed(0) + ' W (System)' : 'n/v';
+          const cpuWStr = closest.CpuW != null ? closest.CpuW.toFixed(1) + ' W (CPU)' : 'n/v';
+          const gpuWStr = closest.GpuW != null ? closest.GpuW.toFixed(1) + ' W (GPU)' : '';
+          const pDetails = [sysWStr, cpuWStr, gpuWStr].filter(Boolean).join(' · ');
+
+          tipHtml += `<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 3px;">
+            <span style="color: ${color}; font-weight: 600;">● ${name}</span>
+            <span style="font-weight: 700;">${pDetails}</span>
+          </div>`;
+
+          const pPlot = closest.SysW != null ? closest.SysW : closest.CpuW;
+          if (pPlot != null && pPlot > 0) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(cx, getYVal(pPlot), 4.5, 0, Math.PI * 2);
             ctx.fill();
           }
         }
@@ -17614,6 +18058,87 @@ if (document.readyState === 'loading') {
 '@
 }
 
+function New-PowerEfficiencyHtml($Profile) {
+    if (-not $Profile) { return '' }
+    $sb = New-Object System.Text.StringBuilder
+    [void]$sb.Append('<div class="pwr-box" style="margin-top:16px;border-top:1px solid var(--line);padding-top:16px;">')
+    [void]$sb.Append('<h3>Geschätzter Gesamtsystemverbrauch &amp; Energieeffizienz</h3>')
+    $hwTyp = $(if ($Profile.IsNotebook) { 'Notebook-Plattform mit SoC/Display-Modell' } else { 'Desktop-PC mit ATX-Mainboard & 80-PLUS-Netzteil' })
+    [void]$sb.Append(('<p class="note">Mathematisch modellierter Gesamtverbrauch (DC intern und AC an der Steckdose) auf Basis der gemessenen Sensorwerte (CPU-Package und GPU-Board) sowie Plattform-Zuschlägen ({0}). Echte Sensormesswerte bleiben unangetastet.</p>' -f $hwTyp))
+
+    # Kacheln für Leerlauf, Teillast, Volllast
+    [void]$sb.Append('<div class="pwr-grid">')
+
+    # 1. Leerlauf
+    $idle = $Profile.Leerlauf
+    $idleAc = $(if ($idle -and $idle.Verfuegbar) { '~{0:N0} W' -f [math]::Round($idle.P_AC) } else { 'n/v' })
+    $idleDc = $(if ($idle -and $idle.Verfuegbar) { 'intern DC ~{0:N0} W' -f [math]::Round($idle.P_DC) } else { 'kein Leistungssensor' })
+    $idleTip = $(if ($idle -and $idle.Verfuegbar) { $idle.Aufschluesselung } else { 'Keine Messwerte für CPU-Package-Power im Leerlauf vorhanden.' })
+    [void]$sb.Append(('<div class="pwr-card hit" data-tip="{0}"><h4>Leerlauf (Idle)</h4><div class="pwr-val">{1}</div><div class="pwr-sub">{2}</div></div>' -f `
+        (ConvertTo-HtmlText $idleTip), $idleAc, (ConvertTo-HtmlText $idleDc)))
+
+    # 2. Teillast
+    $part = $Profile.Teillast
+    $partAc = $(if ($part -and $part.Verfuegbar) { '~{0:N0} W' -f [math]::Round($part.P_AC) } else { 'n/v' })
+    $partDc = $(if ($part -and $part.Verfuegbar) { 'intern DC ~{0:N0} W' -f [math]::Round($part.P_DC) } else { 'kein Leistungssensor' })
+    $partTip = $(if ($part -and $part.Verfuegbar) { $part.Aufschluesselung } else { 'Keine Messwerte für Teillast vorhanden.' })
+    [void]$sb.Append(('<div class="pwr-card hit" data-tip="{0}"><h4>Teillast (Alltag & Büro)</h4><div class="pwr-val">{1}</div><div class="pwr-sub">{2}</div></div>' -f `
+        (ConvertTo-HtmlText $partTip), $partAc, (ConvertTo-HtmlText $partDc)))
+
+    # 3. Volllast
+    $load = $Profile.Volllast
+    $loadAc = $(if ($load -and $load.Verfuegbar) { '~{0:N0} W' -f [math]::Round($load.P_AC) } else { 'n/v' })
+    $loadDc = $(if ($load -and $load.Verfuegbar) { 'intern DC ~{0:N0} W' -f [math]::Round($load.P_DC) } else { 'kein Leistungssensor' })
+    $loadTip = $(if ($load -and $load.Verfuegbar) { $load.Aufschluesselung } else { 'Keine Messwerte unter Volllast vorhanden.' })
+    [void]$sb.Append(('<div class="pwr-card hit" data-tip="{0}"><h4>Volllast (Lasttest / Peak)</h4><div class="pwr-val">{1}</div><div class="pwr-sub">{2}</div></div>' -f `
+        (ConvertTo-HtmlText $loadTip), $loadAc, (ConvertTo-HtmlText $loadDc)))
+
+    [void]$sb.Append('</div>')
+
+    # Effizienz-Indizes
+    $eff = $Profile.Effizienz
+    $effParts = @()
+    if ($eff) {
+        if ($null -ne $eff.CpuMT_PerWatt) {
+            $effParts += ('<b>CPU-Effizienz:</b> {0:N1} Punkte/W <small class="muted">(Mehrkern-Score je Watt CPU-Paket)</small>' -f $eff.CpuMT_PerWatt)
+        }
+        if ($null -ne $eff.Gpu_PerWatt) {
+            $effParts += ('<b>GPU-Effizienz:</b> {0:N2} Punkte/W <small class="muted">(Renderleistung je Watt Grafik)</small>' -f $eff.Gpu_PerWatt)
+        }
+        if ($null -ne $eff.System_PerWatt) {
+            $effParts += ('<b>Gesamtsystem-Effizienz:</b> {0:N1} Punkte/100 W <small class="muted">(Gesamtscore je 100 W an der Steckdose)</small>' -f $eff.System_PerWatt)
+        }
+    }
+    if ($effParts.Count) {
+        [void]$sb.Append('<div style="margin:10px 0 16px;padding:10px 14px;background:var(--code);border-radius:8px;border:1px solid var(--line);display:flex;gap:18px;flex-wrap:wrap;font-size:13.5px;">')
+        foreach ($ep in $effParts) { [void]$sb.Append(('<div>{0}</div>' -f $ep)) }
+        [void]$sb.Append('</div>')
+    }
+
+    # Stromkosten-Kalkulator
+    $pTeilNum = $(if ($part -and $part.Verfuegbar -and $part.P_AC -gt 0) { [math]::Round($part.P_AC) } else { 0 })
+    $pVollNum = $(if ($load -and $load.Verfuegbar -and $load.P_AC -gt 0) { [math]::Round($load.P_AC) } else { 0 })
+    if ($pTeilNum -gt 0 -or $pVollNum -gt 0) {
+        $initKwh = [math]::Round((4 * $pTeilNum + 2 * $pVollNum) * 365 / 1000.0, 1)
+        $initCost = [math]::Round($initKwh * 0.35, 2)
+        [void]$sb.Append('<details style="margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:10px 16px;"><summary style="font-weight:650;color:var(--accent);">💰 Jährliche Stromkosten-Schätzung (Verbrauchskalkulator)</summary>')
+        [void]$sb.Append(('<div class="calc-grid">' +
+            '<input type="hidden" id="calcPTeil" value="{0}">' +
+            '<input type="hidden" id="calcPVoll" value="{1}">' +
+            '<div class="calc-field"><label for="calcHTeil">Alltagsbetrieb / Büro (h/Tag):</label><input type="number" id="calcHTeil" value="4" min="0" max="24" step="0.5" oninput="recalcPowerCost()"></div>' +
+            '<div class="calc-field"><label for="calcHVoll">Volllast / Gaming (h/Tag):</label><input type="number" id="calcHVoll" value="2" min="0" max="24" step="0.5" oninput="recalcPowerCost()"></div>' +
+            '<div class="calc-field"><label for="calcPrice">Strompreis (Cent/kWh):</label><input type="number" id="calcPrice" value="35" min="1" max="150" step="1" oninput="recalcPowerCost()"></div>' +
+            '<div class="calc-res"><span>Jahresverbrauch</span><b id="calcOutKwh">{2:N0} kWh</b></div>' +
+            '<div class="calc-res"><span>Geschätzte Kosten</span><b id="calcOutCost">{3:N2} €</b></div>' +
+            '</div><p class="note" style="margin-top:8px;">Berechnung basiert auf angenommenen 365 Tagen/Jahr mit den modellierten AC-Leistungswerten (~{0} W Teillast, ~{1} W Volllast).</p>' +
+            '<script>function recalcPowerCost(){var eHT=document.getElementById(''calcHTeil''),eHV=document.getElementById(''calcHVoll''),eP=document.getElementById(''calcPrice''),ePT=document.getElementById(''calcPTeil''),ePV=document.getElementById(''calcPVoll'');if(!eHT||!eHV||!eP||!ePT||!ePV)return;var hT=parseFloat(eHT.value)||0,hV=parseFloat(eHV.value)||0,pr=parseFloat(eP.value)||0,pT=parseFloat(ePT.value)||0,pV=parseFloat(ePV.value)||0;var kwhD=(hT*pT+hV*pV)/1000,kwhY=kwhD*365,cst=kwhY*(pr/100);var oK=document.getElementById(''calcOutKwh''),oC=document.getElementById(''calcOutCost'');if(oK)oK.textContent=Math.round(kwhY)+'' kWh'';if(oC)oC.textContent=cst.toLocaleString(''de-DE'',{minimumFractionDigits:2,maximumFractionDigits:2})+'' €'';}</script></details>' -f `
+            $pTeilNum, $pVollNum, $initKwh, $initCost))
+    }
+
+    [void]$sb.Append('</div>')
+    return $sb.ToString()
+}
+
 function New-HtmlReport {
     param([string]$Path, $Sorted, [int]$NK, [int]$NW, [int]$NI, [datetime]$Start, [datetime]$End)
     $cls = @{ KRITISCH = 'crit'; WARNUNG = 'warn'; INFO = 'info'; OK = 'ok'; FEHLER = 'crit'; 'ÜBERSPRUNGEN' = 'skip'; REPARIERT = 'ok'; NEUSTART = 'info' }
@@ -17635,7 +18160,29 @@ function New-HtmlReport {
     if ($null -ne $overall -and [double]$overall -gt 0) {
         $benchCard = ('<div class="card bench"><b>{0} %</b><span>Gesamtleistung (Referenz)</span></div>' -f [math]::Round([double]$overall))
     }
-    [void]$sb.Append(('<section class="cards" data-section="system"><div class="card crit"><b>{0}</b><span>kritisch</span></div><div class="card warn"><b>{1}</b><span>Warnungen</span></div><div class="card info"><b>{2}</b><span>Hinweise</span></div>{3}{4}</section>' -f $NK, $NW, $NI, $stCard, $benchCard))
+    $pProfile = if (Get-Command Get-SystemPowerProfile -ErrorAction SilentlyContinue) { Get-SystemPowerProfile } else { $null }
+    if ($pProfile) {
+        if ($pProfile.Leerlauf -and $pProfile.Leerlauf.Verfuegbar) {
+            $script:Facts['Geschätzter Gesamtsystemverbrauch (Leerlauf)'] = ('{0} an der Steckdose (intern {1:N0} W)' -f $pProfile.Leerlauf.Text, $pProfile.Leerlauf.P_DC)
+        } elseif (-not $script:Facts.Contains('Geschätzter Gesamtsystemverbrauch (Leerlauf)')) {
+            $script:Facts['Geschätzter Gesamtsystemverbrauch (Leerlauf)'] = 'n/v (kein Leistungssensor)'
+        }
+        if ($pProfile.Teillast -and $pProfile.Teillast.Verfuegbar) {
+            $script:Facts['Geschätzter Gesamtsystemverbrauch (Teillast)'] = ('{0} an der Steckdose (intern {1:N0} W)' -f $pProfile.Teillast.Text, $pProfile.Teillast.P_DC)
+        }
+        if ($pProfile.Volllast -and $pProfile.Volllast.Verfuegbar) {
+            $script:Facts['Geschätzter Gesamtsystemverbrauch (Volllast)'] = ('{0} an der Steckdose (intern {1:N0} W)' -f $pProfile.Volllast.Text, $pProfile.Volllast.P_DC)
+        } elseif (-not $script:Facts.Contains('Geschätzter Gesamtsystemverbrauch (Volllast)')) {
+            $script:Facts['Geschätzter Gesamtsystemverbrauch (Volllast)'] = 'n/v (kein Leistungssensor)'
+        }
+    }
+    $pwrCard = ''
+    if ($pProfile -and $pProfile.Volllast -and $pProfile.Volllast.Verfuegbar) {
+        $subTxt = $(if ($pProfile.Leerlauf -and $pProfile.Leerlauf.Verfuegbar) { '~{0:N0} W Leerlauf' -f $pProfile.Leerlauf.P_AC } else { 'Volllast geschätzt' })
+        $pwrCard = ('<div class="card pwr hit" data-tip="{0}"><b>~{1:N0} W</b><span>Verbrauch Last ({2})</span></div>' -f `
+            (ConvertTo-HtmlText $pProfile.Volllast.Aufschluesselung), [math]::Round($pProfile.Volllast.P_AC), (ConvertTo-HtmlText $subTxt))
+    }
+    [void]$sb.Append(('<section class="cards" data-section="system"><div class="card crit"><b>{0}</b><span>kritisch</span></div><div class="card warn"><b>{1}</b><span>Warnungen</span></div><div class="card info"><b>{2}</b><span>Hinweise</span></div>{3}{4}{5}</section>' -f $NK, $NW, $NI, $stCard, $benchCard, $pwrCard))
     if ($script:Stability -and $script:Stability.Erklaerung) { [void]$sb.Append(('<section class="box stab {0}" data-section="system"><h2>Zuverlässigkeit {1:N1} von 10</h2><p>{2}</p></section>' -f $script:Stability.Klasse, $script:Stability.Index, (ConvertTo-HtmlText $script:Stability.Erklaerung))) }
 
     if ($script:Facts.Count) {
@@ -17773,6 +18320,9 @@ function New-HtmlReport {
             $bl = $(if ($script:BenchSens -and $script:BenchSens.TjMax) { [pscustomobject]@{ Cpu = 0; Gpu = 0; TjMax = $script:BenchSens.TjMax } } else { $null })
             [void]$sb.Append((New-LoadChartsHtml -Series $script:BenchSeries -Throttle $null -Abort $null -Limits $bl -Marken $bm -GpuLoad @()))
         }
+        if (-not ($script:LoadSeries.Count -ge 2 -or $script:LoadParts.Count) -and $pProfile) {
+            [void]$sb.Append((New-PowerEfficiencyHtml -Profile $pProfile))
+        }
         [void]$sb.Append('</section>')
     }
     if ($script:LoadSeries.Count -ge 2 -or $script:LoadParts.Count) {
@@ -17814,6 +18364,7 @@ function New-HtmlReport {
             [void]$sb.Append('</tbody></table>')
         }
         [void]$sb.Append((New-LoadChartsHtml))
+        if ($pProfile) { [void]$sb.Append((New-PowerEfficiencyHtml -Profile $pProfile)) }
         if (@($script:LoadSeries | Where-Object { $_.DiskMBs -gt 0 }).Count -gt 1) {
             $svg3 = New-LineSvg ($script:LoadSeries | Where-Object { $null -ne $_.DiskMBs } | ForEach-Object { [pscustomobject]@{ T = $_.T; V = $_.DiskMBs } }) 'MB/s'
             if ($svg3) { [void]$sb.Append('<h3>Datenträger-Durchsatz (MB/s)</h3>' + $svg3) }
@@ -21195,6 +21746,10 @@ function Save-DbEntry {
         Betriebssystem = [string]$script:Facts['Betriebssystem']
         Mainboard = [string]$script:Facts['Mainboard']
         WindowsInstalliert = [string]$script:Facts['Windows installiert']
+    }
+    if (Get-Command 'Get-SystemPowerProfile' -ErrorAction SilentlyContinue) {
+        $pProfile = Get-SystemPowerProfile
+        if ($pProfile -and $script:SensorDb) { $script:SensorDb['Verbrauch'] = $pProfile }
     }
     $dev = Get-DeviceIdentity
     $o = [ordered]@{
@@ -24900,8 +25455,15 @@ Invoke-Section 'Sensoren (Momentaufnahme)' {
     if ($lead.CpuTempQ -eq 'ACPI') { Add-Line '  Hinweis: Die ACPI-Thermalzone ist oft ein Mainboard- oder Festwert, keine Kerntemperatur. Echte CPU-Werte liefert LibreHardwareMonitor mit PawnIO-Treiber.' }
     foreach ($f in (Get-SensorSnapshotFindings $rd $lead)) { Add-Finding $f.Stufe 'Sensoren' $f.Text }
     $script:SensorDb['Leerlauf'] = [ordered]@{ CpuTemp = $lead.CpuTemp; CpuTempQuelle = $lead.CpuTempQ; TjMax = $lead.TjMax; CpuMHz = $lead.CpuMHz; CpuMHzMax = $lead.CpuMHzMax; CpuW = $lead.CpuW
-        Gpu = [string]$lead.GpuName; GpuTemp = $lead.GpuTemp; IGpu = [string]$lead.IGpuName; IGpuTemp = $lead.IGpuTemp; Luefter = $lead.Fan; DatentraegerTempMax = $lead.DiskTemp; Quelle = (Get-SensorSourceText) }
+        Gpu = [string]$lead.GpuName; GpuTemp = $lead.GpuTemp; GpuW = $lead.GpuW; IGpu = [string]$lead.IGpuName; IGpuTemp = $lead.IGpuTemp; Luefter = $lead.Fan; DatentraegerTempMax = $lead.DiskTemp; Quelle = (Get-SensorSourceText) }
     if ($null -ne $lead.CpuTemp -and $lead.CpuTempQ -ne 'ACPI') { $script:Facts['CPU-Temperatur (Leerlauf)'] = ('{0:N0} °C{1}' -f $lead.CpuTemp, $(if ($lead.TjMax) { ', TjMax {0:N0} °C' -f $lead.TjMax } else { '' })) }
+    $isNb = if (Get-Command Test-IsNotebookSystem -ErrorAction SilentlyContinue) { Test-IsNotebookSystem } else { $false }
+    $pEstIdle = if (Get-Command Get-EstimatedSystemPower -ErrorAction SilentlyContinue) { Get-EstimatedSystemPower -CpuW $lead.CpuW -GpuW $lead.GpuW -IsNotebook:$isNb } else { $null }
+    if ($pEstIdle -and $pEstIdle.Verfuegbar) {
+        $script:Facts['Geschätzter Gesamtsystemverbrauch (Leerlauf)'] = ('{0} an der Steckdose (intern {1:N0} W)' -f $pEstIdle.Text, $pEstIdle.P_DC)
+    } elseif ($null -ne $lead.CpuW -and [double]$lead.CpuW -le 0) {
+        $script:Facts['Geschätzter Gesamtsystemverbrauch (Leerlauf)'] = 'n/v (kein Leistungssensor)'
+    }
     Add-TestResult 'Sensoren' $(if ($show.Count) { 'OK' } else { 'Info' }) ('{0} Werte, {1}{2}' -f $show.Count, ($script:Sens.Quellen -join ', '), $(if ($bad.Count) { ', {0} unplausible Werte verworfen' -f $bad.Count } else { '' }))
 }
 
@@ -26683,6 +27245,13 @@ if ($ModLast -and (Test-StepEnabled 'Last:alle')) {
             Drosselung = $(if ($script:LoadThrottle) { $script:LoadThrottle.Status } else { '' }); TaktAbfall = $(if ($script:LoadThrottle) { $script:LoadThrottle.Abfall } else { $null })
             Abbruch = $(if ($abort) { $abort.Grund } else { '' }); Quelle = (Get-SensorSourceText)
             Unterbrechungen = (@($pauseRows | ForEach-Object { '{0}: {1}' -f $_.Kurz, $_.P.Text }) -join '; ')
+        }
+        $isNb = if (Get-Command Test-IsNotebookSystem -ErrorAction SilentlyContinue) { Test-IsNotebookSystem } else { $false }
+        $pEstLoad = if (Get-Command Get-EstimatedSystemPower -ErrorAction SilentlyContinue) { Get-EstimatedSystemPower -CpuW $cpuWMax -GpuW $gpuWMax -IsNotebook:$isNb } else { $null }
+        if ($pEstLoad -and $pEstLoad.Verfuegbar) {
+            $script:Facts['Geschätzter Gesamtsystemverbrauch (Volllast)'] = ('{0} an der Steckdose (intern {1:N0} W)' -f $pEstLoad.Text, $pEstLoad.P_DC)
+        } elseif ($null -ne $cpuWMax -and [double]$cpuWMax -le 0) {
+            $script:Facts['Geschätzter Gesamtsystemverbrauch (Volllast)'] = 'n/v (kein Leistungssensor)'
         }
         foreach ($p in $script:LoadParts) { Add-TestResult ('Lasttest {0} ({1})' -f $p.Komponente, $p.Dauer) $p.Ergebnis $p.Details }
     }

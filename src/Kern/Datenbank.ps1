@@ -36,6 +36,10 @@ function Save-DbEntry {
         Mainboard = [string]$script:Facts['Mainboard']
         WindowsInstalliert = [string]$script:Facts['Windows installiert']
     }
+    if (Get-Command 'Get-SystemPowerProfile' -ErrorAction SilentlyContinue) {
+        $pProfile = Get-SystemPowerProfile
+        if ($pProfile -and $script:SensorDb) { $script:SensorDb['Verbrauch'] = $pProfile }
+    }
     $dev = Get-DeviceIdentity
     $o = [ordered]@{
         Format    = $script:DbFormat

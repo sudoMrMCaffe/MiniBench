@@ -5,6 +5,21 @@ Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Verweis Versionshistorie oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
 
+VERSION 3.63   (13.10.2026)  GESCHÄTZTER GESAMTSYSTEMVERBRAUCH, EFFIZIENZ-METRIKEN (PUNKTE PRO WATT) UND INTERAKTIVER STROMKOSTENRECHNER
+====================================================================================================
+Geschätzter Gesamtsystemverbrauch: Mathematische Modellierung der internen DC-Leistungsaufnahme sowie der realen
+Leistung an der Steckdose (AC) für Desktop-Systeme und Notebooks. Berücksichtigt gemessene Sensorwerte von CPU und GPU,
+RAM-Kapazität und Auslastung, Chipsatz/Peripherie, NVMe/SSDs, Spannungswandler-Wirkungsgrade und Netzteil-Effizienz.
+Effizienz-Metriken (Punkte pro Watt): Ermittlung standardisierter Effizienzwerte für CPU-Mehrkernleistung (CPU|MT / Watt),
+Grafikleistung (GPU / Watt) sowie Gesamtsystem-Effizienz (Gesamt-Score / Watt) für faire Vergleiche zwischen Notebooks
+und High-End-Desktops.
+Interaktiver Stromkostenrechner: Integrierter Rechner im HTML-Bericht zur Hochrechnung jährlicher Energiekosten mit
+stufenlos anpassbaren täglichen Betriebsstunden (Büro/Alltag und Last) sowie einstellbarem Kilowattstundenpreis.
+Dashboard-Telemetrie mit Leistungsaufnahme: Das Multi-System Dashboard ergänzt eine neue Kurvenansicht "Leistung (W)"
+zur visuellen Gegenüberstellung des Systemverbrauchs über die Zeit sowie Systemkarten mit Leistungskennzahlen.
+Fehlertoleranz & Automatisierung: Systeme ohne Hardwaresensoren für Leistung weisen dies transparent als n/v aus, ohne
+Fehlberechnungen; Testen.cmd beendet Testläufe vollautomatisch ohne erforderlichen Tastendruck.
+
 VERSION 3.62   (13.10.2026)  BEDARFSORIENTIERTER LAUF-EXPORT (.MINIBENCH), KERNE UND THREADS IN ALLEN REFERENZEN, KOMPAKTER LASTTEST UND AUTOMATISCHER GITHUB-PUSH
 ====================================================================================================
 Bedarfsorientierter Lauf-Export (.minibench): Die .minibench-Austauschdatei entsteht nicht mehr automatisch am Ende jedes

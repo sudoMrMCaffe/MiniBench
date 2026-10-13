@@ -5,7 +5,6 @@ title Leos Minibench bauen
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& ([scriptblock]::Create([IO.File]::ReadAllText('%~f0', [Text.Encoding]::UTF8))) '%~dp0' '%~1'"
 set rc=%errorlevel%
 echo.
-pause
 exit /b %rc%
 : #>
 param([string]$Here, [string]$A1 = '')

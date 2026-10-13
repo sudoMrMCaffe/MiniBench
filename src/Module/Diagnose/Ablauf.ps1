@@ -495,8 +495,15 @@ Invoke-Section 'Sensoren (Momentaufnahme)' {
     if ($lead.CpuTempQ -eq 'ACPI') { Add-Line '  Hinweis: Die ACPI-Thermalzone ist oft ein Mainboard- oder Festwert, keine Kerntemperatur. Echte CPU-Werte liefert LibreHardwareMonitor mit PawnIO-Treiber.' }
     foreach ($f in (Get-SensorSnapshotFindings $rd $lead)) { Add-Finding $f.Stufe 'Sensoren' $f.Text }
     $script:SensorDb['Leerlauf'] = [ordered]@{ CpuTemp = $lead.CpuTemp; CpuTempQuelle = $lead.CpuTempQ; TjMax = $lead.TjMax; CpuMHz = $lead.CpuMHz; CpuMHzMax = $lead.CpuMHzMax; CpuW = $lead.CpuW
-        Gpu = [string]$lead.GpuName; GpuTemp = $lead.GpuTemp; IGpu = [string]$lead.IGpuName; IGpuTemp = $lead.IGpuTemp; Luefter = $lead.Fan; DatentraegerTempMax = $lead.DiskTemp; Quelle = (Get-SensorSourceText) }
+        Gpu = [string]$lead.GpuName; GpuTemp = $lead.GpuTemp; GpuW = $lead.GpuW; IGpu = [string]$lead.IGpuName; IGpuTemp = $lead.IGpuTemp; Luefter = $lead.Fan; DatentraegerTempMax = $lead.DiskTemp; Quelle = (Get-SensorSourceText) }
     if ($null -ne $lead.CpuTemp -and $lead.CpuTempQ -ne 'ACPI') { $script:Facts['CPU-Temperatur (Leerlauf)'] = ('{0:N0} °C{1}' -f $lead.CpuTemp, $(if ($lead.TjMax) { ', TjMax {0:N0} °C' -f $lead.TjMax } else { '' })) }
+    $isNb = if (Get-Command Test-IsNotebookSystem -ErrorAction SilentlyContinue) { Test-IsNotebookSystem } else { $false }
+    $pEstIdle = if (Get-Command Get-EstimatedSystemPower -ErrorAction SilentlyContinue) { Get-EstimatedSystemPower -CpuW $lead.CpuW -GpuW $lead.GpuW -IsNotebook:$isNb } else { $null }
+    if ($pEstIdle -and $pEstIdle.Verfuegbar) {
+        $script:Facts['Geschätzter Gesamtsystemverbrauch (Leerlauf)'] = ('{0} an der Steckdose (intern {1:N0} W)' -f $pEstIdle.Text, $pEstIdle.P_DC)
+    } elseif ($null -ne $lead.CpuW -and [double]$lead.CpuW -le 0) {
+        $script:Facts['Geschätzter Gesamtsystemverbrauch (Leerlauf)'] = 'n/v (kein Leistungssensor)'
+    }
     Add-TestResult 'Sensoren' $(if ($show.Count) { 'OK' } else { 'Info' }) ('{0} Werte, {1}{2}' -f $show.Count, ($script:Sens.Quellen -join ', '), $(if ($bad.Count) { ', {0} unplausible Werte verworfen' -f $bad.Count } else { '' }))
 }
 

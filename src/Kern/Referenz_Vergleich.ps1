@@ -140,7 +140,10 @@ function Test-EntryIsNotebook($Entry) {
         }
     }
     $text = ('{0} {1} {2}' -f $Entry.System, $Entry.Name, $(if ($Entry.Hardware) { '{0} {1}' -f $Entry.Hardware.CPU, $Entry.Hardware.Mainboard } else { '' }))
-    if ($text -match '(?i)\b(Laptop|Notebook|Convertible|Subnotebook|Tablet|ZenBook|EliteBook|Latitude|Precision \d{4})\b') {
+    if ($text -match '(?i)\b(Laptop|Notebook|Convertible|Subnotebook|Tablet|ThinkPad|ZenBook|EliteBook|Latitude|Precision \d{4}|Workstation Mobil)\b') {
+        return $true
+    }
+    if ($Entry.Hardware -and $Entry.Hardware.CPU -and $Entry.Hardware.CPU -match '(?i)\b\d{4,5}[UHY]\b|\bCore Ultra\b') {
         return $true
     }
     return $false

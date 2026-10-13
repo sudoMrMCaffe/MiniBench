@@ -447,6 +447,12 @@ function Export-BenchDashboardData {
         # Zeitreihen-Messpunkte ermitteln (aus CSV oder synthetisieren)
         $series = [System.Collections.Generic.List[object]]::new()
         $throttleEvents = [System.Collections.Generic.List[object]]::new()
+                $isNb = if (Get-Command Test-EntryIsNotebook -ErrorAction SilentlyContinue) { Test-EntryIsNotebook $j } else { $false }
+        $ramGb = 16.0
+        $ramStr = $(if ($j.Hardware -and $j.Hardware.RAM) { [string]$j.Hardware.RAM } else { '' })
+        if ($ramStr -match '(\d+)\s*GB') { $ramGb = [double]$matches[1] }
+        $diskCount = $(if ($j.Laufwerke) { [math]::Max(1, @($j.Laufwerke).Count) } else { 1 })
+
         $csvLines = & $extractCsvSeries $repDir ([string]$j.Ordner)
 
         if ($csvLines.Count -gt 1) {
@@ -482,6 +488,14 @@ function Export-BenchDashboardData {
                 $igW = 0.0; if ($idxIGpuW -ge 0 -and $cols.Count -gt $idxIGpuW -and $cols[$idxIGpuW]) { [double]::TryParse($cols[$idxIGpuW].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$igW) | Out-Null }
                 $fps = 0.0; if ($idxFps -ge 0 -and $cols.Count -gt $idxFps -and $cols[$idxFps]) { [double]::TryParse($cols[$idxFps].Replace(',', '.'), [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$fps) | Out-Null }
 
+                $sysW = $null
+                if ($w -gt 0) {
+                    $pEstPt = if (Get-Command Get-EstimatedSystemPower -ErrorAction SilentlyContinue) {
+                        Get-EstimatedSystemPower -CpuW $w -GpuW $gW -IsNotebook:$isNb -RamGb $ramGb -DiskCount $diskCount -RamLoadPct 50.0 -DiskLoad
+                    } else { $null }
+                    if ($pEstPt -and $pEstPt.Verfuegbar) { $sysW = [math]::Round($pEstPt.P_AC, 1) }
+                }
+
                 $series.Add([ordered]@{
                     T        = [math]::Round($t, 1)
                     Temp     = $(if ($temp -gt 0) { [math]::Round($temp, 1) } else { $null })
@@ -494,6 +508,7 @@ function Export-BenchDashboardData {
                     IGpuMHz  = $(if ($igMhz -gt 0) { [math]::Round($igMhz, 0) } else { $null })
                     IGpuW    = $(if ($igW -gt 0) { [math]::Round($igW, 1) } else { $null })
                     Fps      = $(if ($fps -gt 0) { [math]::Round($fps, 1) } else { $null })
+                    SysW     = $sysW
                 })
             }
         }
@@ -558,6 +573,24 @@ function Export-BenchDashboardData {
             $reportUrl = $reportUrl.TrimStart('/')
         }
 
+                $pProf = if (Get-Command Get-SystemPowerProfile -ErrorAction SilentlyContinue) { Get-SystemPowerProfile -Entry $j } else { $null }
+        $pDisplay = $(if ($pProf -and $pProf.Volllast -and $pProf.Volllast.Verfuegbar) {
+            $(if ($pProf.Leerlauf -and $pProf.Leerlauf.Verfuegbar) {
+                '~{0:N0} W / ~{1:N0} W' -f $pProf.Volllast.P_AC, $pProf.Leerlauf.P_AC
+            } else {
+                '~{0:N0} W' -f $pProf.Volllast.P_AC
+            })
+        } elseif ($pProf -and $pProf.Leerlauf -and $pProf.Leerlauf.Verfuegbar) {
+            '~{0:N0} W (Leerlauf)' -f $pProf.Leerlauf.P_AC
+        } else { 'n/v' })
+        $pLoadVal = $(if ($pProf -and $pProf.Volllast -and $pProf.Volllast.Verfuegbar) { [math]::Round($pProf.Volllast.P_AC, 1) } else { $null })
+        $pIdleVal = $(if ($pProf -and $pProf.Leerlauf -and $pProf.Leerlauf.Verfuegbar) { [math]::Round($pProf.Leerlauf.P_AC, 1) } else { $null })
+        $pLoadTip = $(if ($pProf -and $pProf.Volllast) { $pProf.Volllast.Aufschluesselung } else { '' })
+        $pIdleTip = $(if ($pProf -and $pProf.Leerlauf) { $pProf.Leerlauf.Aufschluesselung } else { '' })
+        $effCpu = $(if ($pProf -and $pProf.Effizienz) { $pProf.Effizienz.CpuMT_PerWatt } else { $null })
+        $effGpu = $(if ($pProf -and $pProf.Effizienz) { $pProf.Effizienz.Gpu_PerWatt } else { $null })
+        $effSys = $(if ($pProf -and $pProf.Effizienz) { $pProf.Effizienz.System_PerWatt } else { $null })
+
         $seriesDur = if ($series.Count -gt 0) { [int]$series[$series.Count - 1].T } else { 0 }
         $lasttestArt = & $getLasttestArt ([string]$j.Lasttest) $seriesDur
 
@@ -585,6 +618,11 @@ function Export-BenchDashboardData {
                 WindowsInstalliert = $winInst
                 FastestDisk        = $(if ($fastestDisk) { $fastestDisk.Model } else { '' })
                 System             = $sysBoard
+                PowerDisplay       = $pDisplay
+                PowerLoad          = $pLoadVal
+                PowerIdle          = $pIdleVal
+                PowerLoadTip       = $pLoadTip
+                PowerIdleTip       = $pIdleTip
             }
             Befunde     = $befunde
             Scores      = [ordered]@{
@@ -616,6 +654,11 @@ function Export-BenchDashboardData {
                 LAST_CpuWatt  = $cpuWMax
                 LAST_TaktStab = $(if ($null -ne $taktAbfall -and $taktAbfall -ge 0) { [math]::Round(100 - $taktAbfall, 1) } else { $null })
                 LAST_TaktAbfall = $taktAbfall
+                POWER_LOAD      = $pLoadVal
+                POWER_IDLE      = $pIdleVal
+                EFF_CPU         = $effCpu
+                EFF_GPU         = $effGpu
+                EFF_SYS         = $effSys
             }
             Telemetry   = [ordered]@{
                 TestType                 = $lasttestArt
@@ -631,6 +674,7 @@ function Export-BenchDashboardData {
                 UnterbrechungenUeber50ms = $u50
                 Series                   = @($series)
                 ThrottleEvents           = @($throttleEvents)
+                PowerProfile             = $pProf
             }
             RawValues   = $werte
         }
@@ -1500,6 +1544,7 @@ function Get-BenchDashboardHtmlTemplate {
       <div class="chart-controls">
         <button id="btnModeCpu" class="chart-btn active" type="button">CPU</button>
         <button id="btnModeGpu" class="chart-btn" type="button">GPU</button>
+        <button id="btnModeWatt" class="chart-btn" type="button">Leistung (W)</button>
       </div>
     </div>
 
@@ -1590,6 +1635,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
 
   const btnModeCpu = document.getElementById('btnModeCpu');
   const btnModeGpu = document.getElementById('btnModeGpu');
+  const btnModeWatt = document.getElementById('btnModeWatt');
 
   const btnSelectAll = document.getElementById('btnSelectAll');
   const btnSelectNone = document.getElementById('btnSelectNone');
@@ -1784,6 +1830,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     // Chart Modus-Umschalter
     btnModeCpu.addEventListener('click', () => { setChartMode('cpu'); });
     btnModeGpu.addEventListener('click', () => { setChartMode('gpu'); });
+    if (btnModeWatt) btnModeWatt.addEventListener('click', () => { setChartMode('watt'); });
 
     window.addEventListener('resize', renderChart);
   }
@@ -1792,6 +1839,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     chartMode = mode;
     btnModeCpu.classList.toggle('active', mode === 'cpu');
     btnModeGpu.classList.toggle('active', mode === 'gpu');
+    if (btnModeWatt) btnModeWatt.classList.toggle('active', mode === 'watt');
     renderChart();
   }
 
@@ -1932,7 +1980,18 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       { key: 'Disk', label: 'Datenträger', get: s => escapeHtml(s.Hardware?.Datentraeger || s.Hardware?.FastestDisk || '-') },
       { key: 'Mainboard', label: 'Mainboard / System', get: s => escapeHtml(s.Hardware?.Mainboard || s.Hardware?.System || '-') },
       { key: 'OS', label: 'Betriebssystem', get: s => escapeHtml(s.OS || s.Hardware?.Betriebssystem || '-') },
-      { key: 'Installiert', label: 'Windows installiert', get: s => escapeHtml(s.Hardware?.WindowsInstalliert || '-') },
+            { key: 'Installiert', label: 'Windows installiert', get: s => escapeHtml(s.Hardware?.WindowsInstalliert || '-') },
+      { key: 'Verbrauch', label: 'Geschätzter Systemverbrauch (Last / Leerlauf)', get: s => {
+        const v = s.Hardware?.PowerDisplay;
+        if (!v || v === 'n/v') {
+          const l = s.Metrics?.POWER_LOAD;
+          const i = s.Metrics?.POWER_IDLE;
+          if (l || i) return `~${Math.round(l || 0)} W / ~${Math.round(i || 0)} W`;
+          return '<span style="color:var(--text-muted);">n/v (kein Leistungssensor)</span>';
+        }
+        const tip = escapeHtml(s.Hardware?.PowerLoadTip || 'Mathematisch modellierter Gesamtverbrauch');
+        return `<span class="hit" title="${tip}" style="cursor:help; border-bottom:1px dotted var(--text-muted); font-weight:600; color:#d97706;">${escapeHtml(v)}</span>`;
+      }},
       { key: 'Befunde', label: 'Diagnose-Befunde', get: s => {
         const b = s.Befunde || { Kritisch: 0, Warnungen: 0, Hinweise: 0 };
         return `<span class="badge ${b.Kritisch > 0 ? 'crit' : 'neutral'}">${b.Kritisch} kritisch</span>
@@ -2018,12 +2077,16 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           ? `<a href="${repUrl}" target="_blank" title="Diagnosebericht für ${sName} öffnen" style="color:inherit; text-decoration:underline; cursor:pointer;">${sName}</a>`
           : `<span>${sName}</span>`;
 
+        const pwrVal = s.Hardware?.PowerLoad ? `~${Math.round(s.Hardware.PowerLoad)} W` : (s.Metrics?.POWER_LOAD ? `~${Math.round(s.Metrics.POWER_LOAD)} W` : '');
+        const pwrBadge = pwrVal ? `<span class="badge" title="${escapeHtml(s.Hardware?.PowerLoadTip || 'Geschätzter Volllastverbrauch')}" style="font-size:0.7rem; padding:1px 5px; background:rgba(217,119,6,0.15); color:#d97706; border:1px solid rgba(217,119,6,0.3); border-radius:3px;">⚡ ${pwrVal}</span>` : '';
+
         html += `<div class="profile-sys-row ${isBase ? 'is-base' : ''}">
           <div style="display: flex; align-items: center; gap: 6px;">
             <span class="sys-dot" style="background: ${color};"></span>
             <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nameLink}</span>
           </div>
           <div style="display: flex; align-items: center; gap: 4px;">
+            ${pwrBadge}
             <span style="font-weight: 700;">${scoreText}</span>
             ${deltaHtml}
           </div>
@@ -2112,6 +2175,16 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           { key: 'LAST_CpuWatt', label: 'CPU-Spitzenleistung', unit: 'W', dec: 0, lower: false },
           { key: 'LAST_TaktStab', label: 'Taktstabilität unter Last', unit: '%', dec: 1, lower: false },
           { key: 'LAST_TaktAbfall', label: 'Taktabfall (Drosselung)', unit: '%', dec: 1, lower: true }
+        ]
+      },
+      {
+        name: 'Energie & Effizienz (geschätzt)',
+        metrics: [
+          { key: 'POWER_LOAD', label: 'Geschätzter Volllastverbrauch', unit: 'W', dec: 0, lower: true },
+          { key: 'POWER_IDLE', label: 'Geschätzter Leerlaufverbrauch', unit: 'W', dec: 0, lower: true },
+          { key: 'EFF_CPU', label: 'CPU-Effizienz (MT-Score / CPU-Watt)', unit: 'Pkt/W', dec: 1, lower: false },
+          { key: 'EFF_GPU', label: 'GPU-Effizienz (Render-FPS / GPU-Watt)', unit: 'FPS/W', dec: 2, lower: false },
+          { key: 'EFF_SYS', label: 'Gesamtsystem-Effizienz (Gesamtscore / 100 W)', unit: 'Pkt/100W', dec: 1, lower: false }
         ]
       }
     ];
@@ -2279,26 +2352,55 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       }
     });
 
+    let maxWatt = 200;
+    if (chartMode === 'watt') {
+      comparedSystems.forEach(s => {
+        (s.Telemetry?.Series || []).forEach(pt => {
+          const w = (pt.SysW != null && pt.SysW > 0) ? pt.SysW : (pt.CpuW != null ? pt.CpuW : 0);
+          if (w > maxWatt) maxWatt = w;
+        });
+      });
+      maxWatt = Math.min(1000, Math.ceil((maxWatt * 1.15) / 50) * 50);
+    }
+
     const tempMax = 110;
     const getX = t => padding.left + (t / tMax) * chartW;
-    const getYTemp = temp => padding.top + chartH - (temp / tempMax) * chartH;
+    const getYVal = v => {
+      const top = (chartMode === 'watt') ? maxWatt : tempMax;
+      return padding.top + chartH - (v / top) * chartH;
+    };
+    const getYTemp = getYVal;
 
-    // GRID LINES (Temperaturskala 0..100 °C)
+    // GRID LINES
     ctx.strokeStyle = isDark ? '#363636' : '#ECEFF1';
     ctx.lineWidth = 1;
     ctx.fillStyle = isDark ? '#808080' : '#888888';
     ctx.font = '11px system-ui, sans-serif';
 
-    [0, 25, 50, 75, 100].forEach(deg => {
-      const y = getYTemp(deg);
-      ctx.beginPath();
-      ctx.moveTo(padding.left, y);
-      ctx.lineTo(padding.left + chartW, y);
-      ctx.stroke();
+    if (chartMode === 'watt') {
+      const stepW = maxWatt <= 300 ? 50 : 100;
+      for (let w = 0; w <= maxWatt; w += stepW) {
+        const y = getYVal(w);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(padding.left + chartW, y);
+        ctx.stroke();
 
-      ctx.textAlign = 'right';
-      ctx.fillText(deg + ' °C', padding.left - 8, y + 4);
-    });
+        ctx.textAlign = 'right';
+        ctx.fillText(w + ' W', padding.left - 8, y + 4);
+      }
+    } else {
+      [0, 25, 50, 75, 100].forEach(deg => {
+        const y = getYTemp(deg);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(padding.left + chartW, y);
+        ctx.stroke();
+
+        ctx.textAlign = 'right';
+        ctx.fillText(deg + ' °C', padding.left - 8, y + 4);
+      });
+    }
 
     // X Axis Time Labels
     ctx.textAlign = 'center';
@@ -2327,7 +2429,9 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       srs.forEach(pt => {
         const val = (chartMode === 'cpu')
           ? pt.Temp
-          : (pt.GpuTemp != null ? pt.GpuTemp : pt.IGpuTemp);
+          : (chartMode === 'gpu')
+            ? (pt.GpuTemp != null ? pt.GpuTemp : pt.IGpuTemp)
+            : (pt.SysW != null ? pt.SysW : pt.CpuW);
 
         if (val != null && val > 0) {
           const x = getX(pt.T);
@@ -2439,6 +2543,25 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
             ctx.fillStyle = color;
             ctx.beginPath();
             ctx.arc(cx, getYTemp(gTemp), 4.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else {
+          // Watt
+          const sysWStr = closest.SysW != null ? '~' + closest.SysW.toFixed(0) + ' W (System)' : 'n/v';
+          const cpuWStr = closest.CpuW != null ? closest.CpuW.toFixed(1) + ' W (CPU)' : 'n/v';
+          const gpuWStr = closest.GpuW != null ? closest.GpuW.toFixed(1) + ' W (GPU)' : '';
+          const pDetails = [sysWStr, cpuWStr, gpuWStr].filter(Boolean).join(' · ');
+
+          tipHtml += `<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 3px;">
+            <span style="color: ${color}; font-weight: 600;">● ${name}</span>
+            <span style="font-weight: 700;">${pDetails}</span>
+          </div>`;
+
+          const pPlot = closest.SysW != null ? closest.SysW : closest.CpuW;
+          if (pPlot != null && pPlot > 0) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(cx, getYVal(pPlot), 4.5, 0, Math.PI * 2);
             ctx.fill();
           }
         }

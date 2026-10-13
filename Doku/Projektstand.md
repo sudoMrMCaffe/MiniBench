@@ -2,22 +2,23 @@
 
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
-## Stand: Version 3.62 (13.10.2026)
+## Stand: Version 3.63 (13.10.2026)
 Letzter Release-Commit auf GitHub: f758044 (Update instructions in README). Lokaler Commit 88b5cf0 (Release v3.61).
-Version 3.62 entsteht als Release-Commit durch Bauen.cmd und wird direkt automatisch nach GitHub gepusht.
+Version 3.63 entsteht als Release-Commit durch Bauen.cmd und wird direkt automatisch nach GitHub gepusht.
 
-Inhalt von 3.62 (Einzelheiten in Doku\Änderungen_v3.62.txt):
-1. Bedarfsorientierter Lauf-Export (.minibench): Austauschdatei entsteht nur bei Bedarf. Neue Schaltfläche "Lauf exportieren …"
-   direkt in der Ergebnisansicht am Laufende (neben "Ordner öffnen") sowie weiterhin in der Vergleichsdatenbank.
-2. Keine Diagnosebericht.txt bei vorhandenem HTML: Wurde Diagnosebericht.html erfolgreich erzeugt, entfällt die redundante
-   reine Textfassung. Bei Fehlern bleibt sie als automatischer Fallback erhalten.
-3. Kerne und Threads in allen Referenzen: Alle mitgelieferten Profile (Desktop High-End, Desktop Mittelklasse, Mini-PC APU,
-   Notebook Standard, Workstation Mobil) besitzen nun reale Kerne und logische Threads; Referenzen_Eingebettet.ps1 aktualisiert.
-4. Kompakter Lasttest: Standardauswahl der Testdauer auf 2 Minuten verkürzt (vorher 15 Minuten) für schnellere Prüfläufe.
-5. Automatischer GitHub-Push & Release-Workflow: Bauen.cmd committet und pusht bei bestandenen Tests vollautomatisch nach
-   GitHub und aktualisiert die README.md. AGENTS.md entsprechend angepasst.
+Inhalt von 3.63 (Einzelheiten in Doku\Änderungen_v3.63.txt):
+1. Geschätzter Gesamtsystemverbrauch: Mathematisches Modell für Desktop (DC intern und AC an der Steckdose bei 88 % Wirkungsgrad)
+   und Notebooks (Display/Plattform 7 W, LPDDR/SSD 3 W, VRM 5 %, 90 % Wirkungsgrad; reale DischargeRate bei Akkubetrieb).
+2. Effizienz-Metriken (Punkte pro Watt): Ausweisung von CPU-Effizienz (CPU|MT / CpuW), GPU-Effizienz (GPU / GpuW) und Gesamtsystem-
+   Effizienz (Overall / System-Watt) im HTML-Bericht und im interaktiven Multi-System Dashboard.
+3. Interaktiver Stromkostenrechner: Dynamischer Rechner im HTML-Bericht für jährliche Stromkosten mit einstellbaren Nutzungszeiten
+   für Alltag und Volllast sowie editierbarem Kilowattstundenpreis.
+4. Dashboard-Integration: Neue Diagrammansicht "Leistung (W)" für Multi-System Zeitreihenvergleiche, Profilkarten mit Verbrauchs-
+   Plaketten und neue Kategorie in der Vergleichsmatrix.
+5. Robuste Absicherung & Non-Interactive Tests: Saubere Anzeige von "n/v (kein Leistungssensor)" bei sensorlosen Systemen; Testen.cmd
+   beendet Testläufe ohne Tastendruck.
 
-Testlauf Windows (Windows PowerShell 5.1, Pester 6.2.0): 796 bestanden, 0 fehlgeschlagen, 99 übersprungen
+Testlauf Windows (Windows PowerShell 5.1, Pester 6.2.0): 805 bestanden, 0 fehlgeschlagen, 99 übersprungen
 (in Lauf.Tests.ps1; gewollt ohne -Gesamtlauf). Alle Fachgebiets-Tests erfolgreich.
 
 ## Offene Befunde

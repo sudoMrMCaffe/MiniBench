@@ -286,6 +286,87 @@ if (document.readyState === 'loading') {
 '@
 }
 
+function New-PowerEfficiencyHtml($Profile) {
+    if (-not $Profile) { return '' }
+    $sb = New-Object System.Text.StringBuilder
+    [void]$sb.Append('<div class="pwr-box" style="margin-top:16px;border-top:1px solid var(--line);padding-top:16px;">')
+    [void]$sb.Append('<h3>Geschätzter Gesamtsystemverbrauch &amp; Energieeffizienz</h3>')
+    $hwTyp = $(if ($Profile.IsNotebook) { 'Notebook-Plattform mit SoC/Display-Modell' } else { 'Desktop-PC mit ATX-Mainboard & 80-PLUS-Netzteil' })
+    [void]$sb.Append(('<p class="note">Mathematisch modellierter Gesamtverbrauch (DC intern und AC an der Steckdose) auf Basis der gemessenen Sensorwerte (CPU-Package und GPU-Board) sowie Plattform-Zuschlägen ({0}). Echte Sensormesswerte bleiben unangetastet.</p>' -f $hwTyp))
+
+    # Kacheln für Leerlauf, Teillast, Volllast
+    [void]$sb.Append('<div class="pwr-grid">')
+
+    # 1. Leerlauf
+    $idle = $Profile.Leerlauf
+    $idleAc = $(if ($idle -and $idle.Verfuegbar) { '~{0:N0} W' -f [math]::Round($idle.P_AC) } else { 'n/v' })
+    $idleDc = $(if ($idle -and $idle.Verfuegbar) { 'intern DC ~{0:N0} W' -f [math]::Round($idle.P_DC) } else { 'kein Leistungssensor' })
+    $idleTip = $(if ($idle -and $idle.Verfuegbar) { $idle.Aufschluesselung } else { 'Keine Messwerte für CPU-Package-Power im Leerlauf vorhanden.' })
+    [void]$sb.Append(('<div class="pwr-card hit" data-tip="{0}"><h4>Leerlauf (Idle)</h4><div class="pwr-val">{1}</div><div class="pwr-sub">{2}</div></div>' -f `
+        (ConvertTo-HtmlText $idleTip), $idleAc, (ConvertTo-HtmlText $idleDc)))
+
+    # 2. Teillast
+    $part = $Profile.Teillast
+    $partAc = $(if ($part -and $part.Verfuegbar) { '~{0:N0} W' -f [math]::Round($part.P_AC) } else { 'n/v' })
+    $partDc = $(if ($part -and $part.Verfuegbar) { 'intern DC ~{0:N0} W' -f [math]::Round($part.P_DC) } else { 'kein Leistungssensor' })
+    $partTip = $(if ($part -and $part.Verfuegbar) { $part.Aufschluesselung } else { 'Keine Messwerte für Teillast vorhanden.' })
+    [void]$sb.Append(('<div class="pwr-card hit" data-tip="{0}"><h4>Teillast (Alltag & Büro)</h4><div class="pwr-val">{1}</div><div class="pwr-sub">{2}</div></div>' -f `
+        (ConvertTo-HtmlText $partTip), $partAc, (ConvertTo-HtmlText $partDc)))
+
+    # 3. Volllast
+    $load = $Profile.Volllast
+    $loadAc = $(if ($load -and $load.Verfuegbar) { '~{0:N0} W' -f [math]::Round($load.P_AC) } else { 'n/v' })
+    $loadDc = $(if ($load -and $load.Verfuegbar) { 'intern DC ~{0:N0} W' -f [math]::Round($load.P_DC) } else { 'kein Leistungssensor' })
+    $loadTip = $(if ($load -and $load.Verfuegbar) { $load.Aufschluesselung } else { 'Keine Messwerte unter Volllast vorhanden.' })
+    [void]$sb.Append(('<div class="pwr-card hit" data-tip="{0}"><h4>Volllast (Lasttest / Peak)</h4><div class="pwr-val">{1}</div><div class="pwr-sub">{2}</div></div>' -f `
+        (ConvertTo-HtmlText $loadTip), $loadAc, (ConvertTo-HtmlText $loadDc)))
+
+    [void]$sb.Append('</div>')
+
+    # Effizienz-Indizes
+    $eff = $Profile.Effizienz
+    $effParts = @()
+    if ($eff) {
+        if ($null -ne $eff.CpuMT_PerWatt) {
+            $effParts += ('<b>CPU-Effizienz:</b> {0:N1} Punkte/W <small class="muted">(Mehrkern-Score je Watt CPU-Paket)</small>' -f $eff.CpuMT_PerWatt)
+        }
+        if ($null -ne $eff.Gpu_PerWatt) {
+            $effParts += ('<b>GPU-Effizienz:</b> {0:N2} Punkte/W <small class="muted">(Renderleistung je Watt Grafik)</small>' -f $eff.Gpu_PerWatt)
+        }
+        if ($null -ne $eff.System_PerWatt) {
+            $effParts += ('<b>Gesamtsystem-Effizienz:</b> {0:N1} Punkte/100 W <small class="muted">(Gesamtscore je 100 W an der Steckdose)</small>' -f $eff.System_PerWatt)
+        }
+    }
+    if ($effParts.Count) {
+        [void]$sb.Append('<div style="margin:10px 0 16px;padding:10px 14px;background:var(--code);border-radius:8px;border:1px solid var(--line);display:flex;gap:18px;flex-wrap:wrap;font-size:13.5px;">')
+        foreach ($ep in $effParts) { [void]$sb.Append(('<div>{0}</div>' -f $ep)) }
+        [void]$sb.Append('</div>')
+    }
+
+    # Stromkosten-Kalkulator
+    $pTeilNum = $(if ($part -and $part.Verfuegbar -and $part.P_AC -gt 0) { [math]::Round($part.P_AC) } else { 0 })
+    $pVollNum = $(if ($load -and $load.Verfuegbar -and $load.P_AC -gt 0) { [math]::Round($load.P_AC) } else { 0 })
+    if ($pTeilNum -gt 0 -or $pVollNum -gt 0) {
+        $initKwh = [math]::Round((4 * $pTeilNum + 2 * $pVollNum) * 365 / 1000.0, 1)
+        $initCost = [math]::Round($initKwh * 0.35, 2)
+        [void]$sb.Append('<details style="margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:10px 16px;"><summary style="font-weight:650;color:var(--accent);">💰 Jährliche Stromkosten-Schätzung (Verbrauchskalkulator)</summary>')
+        [void]$sb.Append(('<div class="calc-grid">' +
+            '<input type="hidden" id="calcPTeil" value="{0}">' +
+            '<input type="hidden" id="calcPVoll" value="{1}">' +
+            '<div class="calc-field"><label for="calcHTeil">Alltagsbetrieb / Büro (h/Tag):</label><input type="number" id="calcHTeil" value="4" min="0" max="24" step="0.5" oninput="recalcPowerCost()"></div>' +
+            '<div class="calc-field"><label for="calcHVoll">Volllast / Gaming (h/Tag):</label><input type="number" id="calcHVoll" value="2" min="0" max="24" step="0.5" oninput="recalcPowerCost()"></div>' +
+            '<div class="calc-field"><label for="calcPrice">Strompreis (Cent/kWh):</label><input type="number" id="calcPrice" value="35" min="1" max="150" step="1" oninput="recalcPowerCost()"></div>' +
+            '<div class="calc-res"><span>Jahresverbrauch</span><b id="calcOutKwh">{2:N0} kWh</b></div>' +
+            '<div class="calc-res"><span>Geschätzte Kosten</span><b id="calcOutCost">{3:N2} €</b></div>' +
+            '</div><p class="note" style="margin-top:8px;">Berechnung basiert auf angenommenen 365 Tagen/Jahr mit den modellierten AC-Leistungswerten (~{0} W Teillast, ~{1} W Volllast).</p>' +
+            '<script>function recalcPowerCost(){var eHT=document.getElementById(''calcHTeil''),eHV=document.getElementById(''calcHVoll''),eP=document.getElementById(''calcPrice''),ePT=document.getElementById(''calcPTeil''),ePV=document.getElementById(''calcPVoll'');if(!eHT||!eHV||!eP||!ePT||!ePV)return;var hT=parseFloat(eHT.value)||0,hV=parseFloat(eHV.value)||0,pr=parseFloat(eP.value)||0,pT=parseFloat(ePT.value)||0,pV=parseFloat(ePV.value)||0;var kwhD=(hT*pT+hV*pV)/1000,kwhY=kwhD*365,cst=kwhY*(pr/100);var oK=document.getElementById(''calcOutKwh''),oC=document.getElementById(''calcOutCost'');if(oK)oK.textContent=Math.round(kwhY)+'' kWh'';if(oC)oC.textContent=cst.toLocaleString(''de-DE'',{minimumFractionDigits:2,maximumFractionDigits:2})+'' €'';}</script></details>' -f `
+            $pTeilNum, $pVollNum, $initKwh, $initCost))
+    }
+
+    [void]$sb.Append('</div>')
+    return $sb.ToString()
+}
+
 function New-HtmlReport {
     param([string]$Path, $Sorted, [int]$NK, [int]$NW, [int]$NI, [datetime]$Start, [datetime]$End)
     $cls = @{ KRITISCH = 'crit'; WARNUNG = 'warn'; INFO = 'info'; OK = 'ok'; FEHLER = 'crit'; 'ÜBERSPRUNGEN' = 'skip'; REPARIERT = 'ok'; NEUSTART = 'info' }
@@ -307,7 +388,29 @@ function New-HtmlReport {
     if ($null -ne $overall -and [double]$overall -gt 0) {
         $benchCard = ('<div class="card bench"><b>{0} %</b><span>Gesamtleistung (Referenz)</span></div>' -f [math]::Round([double]$overall))
     }
-    [void]$sb.Append(('<section class="cards" data-section="system"><div class="card crit"><b>{0}</b><span>kritisch</span></div><div class="card warn"><b>{1}</b><span>Warnungen</span></div><div class="card info"><b>{2}</b><span>Hinweise</span></div>{3}{4}</section>' -f $NK, $NW, $NI, $stCard, $benchCard))
+    $pProfile = if (Get-Command Get-SystemPowerProfile -ErrorAction SilentlyContinue) { Get-SystemPowerProfile } else { $null }
+    if ($pProfile) {
+        if ($pProfile.Leerlauf -and $pProfile.Leerlauf.Verfuegbar) {
+            $script:Facts['Geschätzter Gesamtsystemverbrauch (Leerlauf)'] = ('{0} an der Steckdose (intern {1:N0} W)' -f $pProfile.Leerlauf.Text, $pProfile.Leerlauf.P_DC)
+        } elseif (-not $script:Facts.Contains('Geschätzter Gesamtsystemverbrauch (Leerlauf)')) {
+            $script:Facts['Geschätzter Gesamtsystemverbrauch (Leerlauf)'] = 'n/v (kein Leistungssensor)'
+        }
+        if ($pProfile.Teillast -and $pProfile.Teillast.Verfuegbar) {
+            $script:Facts['Geschätzter Gesamtsystemverbrauch (Teillast)'] = ('{0} an der Steckdose (intern {1:N0} W)' -f $pProfile.Teillast.Text, $pProfile.Teillast.P_DC)
+        }
+        if ($pProfile.Volllast -and $pProfile.Volllast.Verfuegbar) {
+            $script:Facts['Geschätzter Gesamtsystemverbrauch (Volllast)'] = ('{0} an der Steckdose (intern {1:N0} W)' -f $pProfile.Volllast.Text, $pProfile.Volllast.P_DC)
+        } elseif (-not $script:Facts.Contains('Geschätzter Gesamtsystemverbrauch (Volllast)')) {
+            $script:Facts['Geschätzter Gesamtsystemverbrauch (Volllast)'] = 'n/v (kein Leistungssensor)'
+        }
+    }
+    $pwrCard = ''
+    if ($pProfile -and $pProfile.Volllast -and $pProfile.Volllast.Verfuegbar) {
+        $subTxt = $(if ($pProfile.Leerlauf -and $pProfile.Leerlauf.Verfuegbar) { '~{0:N0} W Leerlauf' -f $pProfile.Leerlauf.P_AC } else { 'Volllast geschätzt' })
+        $pwrCard = ('<div class="card pwr hit" data-tip="{0}"><b>~{1:N0} W</b><span>Verbrauch Last ({2})</span></div>' -f `
+            (ConvertTo-HtmlText $pProfile.Volllast.Aufschluesselung), [math]::Round($pProfile.Volllast.P_AC), (ConvertTo-HtmlText $subTxt))
+    }
+    [void]$sb.Append(('<section class="cards" data-section="system"><div class="card crit"><b>{0}</b><span>kritisch</span></div><div class="card warn"><b>{1}</b><span>Warnungen</span></div><div class="card info"><b>{2}</b><span>Hinweise</span></div>{3}{4}{5}</section>' -f $NK, $NW, $NI, $stCard, $benchCard, $pwrCard))
     if ($script:Stability -and $script:Stability.Erklaerung) { [void]$sb.Append(('<section class="box stab {0}" data-section="system"><h2>Zuverlässigkeit {1:N1} von 10</h2><p>{2}</p></section>' -f $script:Stability.Klasse, $script:Stability.Index, (ConvertTo-HtmlText $script:Stability.Erklaerung))) }
 
     if ($script:Facts.Count) {
@@ -445,6 +548,9 @@ function New-HtmlReport {
             $bl = $(if ($script:BenchSens -and $script:BenchSens.TjMax) { [pscustomobject]@{ Cpu = 0; Gpu = 0; TjMax = $script:BenchSens.TjMax } } else { $null })
             [void]$sb.Append((New-LoadChartsHtml -Series $script:BenchSeries -Throttle $null -Abort $null -Limits $bl -Marken $bm -GpuLoad @()))
         }
+        if (-not ($script:LoadSeries.Count -ge 2 -or $script:LoadParts.Count) -and $pProfile) {
+            [void]$sb.Append((New-PowerEfficiencyHtml -Profile $pProfile))
+        }
         [void]$sb.Append('</section>')
     }
     if ($script:LoadSeries.Count -ge 2 -or $script:LoadParts.Count) {
@@ -486,6 +592,7 @@ function New-HtmlReport {
             [void]$sb.Append('</tbody></table>')
         }
         [void]$sb.Append((New-LoadChartsHtml))
+        if ($pProfile) { [void]$sb.Append((New-PowerEfficiencyHtml -Profile $pProfile)) }
         if (@($script:LoadSeries | Where-Object { $_.DiskMBs -gt 0 }).Count -gt 1) {
             $svg3 = New-LineSvg ($script:LoadSeries | Where-Object { $null -ne $_.DiskMBs } | ForEach-Object { [pscustomobject]@{ T = $_.T; V = $_.DiskMBs } }) 'MB/s'
             if ($svg3) { [void]$sb.Append('<h3>Datenträger-Durchsatz (MB/s)</h3>' + $svg3) }

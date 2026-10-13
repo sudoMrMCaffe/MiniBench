@@ -27,7 +27,11 @@ Describe 'Verträge im Skript' {
     It 'entspricht den Dateien Vertrag.psd1' {
         foreach ($c in $contracts) {
             $f = Join-Path $global:MinibenchSrcRoot ('Module/{0}/Vertrag.psd1' -f $c.Name)
-            $d = Import-PowerShellDataFile -LiteralPath $f
+            $d = if (Get-Command Import-PowerShellDataFile -ErrorAction SilentlyContinue) {
+                Import-PowerShellDataFile -LiteralPath $f
+            } else {
+                Invoke-Expression ([IO.File]::ReadAllText($f, [Text.Encoding]::UTF8))
+            }
             (ConvertTo-SortedJson $d) | Should -BeExactly (ConvertTo-SortedJson $c)
         }
     }
@@ -221,3 +225,4 @@ Describe 'Abgleich mit der Oberfläche' {
         (Get-PartText 'Kern\Grundgeruest.ps1') | Should -Match "RepOrder\s+=\s+@\(\(Get-ModuleContract 'Reparatur'\)"
     }
 }
+

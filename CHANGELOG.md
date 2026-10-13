@@ -2,6 +2,14 @@
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
 
+## v3.63 (13.10.2026)
+
+* **Geschätzter Gesamtsystemverbrauch (Desktop & Notebook):** Realistische Modellierung der internen Gleichstromleistung (DC) und des tatsächlichen Verbrauchs an der Steckdose (AC) unter Berücksichtigung von Sensorwerten (CPU-Package, GPU-Board), Plattformzuschlägen (Mainboard/Chipsatz, Lüfter, RAM-Auslastung, SSD-Aktivität), Wandlerverlusten (VRM) und Netzteil-Wirkungsgraden (88 % Desktop, 90 % Notebook). Transparente Tooltips schlüsseln alle Teilkomponenten detailliert auf.
+* **Effizienz-Kennzahlen (Punkte pro Watt):** Faire Leistungsbewertung über Effizienz-Indizes für Mehrkern-Prozessor (`CPU|MT / CpuW`), Grafikeinheit (`GPU / GpuW`) und das Gesamtsystem (`Overall / System-Watt`). Ausweisung in HTML-Bericht und Systemvergleich.
+* **Interaktiver Stromkostenrechner im HTML-Bericht:** Unmittelbare Hochrechnung der jährlichen Betriebskosten mit Anpassungsmöglichkeiten für tägliche Nutzungsdauer (Alltagsbetrieb, Volllast) und Strompreis in Cent pro Kilowattstunde zur direkten Wirtschaftlichkeitsbewertung.
+* **Dashboard-Integration & Leistungskurven:** Neues Diagramm-Profil „Leistung (W)“ im Multi-System Dashboard visualisiert die Verbrauchsverläufe im Zeitreihenvergleich. System-Profilkarten, Spezifikationstabelle und Vergleichsmatrix enthalten Verbrauchskennzahlen für Leerlauf und Last.
+* **Robuste Sensor-Absicherung & automatisierte Tests:** Saubere Einstufung als `n/v (kein Leistungssensor)` bei älteren oder sensorlosen Plattformen ohne Division durch Null; `Testen.cmd` schließt nach Testläufen automatisch ohne Tastendruck ab.
+
 ## v3.62 (13.10.2026)
 
 * **Bedarfsorientierter Lauf-Export (`.minibench`):** Das `.minibench`-Austauschpaket wird nicht mehr standardmäßig bei jedem Durchlauf erzeugt, sondern nur wenn gewünscht. Neben der Vergleichsdatenbank bietet die Ergebnisansicht nach dem Lauf eine neue Schaltfläche „Lauf exportieren …“, die das Paket inklusive Datenbankeintrag und Bericht an einem frei wählbaren Ort speichert.

@@ -419,6 +419,13 @@ if ($ModLast -and (Test-StepEnabled 'Last:alle')) {
             Abbruch = $(if ($abort) { $abort.Grund } else { '' }); Quelle = (Get-SensorSourceText)
             Unterbrechungen = (@($pauseRows | ForEach-Object { '{0}: {1}' -f $_.Kurz, $_.P.Text }) -join '; ')
         }
+        $isNb = if (Get-Command Test-IsNotebookSystem -ErrorAction SilentlyContinue) { Test-IsNotebookSystem } else { $false }
+        $pEstLoad = if (Get-Command Get-EstimatedSystemPower -ErrorAction SilentlyContinue) { Get-EstimatedSystemPower -CpuW $cpuWMax -GpuW $gpuWMax -IsNotebook:$isNb } else { $null }
+        if ($pEstLoad -and $pEstLoad.Verfuegbar) {
+            $script:Facts['Geschätzter Gesamtsystemverbrauch (Volllast)'] = ('{0} an der Steckdose (intern {1:N0} W)' -f $pEstLoad.Text, $pEstLoad.P_DC)
+        } elseif ($null -ne $cpuWMax -and [double]$cpuWMax -le 0) {
+            $script:Facts['Geschätzter Gesamtsystemverbrauch (Volllast)'] = 'n/v (kein Leistungssensor)'
+        }
         foreach ($p in $script:LoadParts) { Add-TestResult ('Lasttest {0} ({1})' -f $p.Komponente, $p.Dauer) $p.Ergebnis $p.Details }
     }
 }
