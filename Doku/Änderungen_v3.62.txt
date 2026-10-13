@@ -1,0 +1,78 @@
+﻿LEOS MINIBENCH 3.62: ÄNDERUNGEN
+===============================
+
+Version 3.62 stellt die Erzeugung des .minibench-Austauschpakets auf bedarfsorientierten Export um,
+ergänzt einen Export-Knopf direkt in der Abschlussansicht, verzichtet bei vorhandenem HTML-Bericht auf
+die Erstellung von Diagnosebericht.txt, pflegt Kerne und Threads in allen älteren Referenzsystemen nach,
+setzt die Standard-Dauer des Lasttests auf kompakte 2 Minuten und automatisiert den Release-Commit samt
+GitHub-Push in Bauen.cmd.
+
+1. BEDARFSORIENTIERTER LAUF-EXPORT (.MINIBENCH)
+In Version 3.61 wurde die Austauschdatei am Laufende automatisch im Berichtsordner abgelegt, wodurch
+zusätzlicher Speicherplatz belegt wurde, auch wenn kein Weitergeben geplant war.
+  Export bei Bedarf   Das .minibench-Paket entsteht ab Version 3.62 nur noch dann, wenn der Anwender
+                      den Lauf gezielt exportieren möchte.
+  Schaltfläche am Ende In der Ergebnisansicht am Laufende steht neben "Ordner öffnen" nun die neue
+                      Schaltfläche "Lauf exportieren …" zur Verfügung. Sie öffnet einen Speichern-Dialog
+                      und schreibt das fertige Paket an den gewünschten Ort (z. B. Desktop oder Netzlaufwerk).
+  Vergleichsdatenbank Die bisherige Funktion "Lauf exportieren …" auf der Seite Vergleichsdatenbank sowie
+                      der Konsolenparameter -ExportLauf bleiben unverändert erhalten.
+  Paketinhalt         Das Paket bündelt weiterhin Datenbank.json, Diagnosebericht.html, Anhang.zip
+                      sowie die vollständige KI-Prompt-Datei.
+
+2. KEINE REDUNDANTE TEXTFASSUNG DES BERICHTS
+Bislang wurde am Laufende stets neben dem interaktiven Diagnosebericht.html auch ein Diagnosebericht.txt
+geschrieben.
+  Verzicht auf .txt   Wurde der HTML-Bericht erfolgreich erzeugt, entfällt das Schreiben der Textdatei.
+                      Dies reduziert Datei-Reste und hält den Berichtsordner übersichtlich.
+  Sicherheits-Fallback Sollte die HTML-Generierung im Ausnahmefall fehlschlagen, wird weiterhin automatisch
+                      Diagnosebericht.txt als Notfall-Bericht erzeugt, damit keine Messergebnisse verloren gehen.
+  Rückwärtskompatibilität Import und Datenbankpflege akzeptieren weiterhin historische Läufe, die nur
+                      eine Textfassung enthalten.
+
+3. KERNE UND THREADS IN ALLEN REFERENZPROFILEN
+In Version 3.60 wurden die Felder Hardware.Kerne und Hardware.Threads in der Datenbankstruktur eingeführt,
+fehlten jedoch noch in den älteren mitgelieferten Referenzsystemen.
+  Profile gepflegt    Alle Referenzprofile (Desktop High-End mit 6/12, Desktop Mittelklasse mit 6/12,
+                      Mini-PC APU mit 8/16, Notebook Standard mit 4/8, Workstation Mobil mit 14/20)
+                      weisen nun korrekte Werte für reale Prozessorkerne und logische Threads aus.
+  Eingebettete Daten  Die Datei Kern\Referenzen_Eingebettet.ps1 wurde neu generiert, sodass neue
+                      Datenbanken auf frischen Systemen sofort über die vollständigen Hardware-Angaben verfügen.
+
+4. KOMPAKTE LASTTEST-VORAUSWAHL (2 MINUTEN)
+Die Vorauswahl der Testdauer auf der Konfigurationsseite des Lasttests war historisch auf 15 Minuten
+voreingestellt.
+  Standard 2 Minuten  Die Auswahllisten für Prozessor, Arbeitsspeicher, Grafikkarte und Datenträger
+                      starten nun standardmäßig mit "2 Minuten". Dies verkürzt Routinedurchläufe erheblich,
+                      während längere Belastungstests weiterhin jederzeit manuell wählbar bleiben.
+
+5. AUTOMATISCHER GITHUB-PUSH & RELEASE-WORKFLOW
+Nach einem erfolgreichen Testlauf von Bauen.cmd musste bisher der git push Befehl manuell ausgeführt werden.
+  Automatischer Push  Bauen.cmd führt nach erfolgreichem Bau und fehlerfreien Tests automatisch git commit
+                      und anschließend git push nach origin/main aus.
+  README-Aktualisierung Die automatische Anpassung der Versionsplaketten und Testzahlen in README.md wird
+                      im selben Schritt mit committet und übertragen.
+  AGENTS.md           Die Entwicklerrichtlinien in AGENTS.md wurden entsprechend angepasst.
+
+GEFUNDEN UND BEHOBEN
+  Export von Berichtsordnern: Export-DbLauf akzeptierte bisher nur Pfade zu .json-Datenbankdateien.
+  Wird nun der Pfad eines Berichtsordners übergeben, ermittelt die Funktion automatisch die passende
+  Datenbankdatei und schnürt das Paket fehlerfrei.
+  Lasttest-Standardwert: Der Fallback in der Berechnungsroutine der Lasttestminuten (Minutes) wurde
+  von 15 auf 2 korrigiert, passend zur neuen Standardauswahl der Benutzeroberfläche.
+  Rebase mit Remote: Der Remote-Commit auf GitHub (Hinweis zur Microsoft-Registrierung in README.md)
+  wurde sauber in den Hauptzweig integriert.
+
+GRENZEN
+  Export-Dauer: Bei sehr großen Anhang.zip-Dateien (z. B. mit umfangreichen Lasttest-Telemetrie-CSVs)
+  kann das Packen des .minibench-Archivs einige Sekunden in Anspruch nehmen.
+  Netzwerkverbindung beim Bauen: Schlägt der automatische git push in Bauen.cmd wegen fehlender
+  Netzwerkverbindung fehl, bleibt der lokale Release-Commit erhalten und kann später nachgeholt werden.
+
+UMSTIEG
+  Keine manuellen Anpassungen erforderlich. Bestehende Berichtsordner und Referenzdatenbanken
+  funktionieren nahtlos weiter.
+
+QUELLEN
+  Pester 5 & 6 Testframework
+  Git CLI Dokumentation

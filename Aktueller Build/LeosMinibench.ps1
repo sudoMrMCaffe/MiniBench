@@ -238,7 +238,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Export
 }
 #endregion
 
-$ScriptVersion = '3.61'
+$ScriptVersion = '3.62'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -401,6 +401,8 @@ $script:EmbeddedReferences = @{
     "System":  "Desktop High-End (AMD B650)",
     "Hardware":  {
                      "CPU":  "AMD Ryzen 5 7600X",
+                     "Kerne":  6,
+                     "Threads":  12,
                      "RAM":  "32 GB DDR5-6000",
                      "GPU":  "Radeon RX 6800",
                      "IGPU":  null,
@@ -593,6 +595,8 @@ $script:EmbeddedReferences = @{
     "System":  "Desktop Mittelklasse (AMD B450)",
     "Hardware":  {
                      "CPU":  "AMD Ryzen 5 5600",
+                     "Kerne":  6,
+                     "Threads":  12,
                      "RAM":  "32 GB DDR4-2133",
                      "GPU":  "Radeon RX 570 Series",
                      "IGPU":  null,
@@ -752,6 +756,8 @@ $script:EmbeddedReferences = @{
     "System":  "Mini-PC / APU (AMD Ryzen 7)",
     "Hardware":  {
                      "CPU":  "AMD Ryzen 7 H 255 w/ Radeon 780M Graphics",
+                     "Kerne":  8,
+                     "Threads":  16,
                      "RAM":  "32 GB DDR5-5600",
                      "GPU":  "Radeon 780M Graphics",
                      "IGPU":  "Radeon 780M Graphics",
@@ -878,6 +884,8 @@ $script:EmbeddedReferences = @{
     "System":  "Notebook Standard (Intel Core i5)",
     "Hardware":  {
                      "CPU":  "Intel Core i5-8365U",
+                     "Kerne":  4,
+                     "Threads":  8,
                      "RAM":  "24 GB DDR4-2400",
                      "GPU":  "UHD Graphics 620",
                      "IGPU":  "UHD Graphics 620",
@@ -1004,6 +1012,8 @@ $script:EmbeddedReferences = @{
     "System":  "Workstation Mobil (Intel Core i9)",
     "Hardware":  {
                      "CPU":  "13th Gen Intel Core i9-13900H",
+                     "Kerne":  14,
+                     "Threads":  20,
                      "RAM":  "64 GB LPDDR5-6000",
                      "GPU":  "RTX 3000 Ada Generation Laptop GPU",
                      "IGPU":  "Iris(R) Xe Graphics",
@@ -2297,29 +2307,49 @@ function New-MinibenchBundle {
 function Export-DbLauf([string]$Pfad, [string]$Ziel = '', [string]$DataDir = $script:DataDir) {
     $res = [pscustomobject]@{ Ok = $false; Pfad = ''; Text = '' }
     if (-not (Test-Path -LiteralPath $Pfad)) {
-        $res.Text = ('Datenbankdatei nicht gefunden: {0}' -f $Pfad)
+        $res.Text = ('Pfad nicht gefunden: {0}' -f $Pfad)
         return $res
     }
-    $e = $null
-    try {
-        $e = Get-Content -LiteralPath $Pfad -Raw -Encoding UTF8 | ConvertFrom-Json
-    } catch {
-        $res.Text = ('Datenbankdatei nicht lesbar: {0}' -f $_.Exception.Message)
-        return $res
-    }
-    $ordner = Get-LaufOrdner $e $DataDir
-    if (-not $ordner -or -not (Test-Path -LiteralPath $ordner)) {
-        $res.Text = ('Berichtsordner für {0} nicht gefunden.' -f (Split-Path $Pfad -Leaf))
-        return $res
+    $ordner = ''
+    $dbFile = ''
+    if (Test-Path -LiteralPath $Pfad -PathType Container) {
+        $ordner = $Pfad
+        $leaf = Split-Path $ordner -Leaf
+        if (Test-Path -LiteralPath (Join-Path $ordner 'Datenbank.json')) {
+            $dbFile = Join-Path $ordner 'Datenbank.json'
+        } elseif ($DataDir -and (Test-Path -LiteralPath (Join-Path $DataDir 'Datenbank'))) {
+            $cand = Get-ChildItem -LiteralPath (Join-Path $DataDir 'Datenbank') -Filter '*.json' -File -ErrorAction SilentlyContinue |
+                Where-Object {
+                    try {
+                        $c = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction SilentlyContinue
+                        return ($c.Ordner -like "*$leaf*")
+                    } catch { return $false }
+                } | Select-Object -First 1
+            if ($cand) { $dbFile = $cand.FullName }
+        }
+    } else {
+        $dbFile = $Pfad
+        $e = $null
+        try {
+            $e = Get-Content -LiteralPath $Pfad -Raw -Encoding UTF8 | ConvertFrom-Json
+        } catch {
+            $res.Text = ('Datenbankdatei nicht lesbar: {0}' -f $_.Exception.Message)
+            return $res
+        }
+        $ordner = Get-LaufOrdner $e $DataDir
+        if (-not $ordner -or -not (Test-Path -LiteralPath $ordner)) {
+            $res.Text = ('Berichtsordner für {0} nicht gefunden.' -f (Split-Path $Pfad -Leaf))
+            return $res
+        }
     }
     if (-not $Ziel) {
-        $base = [IO.Path]::GetFileNameWithoutExtension($Pfad)
+        $base = if ($dbFile) { [IO.Path]::GetFileNameWithoutExtension($dbFile) } else { Split-Path $ordner -Leaf }
         $desk = [Environment]::GetFolderPath('Desktop')
         if (-not $desk) { $desk = [IO.Path]::GetTempPath() }
         $Ziel = Join-Path $desk ($base + '.minibench')
     }
     try {
-        $out = New-MinibenchBundle -ReportDir $ordner -DbFile $Pfad -DestinationPath $Ziel
+        $out = New-MinibenchBundle -ReportDir $ordner -DbFile $dbFile -DestinationPath $Ziel
         $res.Ok = $true
         $res.Pfad = $out
         $res.Text = ('Lauf erfolgreich nach {0} exportiert.' -f $out)
@@ -5786,7 +5816,7 @@ public partial class DiagGui : Form
     void Tip(Control c, string text) { if (c != null && !String.IsNullOrEmpty(text)) tip.SetToolTip(c, WrapTip(text)); }
 
     // Ablauf
-    Button btnStopWait, btnSkipStep, btnCancel, btnHtml, btnFolder, btnNew, btnKi;
+    Button btnStopWait, btnSkipStep, btnCancel, btnHtml, btnFolder, btnNew, btnKi, btnExportRun;
     Label lblStep, lblCounter, lblSub, lblResult;
     FlatBar barAll, barSub;
     StatCard cardK, cardW, cardI, cardT;
@@ -6494,6 +6524,7 @@ public partial class DiagGui : Form
         Tip(btnCancel, "Bricht den ganzen Lauf ab. Es entsteht nur ein Teilbericht.");
         Tip(btnHtml, "Öffnet den Bericht im Browser.");
         Tip(btnFolder, "Öffnet den Berichtsordner dieses Laufs (Bericht, KI-Dateien, Anhang.zip).");
+        Tip(btnExportRun, "Exportiert diesen Durchlauf als gepackte .minibench-Datei für den Austausch oder das Archiv.");
         Tip(btnNew, "Zurück zur Auswahl für einen neuen Lauf.");
         Tip(btnKi, "Zeigt die KI-Datei im Explorer. Sie enthält Auftrag, Bericht und Rohdaten und lässt sich in ein KI-Modell hochladen.");
         Tip(cardK, "Kritische Befunde: Datenverlust oder Instabilität möglich, bald handeln.");
@@ -6835,12 +6866,12 @@ public partial class DiagGui : Form
         string[] mins = new string[] { "2 Minuten", "5 Minuten", "10 Minuten", "15 Minuten", "30 Minuten", "60 Minuten", "120 Minuten", "240 Minuten" };
         f.Controls.Add(Section("Komponenten und Dauer"));
         FlowLayoutPanel r1 = Row(); chkLCpu = Chk("Prozessor (alle Threads, Ergebnisprüfung)", true); chkLCpu.Width = UI.S(350); chkLCpu.AutoSize = false; r1.Controls.Add(chkLCpu);
-        cmbLCpu = Combo(120, mins, 3); r1.Controls.Add(cmbLCpu); f.Controls.Add(r1);
+        cmbLCpu = Combo(120, mins, 0); r1.Controls.Add(cmbLCpu); f.Controls.Add(r1);
         FlowLayoutPanel r2 = Row(); chkLRam = Chk("Arbeitsspeicher (Mustertest, Bitfehler)", true); chkLRam.Width = UI.S(350); chkLRam.AutoSize = false; r2.Controls.Add(chkLRam);
-        cmbLRam = Combo(120, mins, 3); r2.Controls.Add(cmbLRam);
+        cmbLRam = Combo(120, mins, 0); r2.Controls.Add(cmbLRam);
         r2.Controls.Add(RowLabel("Anteil am freien RAM", 140)); cmbLRamPct = Combo(80, new string[] { "25 %", "40 %", "60 %", "75 %" }, 1); r2.Controls.Add(cmbLRamPct); f.Controls.Add(r2);
         FlowLayoutPanel r3 = Row(); chkLGpu = Chk("Grafik (Rendertest)", false); chkLGpu.Width = UI.S(350); chkLGpu.AutoSize = false; r3.Controls.Add(chkLGpu);
-        cmbLGpu = Combo(120, mins, 3); r3.Controls.Add(cmbLGpu);
+        cmbLGpu = Combo(120, mins, 0); r3.Controls.Add(cmbLGpu);
         cmbLGpuRes = Combo(110, new string[] { "1280x720", "1920x1080" }, 0); r3.Controls.Add(cmbLGpuRes);
         cmbLGpuShow = Combo(140, new string[] { "Fenster", "Vollbild", "ohne Anzeige" }, 0); r3.Controls.Add(cmbLGpuShow);
         f.Controls.Add(r3);
@@ -6854,7 +6885,7 @@ public partial class DiagGui : Form
         if (cmbGpuSel != null) cmbGpuSel.SelectedIndexChanged += sync1;
         cmbLGpuRes.SelectedIndexChanged += sync2; cmbLGpuShow.SelectedIndexChanged += sync2; cmbLGpuSel.SelectedIndexChanged += sync2;
         FlowLayoutPanel r4 = Row(); chkLDisk = Chk("Datenträger (Schreiben, Lesen, Datenprüfung)", false); chkLDisk.Width = UI.S(350); chkLDisk.AutoSize = false; r4.Controls.Add(chkLDisk);
-        cmbLDisk = Combo(120, mins, 2); r4.Controls.Add(cmbLDisk);
+        cmbLDisk = Combo(120, mins, 0); r4.Controls.Add(cmbLDisk);
         r4.Controls.Add(RowLabel("Laufwerk", 70));
         List<string> letters = new List<string>();
         foreach (string d in disks)
@@ -7790,7 +7821,7 @@ public partial class DiagGui : Form
     // ------------------------------------------------------------ Seite Versionen (ab v2.7)
     int SmartMax() { return cmbSmartMax != null && cmbSmartMax.SelectedIndex >= 0 && cmbSmartMax.SelectedIndex < smartMinutes.Length ? smartMinutes[cmbSmartMax.SelectedIndex] : 120; }
 
-    int Minutes(ComboBox c) { int v; return int.TryParse(Convert.ToString(c.SelectedItem).Split(' ')[0], out v) ? v : 15; }
+    int Minutes(ComboBox c) { int v; return int.TryParse(Convert.ToString(c.SelectedItem).Split(' ')[0], out v) ? v : 2; }
 
     List<string> SelectedModules()
     {
@@ -8371,9 +8402,10 @@ public partial class DiagGui : Form
         lblResult = Lbl("", 11f, true, UI.Text); lblResult.Anchor = AnchorStyles.Left; lblResult.AutoEllipsis = true;
         FlowLayoutPanel btns = new FlowLayoutPanel(); btns.AutoSize = true; btns.WrapContents = false; btns.BackColor = UI.Bg;
         btnStopWait = UI.Secondary("Test beenden"); btnSkipStep = UI.SkipStepButton(); btnCancel = UI.Secondary("Abbrechen");
-        btnFolder = UI.Secondary("Ordner öffnen"); btnNew = UI.Secondary("Neuer Lauf"); btnKi = UI.Secondary("KI-Datei zeigen"); btnHtml = UI.Primary("Bericht öffnen");
+        btnFolder = UI.Secondary("Ordner öffnen"); btnNew = UI.Secondary("Neuer Lauf"); btnKi = UI.Secondary("KI-Datei zeigen");
+        btnExportRun = UI.Secondary("Lauf exportieren …"); btnHtml = UI.Primary("Bericht öffnen");
         btnHtml.Margin = new Padding(8, 0, 0, 0); btnHtml.Padding = new Padding(14, 3, 14, 3); btnHtml.Font = new Font("Segoe UI Semibold", 9.75f);
-        btns.Controls.Add(btnStopWait); btns.Controls.Add(btnSkipStep); btns.Controls.Add(btnCancel); btns.Controls.Add(btnNew); btns.Controls.Add(btnFolder); btns.Controls.Add(btnKi); btns.Controls.Add(btnHtml);
+        btns.Controls.Add(btnStopWait); btns.Controls.Add(btnSkipStep); btns.Controls.Add(btnCancel); btns.Controls.Add(btnNew); btns.Controls.Add(btnFolder); btns.Controls.Add(btnExportRun); btns.Controls.Add(btnKi); btns.Controls.Add(btnHtml);
         foot.Controls.Add(lblResult, 0, 0); foot.Controls.Add(btns, 1, 0);
         t.Controls.Add(foot, 0, 8);
 
@@ -8389,6 +8421,7 @@ public partial class DiagGui : Form
         btnHtml.Click += delegate { OpenShell(htmlPath); };
         btnFolder.Click += delegate { OpenShell(outDir); };
         btnKi.Click += delegate { OpenSelect(kiPath); };
+        btnExportRun.Click += delegate { ExportCurrentRun(); };
         btnNew.Click += delegate { ReloadDb(); runView.Visible = false; setupView.Visible = true; };
         p.Controls.Add(t);
         ApplyRunTips();
@@ -8577,7 +8610,7 @@ public partial class DiagGui : Form
         btnCancel.Visible = true; btnCancel.Enabled = true;
         btnSkipStep.Visible = true; btnSkipStep.Enabled = false;
         btnStopWait.Visible = false; btnStopWait.Enabled = true;
-        btnHtml.Visible = false; btnFolder.Visible = false; btnNew.Visible = false; btnKi.Visible = false;
+        btnHtml.Visible = false; btnFolder.Visible = false; btnNew.Visible = false; btnKi.Visible = false; btnExportRun.Visible = false;
         timer.Start();
     }
 
@@ -8770,6 +8803,7 @@ public partial class DiagGui : Form
             lblResult.Text = nK > 0 ? "Kritische Befunde gefunden" : (nW > 0 ? "Warnungen vorhanden" : "Keine Auffälligkeiten");
             lblResult.ForeColor = nK > 0 ? UI.Crit : (nW > 0 ? UI.Warn : UI.Ok);
             btnHtml.Visible = File.Exists(htmlPath); btnFolder.Visible = Directory.Exists(outDir); btnKi.Visible = File.Exists(kiPath);
+            btnExportRun.Visible = Directory.Exists(outDir);
             if (btnHtml.Visible) OpenShell(htmlPath);
         }
         else
@@ -8783,6 +8817,26 @@ public partial class DiagGui : Form
             if (!cancelled) tabs.Selected = 4;
         }
         try { if (!ContainsFocus) FlashWindow(Handle, true); } catch { }
+    }
+
+    void ExportCurrentRun()
+    {
+        if (String.IsNullOrEmpty(outDir) || !Directory.Exists(outDir)) return;
+        using (SaveFileDialog sfd = new SaveFileDialog())
+        {
+            sfd.Title = "Lauf als Minibench-Paket exportieren";
+            sfd.Filter = "Minibench-Paket (*.minibench)|*.minibench|ZIP-Archiv (*.zip)|*.zip|Alle Dateien (*.*)|*.*";
+            sfd.FilterIndex = 1;
+            string dirName = Path.GetFileName(outDir);
+            sfd.FileName = (String.IsNullOrEmpty(dirName) ? "Lauf" : dirName) + ".minibench";
+            if (sfd.ShowDialog(this) != DialogResult.OK) return;
+
+            Cursor = Cursors.WaitCursor;
+            List<string> lines;
+            string res = RunHelper("-ExportLauf " + Q(outDir) + " -ExportZiel " + Q(sfd.FileName), out lines);
+            Cursor = Cursors.Default;
+            MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Export abgeschlossen.", "Lauf exportieren", MessageBoxButtons.OK, res.StartsWith("1") ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+        }
     }
 
     void AskCancel()
@@ -12384,6 +12438,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.62", "13.10.2026", "Bedarfsorientierter Lauf-Export (.minibench), Kerne und Threads in allen Referenzen, kompakter Lasttest und automatischer GitHub-Push",
+            "Bedarfsorientierter Lauf-Export (.minibench): Die .minibench-Austauschdatei entsteht nicht mehr automatisch bei jedem Durchlauf, sondern nur bei echtem Export-Bedarf. Nach Abschluss des Laufs steht eine neue Schaltfläche 'Lauf exportieren …' direkt in der Ergebnisansicht bereit (sowie weiterhin auf der Seite Vergleichsdatenbank). " +
+            "Keine Diagnosebericht.txt bei vorhandenem HTML: Wurde der interaktive HTML-Bericht erfolgreich erzeugt, wird auf die redundante reine Textfassung verzichtet; sie dient nur noch als Sicherheitsrückfall bei Fehlern. " +
+            "Kerne und Threads in allen Referenzen: Alle mitgelieferten Referenzsysteme (Desktop High-End, Desktop Mittelklasse, Mini-PC APU, Notebook Standard, Workstation Mobil) enthalten nun exakte Werte für reale Kerne und logische Threads und wurden in die eingebetteten Referenzen übernommen. " +
+            "Kompakter Lasttest als Standard: Die Standardauswahl für die Testdauer von CPU, RAM, GPU und Datenträger auf der Lasttestseite wurde von 15 Minuten auf 2 Minuten verkürzt. " +
+            "Automatischer GitHub-Push: Bauen.cmd committet und pusht bei bestandenen Tests vollautomatisch nach GitHub und aktualisiert die README.md."),
         new Eintrag("3.61", "13.10.2026", "All-in-One-Austauschformat (.minibench), erweiterter Berichts-Import mit Doppelklick-Verknüpfung, Lasttest-Telemetrie in Referenzen und unterbrechungsfreier Start",
             "Austauschpaket (.minibench): Ein selbsttragendes ZIP-Paket fasst Datenbankeintrag (Datenbank.json), Berichte (HTML, TXT), Anhang.zip und Telemetriedaten zusammen. Wird am Ende jedes Laufs automatisch im Berichtsordner erzeugt; Export einzelner Läufe direkt aus der Vergleichsdatenbank. Die veraltete KI-Kurzfassung wurde vollständig entfernt. " +
             "Erweiterter Import mit Berichtskopie: Der Importdialog verarbeitet neben Ordnern auch Pakete (.minibench, .zip) sowie einzelne JSON-Dateien. Der gesamte Berichtsordner wird mitkopiert und das Feld Ordner korrekt verknüpft, sodass ein Doppelklick in der Vergleichsdatenbank sofort den HTML-Bericht öffnet. " +
@@ -27313,7 +27373,10 @@ if ($ModDiag -and -not $AnalyzeLastRun) {
 
 # Datenbankeintrag vor dem Bericht, damit der Pfad im Bericht steht
 $script:DbSaved = Save-DbEntry -Sorted $sorted -NK $nK -NW $nW -NI $nI
-if ($script:DbSaved) { Add-Sub 'Vergleichsdatenbank'; Add-Line ('  Eintrag gespeichert: {0}' -f $script:DbSaved) }
+if ($script:DbSaved) {
+    Add-Sub 'Vergleichsdatenbank'; Add-Line ('  Eintrag gespeichert: {0}' -f $script:DbSaved)
+    try { Copy-Item -LiteralPath $script:DbSaved -Destination (Join-Path $OutputDir 'Datenbank.json') -Force } catch { }
+}
 
 $head = New-Object System.Text.StringBuilder
 [void]$head.AppendLine('#' * 100)
@@ -27346,9 +27409,6 @@ if ($sorted.Count) {
 [void]$head.AppendLine('  Zeitbedarf der Abschnitte:')
 foreach ($t in $script:Timings) { [void]$head.AppendLine(('    {0,-55} {1}' -f $t.Abschnitt, $t.Dauer)) }
 
-$full = $head.ToString() + $script:Report.ToString()
-$reportFile = Join-Path $OutputDir 'Diagnosebericht.txt'
-[IO.File]::WriteAllText($reportFile, $full, (New-Object Text.UTF8Encoding($true)))
 Write-Checkpoint 'ENDE' 'Lauf regulär abgeschlossen'
 Close-Checkpoint -RemoveFlag
 try { Copy-Item $script:CpLog (Join-Path $RawDir 'Checkpoint.log') -Force } catch { }
@@ -27358,7 +27418,12 @@ $kiName = $(if ($KiOhneAnonymisierung) { 'KI-Analyse_{0}_{1}.txt' -f $env:COMPUT
 $kiFile = Join-Path $OutputDir $kiName
 $htmlFile = Join-Path $OutputDir 'Diagnosebericht.html'
 try { New-HtmlReport -Path $htmlFile -Sorted $sorted -NK $nK -NW $nW -NI $nI -Start $StartTime -End $EndTime }
-catch { Write-Warning ('HTML-Bericht konnte nicht erstellt werden: {0}' -f $_.Exception.Message); $htmlFile = '' }
+catch {
+    Write-Warning ('HTML-Bericht konnte nicht erstellt werden: {0}' -f $_.Exception.Message)
+    $htmlFile = ''
+    $reportFile = Join-Path $OutputDir 'Diagnosebericht.txt'
+    [IO.File]::WriteAllText($reportFile, ($head.ToString() + $script:Report.ToString()), (New-Object Text.UTF8Encoding($true)))
+}
 
 try {
     [void](Export-BenchDashboardHtml -ErrorAction SilentlyContinue)
@@ -27381,25 +27446,14 @@ try {
     } else { Remove-Item $RawDir -Force -ErrorAction SilentlyContinue; $zipFile = '' }
 } catch { $zipFile = '' }
 
-# ab v3.61: All-in-One-Austauschdatei (.minibench-Paket) automatisch erzeugen
-$bundleName = '{0}_{1}.minibench' -f (Get-SafeName $env:COMPUTERNAME), (Get-Date -Format 'yyyyMMdd_HHmmss')
-$bundleFile = Join-Path $OutputDir $bundleName
-try {
-    [void](New-MinibenchBundle -ReportDir $OutputDir -DbFile $script:DbSaved -DestinationPath $bundleFile)
-} catch {
-    Write-Warning ('Minibench-Paket konnte nicht erstellt werden: {0}' -f $_.Exception.Message)
-    $bundleFile = ''
-}
-
 Write-Host ''
 Write-Host ('=' * 80) -ForegroundColor Cyan
 Write-Host ('  FERTIG nach {0:hh\:mm\:ss}' -f ($EndTime - $StartTime)) -ForegroundColor Cyan
 Write-Host ('  {0} kritisch, {1} Warnungen, {2} Hinweise' -f $nK, $nW, $nI) -ForegroundColor $(if ($nK) { 'Red' } elseif ($nW) { 'Yellow' } else { 'Green' })
 Write-Host ('  Ordner      : {0}' -f $OutputDir)
-if ($htmlFile) { Write-Host '  Bericht     : Diagnosebericht.html (und .txt)' } else { Write-Host '  Bericht     : Diagnosebericht.txt' }
+if ($htmlFile) { Write-Host '  Bericht     : Diagnosebericht.html' } else { Write-Host '  Bericht     : Diagnosebericht.txt' }
 if ($kiFile) { Write-Host ('  KI-Datei    : {0} ({1:N0} KB)' -f (Split-Path $kiFile -Leaf), ((Get-Item $kiFile).Length / 1KB)) }
 if ($zipFile) { Write-Host '  Anhang      : Anhang.zip (Protokolle und Rohdaten)' }
-if ($bundleFile -and (Test-Path -LiteralPath $bundleFile)) { Write-Host ('  Paket       : {0}' -f (Split-Path $bundleFile -Leaf)) }
 if ($script:DbSaved) { Write-Host ('  Datenbank   : {0}' -f $script:DbSaved) }
 if ($script:RestartNeeded.Count) { Write-Host ('  NEUSTART erforderlich für: {0}' -f (($script:RestartNeeded | Select-Object -Unique) -join ', ')) -ForegroundColor Yellow }
 Write-Host ('=' * 80) -ForegroundColor Cyan

@@ -2,6 +2,14 @@
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
 
+## v3.62 (13.10.2026)
+
+* **Bedarfsorientierter Lauf-Export (`.minibench`):** Das `.minibench`-Austauschpaket wird nicht mehr standardmäßig bei jedem Durchlauf erzeugt, sondern nur wenn gewünscht. Neben der Vergleichsdatenbank bietet die Ergebnisansicht nach dem Lauf eine neue Schaltfläche „Lauf exportieren …“, die das Paket inklusive Datenbankeintrag und Bericht an einem frei wählbaren Ort speichert.
+* **Redundante Textberichte vermieden:** Sofern der interaktive HTML-Bericht erfolgreich erzeugt wurde, entfällt das Schreiben von `Diagnosebericht.txt`. Bei Fehlern während der HTML-Erstellung fungiert die Datei weiterhin als automatischer Rückfall.
+* **Kerne und Threads in allen Referenzprofilen:** Alle vorinstallierten Referenzsysteme (`Desktop_HighEnd`, `Desktop_Mittelklasse`, `MiniPC_APU`, `Notebook_Standard`, `Workstation_Mobil`) wurden um die realen Kerne und logischen Threads (`Hardware.Kerne`, `Hardware.Threads`) ergänzt und in `Kern\Referenzen_Eingebettet.ps1` synchronisiert.
+* **Kompakter Lasttest als Standard (2 Minuten):** Die Vorauswahl der Testdauer auf der Seite Lasttest wurde für Prozessor, Arbeitsspeicher, Grafikkarte und Datenträger von 15 Minuten auf 2 Minuten herabgesetzt.
+* **Automatischer Git-Push & Release-Workflow:** `Bauen.cmd` committet nach erfolgreichen Pester-Tests nicht nur lokal und aktualisiert `README.md`, sondern pusht das Release direkt nach GitHub (`git push`). Die Entwicklerrichtlinien in `AGENTS.md` wurden aktualisiert.
+
 ## v3.61 (13.10.2026)
 
 * **All-in-One-Austauschformat (`.minibench`):** Jeder erfolgreiche Durchlauf erzeugt im Berichtsordner automatisch ein komprimiertes Komplettpaket (`.minibench`), das `Datenbank.json`, `Diagnosebericht.html`, `Diagnosebericht.txt`, `Anhang.zip` und Telemetrie bündelt. Über die Schaltfläche und das Kontextmenü „Lauf exportieren …“ auf der Seite Vergleichsdatenbank kann jeder Lauf exportiert werden (`-ExportLauf`). Die veraltete `KI-Kurzfassung.txt` und die zugehörige Zwischenablage-Schaltfläche wurden restlos entfernt.

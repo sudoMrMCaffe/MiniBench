@@ -17,6 +17,8 @@
     "System":  "Notebook Standard (Intel Core i5)",
     "Hardware":  {
                      "CPU":  "Intel Core i5-8365U",
+                     "Kerne":  4,
+                     "Threads":  8,
                      "RAM":  "24 GB DDR4-2400",
                      "GPU":  "UHD Graphics 620",
                      "IGPU":  "UHD Graphics 620",

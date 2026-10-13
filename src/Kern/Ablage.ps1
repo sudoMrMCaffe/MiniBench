@@ -645,29 +645,49 @@ function New-MinibenchBundle {
 function Export-DbLauf([string]$Pfad, [string]$Ziel = '', [string]$DataDir = $script:DataDir) {
     $res = [pscustomobject]@{ Ok = $false; Pfad = ''; Text = '' }
     if (-not (Test-Path -LiteralPath $Pfad)) {
-        $res.Text = ('Datenbankdatei nicht gefunden: {0}' -f $Pfad)
+        $res.Text = ('Pfad nicht gefunden: {0}' -f $Pfad)
         return $res
     }
-    $e = $null
-    try {
-        $e = Get-Content -LiteralPath $Pfad -Raw -Encoding UTF8 | ConvertFrom-Json
-    } catch {
-        $res.Text = ('Datenbankdatei nicht lesbar: {0}' -f $_.Exception.Message)
-        return $res
-    }
-    $ordner = Get-LaufOrdner $e $DataDir
-    if (-not $ordner -or -not (Test-Path -LiteralPath $ordner)) {
-        $res.Text = ('Berichtsordner für {0} nicht gefunden.' -f (Split-Path $Pfad -Leaf))
-        return $res
+    $ordner = ''
+    $dbFile = ''
+    if (Test-Path -LiteralPath $Pfad -PathType Container) {
+        $ordner = $Pfad
+        $leaf = Split-Path $ordner -Leaf
+        if (Test-Path -LiteralPath (Join-Path $ordner 'Datenbank.json')) {
+            $dbFile = Join-Path $ordner 'Datenbank.json'
+        } elseif ($DataDir -and (Test-Path -LiteralPath (Join-Path $DataDir 'Datenbank'))) {
+            $cand = Get-ChildItem -LiteralPath (Join-Path $DataDir 'Datenbank') -Filter '*.json' -File -ErrorAction SilentlyContinue |
+                Where-Object {
+                    try {
+                        $c = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction SilentlyContinue
+                        return ($c.Ordner -like "*$leaf*")
+                    } catch { return $false }
+                } | Select-Object -First 1
+            if ($cand) { $dbFile = $cand.FullName }
+        }
+    } else {
+        $dbFile = $Pfad
+        $e = $null
+        try {
+            $e = Get-Content -LiteralPath $Pfad -Raw -Encoding UTF8 | ConvertFrom-Json
+        } catch {
+            $res.Text = ('Datenbankdatei nicht lesbar: {0}' -f $_.Exception.Message)
+            return $res
+        }
+        $ordner = Get-LaufOrdner $e $DataDir
+        if (-not $ordner -or -not (Test-Path -LiteralPath $ordner)) {
+            $res.Text = ('Berichtsordner für {0} nicht gefunden.' -f (Split-Path $Pfad -Leaf))
+            return $res
+        }
     }
     if (-not $Ziel) {
-        $base = [IO.Path]::GetFileNameWithoutExtension($Pfad)
+        $base = if ($dbFile) { [IO.Path]::GetFileNameWithoutExtension($dbFile) } else { Split-Path $ordner -Leaf }
         $desk = [Environment]::GetFolderPath('Desktop')
         if (-not $desk) { $desk = [IO.Path]::GetTempPath() }
         $Ziel = Join-Path $desk ($base + '.minibench')
     }
     try {
-        $out = New-MinibenchBundle -ReportDir $ordner -DbFile $Pfad -DestinationPath $Ziel
+        $out = New-MinibenchBundle -ReportDir $ordner -DbFile $dbFile -DestinationPath $Ziel
         $res.Ok = $true
         $res.Pfad = $out
         $res.Text = ('Lauf erfolgreich nach {0} exportiert.' -f $out)

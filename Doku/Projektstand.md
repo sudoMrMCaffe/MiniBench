@@ -2,33 +2,33 @@
 
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
-## Stand: Version 3.61 (13.10.2026)
-Letzter Release-Commit: Commit 995e514 (Release v3.6). Version 3.61 entsteht als Commit "Release v3.61: ..." beim
-nächsten erfolgreichen Bauen.cmd.
+## Stand: Version 3.62 (13.10.2026)
+Letzter Release-Commit auf GitHub: f758044 (Update instructions in README). Lokaler Commit 88b5cf0 (Release v3.61).
+Version 3.62 entsteht als Release-Commit durch Bauen.cmd und wird direkt automatisch nach GitHub gepusht.
 
-Inhalt von 3.61 (Einzelheiten in Doku\Änderungen_v3.61.txt):
-1. All-in-One-Austauschformat (.minibench): Selbsttragendes ZIP-Archiv bündelt Datenbank.json, Berichte (HTML, TXT),
-   Anhang.zip und Telemetrie. Automatisches Erstellen am Laufende und Export-Funktion in der Vergleichsdatenbank.
-   KI-Kurzfassung restlos entfernt.
-2. Erweiterter Import & Doppelklick-Verlinkung: Importiert Ordner, .minibench, .zip und .json Dateien. Kopiert Berichtsordner
-   nach Minibench-Daten\Berichte und verknüpft das Feld Ordner; Doppelklick öffnet den Bericht sofort im Browser.
-3. Referenzprofile mit Lasttest-Telemetrie: Strukturierte Lasttest-Werte in allen Profilen; neues GTX-1070-System von
-   Matthias PC hinzugefügt; Dashboard und HTML-Bericht zeigen Lasttest-Deltas; -MedianAktualisieren pflegt Lasttest-Mediane ein.
-4. Unterbrechungsfreier Start: Popups AskDriver und AskSensorTools vor dem Start restlos entfernt; PawnIO-Sensormessung
-   standardmäßig aktiv mit lautlosem Nachladen fehlender Werkzeuge; manuelle Steuerung auf Seite Sensoren live erhalten.
+Inhalt von 3.62 (Einzelheiten in Doku\Änderungen_v3.62.txt):
+1. Bedarfsorientierter Lauf-Export (.minibench): Austauschdatei entsteht nur bei Bedarf. Neue Schaltfläche "Lauf exportieren …"
+   direkt in der Ergebnisansicht am Laufende (neben "Ordner öffnen") sowie weiterhin in der Vergleichsdatenbank.
+2. Keine Diagnosebericht.txt bei vorhandenem HTML: Wurde Diagnosebericht.html erfolgreich erzeugt, entfällt die redundante
+   reine Textfassung. Bei Fehlern bleibt sie als automatischer Fallback erhalten.
+3. Kerne und Threads in allen Referenzen: Alle mitgelieferten Profile (Desktop High-End, Desktop Mittelklasse, Mini-PC APU,
+   Notebook Standard, Workstation Mobil) besitzen nun reale Kerne und logische Threads; Referenzen_Eingebettet.ps1 aktualisiert.
+4. Kompakter Lasttest: Standardauswahl der Testdauer auf 2 Minuten verkürzt (vorher 15 Minuten) für schnellere Prüfläufe.
+5. Automatischer GitHub-Push & Release-Workflow: Bauen.cmd committet und pusht bei bestandenen Tests vollautomatisch nach
+   GitHub und aktualisiert die README.md. AGENTS.md entsprechend angepasst.
 
-Testlauf Windows (Windows PowerShell 5.1, Pester 6.2.0): 795 bestanden, 0 fehlgeschlagen, 99 übersprungen
+Testlauf Windows (Windows PowerShell 5.1, Pester 6.2.0): 796 bestanden, 0 fehlgeschlagen, 99 übersprungen
 (in Lauf.Tests.ps1; gewollt ohne -Gesamtlauf). Alle Fachgebiets-Tests erfolgreich.
 
 ## Offene Befunde
-Keine offenen Befunde. Die früheren Punkte aus Version 3.54 (synthetische Kurve im Dashboard, doppelte Kopie,
-script-Maskierung) sind vollständig behoben.
+Keine offenen Befunde.
 
 ## Fallstricke
 1. Pester 6.2 auf ULB-PC10039: Attrappen mit -ParameterFilter brauchen eine Vorgabe-Attrappe ohne Filter.
 2. Windows PowerShell 5.1: Einzelnes Objekt ohne .Count, daher Ergebnisse von Listenfunktionen immer mit $x = @(...) einsammeln.
 3. Dialoge und Formulare: Jeder Dialog muss UI.ThemeDialog aufrufen, um Darstellungsprobleme im dunklen Farbschema zu vermeiden.
 4. Zahlenformate in Tests: Trennzeichen kulturabhängig ([.,]) prüfen.
+5. BOM-Prüfung: Textdateien (außer .cmd) immer mit UTF-8 BOM speichern, da Windows PowerShell 5.1 sonst ANSI annimmt.
 
 ## Testgeräte
 TORRENT: Ryzen 5 7600X, Radeon RX 6800, B650 Gaming X AX, PawnIO 2.2.0.0, 5 Laufwerke (3 NVMe, 2 SATA).

@@ -1,4 +1,4 @@
-# Leos Minibench: Arbeitsrahmen für jede neue Version
+﻿# Leos Minibench: Arbeitsrahmen für jede neue Version
 
 Gilt für jeden Agenten, der an Leos Minibench arbeitet (Claude, Antigravity). Erst lesen, dann ändern.
 Den aktuellen Stand, offene Befunde und Fallstricke beschreibt Doku\Projektstand.md. Wer eine Version abschließt,
@@ -14,8 +14,8 @@ src                 Quelltext. Reihenfolge der Teile in src\Bauplan.txt. Kern in
                     Netzlaufwerk (Abgleich, Entfernen, Umbenennen von Läufen) in src\Kern\Ablage.ps1.
 Bauen.cmd           fügt src zu Aktueller Build\LeosMinibench.ps1 zusammen, führt die Tests aus, baut die .exe, schreibt
                     Stand.txt, passt README.md an (Version, Testanzahl), verschiebt den vorigen Build nach
-                    Archiv\v<alte Version>, räumt Aktueller Build\Minibench-Daten auf und committet nach bestandenen
-                    Tests lokal (Nachricht aus Versionen.cs). Bauen.cmd ohnetests baut ohne Tests und ohne Commit.
+                    Archiv\v<alte Version>, räumt Aktueller Build\Minibench-Daten auf, committet nach bestandenen
+                    Tests lokal (Nachricht aus Versionen.cs) und pusht automatisch nach GitHub (git push). Bauen.cmd ohnetests baut ohne Tests und ohne Commit.
 Aktueller Build     nie von Hand ändern, entsteht bei jedem Bau neu. Inhalt kommt auf den USB-Stick.
 tests               Pester-Tests nach Fachgebieten (keine Dateien je Version): Ablage, Ablauf, Aenderungen, Aufbau, Auswertung,
                     Bericht, Datenbank, Lauf (Gesamtläufe, nur mit -Gesamtlauf), Messung, Modulvertrag, Oberflaeche,
@@ -88,8 +88,8 @@ Minibench-Daten     Datenordner neben der exe: Berichte, Datenbank (JSON, PC-Dia
    zwingend Windows braucht: Set-ItResult -Skipped mit Test-IstWindows.
 
 ## Git
-Repository: https://github.com/sudoMrMCaffe/MiniBench (Zweig main). Bauen.cmd committet nach bestandenen Tests lokal,
-gepusht wird von Hand (git push). Jede Version ein Commit "Release vX.Y: <Titel aus Versionen.cs>". Vor der Arbeit
+Repository: https://github.com/sudoMrMCaffe/MiniBench (Zweig main). Bauen.cmd committet nach bestandenen Tests lokal
+und pusht automatisch nach GitHub (git push). Jede Version ein Commit "Release vX.Y: <Titel aus Versionen.cs>". Vor der Arbeit
 git log seit dem in Doku\Projektstand.md genannten Commit lesen.
 
 ## Vorgehen in jedem Chat
@@ -106,4 +106,4 @@ git log seit dem in Doku\Projektstand.md genannten Commit lesen.
 3. Doku\Änderungen_vX.Y.txt im Stil der bisherigen Dateien (Abschnitte, Gefunden und behoben, Grenzen, Umstieg, Quellen).
    Keine Testmatrix.
 4. Doku\Projektstand.md aktualisieren (Stand, offene Befunde, Fallstricke, letzter Commit).
-5. Bauen.cmd ausführen (oder Leonardo darum bitten), danach git push.
+5. Bauen.cmd ausführen (oder Leonardo darum bitten), committet und pusht bei bestandenen Tests automatisch.

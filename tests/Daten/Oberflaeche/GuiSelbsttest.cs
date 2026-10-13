@@ -143,7 +143,11 @@ public static class GuiSelbsttest
         string dir = System.IO.Path.Combine(System.IO.Path.Combine(System.IO.Path.Combine(root, "src"), "Daten"), "Referenzen");
         System.Collections.Generic.List<DbEntry> l = DbEntry.Load(dir);
         Ist(l.Count >= 5, "mindestens 5 Referenzprofile, gelesen: " + l.Count);
-        foreach (DbEntry e in l) Ist(e.Name.Length > 0 && e.Computer.Length > 0 && e.Cpu.Length > 0 && e.Werte.Count > 0, "Profil vollständig: " + e.Path);
+        foreach (DbEntry e in l)
+        {
+            Ist(e.Name.Length > 0 && e.Computer.Length > 0 && e.Cpu.Length > 0 && e.Werte.Count > 0, "Profil vollständig: " + e.Path);
+            Ist(e.Kerne > 0 && e.Threads > 0, "Kerne und Threads vorhanden: " + e.Path);
+        }
     }
 
     // Ein Eintrag, wie ihn Install-SoftwarePaket schreibt, erscheint auf der Seite Änderungen und ist rückgängig machbar

@@ -172,7 +172,10 @@ if ($ModDiag -and -not $AnalyzeLastRun) {
 
 # Datenbankeintrag vor dem Bericht, damit der Pfad im Bericht steht
 $script:DbSaved = Save-DbEntry -Sorted $sorted -NK $nK -NW $nW -NI $nI
-if ($script:DbSaved) { Add-Sub 'Vergleichsdatenbank'; Add-Line ('  Eintrag gespeichert: {0}' -f $script:DbSaved) }
+if ($script:DbSaved) {
+    Add-Sub 'Vergleichsdatenbank'; Add-Line ('  Eintrag gespeichert: {0}' -f $script:DbSaved)
+    try { Copy-Item -LiteralPath $script:DbSaved -Destination (Join-Path $OutputDir 'Datenbank.json') -Force } catch { }
+}
 
 $head = New-Object System.Text.StringBuilder
 [void]$head.AppendLine('#' * 100)
@@ -205,9 +208,6 @@ if ($sorted.Count) {
 [void]$head.AppendLine('  Zeitbedarf der Abschnitte:')
 foreach ($t in $script:Timings) { [void]$head.AppendLine(('    {0,-55} {1}' -f $t.Abschnitt, $t.Dauer)) }
 
-$full = $head.ToString() + $script:Report.ToString()
-$reportFile = Join-Path $OutputDir 'Diagnosebericht.txt'
-[IO.File]::WriteAllText($reportFile, $full, (New-Object Text.UTF8Encoding($true)))
 Write-Checkpoint 'ENDE' 'Lauf regulär abgeschlossen'
 Close-Checkpoint -RemoveFlag
 try { Copy-Item $script:CpLog (Join-Path $RawDir 'Checkpoint.log') -Force } catch { }
@@ -217,7 +217,12 @@ $kiName = $(if ($KiOhneAnonymisierung) { 'KI-Analyse_{0}_{1}.txt' -f $env:COMPUT
 $kiFile = Join-Path $OutputDir $kiName
 $htmlFile = Join-Path $OutputDir 'Diagnosebericht.html'
 try { New-HtmlReport -Path $htmlFile -Sorted $sorted -NK $nK -NW $nW -NI $nI -Start $StartTime -End $EndTime }
-catch { Write-Warning ('HTML-Bericht konnte nicht erstellt werden: {0}' -f $_.Exception.Message); $htmlFile = '' }
+catch {
+    Write-Warning ('HTML-Bericht konnte nicht erstellt werden: {0}' -f $_.Exception.Message)
+    $htmlFile = ''
+    $reportFile = Join-Path $OutputDir 'Diagnosebericht.txt'
+    [IO.File]::WriteAllText($reportFile, ($head.ToString() + $script:Report.ToString()), (New-Object Text.UTF8Encoding($true)))
+}
 
 try {
     [void](Export-BenchDashboardHtml -ErrorAction SilentlyContinue)
@@ -240,25 +245,14 @@ try {
     } else { Remove-Item $RawDir -Force -ErrorAction SilentlyContinue; $zipFile = '' }
 } catch { $zipFile = '' }
 
-# ab v3.61: All-in-One-Austauschdatei (.minibench-Paket) automatisch erzeugen
-$bundleName = '{0}_{1}.minibench' -f (Get-SafeName $env:COMPUTERNAME), (Get-Date -Format 'yyyyMMdd_HHmmss')
-$bundleFile = Join-Path $OutputDir $bundleName
-try {
-    [void](New-MinibenchBundle -ReportDir $OutputDir -DbFile $script:DbSaved -DestinationPath $bundleFile)
-} catch {
-    Write-Warning ('Minibench-Paket konnte nicht erstellt werden: {0}' -f $_.Exception.Message)
-    $bundleFile = ''
-}
-
 Write-Host ''
 Write-Host ('=' * 80) -ForegroundColor Cyan
 Write-Host ('  FERTIG nach {0:hh\:mm\:ss}' -f ($EndTime - $StartTime)) -ForegroundColor Cyan
 Write-Host ('  {0} kritisch, {1} Warnungen, {2} Hinweise' -f $nK, $nW, $nI) -ForegroundColor $(if ($nK) { 'Red' } elseif ($nW) { 'Yellow' } else { 'Green' })
 Write-Host ('  Ordner      : {0}' -f $OutputDir)
-if ($htmlFile) { Write-Host '  Bericht     : Diagnosebericht.html (und .txt)' } else { Write-Host '  Bericht     : Diagnosebericht.txt' }
+if ($htmlFile) { Write-Host '  Bericht     : Diagnosebericht.html' } else { Write-Host '  Bericht     : Diagnosebericht.txt' }
 if ($kiFile) { Write-Host ('  KI-Datei    : {0} ({1:N0} KB)' -f (Split-Path $kiFile -Leaf), ((Get-Item $kiFile).Length / 1KB)) }
 if ($zipFile) { Write-Host '  Anhang      : Anhang.zip (Protokolle und Rohdaten)' }
-if ($bundleFile -and (Test-Path -LiteralPath $bundleFile)) { Write-Host ('  Paket       : {0}' -f (Split-Path $bundleFile -Leaf)) }
 if ($script:DbSaved) { Write-Host ('  Datenbank   : {0}' -f $script:DbSaved) }
 if ($script:RestartNeeded.Count) { Write-Host ('  NEUSTART erforderlich für: {0}' -f (($script:RestartNeeded | Select-Object -Unique) -join ', ')) -ForegroundColor Yellow }
 Write-Host ('=' * 80) -ForegroundColor Cyan

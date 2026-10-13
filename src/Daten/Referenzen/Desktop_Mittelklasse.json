@@ -17,6 +17,8 @@
     "System":  "Desktop Mittelklasse (AMD B450)",
     "Hardware":  {
                      "CPU":  "AMD Ryzen 5 5600",
+                     "Kerne":  6,
+                     "Threads":  12,
                      "RAM":  "32 GB DDR4-2133",
                      "GPU":  "Radeon RX 570 Series",
                      "IGPU":  null,

@@ -17,6 +17,8 @@
     "System":  "Desktop High-End (AMD B650)",
     "Hardware":  {
                      "CPU":  "AMD Ryzen 5 7600X",
+                     "Kerne":  6,
+                     "Threads":  12,
                      "RAM":  "32 GB DDR5-6000",
                      "GPU":  "Radeon RX 6800",
                      "IGPU":  null,

@@ -159,6 +159,8 @@ $script:EmbeddedReferences = @{
     "System":  "Desktop High-End (AMD B650)",
     "Hardware":  {
                      "CPU":  "AMD Ryzen 5 7600X",
+                     "Kerne":  6,
+                     "Threads":  12,
                      "RAM":  "32 GB DDR5-6000",
                      "GPU":  "Radeon RX 6800",
                      "IGPU":  null,
@@ -351,6 +353,8 @@ $script:EmbeddedReferences = @{
     "System":  "Desktop Mittelklasse (AMD B450)",
     "Hardware":  {
                      "CPU":  "AMD Ryzen 5 5600",
+                     "Kerne":  6,
+                     "Threads":  12,
                      "RAM":  "32 GB DDR4-2133",
                      "GPU":  "Radeon RX 570 Series",
                      "IGPU":  null,
@@ -510,6 +514,8 @@ $script:EmbeddedReferences = @{
     "System":  "Mini-PC / APU (AMD Ryzen 7)",
     "Hardware":  {
                      "CPU":  "AMD Ryzen 7 H 255 w/ Radeon 780M Graphics",
+                     "Kerne":  8,
+                     "Threads":  16,
                      "RAM":  "32 GB DDR5-5600",
                      "GPU":  "Radeon 780M Graphics",
                      "IGPU":  "Radeon 780M Graphics",
@@ -636,6 +642,8 @@ $script:EmbeddedReferences = @{
     "System":  "Notebook Standard (Intel Core i5)",
     "Hardware":  {
                      "CPU":  "Intel Core i5-8365U",
+                     "Kerne":  4,
+                     "Threads":  8,
                      "RAM":  "24 GB DDR4-2400",
                      "GPU":  "UHD Graphics 620",
                      "IGPU":  "UHD Graphics 620",
@@ -762,6 +770,8 @@ $script:EmbeddedReferences = @{
     "System":  "Workstation Mobil (Intel Core i9)",
     "Hardware":  {
                      "CPU":  "13th Gen Intel Core i9-13900H",
+                     "Kerne":  14,
+                     "Threads":  20,
                      "RAM":  "64 GB LPDDR5-6000",
                      "GPU":  "RTX 3000 Ada Generation Laptop GPU",
                      "IGPU":  "Iris(R) Xe Graphics",

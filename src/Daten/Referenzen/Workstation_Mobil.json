@@ -17,6 +17,8 @@
     "System":  "Workstation Mobil (Intel Core i9)",
     "Hardware":  {
                      "CPU":  "13th Gen Intel Core i9-13900H",
+                     "Kerne":  14,
+                     "Threads":  20,
                      "RAM":  "64 GB LPDDR5-6000",
                      "GPU":  "RTX 3000 Ada Generation Laptop GPU",
                      "IGPU":  "Iris(R) Xe Graphics",

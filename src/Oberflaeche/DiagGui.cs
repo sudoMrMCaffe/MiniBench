@@ -234,7 +234,7 @@ public partial class DiagGui : Form
     void Tip(Control c, string text) { if (c != null && !String.IsNullOrEmpty(text)) tip.SetToolTip(c, WrapTip(text)); }
 
     // Ablauf
-    Button btnStopWait, btnSkipStep, btnCancel, btnHtml, btnFolder, btnNew, btnKi;
+    Button btnStopWait, btnSkipStep, btnCancel, btnHtml, btnFolder, btnNew, btnKi, btnExportRun;
     Label lblStep, lblCounter, lblSub, lblResult;
     FlatBar barAll, barSub;
     StatCard cardK, cardW, cardI, cardT;
@@ -942,6 +942,7 @@ public partial class DiagGui : Form
         Tip(btnCancel, "Bricht den ganzen Lauf ab. Es entsteht nur ein Teilbericht.");
         Tip(btnHtml, "Öffnet den Bericht im Browser.");
         Tip(btnFolder, "Öffnet den Berichtsordner dieses Laufs (Bericht, KI-Dateien, Anhang.zip).");
+        Tip(btnExportRun, "Exportiert diesen Durchlauf als gepackte .minibench-Datei für den Austausch oder das Archiv.");
         Tip(btnNew, "Zurück zur Auswahl für einen neuen Lauf.");
         Tip(btnKi, "Zeigt die KI-Datei im Explorer. Sie enthält Auftrag, Bericht und Rohdaten und lässt sich in ein KI-Modell hochladen.");
         Tip(cardK, "Kritische Befunde: Datenverlust oder Instabilität möglich, bald handeln.");
@@ -1283,12 +1284,12 @@ public partial class DiagGui : Form
         string[] mins = new string[] { "2 Minuten", "5 Minuten", "10 Minuten", "15 Minuten", "30 Minuten", "60 Minuten", "120 Minuten", "240 Minuten" };
         f.Controls.Add(Section("Komponenten und Dauer"));
         FlowLayoutPanel r1 = Row(); chkLCpu = Chk("Prozessor (alle Threads, Ergebnisprüfung)", true); chkLCpu.Width = UI.S(350); chkLCpu.AutoSize = false; r1.Controls.Add(chkLCpu);
-        cmbLCpu = Combo(120, mins, 3); r1.Controls.Add(cmbLCpu); f.Controls.Add(r1);
+        cmbLCpu = Combo(120, mins, 0); r1.Controls.Add(cmbLCpu); f.Controls.Add(r1);
         FlowLayoutPanel r2 = Row(); chkLRam = Chk("Arbeitsspeicher (Mustertest, Bitfehler)", true); chkLRam.Width = UI.S(350); chkLRam.AutoSize = false; r2.Controls.Add(chkLRam);
-        cmbLRam = Combo(120, mins, 3); r2.Controls.Add(cmbLRam);
+        cmbLRam = Combo(120, mins, 0); r2.Controls.Add(cmbLRam);
         r2.Controls.Add(RowLabel("Anteil am freien RAM", 140)); cmbLRamPct = Combo(80, new string[] { "25 %", "40 %", "60 %", "75 %" }, 1); r2.Controls.Add(cmbLRamPct); f.Controls.Add(r2);
         FlowLayoutPanel r3 = Row(); chkLGpu = Chk("Grafik (Rendertest)", false); chkLGpu.Width = UI.S(350); chkLGpu.AutoSize = false; r3.Controls.Add(chkLGpu);
-        cmbLGpu = Combo(120, mins, 3); r3.Controls.Add(cmbLGpu);
+        cmbLGpu = Combo(120, mins, 0); r3.Controls.Add(cmbLGpu);
         cmbLGpuRes = Combo(110, new string[] { "1280x720", "1920x1080" }, 0); r3.Controls.Add(cmbLGpuRes);
         cmbLGpuShow = Combo(140, new string[] { "Fenster", "Vollbild", "ohne Anzeige" }, 0); r3.Controls.Add(cmbLGpuShow);
         f.Controls.Add(r3);
@@ -1302,7 +1303,7 @@ public partial class DiagGui : Form
         if (cmbGpuSel != null) cmbGpuSel.SelectedIndexChanged += sync1;
         cmbLGpuRes.SelectedIndexChanged += sync2; cmbLGpuShow.SelectedIndexChanged += sync2; cmbLGpuSel.SelectedIndexChanged += sync2;
         FlowLayoutPanel r4 = Row(); chkLDisk = Chk("Datenträger (Schreiben, Lesen, Datenprüfung)", false); chkLDisk.Width = UI.S(350); chkLDisk.AutoSize = false; r4.Controls.Add(chkLDisk);
-        cmbLDisk = Combo(120, mins, 2); r4.Controls.Add(cmbLDisk);
+        cmbLDisk = Combo(120, mins, 0); r4.Controls.Add(cmbLDisk);
         r4.Controls.Add(RowLabel("Laufwerk", 70));
         List<string> letters = new List<string>();
         foreach (string d in disks)
@@ -2238,7 +2239,7 @@ public partial class DiagGui : Form
     // ------------------------------------------------------------ Seite Versionen (ab v2.7)
     int SmartMax() { return cmbSmartMax != null && cmbSmartMax.SelectedIndex >= 0 && cmbSmartMax.SelectedIndex < smartMinutes.Length ? smartMinutes[cmbSmartMax.SelectedIndex] : 120; }
 
-    int Minutes(ComboBox c) { int v; return int.TryParse(Convert.ToString(c.SelectedItem).Split(' ')[0], out v) ? v : 15; }
+    int Minutes(ComboBox c) { int v; return int.TryParse(Convert.ToString(c.SelectedItem).Split(' ')[0], out v) ? v : 2; }
 
     List<string> SelectedModules()
     {
@@ -2819,9 +2820,10 @@ public partial class DiagGui : Form
         lblResult = Lbl("", 11f, true, UI.Text); lblResult.Anchor = AnchorStyles.Left; lblResult.AutoEllipsis = true;
         FlowLayoutPanel btns = new FlowLayoutPanel(); btns.AutoSize = true; btns.WrapContents = false; btns.BackColor = UI.Bg;
         btnStopWait = UI.Secondary("Test beenden"); btnSkipStep = UI.SkipStepButton(); btnCancel = UI.Secondary("Abbrechen");
-        btnFolder = UI.Secondary("Ordner öffnen"); btnNew = UI.Secondary("Neuer Lauf"); btnKi = UI.Secondary("KI-Datei zeigen"); btnHtml = UI.Primary("Bericht öffnen");
+        btnFolder = UI.Secondary("Ordner öffnen"); btnNew = UI.Secondary("Neuer Lauf"); btnKi = UI.Secondary("KI-Datei zeigen");
+        btnExportRun = UI.Secondary("Lauf exportieren …"); btnHtml = UI.Primary("Bericht öffnen");
         btnHtml.Margin = new Padding(8, 0, 0, 0); btnHtml.Padding = new Padding(14, 3, 14, 3); btnHtml.Font = new Font("Segoe UI Semibold", 9.75f);
-        btns.Controls.Add(btnStopWait); btns.Controls.Add(btnSkipStep); btns.Controls.Add(btnCancel); btns.Controls.Add(btnNew); btns.Controls.Add(btnFolder); btns.Controls.Add(btnKi); btns.Controls.Add(btnHtml);
+        btns.Controls.Add(btnStopWait); btns.Controls.Add(btnSkipStep); btns.Controls.Add(btnCancel); btns.Controls.Add(btnNew); btns.Controls.Add(btnFolder); btns.Controls.Add(btnExportRun); btns.Controls.Add(btnKi); btns.Controls.Add(btnHtml);
         foot.Controls.Add(lblResult, 0, 0); foot.Controls.Add(btns, 1, 0);
         t.Controls.Add(foot, 0, 8);
 
@@ -2837,6 +2839,7 @@ public partial class DiagGui : Form
         btnHtml.Click += delegate { OpenShell(htmlPath); };
         btnFolder.Click += delegate { OpenShell(outDir); };
         btnKi.Click += delegate { OpenSelect(kiPath); };
+        btnExportRun.Click += delegate { ExportCurrentRun(); };
         btnNew.Click += delegate { ReloadDb(); runView.Visible = false; setupView.Visible = true; };
         p.Controls.Add(t);
         ApplyRunTips();
@@ -3025,7 +3028,7 @@ public partial class DiagGui : Form
         btnCancel.Visible = true; btnCancel.Enabled = true;
         btnSkipStep.Visible = true; btnSkipStep.Enabled = false;
         btnStopWait.Visible = false; btnStopWait.Enabled = true;
-        btnHtml.Visible = false; btnFolder.Visible = false; btnNew.Visible = false; btnKi.Visible = false;
+        btnHtml.Visible = false; btnFolder.Visible = false; btnNew.Visible = false; btnKi.Visible = false; btnExportRun.Visible = false;
         timer.Start();
     }
 
@@ -3218,6 +3221,7 @@ public partial class DiagGui : Form
             lblResult.Text = nK > 0 ? "Kritische Befunde gefunden" : (nW > 0 ? "Warnungen vorhanden" : "Keine Auffälligkeiten");
             lblResult.ForeColor = nK > 0 ? UI.Crit : (nW > 0 ? UI.Warn : UI.Ok);
             btnHtml.Visible = File.Exists(htmlPath); btnFolder.Visible = Directory.Exists(outDir); btnKi.Visible = File.Exists(kiPath);
+            btnExportRun.Visible = Directory.Exists(outDir);
             if (btnHtml.Visible) OpenShell(htmlPath);
         }
         else
@@ -3231,6 +3235,26 @@ public partial class DiagGui : Form
             if (!cancelled) tabs.Selected = 4;
         }
         try { if (!ContainsFocus) FlashWindow(Handle, true); } catch { }
+    }
+
+    void ExportCurrentRun()
+    {
+        if (String.IsNullOrEmpty(outDir) || !Directory.Exists(outDir)) return;
+        using (SaveFileDialog sfd = new SaveFileDialog())
+        {
+            sfd.Title = "Lauf als Minibench-Paket exportieren";
+            sfd.Filter = "Minibench-Paket (*.minibench)|*.minibench|ZIP-Archiv (*.zip)|*.zip|Alle Dateien (*.*)|*.*";
+            sfd.FilterIndex = 1;
+            string dirName = Path.GetFileName(outDir);
+            sfd.FileName = (String.IsNullOrEmpty(dirName) ? "Lauf" : dirName) + ".minibench";
+            if (sfd.ShowDialog(this) != DialogResult.OK) return;
+
+            Cursor = Cursors.WaitCursor;
+            List<string> lines;
+            string res = RunHelper("-ExportLauf " + Q(outDir) + " -ExportZiel " + Q(sfd.FileName), out lines);
+            Cursor = Cursors.Default;
+            MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Export abgeschlossen.", "Lauf exportieren", MessageBoxButtons.OK, res.StartsWith("1") ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+        }
     }
 
     void AskCancel()

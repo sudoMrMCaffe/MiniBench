@@ -423,9 +423,9 @@ try {
         } catch { Write-Host ('  Hinweis  : Datenpflege nicht möglich: {0}' -f $_.Exception.Message) -ForegroundColor Yellow }
     }
 
-    # 6. Git (ab v3.31, ab v3.53 überarbeitet): nach erfolgreichem Bau UND bestandenen Tests ein lokaler Commit.
-    #    Die Nachricht kommt aus dem Titel des Eintrags in src\Oberflaeche\Versionen.cs ("Release vX.Y: <Titel>"),
-    #    nicht aus einer Liste in dieser Datei. Gepusht wird von Hand (git push).
+    # 6. Git (ab v3.31, ab v3.53 überarbeitet, ab v3.62 mit automatischem Push): nach erfolgreichem Bau UND
+    #    bestandenen Tests lokaler Commit und automatische Übertragung nach GitHub (git push).
+    #    Die Nachricht kommt aus dem Titel des Eintrags in src\Oberflaeche\Versionen.cs ("Release vX.Y: <Titel>").
     $gitCmd = Get-Command git.exe -ErrorAction SilentlyContinue
     $isGitRepo = Test-Path -LiteralPath (Join-Path $Here '.git')
     if ($gitCmd -and $isGitRepo -and -not $testsOk) {
@@ -444,7 +444,12 @@ try {
                 $commitOut = & git.exe -C $Here commit -m $commitMsg 2>&1
                 if ($LASTEXITCODE -eq 0) {
                     Write-Host ('  Git      : lokal committed ({0})' -f $commitMsg) -ForegroundColor Green
-                    Write-Host '  Git      : zum Übertragen "git push" ausführen.' -ForegroundColor Cyan
+                    $pushOut = & git.exe -C $Here push 2>&1
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Host '  Git      : erfolgreich nach GitHub übertragen (git push).' -ForegroundColor Green
+                    } else {
+                        Write-Host ('  Hinweis  : git push nicht erfolgreich: {0}' -f ((@($pushOut) | Select-Object -Last 3) -join ' ')) -ForegroundColor Yellow
+                    }
                 } else {
                     Write-Host ('  Hinweis  : git commit fehlgeschlagen: {0}' -f ((@($commitOut) | Select-Object -Last 3) -join ' ')) -ForegroundColor Yellow
                 }

@@ -203,6 +203,14 @@ Describe 'Referenzsysteme und eingebettete Referenzen' {
             ($o.Computer -match 'Referenz' -or $o.Name -match 'Referenz') | Should -BeTrue -Because $f.Name
         }
     }
+    It 'alle mitgelieferten Referenzen enthalten Kerne und Threads in Hardware' {
+        foreach ($f in $refFiles) {
+            $o = [IO.File]::ReadAllText($f.FullName, [Text.Encoding]::UTF8) | ConvertFrom-Json
+            $o.Hardware.Kerne | Should -BeGreaterThan 0 -Because ('{0}: Hardware.Kerne' -f $f.Name)
+            $o.Hardware.Threads | Should -BeGreaterThan 0 -Because ('{0}: Hardware.Threads' -f $f.Name)
+            $o.Hardware.Threads | Should -BeGreaterOrEqual $o.Hardware.Kerne -Because ('{0}: Threads >= Kerne' -f $f.Name)
+        }
+    }
     It 'die eingebetteten Referenzen entsprechen den Dateien in src/Daten/Referenzen' {
         $refs = Get-ModuleVar 'EmbeddedReferences'
         @($refs.Keys | Sort-Object) | Should -Be @($refFiles | ForEach-Object { $_.Name } | Sort-Object)

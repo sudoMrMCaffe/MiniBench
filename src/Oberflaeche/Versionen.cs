@@ -11,6 +11,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.62", "13.10.2026", "Bedarfsorientierter Lauf-Export (.minibench), Kerne und Threads in allen Referenzen, kompakter Lasttest und automatischer GitHub-Push",
+            "Bedarfsorientierter Lauf-Export (.minibench): Die .minibench-Austauschdatei entsteht nicht mehr automatisch bei jedem Durchlauf, sondern nur bei echtem Export-Bedarf. Nach Abschluss des Laufs steht eine neue Schaltfläche 'Lauf exportieren …' direkt in der Ergebnisansicht bereit (sowie weiterhin auf der Seite Vergleichsdatenbank). " +
+            "Keine Diagnosebericht.txt bei vorhandenem HTML: Wurde der interaktive HTML-Bericht erfolgreich erzeugt, wird auf die redundante reine Textfassung verzichtet; sie dient nur noch als Sicherheitsrückfall bei Fehlern. " +
+            "Kerne und Threads in allen Referenzen: Alle mitgelieferten Referenzsysteme (Desktop High-End, Desktop Mittelklasse, Mini-PC APU, Notebook Standard, Workstation Mobil) enthalten nun exakte Werte für reale Kerne und logische Threads und wurden in die eingebetteten Referenzen übernommen. " +
+            "Kompakter Lasttest als Standard: Die Standardauswahl für die Testdauer von CPU, RAM, GPU und Datenträger auf der Lasttestseite wurde von 15 Minuten auf 2 Minuten verkürzt. " +
+            "Automatischer GitHub-Push: Bauen.cmd committet und pusht bei bestandenen Tests vollautomatisch nach GitHub und aktualisiert die README.md."),
         new Eintrag("3.61", "13.10.2026", "All-in-One-Austauschformat (.minibench), erweiterter Berichts-Import mit Doppelklick-Verknüpfung, Lasttest-Telemetrie in Referenzen und unterbrechungsfreier Start",
             "Austauschpaket (.minibench): Ein selbsttragendes ZIP-Paket fasst Datenbankeintrag (Datenbank.json), Berichte (HTML, TXT), Anhang.zip und Telemetriedaten zusammen. Wird am Ende jedes Laufs automatisch im Berichtsordner erzeugt; Export einzelner Läufe direkt aus der Vergleichsdatenbank. Die veraltete KI-Kurzfassung wurde vollständig entfernt. " +
             "Erweiterter Import mit Berichtskopie: Der Importdialog verarbeitet neben Ordnern auch Pakete (.minibench, .zip) sowie einzelne JSON-Dateien. Der gesamte Berichtsordner wird mitkopiert und das Feld Ordner korrekt verknüpft, sodass ein Doppelklick in der Vergleichsdatenbank sofort den HTML-Bericht öffnet. " +

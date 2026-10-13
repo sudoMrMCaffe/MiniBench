@@ -5,6 +5,21 @@ Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Verweis Versionshistorie oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
 
+VERSION 3.62   (13.10.2026)  BEDARFSORIENTIERTER LAUF-EXPORT (.MINIBENCH), KERNE UND THREADS IN ALLEN REFERENZEN, KOMPAKTER LASTTEST UND AUTOMATISCHER GITHUB-PUSH
+====================================================================================================
+Bedarfsorientierter Lauf-Export (.minibench): Die .minibench-Austauschdatei entsteht nicht mehr automatisch am Ende jedes
+Laufs, sondern gezielt bei Bedarf. Am Ende des Laufs steht dafür eine neue Schaltfläche "Lauf exportieren …" direkt in der
+Abschlussansicht bereit (ebenso wie weiterhin in der Vergleichsdatenbank).
+Keine Diagnosebericht.txt bei erzeugtem HTML: Die reine Textfassung des Diagnoseberichts entfällt im regulären Lauf; sie dient
+nur noch als Sicherheits-Fallback bei Fehlern während der HTML-Erstellung.
+Kerne und Threads in allen Referenzen: Alle mitgelieferten Referenzsysteme (Desktop High-End, Desktop Mittelklasse, Mini-PC APU,
+Notebook Standard, Workstation Mobil) enthalten nun korrekte Werte für reale Kerne und logische Threads und wurden in die
+eingebetteten Referenzen übernommen.
+Kompakter Lasttest als Standard: Die Auswahldauer für CPU, RAM, GPU und Datenträger auf der Lasttestseite startet standardmäßig
+mit 2 Minuten (bisher 15 Minuten).
+Automatischer GitHub-Push: Bauen.cmd committet nach bestandenen Tests lokal und überträgt alle Änderungen inklusive aktualisierter
+README.md automatisch nach GitHub (git push).
+
 VERSION 3.61   (13.10.2026)  ALL-IN-ONE-AUSTAUSCHFORMAT (.MINIBENCH), ERWEITERTER BERICHTS-IMPORT MIT DOPPELKLICK-VERKNÜPFUNG, LASTTEST-TELEMETRIE IN REFERENZEN UND UNTERBRECHUNGSFREIER START
 ====================================================================================================
 Austauschformat (.minibench): Ein selbsttragendes ZIP-Archiv bündelt Datenbankeintrag (Datenbank.json), Berichte (HTML, TXT),

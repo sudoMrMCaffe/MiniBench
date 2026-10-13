@@ -614,6 +614,20 @@ Describe 'Lauf exportieren und Austauschpaket (.minibench)' {
         $r.Pfad | Should -Be $ziel
         $ziel | Should -Exist
     }
+    It 'Export-DbLauf exportiert einen Lauf direkt anhand des Berichtsordners' {
+        $x = New-ExportLauf
+        $ziel = Join-Path (New-TestDir 'export') 'ExportiertOrdner.minibench'
+        $r = MinibenchTest\Export-DbLauf -Pfad $x.Ordner -Ziel $ziel -DataDir $x.Root
+        $r.Ok | Should -BeTrue
+        $r.Pfad | Should -Be $ziel
+        $ziel | Should -Exist
+
+        $entpackt = New-TestDir 'entpacktOrdner'
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($ziel, $entpackt)
+        Join-Path $entpackt 'Diagnosebericht.html' | Should -Exist
+        Join-Path $entpackt 'Datenbank.json' | Should -Exist
+    }
     It 'Export-DbLauf bricht sauber ab, wenn Datenbankdatei oder Berichtsordner fehlen' {
         $x = New-ExportLauf
         $ziel = Join-Path (New-TestDir 'export') 'Fehler.minibench'
