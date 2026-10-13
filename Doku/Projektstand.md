@@ -1,10 +1,10 @@
-﻿# Leos Minibench: Projektstand
+# Leos Minibench: Projektstand
 
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
 ## Stand: Version 3.63 (13.10.2026)
-Letzter Release-Commit auf GitHub: f758044 (Update instructions in README). Lokaler Commit 88b5cf0 (Release v3.61).
-Version 3.63 entsteht als Release-Commit durch Bauen.cmd und wird direkt automatisch nach GitHub gepusht.
+Letzter Release-Commit auf GitHub: e88577a (Release v3.63: Geschätzter Gesamtsystemverbrauch, Effizienz-Metriken (Punkte pro Watt) und interaktiver Stromkostenrechner).
+
 
 Inhalt von 3.63 (Einzelheiten in Doku\Änderungen_v3.63.txt):
 1. Geschätzter Gesamtsystemverbrauch: Mathematisches Modell für Desktop (DC intern und AC an der Steckdose bei 88 % Wirkungsgrad)
