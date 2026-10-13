@@ -1,4 +1,4 @@
-# Leos Minibench: Projektstand
+﻿# Leos Minibench: Projektstand
 
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
@@ -20,6 +20,8 @@ Inhalt von 3.63 (Einzelheiten in Doku\Änderungen_v3.63.txt):
 
 Testlauf Windows (Windows PowerShell 5.1, Pester 6.2.0): 805 bestanden, 0 fehlgeschlagen, 99 übersprungen
 (in Lauf.Tests.ps1; gewollt ohne -Gesamtlauf). Alle Fachgebiets-Tests erfolgreich.
+
+Hotfix v3.63 (13.10.2026): JavaScript-Syntaxfehler in Bausteine_Dashboard.ps1 behoben (doppeltes 'else' im Telemetrie-Tooltip-Handler verhinderte das Laden des Dashboards).
 
 ## Offene Befunde
 Keine offenen Befunde.

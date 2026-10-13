@@ -1,13 +1,13 @@
 ﻿LEOS MINIBENCH: AKTUELLER BUILD
 ===============================
 Version   : 3.63 (Dateiversion 3.63.0.0)
-Gebaut    : 13.10.2026 20:20 auf WIN11VM
-Tests     : 805 bestanden, 0 fehlgeschlagen, 99 übersprungen (Pester 6.2.0, PowerShell 5.1.26100.9444)
+Gebaut    : 13.10.2026 21:05 auf WIN11VM
+Tests     : nicht ausgeführt (Bauen.cmd ohnetests)
 Quelltext : 44 Teile aus src, 28,042 Zeilen
 
 Dateien (SHA-256 zur Kontrolle auf dem Stick: Get-FileHash <Datei>)
-  LeosMinibench.exe         1,943 KB  ebab11d197b667e7e3f54c3aba71d27a0b13588f3f6429be47806db24725130d
-  LeosMinibench.ps1         1,870 KB  108373b0b790df33341a1a198c09f8f05cb66d557fd4c4b62ba966bbf5bd5ec8
+  LeosMinibench.exe         1,943 KB  440bf9563a8caf105aaecce482da11a9bd8e373a48ea4c4a6ae68ae5721b8cc1
+  LeosMinibench.ps1         1,870 KB  0cada9e56a5e3d0f43b766124455424b70209dbf82e825c091795efdd2782cd6
   LeosMinibench.cmd             1 KB  2238c6583cfb33fb714e6e74a5d251d0c451f9ec950230a04e2046b48d29529a
 
 Für den USB-Stick: den Inhalt dieses Ordners auf den Stick kopieren und vorhandene Dateien ersetzen.

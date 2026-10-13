@@ -2523,7 +2523,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
             ctx.arc(cx, getYTemp(closest.Temp), 4.5, 0, Math.PI * 2);
             ctx.fill();
           }
-        } else {
+        } else if (chartMode === 'gpu') {
           // GPU
           const gTemp = closest.GpuTemp != null ? closest.GpuTemp : closest.IGpuTemp;
           const gMhz = closest.GpuMHz != null ? closest.GpuMHz : closest.IGpuMHz;
