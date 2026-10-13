@@ -22,6 +22,7 @@ Testlauf Windows (Windows PowerShell 5.1, Pester 6.2.0): 805 bestanden, 0 fehlge
 (in Lauf.Tests.ps1; gewollt ohne -Gesamtlauf). Alle Fachgebiets-Tests erfolgreich.
 
 Hotfix v3.63 (13.10.2026): JavaScript-Syntaxfehler in Bausteine_Dashboard.ps1 behoben (doppeltes 'else' im Telemetrie-Tooltip-Handler verhinderte das Laden des Dashboards).
+Aktualisierung (13.10.2026): Alle 20 HTML-Berichte und Datenbankeinträge mit Aktualisiere-Berichte.ps1 neu gerendert (Kerne/Threads, gemessene Sensor-Leistungsaufnahmen aus Anhang.zip, Systemleistungs-Profile, Stromkostenrechner und Referenzwerte ergänzt; 29 veraltete/redundante Dateien ins Archiv überführt).
 
 ## Offene Befunde
 Keine offenen Befunde.

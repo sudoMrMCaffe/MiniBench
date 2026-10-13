@@ -415,6 +415,8 @@ function Get-SystemPowerProfile($Entry = $null) {
         $gpuStr = $(if ($Entry.Hardware -and $Entry.Hardware.GPU) { [string]$Entry.Hardware.GPU } else { '' })
         if ($gpuStr -and (Get-Command 'Get-GpuKind' -ErrorAction SilentlyContinue)) {
             $hasDgpu = ((& 'Get-GpuKind' $gpuStr) -eq 'dGPU')
+        } elseif ($gpuStr) {
+            $hasDgpu = ($gpuStr -match 'NVIDIA|GeForce|Quadro|Tesla|\bRTX\b|\bGTX\b|Radeon RX|Radeon Pro|FirePro|\bArc\b') -and ($gpuStr -notmatch 'Graphics\s*$|\b\d{3}M\b')
         }
     } else {
         if (Get-Command 'Get-GpuAdapters' -ErrorAction SilentlyContinue) {
@@ -435,7 +437,15 @@ function Get-SystemPowerProfile($Entry = $null) {
             if ($null -eq $cpuWMax -and $Entry.Sensoren.Benchmark -and $Entry.Sensoren.Benchmark.CpuWMax) { $cpuWMax = [double]$Entry.Sensoren.Benchmark.CpuWMax }
             if ($null -eq $gpuWMax -and $Entry.Sensoren.Benchmark -and $Entry.Sensoren.Benchmark.GpuWMax) { $gpuWMax = [double]$Entry.Sensoren.Benchmark.GpuWMax }
         }
-        if ($null -eq $cpuWMax -and $Entry.Lasttest -and $Entry.Lasttest -match 'max (\d+)\s*W') { $cpuWMax = [double]$matches[1] }
+        if ($Entry.Lasttest) {
+            if ($null -eq $cpuWMax) {
+                if ($Entry.Lasttest.CpuWMax) { $cpuWMax = [double]$Entry.Lasttest.CpuWMax }
+                elseif ($Entry.Lasttest -match 'max (\d+)\s*W') { $cpuWMax = [double]$matches[1] }
+            }
+            if ($null -eq $gpuWMax -and $Entry.Lasttest.GpuWMax) {
+                $gpuWMax = [double]$Entry.Lasttest.GpuWMax
+            }
+        }
     } else {
         if ($script:SensorDb) {
             if ($script:SensorDb['Leerlauf'] -and $script:SensorDb['Leerlauf'].CpuW) { $cpuWIdle = [double]$script:SensorDb['Leerlauf'].CpuW }
@@ -458,6 +468,10 @@ function Get-SystemPowerProfile($Entry = $null) {
     # Nur dGPU-Leistung werten; iGPU ist bereits im CPU-Package enthalten
     if (-not $hasDgpu) { $gpuWIdle = 0.0; $gpuWMax = 0.0 }
     elseif ($null -eq $gpuWIdle -and $hasDgpu) { $gpuWIdle = $(if ($isNb) { 5.0 } else { 12.0 }) }
+
+    if ($null -eq $cpuWIdle -and $null -ne $cpuWMax -and $cpuWMax -gt 0) {
+        $cpuWIdle = $(if ($isNb) { [math]::Min(10.0, [math]::Max(4.0, [math]::Round($cpuWMax * 0.15, 1))) } else { [math]::Min(25.0, [math]::Max(12.0, [math]::Round($cpuWMax * 0.18, 1))) })
+    }
 
     # Teillast abschätzen (Alltagsbetrieb / Büro / Video)
     $cpuWPart = $null; $gpuWPart = $null

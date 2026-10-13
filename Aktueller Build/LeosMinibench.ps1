@@ -14125,6 +14125,8 @@ function Get-SystemPowerProfile($Entry = $null) {
         $gpuStr = $(if ($Entry.Hardware -and $Entry.Hardware.GPU) { [string]$Entry.Hardware.GPU } else { '' })
         if ($gpuStr -and (Get-Command 'Get-GpuKind' -ErrorAction SilentlyContinue)) {
             $hasDgpu = ((& 'Get-GpuKind' $gpuStr) -eq 'dGPU')
+        } elseif ($gpuStr) {
+            $hasDgpu = ($gpuStr -match 'NVIDIA|GeForce|Quadro|Tesla|\bRTX\b|\bGTX\b|Radeon RX|Radeon Pro|FirePro|\bArc\b') -and ($gpuStr -notmatch 'Graphics\s*$|\b\d{3}M\b')
         }
     } else {
         if (Get-Command 'Get-GpuAdapters' -ErrorAction SilentlyContinue) {
@@ -14145,7 +14147,15 @@ function Get-SystemPowerProfile($Entry = $null) {
             if ($null -eq $cpuWMax -and $Entry.Sensoren.Benchmark -and $Entry.Sensoren.Benchmark.CpuWMax) { $cpuWMax = [double]$Entry.Sensoren.Benchmark.CpuWMax }
             if ($null -eq $gpuWMax -and $Entry.Sensoren.Benchmark -and $Entry.Sensoren.Benchmark.GpuWMax) { $gpuWMax = [double]$Entry.Sensoren.Benchmark.GpuWMax }
         }
-        if ($null -eq $cpuWMax -and $Entry.Lasttest -and $Entry.Lasttest -match 'max (\d+)\s*W') { $cpuWMax = [double]$matches[1] }
+        if ($Entry.Lasttest) {
+            if ($null -eq $cpuWMax) {
+                if ($Entry.Lasttest.CpuWMax) { $cpuWMax = [double]$Entry.Lasttest.CpuWMax }
+                elseif ($Entry.Lasttest -match 'max (\d+)\s*W') { $cpuWMax = [double]$matches[1] }
+            }
+            if ($null -eq $gpuWMax -and $Entry.Lasttest.GpuWMax) {
+                $gpuWMax = [double]$Entry.Lasttest.GpuWMax
+            }
+        }
     } else {
         if ($script:SensorDb) {
             if ($script:SensorDb['Leerlauf'] -and $script:SensorDb['Leerlauf'].CpuW) { $cpuWIdle = [double]$script:SensorDb['Leerlauf'].CpuW }
@@ -14168,6 +14178,10 @@ function Get-SystemPowerProfile($Entry = $null) {
     # Nur dGPU-Leistung werten; iGPU ist bereits im CPU-Package enthalten
     if (-not $hasDgpu) { $gpuWIdle = 0.0; $gpuWMax = 0.0 }
     elseif ($null -eq $gpuWIdle -and $hasDgpu) { $gpuWIdle = $(if ($isNb) { 5.0 } else { 12.0 }) }
+
+    if ($null -eq $cpuWIdle -and $null -ne $cpuWMax -and $cpuWMax -gt 0) {
+        $cpuWIdle = $(if ($isNb) { [math]::Min(10.0, [math]::Max(4.0, [math]::Round($cpuWMax * 0.15, 1))) } else { [math]::Min(25.0, [math]::Max(12.0, [math]::Round($cpuWMax * 0.18, 1))) })
+    }
 
     # Teillast abschätzen (Alltagsbetrieb / Büro / Video)
     $cpuWPart = $null; $gpuWPart = $null
@@ -18122,17 +18136,31 @@ function New-PowerEfficiencyHtml($Profile) {
         $initKwh = [math]::Round((4 * $pTeilNum + 2 * $pVollNum) * 365 / 1000.0, 1)
         $initCost = [math]::Round($initKwh * 0.35, 2)
         [void]$sb.Append('<details style="margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:10px 16px;"><summary style="font-weight:650;color:var(--accent);">💰 Jährliche Stromkosten-Schätzung (Verbrauchskalkulator)</summary>')
-        [void]$sb.Append(('<div class="calc-grid">' +
-            '<input type="hidden" id="calcPTeil" value="{0}">' +
-            '<input type="hidden" id="calcPVoll" value="{1}">' +
-            '<div class="calc-field"><label for="calcHTeil">Alltagsbetrieb / Büro (h/Tag):</label><input type="number" id="calcHTeil" value="4" min="0" max="24" step="0.5" oninput="recalcPowerCost()"></div>' +
-            '<div class="calc-field"><label for="calcHVoll">Volllast / Gaming (h/Tag):</label><input type="number" id="calcHVoll" value="2" min="0" max="24" step="0.5" oninput="recalcPowerCost()"></div>' +
-            '<div class="calc-field"><label for="calcPrice">Strompreis (Cent/kWh):</label><input type="number" id="calcPrice" value="35" min="1" max="150" step="1" oninput="recalcPowerCost()"></div>' +
-            '<div class="calc-res"><span>Jahresverbrauch</span><b id="calcOutKwh">{2:N0} kWh</b></div>' +
-            '<div class="calc-res"><span>Geschätzte Kosten</span><b id="calcOutCost">{3:N2} €</b></div>' +
-            '</div><p class="note" style="margin-top:8px;">Berechnung basiert auf angenommenen 365 Tagen/Jahr mit den modellierten AC-Leistungswerten (~{0} W Teillast, ~{1} W Volllast).</p>' +
-            '<script>function recalcPowerCost(){var eHT=document.getElementById(''calcHTeil''),eHV=document.getElementById(''calcHVoll''),eP=document.getElementById(''calcPrice''),ePT=document.getElementById(''calcPTeil''),ePV=document.getElementById(''calcPVoll'');if(!eHT||!eHV||!eP||!ePT||!ePV)return;var hT=parseFloat(eHT.value)||0,hV=parseFloat(eHV.value)||0,pr=parseFloat(eP.value)||0,pT=parseFloat(ePT.value)||0,pV=parseFloat(ePV.value)||0;var kwhD=(hT*pT+hV*pV)/1000,kwhY=kwhD*365,cst=kwhY*(pr/100);var oK=document.getElementById(''calcOutKwh''),oC=document.getElementById(''calcOutCost'');if(oK)oK.textContent=Math.round(kwhY)+'' kWh'';if(oC)oC.textContent=cst.toLocaleString(''de-DE'',{minimumFractionDigits:2,maximumFractionDigits:2})+'' €'';}</script></details>' -f `
-            $pTeilNum, $pVollNum, $initKwh, $initCost))
+        $calcTpl = @'
+<div class="calc-grid">
+<input type="hidden" id="calcPTeil" value="{0}">
+<input type="hidden" id="calcPVoll" value="{1}">
+<div class="calc-field"><label for="calcHTeil">Alltagsbetrieb / Büro (h/Tag):</label><input type="number" id="calcHTeil" value="4" min="0" max="24" step="0.5" oninput="recalcPowerCost()"></div>
+<div class="calc-field"><label for="calcHVoll">Volllast / Gaming (h/Tag):</label><input type="number" id="calcHVoll" value="2" min="0" max="24" step="0.5" oninput="recalcPowerCost()"></div>
+<div class="calc-field"><label for="calcPrice">Strompreis (Cent/kWh):</label><input type="number" id="calcPrice" value="35" min="1" max="150" step="1" oninput="recalcPowerCost()"></div>
+<div class="calc-res"><span>Jahresverbrauch</span><b id="calcOutKwh">{2:N0} kWh</b></div>
+<div class="calc-res"><span>Geschätzte Kosten</span><b id="calcOutCost">{3:N2} €</b></div>
+</div><p class="note" style="margin-top:8px;">Berechnung basiert auf angenommenen 365 Tagen/Jahr mit den modellierten AC-Leistungswerten (~{0} W Teillast, ~{1} W Volllast).</p>
+'@
+        [void]$sb.Append(($calcTpl -f $pTeilNum, $pVollNum, $initKwh, $initCost))
+        [void]$sb.Append(@'
+<script>
+function recalcPowerCost(){
+  var eHT=document.getElementById('calcHTeil'),eHV=document.getElementById('calcHVoll'),eP=document.getElementById('calcPrice'),ePT=document.getElementById('calcPTeil'),ePV=document.getElementById('calcPVoll');
+  if(!eHT||!eHV||!eP||!ePT||!ePV)return;
+  var hT=parseFloat(eHT.value)||0,hV=parseFloat(eHV.value)||0,pr=parseFloat(eP.value)||0,pT=parseFloat(ePT.value)||0,pV=parseFloat(ePV.value)||0;
+  var kwhD=(hT*pT+hV*pV)/1000,kwhY=kwhD*365,cst=kwhY*(pr/100);
+  var oK=document.getElementById('calcOutKwh'),oC=document.getElementById('calcOutCost');
+  if(oK)oK.textContent=Math.round(kwhY)+' kWh';
+  if(oC)oC.textContent=cst.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+}
+</script></details>
+'@)
     }
 
     [void]$sb.Append('</div>')
