@@ -2,6 +2,15 @@
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
 
+## v3.64 (14.10.2026)
+
+* **Navigation und Kopfzeile:** Seitenleiste in die Gruppen „Ablauf“ und „Werkzeuge“ geteilt, angezeigte Seite nur über Akzentbalken, Dauer je angehaktem Modul. Flachere Kopfzeile mit Symbolknöpfen für Farbschema und Info; die Seite „Änderungen“ heißt „Systemänderungen“.
+* **Fußleiste und Start:** Module in Ablaufreihenfolge mit Gesamtdauer, Startknopf mit Beschriftung nach Auswahl und Kontrast ab 4,5:1 in beiden Farbschemata (`UI.OnAccent`). Eine Zusammenfassung vor dem Start erscheint nur bei Eingriffen, Neustarts oder abgewähltem Wiederherstellungspunkt (`StartUebersicht`).
+* **Diagnose:** Profile als Segmentschalter, Funktionstest und Nur Absturzanalyse in der Oberfläche entfernt (die Parameter des Skripts bleiben), „Lesende Prüfungen parallel ausführen“ statt „Schneller Modus“, Aufklappgruppe „Prüfungen“, Etiketten für verändernde Optionen.
+* **Benchmark und Lasttest:** Detailzeilen statt Klammertexten, Laufwerksliste mit freiem Platz, Referenz-Zustand als eigene Zeile; Lasttest als Tabelle mit Gesamtdauer, Hinweisen am Feld, Akkuhinweis und PawnIO-Etikett.
+* **Wartung, Optimierung und Tools:** Etiketten für Risikostufe, Neustart, verwaltet und Zustand (`Badge`), Aufklappgruppen (`GroupHeader`), Warnung bei Eingriffen ohne Wiederherstellungspunkt; Tools ohne doppelte Bildlaufleiste, Werkzeugkarten mit Zustand, Netzlaufwerk als eigener Bereich.
+* **Tests:** 13 neue Fälle im Selbsttest der Oberfläche (Kontrast, Startknopf, Gesamtdauer, Deaktivierung, Startübersicht, alte Voreinstellungen und weitere).
+
 ## v3.63 (13.10.2026)
 
 * **Geschätzter Gesamtsystemverbrauch (Desktop & Notebook):** Realistische Modellierung der internen Gleichstromleistung (DC) und des tatsächlichen Verbrauchs an der Steckdose (AC) unter Berücksichtigung von Sensorwerten (CPU-Package, GPU-Board), Plattformzuschlägen (Mainboard/Chipsatz, Lüfter, RAM-Auslastung, SSD-Aktivität), Wandlerverlusten (VRM) und Netzteil-Wirkungsgraden (88 % Desktop, 90 % Notebook). Transparente Tooltips schlüsseln alle Teilkomponenten detailliert auf.

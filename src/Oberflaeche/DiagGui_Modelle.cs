@@ -174,6 +174,7 @@ class OptItem
 {
     public string Id = "", Kat = "", Risiko = "", Neustart = "", Vorlagen = "", Bedingung = "", Titel = "", Tip = "", Zustand = "", ZustandText = "";
     public bool Verwaltet; public int Minuten; public CheckBox Box;
+    public Badge StateBadge;   // ab v3.64: Zustand auf diesem PC als Etikett neben dem Eintrag
 }
 
 // Netzlaufwerk als Spiegel der Nutzerdaten (ab v3.54). Die Oberfläche arbeitet immer im Datenordner auf dem Stick;
@@ -371,3 +372,58 @@ public static class NasAblage
         }
     }
 }
+
+// ab v3.64: Zusammenfassung vor dem Start, nur wenn Eingriffe, Neustarts oder ein abgewählter Wiederherstellungspunkt
+// im Spiel sind (ersetzt die getrennten Rückfragen von Wartung und Optimierung)
+public class StartPunkt
+{
+    public string Modul = "", Titel = "", Risiko = "", Neustart = "";
+    public StartPunkt(string modul, string titel, string risiko, string neustart) { Modul = modul ?? ""; Titel = titel ?? ""; Risiko = risiko ?? ""; Neustart = neustart ?? ""; }
+    public bool IstEingriff { get { return Risiko == "Eingriff" || Risiko == "Zerstoerend"; } }
+    public bool BrauchtNeustart { get { return Neustart == "immer" || Neustart == "moeglich"; } }
+}
+
+public static class StartUebersicht
+{
+    public static bool Noetig(List<StartPunkt> punkte, bool ohneWiederherstellung)
+    {
+        if (ohneWiederherstellung) return true;
+        if (punkte == null) return false;
+        foreach (StartPunkt p in punkte) if (p.IstEingriff || p.BrauchtNeustart) return true;
+        return false;
+    }
+
+    // Text des Dialogs; wp: je Modul mit Wiederherstellungspunkt-Haken "Modul|1" oder "Modul|0"
+    public static string Text(List<string> module, string dauer, List<StartPunkt> punkte, List<string> wp, List<string> zusatz)
+    {
+        StringBuilder t = new StringBuilder();
+        t.AppendLine("Ablauf: " + String.Join("  →  ", (module ?? new List<string>()).ToArray()) + (String.IsNullOrEmpty(dauer) ? "" : ", " + dauer));
+        List<StartPunkt> ein = (punkte ?? new List<StartPunkt>()).FindAll(delegate(StartPunkt p) { return p.IstEingriff; });
+        List<StartPunkt> neu = (punkte ?? new List<StartPunkt>()).FindAll(delegate(StartPunkt p) { return p.BrauchtNeustart; });
+        if (ein.Count > 0)
+        {
+            t.AppendLine().AppendLine(ein.Count + (ein.Count == 1 ? " Eingriff" : " Eingriffe") + " ohne automatisches Rückgängig:");
+            for (int i = 0; i < ein.Count && i < 12; i++) t.AppendLine("·  " + ein[i].Titel + " (" + ein[i].Modul + ")");
+            if (ein.Count > 12) t.AppendLine("·  und " + (ein.Count - 12) + " weitere");
+        }
+        if (neu.Count > 0)
+        {
+            t.AppendLine().AppendLine("Neustart nötig oder möglich:");
+            for (int i = 0; i < neu.Count && i < 8; i++) t.AppendLine("·  " + neu[i].Titel + (neu[i].Neustart == "moeglich" ? " (kann nötig sein)" : ""));
+            if (neu.Count > 8) t.AppendLine("·  und " + (neu.Count - 8) + " weitere");
+        }
+        if (wp != null && wp.Count > 0)
+        {
+            t.AppendLine();
+            foreach (string w in wp)
+            {
+                string[] x = w.Split('|');
+                if (x.Length < 2) continue;
+                t.AppendLine(x[0] + ": " + (x[1] == "1" ? "Vorher wird ein Wiederherstellungspunkt angelegt." : "Es wird KEIN Wiederherstellungspunkt angelegt."));
+            }
+        }
+        if (zusatz != null) foreach (string z in zusatz) if (!String.IsNullOrEmpty(z)) t.AppendLine().AppendLine(z);
+        return t.ToString().TrimEnd();
+    }
+}
+

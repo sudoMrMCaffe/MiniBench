@@ -26,6 +26,19 @@ public static class GuiSelbsttest
         Fall("Netzlaufwerk.Ergebnis", NasErgebnis);
         Fall("Wartung.Vertragszeile", WartungVertragszeile);
         Fall("Dialog.Farbschema", DialogFarbschema);
+        Fall("Oberflaeche.Kontrast", Kontrast);
+        Fall("Startknopf.Beschriftung", StartknopfBeschriftung);
+        Fall("Zeitangabe.Minuten", Zeitangabe);
+        Fall("Lasttest.Gesamtdauer", LasttestGesamtdauer);
+        Fall("Lasttest.Deaktivierung", LasttestDeaktivierung);
+        Fall("Startuebersicht", Startuebersicht);
+        Fall("Wartung.Detailtext", WartungDetailtext);
+        Fall("Voreinstellung.Altwerte", VoreinstellungAltwerte);
+        Fall("Laufwerk.Kurzname", LaufwerkKurzname);
+        Fall("Ablage.Kurzform", AblageKurzform);
+        Fall("Etikett.Risikostufe", EtikettRisikostufe);
+        Fall("Aufklappgruppe", Aufklappgruppe);
+        Fall("Diagnose.Profile", DiagnoseProfile);
         foreach (string l in outLines) System.Console.WriteLine(l);
         return 0;
     }
@@ -292,5 +305,161 @@ public static class GuiSelbsttest
         {
             UI.SetTheme(altDark);
         }
+    }
+
+    // ab v3.64: Schrift auf Akzentflächen und gedämpfte Hinweise erreichen in beiden Farbschemata mindestens 4,5:1
+    // (bis 3.63 weiße Schrift auf #4CC2FF im Dunkelschema, etwa 2:1)
+    static void Kontrast()
+    {
+        bool alt = UI.IsDark;
+        try
+        {
+            foreach (bool dark in new bool[] { false, true })
+            {
+                UI.SetTheme(dark);
+                string n = dark ? "dunkel: " : "hell: ";
+                Ist(UI.ContrastRatio(UI.OnAccent, UI.Accent) >= 4.5, n + "Schrift auf Primärknopf " + UI.ContrastRatio(UI.OnAccent, UI.Accent).ToString("0.0"));
+                Ist(UI.ContrastRatio(UI.Muted, UI.Panel) >= 4.5, n + "Hinweis auf Seite");
+                Ist(UI.ContrastRatio(UI.Text, UI.Panel) >= 7, n + "Text auf Seite");
+                Color fg, bg;
+                foreach (string l in new string[] { "info", "warn", "crit", "ok", "skip" }) { UI.BadgeColors(l, out fg, out bg); Ist(UI.ContrastRatio(fg, bg) >= 4.5, n + "Etikett " + l); }
+                using (Button b = UI.Primary("x")) Ist(b is PrimaryButton && b.ForeColor == UI.OnAccent && b.BackColor == UI.Accent, n + "UI.Primary nutzt OnAccent");
+            }
+            Ist(System.Math.Abs(UI.ContrastRatio(Color.White, Color.Black) - 21) < 0.01, "Weiß auf Schwarz 21:1");
+        }
+        finally { UI.SetTheme(alt); }
+    }
+
+    static void StartknopfBeschriftung()
+    {
+        Ist(DiagGui.StartButtonText(new System.Collections.Generic.List<string>()) == "Start", "kein Modul");
+        Ist(DiagGui.StartButtonText(null) == "Start", "null");
+        Ist(DiagGui.StartButtonText(new System.Collections.Generic.List<string>(new string[] { "Diagnose" })) == "Diagnose starten", "ein Modul");
+        Ist(DiagGui.StartButtonText(new System.Collections.Generic.List<string>(new string[] { "Diagnose", "Lasttest", "Wartung" })) == "3 Module starten", "drei Module");
+    }
+
+    static void Zeitangabe()
+    {
+        Ist(DiagGui.MinText(45) == "45 Min.", "45");
+        Ist(DiagGui.MinText(80) == "1 Std. 20 Min.", "80");
+        Ist(DiagGui.MinText(120) == "2 Std.", "120");
+        Ist(DiagGui.MinText(0) == "1 Min.", "mindestens 1");
+    }
+
+    // Komponenten laufen gleichzeitig: Gesamtdauer = längste gewählte Dauer
+    static void LasttestGesamtdauer()
+    {
+        Ist(DiagGui.LoadTotalMinutes(new bool[] { true, false, true, false }, new int[] { 2, 60, 15, 5 }) == 15, "CPU 2 und GPU 15 ergibt 15");
+        Ist(DiagGui.LoadTotalMinutes(new bool[] { false, false, false, false }, new int[] { 2, 2, 2, 2 }) == 0, "nichts gewählt");
+        Ist(DiagGui.LoadTotalMinutes(new bool[] { true }, new int[] { 240 }) == 240, "eine Komponente");
+        Ist(DiagGui.LoadTotalMinutes(null, null) == 0, "ohne Listen");
+    }
+
+    // Alles, was zu einer abgewählten Komponente gehört, wird einheitlich deaktiviert (bis 3.63 blieb das Label hell)
+    static void LasttestDeaktivierung()
+    {
+        using (Label l = new Label()) using (ComboBox c = new ComboBox())
+        {
+            Control[] teile = new Control[] { l, c };
+            DiagGui.SetPartEnabled(teile, false);
+            Ist(!c.Enabled && l.ForeColor == DiagGui.DisabledText(), "abgewählt: Liste aus, Beschriftung gedämpft");
+            DiagGui.SetPartEnabled(teile, true);
+            Ist(c.Enabled && l.ForeColor == UI.Text, "gewählt: Liste an, Beschriftung normal");
+            DiagGui.SetPartEnabled(null, true);
+        }
+    }
+
+    // Zusammenfassung vor dem Start nur bei Eingriffen, Neustarts oder ohne Wiederherstellungspunkt
+    static void Startuebersicht()
+    {
+        System.Collections.Generic.List<StartPunkt> nurAendern = new System.Collections.Generic.List<StartPunkt>();
+        nurAendern.Add(new StartPunkt("Wartung", "Zeit synchronisieren", "Aendern", "nie"));
+        Ist(!StartUebersicht.Noetig(nurAendern, false), "nur Ändern ohne Neustart: kein Dialog");
+        Ist(!StartUebersicht.Noetig(null, false), "nichts gewählt: kein Dialog");
+        Ist(StartUebersicht.Noetig(nurAendern, true), "ohne Wiederherstellungspunkt: Dialog");
+        System.Collections.Generic.List<StartPunkt> ein = new System.Collections.Generic.List<StartPunkt>(nurAendern);
+        ein.Add(new StartPunkt("Wartung", "Systemdateien reparieren", "Eingriff", "nie"));
+        Ist(StartUebersicht.Noetig(ein, false), "Eingriff: Dialog");
+        System.Collections.Generic.List<StartPunkt> neu = new System.Collections.Generic.List<StartPunkt>();
+        neu.Add(new StartPunkt("Optimierung", "Schnellstart aus", "Aendern", "moeglich"));
+        Ist(StartUebersicht.Noetig(neu, false), "Neustart möglich: Dialog");
+        string t = StartUebersicht.Text(new System.Collections.Generic.List<string>(new string[] { "Diagnose", "Wartung" }), "ca. 40 Min.", ein,
+            new System.Collections.Generic.List<string>(new string[] { "Wartung|0" }), null);
+        Ist(t.StartsWith("Ablauf: Diagnose  →  Wartung, ca. 40 Min."), "Ablauf und Dauer");
+        Ist(t.Contains("1 Eingriff ohne automatisches Rückgängig") && t.Contains("Systemdateien reparieren (Wartung)"), "Eingriff genannt");
+        Ist(t.Contains("Wartung: Es wird KEIN Wiederherstellungspunkt angelegt."), "Wiederherstellungspunkt");
+        Ist(!t.Contains("Zeit synchronisieren"), "Ändern ohne Neustart steht nicht in der Liste");
+        Ist(!System.Text.RegularExpressions.Regex.IsMatch(t, @"(^|\n)\s*[-–] "), "ohne Spiegelstriche");
+    }
+
+    static void WartungDetailtext()
+    {
+        string[] a = DiagGui.SplitDetail("Systemdateien reparieren (sfc /scannow, nach DISM)");
+        Ist(a[0] == "Systemdateien reparieren" && a[1] == "sfc /scannow, nach DISM", "Titel und Befehl getrennt");
+        string[] b = DiagGui.SplitDetail("Netzwerk zurücksetzen (DNS-Cache, Winsock, TCP/IP), Neustart nötig");
+        Ist(b[0] == "Netzwerk zurücksetzen" && b[1] == "DNS-Cache, Winsock, TCP/IP", "Neustart steht als Etikett, nicht im Text");
+        string[] c = DiagGui.SplitDetail("Windows-Zeit neu synchronisieren");
+        Ist(c[0] == "Windows-Zeit neu synchronisieren" && c[1] == "", "ohne Klammer");
+        string[] d = DiagGui.SplitDetail("Datenträgerbereinigung (cleanmgr mit allen Kategorien außer Downloads)");
+        Ist(d[0] == "Datenträgerbereinigung" && d[1].StartsWith("cleanmgr"), "cleanmgr");
+        Ist(DiagGui.SplitDetail(null)[0] == "", "null");
+    }
+
+    // Voreinstellungen vor v3.64 speichern die alten Texte der Auswahllisten
+    static void VoreinstellungAltwerte()
+    {
+        Ist(DiagGui.SameChoice("2 Min.", "2 Minuten"), "2 Minuten");
+        Ist(DiagGui.SameChoice("120 Min.", "120 Minuten"), "120 Minuten");
+        Ist(DiagGui.SameChoice("Automatisch", "automatisch (TjMax, sonst 100 °C)"), "automatisch");
+        Ist(!DiagGui.SameChoice("5 Min.", "2 Minuten"), "andere Zahl");
+        Ist(!DiagGui.SameChoice("25 %", "25 Minuten"), "andere Einheit");
+        Ist(!DiagGui.SameChoice("", "2 Minuten") && !DiagGui.SameChoice("2 Min.", null), "leer");
+    }
+
+    static void LaufwerkKurzname()
+    {
+        Ist(DiagGui.ShortDiskName("NVMe PC SN820 NVMe WD 4096GB") == "PC SN820 WD", DiagGui.ShortDiskName("NVMe PC SN820 NVMe WD 4096GB"));
+        Ist(DiagGui.ShortDiskName("Samsung SSD 870 EVO 1TB") == "Samsung SSD 870 EVO", "Samsung");
+        Ist(DiagGui.ShortDiskName("NVMe") == "NVMe", "nichts übrig: Originalname");
+    }
+
+    static void AblageKurzform()
+    {
+        Ist(DiagGui.AblageKurz("\\\\ulb.ad.hhu.de\\Home\\wad32muj\\Desktop\\LMB\\Minibench-Daten") == "Ablage: ...\\LMB\\Minibench-Daten", DiagGui.AblageKurz("\\\\ulb.ad.hhu.de\\Home\\wad32muj\\Desktop\\LMB\\Minibench-Daten"));
+        Ist(DiagGui.AblageKurz("E:\\Minibench-Daten") == "Ablage: E:\\Minibench-Daten", "Stick");
+        Ist(DiagGui.AblageKurz("") == "Ablage: kein Datenordner", "leer");
+    }
+
+    static void EtikettRisikostufe()
+    {
+        Ist(UI.RiskLevel("Aendern") == "info" && UI.RiskLevel("Eingriff") == "warn" && UI.RiskLevel("Zerstoerend") == "crit" && UI.RiskLevel("Lesen") == "ok", "Stufen");
+        using (Badge b = new Badge("Eingriff", "warn"))
+        {
+            Ist(b.Visible && b.Width > b.Height && b.Level == "warn", "sichtbar und breiter als hoch");
+            b.Text = ""; Ist(!b.Visible, "ohne Text unsichtbar");
+            b.Text = "bereits aktiv"; Ist(b.Visible, "wieder sichtbar");
+        }
+    }
+
+    static void Aufklappgruppe()
+    {
+        using (GroupHeader h = new GroupHeader("Prüfungen"))
+        {
+            int n = 0; h.Toggled += delegate { n++; };
+            Ist(!h.Expanded, "Vorgabe zu");
+            System.Reflection.MethodInfo flip = typeof(GroupHeader).GetMethod("Flip", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            flip.Invoke(h, null);
+            Ist(h.Expanded && n == 1, "Klick klappt auf und meldet Toggled");
+            h.Expanded = false; Ist(!h.Expanded && n == 1, "Setzen von außen meldet nichts");
+            h.CountText = "2 von 4 gewählt"; Ist(h.CountText == "2 von 4 gewählt", "Zähler");
+        }
+    }
+
+    // Profile der Diagnose: Schätzung passt zur Fußleiste (vorher drei verschiedene Zeitangaben)
+    static void DiagnoseProfile()
+    {
+        Ist(DiagGui.DiagMinutes(new bool[] { true, true, true, true, true, true, true, true }) == 36, "Vollständig 36 Min.");
+        Ist(DiagGui.DiagMinutes(new bool[] { true, true, false, false, false, true, true, false }) == 9, "Schnell 9 Min.");
+        Ist(DiagGui.DiagMinutes(null) == 3, "ohne Prüfungen Grundzeit");
     }
 }

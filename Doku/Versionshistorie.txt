@@ -3,7 +3,27 @@
 
 Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab 2.2). Für 1.0 bis 2.1 gibt es
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
-Die Liste steht auch im Programm (Verweis Versionshistorie oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
+Die Liste steht auch im Programm (Info-Knopf oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
+
+VERSION 3.64   (14.10.2026)  ÜBERARBEITETE OBERFLÄCHE: KLARE NAVIGATION, EINDEUTIGER STARTKNOPF, ETIKETTEN FÜR RISIKOSTUFEN UND EINHEITLICHES RASTER
+====================================================================================================
+Seitenleiste: zwei Gruppen, Ablauf (Module mit Haken) und Werkzeuge (Seiten ohne Haken). Die angezeigte Seite erkennt man
+am Akzentbalken, ausgeführt wird, was angehakt ist; angehakte Module zeigen ihre geschätzte Dauer.
+Kopfzeile: flacher, Symbolknöpfe für Farbschema und Info statt Emoji-Text, Version nur noch in Titelleiste und Info.
+Die Seite Änderungen heißt Systemänderungen.
+Fußleiste: Module in Ablaufreihenfolge mit Gesamtdauer, der Startknopf sagt, was er startet (Diagnose starten,
+3 Module starten), und hat im Dunkelschema dunkle Schrift (vorher etwa 2:1 Kontrast). Voreinstellungen und Ablage stehen
+links, ein Klick auf die Ablage öffnet den Datenordner.
+Vor dem Start erscheint eine Zusammenfassung nur, wenn Eingriffe, Neustarts oder ein abgewählter Wiederherstellungspunkt
+dabei sind; sie ersetzt die getrennten Rückfragen von Wartung und Optimierung.
+Diagnose: Profile Vollständig, Schnell und Benutzerdefiniert als Segmentschalter mit stimmiger Zeitangabe; Funktionstest und
+Nur Absturzanalyse entfallen in der Oberfläche. Lesende Prüfungen parallel ausführen ersetzt den Begriff Schneller Modus.
+Optionen, die etwas verändern, tragen ein Etikett.
+Benchmark und Lasttest: Messungen und Komponenten mit Detailzeile, Lasttest als Tabelle aus Komponente, Dauer und
+Einstellungen mit Gesamtdauer, Hinweisen am passenden Feld, Akkuhinweis und PawnIO-Etikett. Referenz-Zustand als eigene Zeile.
+Wartung und Optimierung: Etiketten für Ändern, Eingriff, Neustart, verwaltet und Zustand, Legende oben, Warnung bei
+Eingriffen ohne Wiederherstellungspunkt. Tools: eine Bildlaufleiste, Werkzeugkarten mit Zustand und festen Knopfspalten,
+Netzlaufwerk als eigener Bereich.
 
 VERSION 3.63   (13.10.2026)  GESCHÄTZTER GESAMTSYSTEMVERBRAUCH, EFFIZIENZ-METRIKEN (PUNKTE PRO WATT) UND INTERAKTIVER STROMKOSTENRECHNER
 ====================================================================================================

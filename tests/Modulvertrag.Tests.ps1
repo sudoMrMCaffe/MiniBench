@@ -164,7 +164,8 @@ Describe 'Abgleich mit der Oberfläche' {
     It 'Texte, Voreinstellungen und Zeitschätzung der Seite Diagnose haben je Prüfung genau einen Wert' {
         $n = @((MinibenchTest\Get-ModuleContract 'Diagnose').Schritte | Where-Object { $_.Typ -eq 'Pruefung' }).Count
         @(Get-CsArray 'diagText').Count | Should -Be $n
-        foreach ($p in 'voll', 'schnell', 'test', 'none') {
+        # ab v3.64 nur noch die Profile Vollständig und Schnell (Funktionstest und Nur Absturzanalyse entfallen in der Oberfläche)
+        foreach ($p in 'voll', 'schnell') {
             ($gui -match ('bool\[\] {0} = new bool\[\] \{{([^}}]+)\}};' -f $p)) | Should -BeTrue -Because $p
             @($Matches[1] -split ',').Count | Should -Be $n -Because $p
         }

@@ -23,6 +23,14 @@ public static class UI
     public static Color OkBg { get; set; }
     public static Color Skip { get; set; }
     public static Color SkipBg { get; set; }
+    // ab v3.64: Schrift auf Akzentflächen (Primärknöpfe, angehakte Kästchen); im Dunkelschema dunkel, sonst weiß
+    public static Color OnAccent { get; set; }
+
+    // ab v3.64: Gestaltungsregeln für alle Seiten (Werte in Pixeln bei 96 dpi, immer über S() verwenden)
+    public const int Abstand1 = 4, Abstand2 = 8, Abstand3 = 12, Abstand4 = 16, Abstand5 = 24;
+    public const int Gruppenbreite = 780;      // Breite von Gruppen, Tabellen und Hinweistexten
+    public const int Seitenrand = 24;          // Innenabstand jeder Seite links und oben
+    public const float SchriftTitel = 15f, SchriftAbschnitt = 11.5f, SchriftGruppe = 10f, SchriftText = 9.5f, SchriftHinweis = 9f;
 
     public static float DpiScale = 1.0f;
 
@@ -67,6 +75,7 @@ public static class UI
             OkBg = Color.FromArgb(27, 56, 40);         // #1B3828
             Skip = Color.FromArgb(156, 163, 175);     // #9CA3AF
             SkipBg = Color.FromArgb(51, 51, 51);       // #333333
+            OnAccent = Color.FromArgb(18, 19, 20);     // #121314 auf #4CC2FF, etwa 9:1
         }
         else
         {
@@ -91,6 +100,7 @@ public static class UI
             OkBg = Color.FromArgb(223, 246, 221);
             Skip = Color.FromArgb(95, 99, 104);
             SkipBg = Color.FromArgb(243, 244, 246);
+            OnAccent = Color.White;                    // auf #0067C0, etwa 5,9:1
         }
     }
 
@@ -171,10 +181,79 @@ public static class UI
         else { fg = Skip; bg = SkipBg; }
     }
 
+    // Kontrastverhältnis nach WCAG 2.1 (1 bis 21)
+    public static double ContrastRatio(Color a, Color b)
+    {
+        double la = Luminance(a), lb = Luminance(b);
+        double hi = Math.Max(la, lb), lo = Math.Min(la, lb);
+        return (hi + 0.05) / (lo + 0.05);
+    }
+    static double Luminance(Color c)
+    {
+        double[] v = new double[] { c.R / 255.0, c.G / 255.0, c.B / 255.0 };
+        for (int i = 0; i < 3; i++) v[i] = v[i] <= 0.03928 ? v[i] / 12.92 : Math.Pow((v[i] + 0.055) / 1.055, 2.4);
+        return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+    }
+
+    // Farbpaar eines Etiketts: info, warn, crit, ok, skip
+    public static void BadgeColors(string level, out Color fg, out Color bg)
+    {
+        string l = (level ?? "").ToLowerInvariant();
+        if (l == "warn") { fg = Warn; bg = WarnBg; }
+        else if (l == "crit") { fg = Crit; bg = CritBg; }
+        else if (l == "ok") { fg = Ok; bg = OkBg; }
+        else if (l == "info") { fg = Info; bg = InfoBg; }
+        else { fg = Skip; bg = SkipBg; }
+    }
+
+    // Risikostufe aus Modulvertrag oder Katalog als Etikett: Ändern blau, Eingriff gelb, Zerstörend rot, Lesen grün
+    public static string RiskLevel(string risiko)
+    {
+        string r = (risiko ?? "").ToLowerInvariant();
+        if (r == "aendern" || r == "ändern") return "info";
+        if (r == "eingriff") return "warn";
+        if (r == "zerstoerend" || r == "zerstörend") return "crit";
+        if (r == "lesen") return "ok";
+        return "skip";
+    }
+
+    // Symbol aus der Symbolschrift als kleines Bild (für Knöpfe mit Symbol vor dem Text)
+    public static Bitmap GlyphImage(string glyph, Color color, int size)
+    {
+        Bitmap bmp = new Bitmap(Math.Max(1, size), Math.Max(1, size));
+        // GDI+ statt TextRenderer: TextRenderer (GDI) lässt den Alphakanal auf transparentem Grund bei 0
+        using (Graphics g = Graphics.FromImage(bmp))
+        using (Font f = SymbolFont(size * 0.62f * 0.75f))
+        using (SolidBrush br = new SolidBrush(color))
+        using (StringFormat sf = new StringFormat())
+        {
+            g.Clear(Color.Transparent);
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+            sf.Alignment = StringAlignment.Center; sf.LineAlignment = StringAlignment.Center;
+            g.DrawString(glyph, f, br, new RectangleF(0, 0, size, size), sf);
+        }
+        return bmp;
+    }
+
+    public const string IcoInfo = "";
+    public const string IcoSonne = "";
+    public const string IcoMond = "";
+    public const string IcoAdmin = "";
+    public const string IcoOrdner = "";
+    public const string IcoLaden = "";
+    public const string IcoEntfernen = "";
+    public const string IcoTorte = "";
+    public const string IcoGeraete = "";
+    public const string IcoNetz = "";
+    public const string IcoSpeichern = "";
+    public const string IcoAuf = "";
+    public const string IcoZu = "";
+    public const string IcoWarnung = "";
+
     public static Button Primary(string text)
     {
-        Button b = new Button(); b.Text = text; b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderSize = 0;
-        b.BackColor = Accent; b.ForeColor = Color.White; b.FlatAppearance.MouseOverBackColor = AccentHover; b.FlatAppearance.MouseDownBackColor = AccentActive;
+        Button b = new PrimaryButton(); b.Text = text; b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderSize = 0;
+        b.BackColor = Accent; b.ForeColor = OnAccent; b.FlatAppearance.MouseOverBackColor = AccentHover; b.FlatAppearance.MouseDownBackColor = AccentActive;
         b.Font = new Font("Segoe UI Semibold", 10.5f); b.AutoSize = true; b.Padding = new Padding(S(18), S(6), S(18), S(6)); b.Cursor = Cursors.Hand; b.UseVisualStyleBackColor = false;
         return b;
     }
@@ -281,6 +360,91 @@ public static class UI
         {
             ThemeDialogControls(c.Controls);
         }
+    }
+}
+
+// ab v3.64: Primärknopf als eigener Typ, damit der Farbwechsel ihn ohne Farbvergleich erkennt
+public class PrimaryButton : Button { }
+
+// ab v3.64: kleines farbiges Etikett (Risikostufe, Neustart, Werkzeugstatus, Zustand)
+public class Badge : Control
+{
+    string level = "skip";
+    public Badge(string text, string level)
+    {
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
+        BackColor = Color.Transparent;
+        Font = new Font("Segoe UI Semibold", 8.25f);
+        Margin = new Padding(UI.S(6), UI.S(4), 0, 0);
+        this.level = level ?? "skip";
+        Text = text ?? "";
+        FitSize();
+    }
+    public string Level { get { return level; } set { level = value ?? "skip"; Invalidate(); } }
+    protected override void OnTextChanged(EventArgs e) { base.OnTextChanged(e); FitSize(); Invalidate(); }
+    void FitSize()
+    {
+        Size t = TextRenderer.MeasureText(Text.Length > 0 ? Text : " ", Font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding);
+        Size = new Size(t.Width + UI.S(14), Math.Max(UI.S(18), t.Height + UI.S(4)));
+        Visible = Text.Length > 0;
+    }
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        Color fg, bg; UI.BadgeColors(level, out fg, out bg);
+        if (!Enabled) { fg = UI.Muted; bg = UI.SkipBg; }
+        Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+        using (GraphicsPath p = UI.Round(new RectangleF(0, 0, Width - 1, Height - 1), (Height - 1) / 2f))
+        using (SolidBrush b = new SolidBrush(bg)) g.FillPath(b, p);
+        TextRenderer.DrawText(g, Text, Font, ClientRectangle, fg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+    }
+}
+
+// ab v3.64: Kopfzeile einer Aufklappgruppe, ganze Zeile klickbar, Pfeilsymbol und Zähler "2 von 4 gewählt"
+public class GroupHeader : Control
+{
+    string title = "", count = "";
+    bool expanded, hover;
+    public event EventHandler Toggled;
+    public GroupHeader(string title)
+    {
+        this.title = title ?? "";
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
+        TabStop = true; Cursor = Cursors.Hand; BackColor = UI.Panel;
+        Size = new Size(UI.S(UI.Gruppenbreite), UI.S(32));
+        Margin = new Padding(0, UI.S(UI.Abstand2), 0, 0);
+    }
+    public string Title { get { return title; } set { title = value ?? ""; Invalidate(); } }
+    public string CountText { get { return count; } set { if (count == (value ?? "")) return; count = value ?? ""; Invalidate(); } }
+    public bool Expanded { get { return expanded; } set { if (expanded == value) return; expanded = value; Invalidate(); } }
+    void Flip() { Expanded = !Expanded; if (Toggled != null) Toggled(this, EventArgs.Empty); }
+    protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
+    protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
+    protected override void OnGotFocus(EventArgs e) { Invalidate(); base.OnGotFocus(e); }
+    protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
+    protected override void OnMouseClick(MouseEventArgs e) { if (e.Button == MouseButtons.Left) { Focus(); Flip(); } base.OnMouseClick(e); }
+    protected override void OnKeyDown(KeyEventArgs e) { if (e.KeyCode == Keys.Space || e.KeyCode == Keys.Enter) { Flip(); e.Handled = true; } base.OnKeyDown(e); }
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+        Color bg = hover ? (UI.IsDark ? Color.FromArgb(44, 46, 48) : Color.FromArgb(243, 245, 248)) : UI.Panel;
+        using (GraphicsPath p = UI.Round(new RectangleF(0, 0, Width - 1, Height - 1), UI.SF(5)))
+        using (SolidBrush b = new SolidBrush(bg)) g.FillPath(b, p);
+        using (Pen line = new Pen(UI.Line)) g.DrawLine(line, 0, Height - 1, Width, Height - 1);
+        int x = UI.S(6);
+        using (Font fi = UI.SymbolFont(8.5f))
+            TextRenderer.DrawText(g, expanded ? UI.IcoAuf : UI.IcoZu, fi, new Rectangle(x, 0, UI.S(16), Height), UI.Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+        x += UI.S(24);
+        using (Font ft = new Font("Segoe UI Semibold", UI.SchriftGruppe + 0.5f))
+        {
+            Size ts = TextRenderer.MeasureText(g, title, ft);
+            TextRenderer.DrawText(g, title, ft, new Rectangle(x, 0, Math.Max(10, Width - x - UI.S(8)), Height), UI.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            x += ts.Width + UI.S(10);
+        }
+        if (count.Length > 0)
+            using (Font fc = new Font("Segoe UI", UI.SchriftHinweis))
+                TextRenderer.DrawText(g, count, fc, new Rectangle(x, 0, Math.Max(10, Width - x - UI.S(8)), Height), UI.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        if (Focused)
+            using (Pen fp = new Pen(UI.Accent, 1f)) { fp.DashStyle = DashStyle.Dot; g.DrawRectangle(fp, 1, 1, Width - 3, Height - 3); }
     }
 }
 
@@ -500,6 +664,10 @@ public class FluentCard : Control
     public string Description { get { return desc; } set { desc = value ?? ""; Invalidate(); } }
     public string Icon { get { return icon; } set { icon = value ?? ""; Invalidate(); } }
     public ToggleSwitch Toggle { get { return toggle; } }
+    // ab v3.64: Zustand als Etikett hinter dem Titel ("Bereit", "Nicht gefunden"), Farbe wie UI.BadgeColors
+    string status = "", statusLevel = "skip";
+    public string StatusText { get { return status; } set { status = value ?? ""; Invalidate(); } }
+    public string StatusLevel { get { return statusLevel; } set { statusLevel = value ?? "skip"; Invalidate(); } }
 
     public Button ActionButton
     {
@@ -644,6 +812,21 @@ public class FluentCard : Control
             int titleH = Math.Max(tsz.Height, UI.S(18));
             int startY = String.IsNullOrEmpty(desc) ? (Height - titleH) / 2 : UI.S(12);
             TextRenderer.DrawText(g, title, ft, new Rectangle(curX, startY, textW, titleH), UI.Text, TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+            if (status.Length > 0)
+            {
+                using (Font fs = new Font("Segoe UI Semibold", UI.SF(8.25f)))
+                {
+                    Size ss = TextRenderer.MeasureText(g, status, fs, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding);
+                    int bx = curX + Math.Min(tsz.Width, textW) + UI.S(8), bw = ss.Width + UI.S(14), bh = Math.Max(UI.S(18), ss.Height + UI.S(4));
+                    if (bx + bw < rightBound)
+                    {
+                        Color sfg, sbg; UI.BadgeColors(statusLevel, out sfg, out sbg);
+                        Rectangle br = new Rectangle(bx, startY + (titleH - bh) / 2, bw, bh);
+                        using (GraphicsPath bp = UI.Round(new RectangleF(br.X, br.Y, br.Width - 1, br.Height - 1), (bh - 1) / 2f)) using (SolidBrush sb = new SolidBrush(sbg)) g.FillPath(sb, bp);
+                        TextRenderer.DrawText(g, status, fs, br, sfg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                    }
+                }
+            }
 
             if (!String.IsNullOrEmpty(desc))
             {
@@ -698,6 +881,8 @@ class NavItem : Control
 {
     bool sel, hover, chk;
     public string Title, Desc, Icon;
+    // ab v3.64: kurzer Zusatz rechts im Eintrag, etwa die geschätzte Dauer eines angehakten Moduls
+    public string Hint = "";
     public bool HasCheck = true;
     public event EventHandler Picked;
     public event EventHandler CheckedChanged;
@@ -735,12 +920,14 @@ class NavItem : Control
     {
         Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
         RectangleF r = new RectangleF(1, 1, Width - 3, Height - 3);
-        Color fill = sel ? UI.AccentSoft : (hover ? (UI.IsDark ? Color.FromArgb(45, 47, 50) : Color.FromArgb(240, 243, 248)) : UI.Panel);
-        Color borderPen = sel ? UI.Accent : (hover ? (UI.IsDark ? Color.FromArgb(80, 82, 85) : Color.FromArgb(209, 213, 219)) : UI.Line);
+        // ab v3.64: angezeigte Seite nur über Akzentbalken und AccentSoft, Überfahren nur leicht aufgehellt ohne Rahmenwechsel,
+        // ausgeführt wird, was angehakt ist (vorher sahen Überfahren und Auswahl fast gleich aus)
+        Color fill = sel ? UI.AccentSoft : (hover ? (UI.IsDark ? Color.FromArgb(40, 41, 43) : Color.FromArgb(244, 246, 249)) : UI.Bg);
+        Color borderPen = sel ? UI.AccentSoft : (hover ? UI.Line : UI.Bg);
         using (GraphicsPath p = UI.Round(r, UI.SF(6)))
         {
             using (SolidBrush b = new SolidBrush(fill)) g.FillPath(b, p);
-            using (Pen pen = new Pen(borderPen, sel ? UI.SF(1.5f) : UI.SF(1f))) g.DrawPath(pen, p);
+            using (Pen pen = new Pen(borderPen, UI.SF(1f))) g.DrawPath(pen, p);
         }
 
         // Bei Auswahl: Links ein 3 px breiter, abgerundeter blauer Akzentbalken
@@ -763,7 +950,7 @@ class NavItem : Control
                 Color chkBorder = chk ? UI.Accent : (UI.IsDark ? Color.FromArgb(90, 95, 105) : Color.FromArgb(160, 170, 185));
                 using (Pen bpen = new Pen(chkBorder, UI.SF(1.5f))) g.DrawPath(bpen, bp);
             }
-            if (chk) using (Pen ck = new Pen(Color.White, UI.SF(2.4f))) { ck.StartCap = LineCap.Round; ck.EndCap = LineCap.Round; g.DrawLines(ck, new Point[] { new Point(bx.X + UI.S(5), bx.Y + UI.S(10)), new Point(bx.X + UI.S(9), bx.Y + UI.S(14)), new Point(bx.X + UI.S(15), bx.Y + UI.S(6)) }); }
+            if (chk) using (Pen ck = new Pen(UI.OnAccent, UI.SF(2.4f))) { ck.StartCap = LineCap.Round; ck.EndCap = LineCap.Round; g.DrawLines(ck, new Point[] { new Point(bx.X + UI.S(5), bx.Y + UI.S(10)), new Point(bx.X + UI.S(9), bx.Y + UI.S(14)), new Point(bx.X + UI.S(15), bx.Y + UI.S(6)) }); }
             x = bx.Right + UI.S(10);
         }
 
@@ -785,7 +972,18 @@ class NavItem : Control
             int th = Math.Max(tsz.Height, UI.S(18));
             int startY = (Height - th) / 2;
             Color titleColor = sel ? (UI.IsDark ? UI.Accent : UI.AccentDark) : UI.Text;
-            TextRenderer.DrawText(g, Title, ft, new Rectangle(x, startY, Width - x - UI.S(8), th), titleColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            int right = Width - UI.S(10);
+            if (!String.IsNullOrEmpty(Hint))
+                using (Font fh = new Font("Segoe UI", UI.SF(8.5f)))
+                {
+                    Size hs = TextRenderer.MeasureText(g, Hint, fh);
+                    if (right - hs.Width > x + tsz.Width + UI.S(6))
+                    {
+                        TextRenderer.DrawText(g, Hint, fh, new Rectangle(right - hs.Width, 0, hs.Width, Height), UI.Muted, TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                        right -= hs.Width + UI.S(6);
+                    }
+                }
+            TextRenderer.DrawText(g, Title, ft, new Rectangle(x, startY, Math.Max(10, right - x), th), titleColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         }
     }
 }

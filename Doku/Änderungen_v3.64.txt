@@ -1,0 +1,136 @@
+﻿LEOS MINIBENCH 3.64: ÄNDERUNGEN
+===============================
+
+Version 3.64 überarbeitet die Oberfläche nach einer Durchsicht aller Seiten (Befundliste mit den IDs G, F, D, B, L, W,
+T und Q in claude/Minibench_UI_Ueberarbeitung_Prompt.md im Claude-Projekt). Messabläufe, Berichte, Datenbank und
+Ereigniskanal bleiben fachlich unverändert; das Skript bekommt dieselben Parameter wie bisher, nur Funktionstest und
+Nur Absturzanalyse lassen sich nicht mehr aus der Oberfläche starten.
+
+1. GESTALTUNGSREGELN
+  Raster              Konstanten in der Klasse UI: Abstände 4, 8, 12, 16, 24 px, Seitenrand 24 px, Gruppenbreite
+                      780 px, drei Schriftstufen (Titel 15 pt, Abschnitt 11,5 pt, Gruppe 10 pt), Hinweise 9 pt.
+  Seitenrand          Seiten ohne Dock stehen jetzt am Innenabstand des Bildlaufbereichs. Bisher lagen sie bei 0,0,
+                      dort wirkte der Innenabstand nicht und der Titel klebte am Rahmen (sichtbar bei Diagnose).
+  Neue Steuerelemente Badge (farbiges Etikett für Risikostufe, Neustart, Zustand), GroupHeader (Kopfzeile einer
+                      Aufklappgruppe mit Pfeil und Zähler, ganze Zeile klickbar, mit Tastatur bedienbar),
+                      PrimaryButton (eigener Typ für Primärknöpfe), Zustandsetikett in FluentCard.
+  Zweizeilige Optionen Kurze Bezeichnung, darunter eine Detailzeile (Opt2). Ersetzt die Klammerzusätze in Diagnose,
+                      Benchmark, Lasttest und Wartung; ein Klick auf die Detailzeile schaltet die Option.
+  Kontrast            UI.OnAccent: auf Akzentflächen im Dunkelschema dunkle Schrift (#121314 auf #4CC2FF, etwa 9:1),
+                      im Hellschema weiß (etwa 5,9:1). Bisher weiß auf #4CC2FF, etwa 2:1.
+
+2. SEITENLEISTE, KOPFZEILE UND FUSSLEISTE
+  Seitenleiste        Gruppen Ablauf (Diagnose bis Optimierung, mit Haken) und Werkzeuge (Tools, Sensoren live,
+                      Vergleichsdatenbank, Systemänderungen). Angezeigt wird über Akzentbalken und hellen Grund,
+                      Überfahren hellt nur leicht auf. Angehakte Module zeigen rechts ihre geschätzte Dauer.
+  Modulschalter       Statt der zweiten Checkbox im Inhalt steht rechts neben dem Seitentitel ein Schalter
+                      "beim Start ausführen", gekoppelt an den Haken der Seitenleiste.
+  Kopfzeile           56 statt 74 px, Symbolknöpfe für Farbschema (Sonne, Mond) und Info statt "Hell" mit Emoji und
+                      dem Verweis Versionshistorie. Die Version steht in der Titelleiste und auf der Seite Info und
+                      Versionen. Die Seite Änderungen heißt Systemänderungen (nur der angezeigte Text).
+  Fußleiste           Oben die Module in Ablaufreihenfolge mit einer Gesamtdauer (bei SMART-Langtest mit Obergrenze),
+                      darunter Voreinstellung, Ablage und die Option für die KI-Auswertung. Der Startknopf steht allein
+                      rechts und sagt, was er startet: "Diagnose starten", "3 Module starten". Die Ablage zeigt die
+                      letzten zwei Ordner, ein Klick öffnet den Datenordner, der volle Pfad steht im Hinweis.
+  Zusammenfassung     Vor dem Start erscheint ein Dialog nur, wenn Eingriffe, Aufgaben mit Neustart, ein abgewählter
+                      Wiederherstellungspunkt oder verwaltete Einträge auf einem Domänen-PC dabei sind. Er nennt Ablauf,
+                      Dauer, Eingriffe, Neustarts und den Wiederherstellungspunkt je Modul; Abbrechen ist vorgewählt.
+                      Er ersetzt die bisherigen Rückfragen von Wartung (immer) und Optimierung (immer).
+  Mindestgröße        Das Fenster lässt sich so weit verkleinern, dass jede Seite ohne waagerechte Bildlaufleiste
+                      auskommt, höchstens aber auf 60 % der Arbeitsfläche (bei hoher Skalierung bleibt es verkleinerbar).
+
+3. DIAGNOSE
+  Profile             Vollständig, Schnell und Benutzerdefiniert als Segmentschalter mit einer Zeile darunter, deren
+                      Zeitangabe zur Fußleiste passt (Vollständig ca. 36 Min., Schnell ca. 9 Min.). Funktionstest und Nur
+                      Absturzanalyse entfallen; nach einem unterbrochenen Lauf läuft die Absturzanalyse weiterhin
+                      automatisch zuerst.
+  Parallel            "Lesende Prüfungen parallel ausführen" ersetzt "Schneller Modus" (Verwechslung mit dem Profil
+                      Schnell).
+  Prüfungen           Aufklappgruppe mit Zähler und Profil; wer eine Prüfung ändert, wechselt sichtbar zu Benutzerdefiniert.
+  Optionen            smartmontools mit Etikett Eingriff, Speicherdiagnose mit Etikett Neustart; die Einleitung sagt,
+                      dass gekennzeichnete Optionen etwas verändern. Beide Gruppen gleich breit, das Symbol im Gruppentitel
+                      steht in der Symbolschrift (vorher als Punkt dargestellt), "Prüfzeiträume" statt "Prüfzeiträume
+                      & Schwellenwerte", der Hinweis zum SMART-Langtest steht unter dem Feld.
+
+4. BENCHMARK
+  Messungen           Bezeichnung und Detailzeile, "4K-Zufallszugriff" statt "4K".
+  Laufwerke           Höhe nach Anzahl der Einträge, je Laufwerksbuchstabe der freie Platz und bei mehreren Volumes das
+                      Ziel der Messung; USB-Datenträger werden dabei nicht abgefragt.
+  Referenz            Die Liste nennt nur die Art (Gespeicherte Referenz, Median aller Systeme, ...), der Zustand steht
+                      darunter, eine fehlende Referenz in Warnfarbe. Vorher war der Text in der Liste abgeschnitten.
+  Rendertest          Einleitung und Hinweis gekürzt, Aufwärm- und Messzeit stehen im Hinweis der Grafikmessung.
+
+5. LASTTEST
+  Tabelle             Spalten Komponente, Dauer und Einstellungen; die Grafikeinheit gehört zur Zeile Grafik, das Laufwerk
+                      steht kurz ("C:  PC SN820 WD (4,1 TB)"), der volle Name im Hinweis.
+  Abwahl              Alles, was zu einer abgewählten Komponente gehört, wird einheitlich gedämpft (vorher blieb das
+                      Label Grafikeinheit hell).
+  Gesamtdauer         Zeile unter der Tabelle, live aktualisiert; die Komponenten laufen gleichzeitig.
+  Hinweise            Testdatei bis 4 GB als Detailzeile beim Datenträger, PawnIO als Etikett bei der CPU-Temperatur,
+                      Netzteilhinweis nur bei Akkubetrieb.
+  Abbruchschwelle     Zwei Zeilen im Raster der Tabelle, "Automatisch" statt "automatisch (TjMax, sonst 100 °C)", die
+                      Erklärung steht darunter. Dauern als "2 Min." statt "2 Minuten".
+
+6. WARTUNG UND OPTIMIERUNG
+  Etiketten           Ändern (blau), Eingriff (gelb), Zerstörend (rot), Neustart und Neustart möglich rechtsbündig in
+                      einer Spalte; in der Optimierung zusätzlich verwaltet und der Zustand auf diesem PC. Befehle wie
+                      DISM ScanHealth stehen in der Detailzeile.
+  Legende             Unter dem Abschnitt, nicht mehr am Seitenende; in der Optimierung war sie bisher gar nicht zu sehen.
+  Knöpfe              "Empfohlene Auswahl" und "Auswahl aufheben" (gelten für alle Gruppen), in der Optimierung
+                      "Auswahl aufheben" statt "Keine".
+  Absicherung         Warnung, wenn Eingriffe ohne Wiederherstellungspunkt gewählt sind, und wenn der Computerschutz
+                      laut Richtlinie oder Systemeinstellung ausgeschaltet scheint.
+
+7. TOOLS
+  Bildlauf            Die Seite nutzt den Bildlaufbereich des Fensters, die innere zweite Bildlaufleiste (senkrecht und
+                      waagerecht) entfällt.
+  Werkzeugkarten      Zustand als Etikett (Bereit, portabel / Bereit, installiert / Nicht gefunden), links Ordner, rechts
+                      die Hauptaktion (Starten mit Schildsymbol oder Herunterladen), feste Mindestbreiten, eigene Symbole.
+  Netzlaufwerk        Eigener Bereich statt eines Knopfs zwischen Neu scannen und Tools-Ordner.
+  Softwarepakete      Namen ohne Paket-ID (die ID steht im Hinweis), Knopf "Ausgewählte installieren (3)".
+
+8. TESTS
+  Selbsttest          13 neue Fälle in tests\Daten\Oberflaeche\GuiSelbsttest.cs: Oberflaeche.Kontrast,
+                      Startknopf.Beschriftung, Zeitangabe.Minuten, Lasttest.Gesamtdauer, Lasttest.Deaktivierung,
+                      Startuebersicht, Wartung.Detailtext, Voreinstellung.Altwerte, Laufwerk.Kurzname, Ablage.Kurzform,
+                      Etikett.Risikostufe, Aufklappgruppe, Diagnose.Profile.
+  Modulvertrag        Die Prüfung der Profiltabellen kennt nur noch voll und schnell.
+
+GEFUNDEN UND BEHOBEN
+  Seitenrand: Seiten mit FlowLayoutPanel lagen bei 0,0 im Bildlaufbereich, der Innenabstand wirkte nur auf Seiten mit
+  Dock (Tools, Datenbank). Daher der unterschiedliche Abstand zwischen Diagnose und Tools.
+  Symbol in Gruppentiteln: das Zeichen der Symbolschrift wurde in Segoe UI gezeichnet und erschien als Punkt.
+  Optimierung: die Legende der Risikostufen wurde angelegt, aber nie auf der Seite eingefügt.
+  Farbschema-Knopf: Emoji im Text (Projektregel 6), unter Windows als Kreis dargestellt.
+  Codeprüfung vor der Übergabe (eigener Agent):
+    Der Hinweis zu verwalteten Einträgen auf Domänen-PCs wäre ohne Eingriff oder Neustart nicht mehr erschienen;
+    er löst die Zusammenfassung jetzt selbst aus.
+    Das Schildsymbol im Startknopf behielt nach dem Wechsel des Farbschemas die alte Farbe; es wird neu gezeichnet.
+    UI.GlyphImage zeichnete mit TextRenderer auf transparentem Grund (Alphakanal 0); jetzt GDI+.
+    Die Etikettenspalte war für verwaltet plus Zustand zu schmal; breiter und mit Umbruch.
+    Ohne Modulvertrag hatten Wartungsaufgaben keine Risikostufe und wären ohne Rückfrage gestartet; sie zählen dann
+    als Eingriff.
+    Im Startdialog lag der Fokus auf Starten; jetzt auf Abbrechen.
+    Etiketten in Opt2 hatten keinen Hinweis, das Zustandsetikett einen falschen; Hinweise jetzt nach Art.
+    Alte Voreinstellungen mit Funktionstest oder Absturzanalyse hätten mit Benutzerdefiniert die dort abgeschalteten
+    Optionen (smartmontools) eingeschaltet; sie laden jetzt das Profil Schnell ohne diese Werte.
+    Mindestgröße bei hoher Skalierung auf 60 % der Arbeitsfläche begrenzt.
+
+GRENZEN
+  Geprüft unter Linux mit mono und Xvfb: Übersetzung (mcs -langversion:5), Selbsttest und eine Vorschau aller Seiten
+  in beiden Farbschemata. Die Darstellung unter Windows (Segoe Fluent Icons, Segmentschalter, Skalierung 125 und 150 %)
+  ist dort noch zu prüfen; Bildschirmfotos für Doku\Screenshots fehlen deshalb.
+  Die Option für die KI-Auswertung bleibt in der Fußleiste (Befund F6 nur im Text umgesetzt), weil sie vor dem Start
+  gilt und für alle Module.
+  Tastatur: GroupHeader und Schalter sind fokussierbar und zeigen einen Fokusrahmen; die Tab-Reihenfolge folgt der
+  Reihenfolge auf der Seite, eine eigene Prüfung je Seite steht aus.
+  Die Seiten Vergleichsdatenbank und Systemänderungen sind bis auf Namen und Texte unverändert.
+
+UMSTIEG
+  Gespeicherte Voreinstellungen laden weiter. Alte Texte ("2 Minuten", "automatisch (TjMax, sonst 100 °C)") werden
+  den neuen Einträgen zugeordnet (SameChoice), die Profile Funktionstest und Absturzanalyse dem Profil Schnell.
+  Die Parameter -DiagProfil Funktionstest und -AnalyzeLastRun des Skripts bleiben für die Befehlszeile erhalten.
+
+QUELLEN
+  Kontrastverhältnis nach WCAG 2.1, Abschnitt 1.4.3 (Mindestkontrast 4,5:1) und relative Leuchtdichte nach
+  https://www.w3.org/TR/WCAG21/#dfn-relative-luminance

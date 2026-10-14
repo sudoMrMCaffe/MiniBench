@@ -11,6 +11,14 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.64", "14.10.2026", "Überarbeitete Oberfläche: klare Navigation, eindeutiger Startknopf, Etiketten für Risikostufen und einheitliches Raster",
+            "Seitenleiste in zwei Gruppen (Ablauf mit Haken, Werkzeuge ohne), angezeigte Seite nur über Akzentbalken, geschätzte Dauer je angehaktem Modul. " +
+            "Kopfzeile flacher mit Symbolknöpfen für Farbschema und Info; die Seite Änderungen heißt Systemänderungen. " +
+            "Fußleiste mit Modulen in Ablaufreihenfolge und Gesamtdauer, Startknopf mit Beschriftung nach Auswahl (etwa Diagnose starten) und ausreichendem Kontrast im Dunkelschema; Voreinstellungen und Ablage links, die Ablage öffnet den Datenordner. " +
+            "Zusammenfassung vor dem Start nur bei Eingriffen, Neustarts oder ohne Wiederherstellungspunkt, statt getrennter Rückfragen von Wartung und Optimierung. " +
+            "Diagnose mit drei Profilen als Segmentschalter (Funktionstest und Nur Absturzanalyse entfallen), Lesende Prüfungen parallel ausführen statt Schneller Modus, Aufklappgruppe Prüfungen. " +
+            "Benchmark mit Detailzeilen, Laufwerksliste mit freiem Platz, Referenz-Zustand als eigene Zeile. Lasttest als Tabelle mit Gesamtdauer, Akkuhinweis und PawnIO-Etikett. " +
+            "Wartung und Optimierung mit Etiketten für Ändern, Eingriff, Neustart und Zustand, Legende oben und Warnung ohne Wiederherstellungspunkt. Tools ohne doppelte Bildlaufleiste, Werkzeugkarten mit Zustand und festen Knopfspalten, Netzlaufwerk als eigener Bereich."),
         new Eintrag("3.63", "13.10.2026", "Geschätzter Gesamtsystemverbrauch, Effizienz-Metriken (Punkte pro Watt) und interaktiver Stromkostenrechner",
             "Geschätzter Gesamtsystemverbrauch: Realistische Modellierung der internen DC-Leistung sowie des AC-Verbrauchs an der Steckdose für Desktop-PCs und Notebooks anhand gemessener CPU-/GPU-Leistungen, Plattformparametern (RAM, Mainboard, Laufwerke, VRM-Verluste) und Netzteil-Wirkungsgraden. " +
             "Effizienz-Metriken: Ausweisung von Punkten pro Watt für Mehrkern-CPU (CPU|MT / Watt), Grafikkarte (GPU / Watt) und Gesamtsystem (Gesamt-Score / Watt) in HTML-Bericht und Vergleichs-Dashboard. " +

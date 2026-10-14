@@ -41,6 +41,19 @@ Describe 'Selbsttest der Oberfläche' {
         @{ Fall = 'Netzlaufwerk.Ergebnis' }
         @{ Fall = 'Wartung.Vertragszeile' }
         @{ Fall = 'Dialog.Farbschema' }
+        @{ Fall = 'Oberflaeche.Kontrast' }
+        @{ Fall = 'Startknopf.Beschriftung' }
+        @{ Fall = 'Zeitangabe.Minuten' }
+        @{ Fall = 'Lasttest.Gesamtdauer' }
+        @{ Fall = 'Lasttest.Deaktivierung' }
+        @{ Fall = 'Startuebersicht' }
+        @{ Fall = 'Wartung.Detailtext' }
+        @{ Fall = 'Voreinstellung.Altwerte' }
+        @{ Fall = 'Laufwerk.Kurzname' }
+        @{ Fall = 'Ablage.Kurzform' }
+        @{ Fall = 'Etikett.Risikostufe' }
+        @{ Fall = 'Aufklappgruppe' }
+        @{ Fall = 'Diagnose.Profile' }
     ) {
         Assert-GuiSelbsttest $Fall
     }
