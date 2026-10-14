@@ -1,4 +1,4 @@
-function Get-ReportCss {
+﻿function Get-ReportCss {
     return @'
 :root{--bg:#f5f6f8;--panel:#fff;--text:#1c2330;--muted:#5f6878;--line:#e2e5ea;--code:#f1f3f6;
 --accent:#0067c0;--accent-hover:#005a9e;--accent-soft:#ebf3fb;--accent-border:#bdd7ee;
@@ -33,10 +33,10 @@ h1{margin:0;font-size:27px;font-weight:650}
 h1 span{color:var(--muted);font-weight:400}
 .meta{margin:4px 0 0;color:var(--muted);font-size:13.5px}
 .verdict{padding:9px 18px;border-radius:999px;font-weight:650;font-size:15px}
-.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
-.card{background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--line);border-radius:12px;padding:14px 18px}
-.card b{display:block;font-size:32px;line-height:1.15;font-variant-numeric:tabular-nums}
-.card span{color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:20px}
+.card{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:10px;padding:10px 12px}
+.card b{display:block;font-size:25px;line-height:1.15;font-variant-numeric:tabular-nums}
+.card span{color:var(--muted);font-size:12px;line-height:1.3;display:block;margin-top:3px}
 .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin-bottom:18px;overflow-x:auto}
 .box h2{font-size:17px;margin:0 0 12px;font-weight:650}
 dl{display:grid;grid-template-columns:190px 1fr;gap:7px 18px;margin:0}
@@ -53,7 +53,7 @@ th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;le
 .card.warn{border-left-color:var(--warn)} .card.warn b{color:var(--warn)}
 .card.info{border-left-color:var(--info)} .card.info b{color:var(--info)}
 .card.ok{border-left-color:var(--ok)} .card.ok b{color:var(--ok)}
-.cards{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.cards{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
 .card.st,.card.st.ok,.card.st.info,.card.st.warn{background:var(--panel);color:var(--text)}
 .card.st.ok{border-left-color:var(--ok)} .card.st.ok b{color:var(--ok)} .card.st.info{border-left-color:var(--info)} .card.st.info b{color:var(--info)} .card.st.warn{border-left-color:var(--warn)} .card.st.warn b{color:var(--warn)}
 .card.bench{background:var(--panel);color:var(--text);border-left-color:var(--accent,#2563eb)} .card.bench b{color:var(--accent,#2563eb)} .card.pwr{background:var(--panel);color:var(--text);border-left-color:#d97706} .card.pwr b{color:#d97706}
@@ -62,7 +62,7 @@ th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;le
 .card.metric.cpu{border-left-color:var(--info)} .card.metric.cpu b{color:var(--info)}
 .card.metric.gpu{border-left-color:#c2410c} .card.metric.gpu b{color:#c2410c}
 .card.metric.disk{border-left-color:#0f766e} .card.metric.disk b{color:#0f766e}
-.card b small{font-size:14px;font-weight:600;color:var(--muted);margin-left:2px}
+.card b small{font-size:12px;font-weight:600;color:var(--muted);margin-left:2px}
 .box.stab,.box.stab.warn,.box.stab.info,.box.stab.ok{background:var(--panel);color:var(--text);border-left:6px solid var(--line)}
 .box.stab.warn{border-left-color:var(--warn)} .box.stab.info{border-left-color:var(--info)} .box.stab p{margin:0}
 .empty{color:var(--muted);margin:0}

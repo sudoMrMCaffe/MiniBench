@@ -15,7 +15,8 @@ Laufansicht angeglichen: Titelgröße, Karte um die Listen, Etiketten in normale
 Hauptknopf, Protokollfeld im Hellschema hell.
 Korrekturen nach dem ersten Windows-Test: Zeitangabe unter dem Diagnoseprofil mit paralleler Ausführung wie in der
 Seitenleiste, Diagnose (parallel) an der richtigen Stelle der Fußleiste, Knöpfe der Optimierung in zwei Zeilen, Einzahl bei
-einem verwalteten Eintrag, Netzlaufwerk-Karte ohne abgeschnittenen Text, größeres Schildsymbol im Knopf Starten.
+einem verwalteten Eintrag, Netzlaufwerk-Karte ohne abgeschnittenen Text, größeres Schildsymbol im Knopf Starten,
+KPI-Kopfzeile im Diagnosebericht einzeilig ohne Zeilenumbruch der Zuverlässigkeits-Kachel.
 
 VERSION 3.64   (14.10.2026)  ÜBERARBEITETE OBERFLÄCHE: KLARE NAVIGATION, EINDEUTIGER STARTKNOPF, ETIKETTEN FÜR RISIKOSTUFEN UND EINHEITLICHES RASTER
 ====================================================================================================

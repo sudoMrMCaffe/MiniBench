@@ -36,6 +36,10 @@ den Bildschirmfotos von ULB-PC10039 zu sehen waren. Messabläufe, Parameter und 
   Optimierung         Einzahl bei einem verwalteten Eintrag ("1 verwalteter Eintrag ist nicht gewählt").
   Tools               Die Beschreibung der Netzlaufwerk-Karte wurde abgeschnitten; kürzer, der Rest steht im Hinweis.
                       Das Schildsymbol im Knopf Starten ist größer gezeichnet.
+  Bericht             KPI-Kopfzeile im Diagnosebericht angepasst: Spaltenbreite und Abstände (minmax 120 px, gap 10 px)
+                      so bemessen, dass alle sieben Kennzahlen inklusive der Zuverlässigkeits-Kachel auf Standard-Bildschirmen
+                      in einer geschlossenen oberen Reihe stehen und nicht mehr in eine zweite Zeile umbrechen.
+
 
 5. TESTS
   Selbsttest          Neue Fälle Etikett.Schreibweise und Karte in tests\Daten\Oberflaeche\GuiSelbsttest.cs.

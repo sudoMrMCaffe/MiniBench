@@ -8,6 +8,7 @@ Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festge
 * **Wartung wie Optimierung:** gemeinsamer Aufbau `CategoryBlock` mit Beschreibung je Gruppe, „alle“ und „keine“, Etiketten rechts und „Alle aufklappen“.
 * **Laufansicht angeglichen:** Titelgröße, Karte um die Listen, Etiketten in normaler Schreibweise (`BadgeCase`), „Bericht öffnen“ als großer Hauptknopf, Protokollfeld und Fortschrittsbalken folgen dem Farbschema.
 * **Korrekturen:** Zeitangabe unter dem Diagnoseprofil mit paralleler Ausführung, „Diagnose (parallel)“ in der Fußleiste, Knöpfe der Optimierung in zwei Zeilen, Einzahl bei einem verwalteten Eintrag, Netzlaufwerk-Karte, Schildsymbol.
+* **Diagnosebericht KPI-Kopfzeile:** Spaltenbreite der KPI-Karten (`.cards`) auf `minmax(120px, 1fr)` mit kompakten Abständen und Schriftgröße optimiert, sodass alle sieben Kennzahlen (inkl. Zuverlässigkeit) einzeilig ohne Zeilenumbruch dargestellt werden.
 * **Tests:** zwei neue Fälle im Selbsttest der Oberfläche (Etikett.Schreibweise, Karte).
 
 ## v3.64 (14.10.2026)

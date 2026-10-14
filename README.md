@@ -12,7 +12,7 @@
 [![Changelog](https://img.shields.io/badge/Changelog-MD-6366f1.svg)](CHANGELOG.md)
 [![Plattform](https://img.shields.io/badge/Windows-10%20%7C%2011%20(x64)-0078d4.svg)]()
 [![Laufzeit](https://img.shields.io/badge/PowerShell-5.1%20%7C%20C%23%205-1e293b.svg)]()
-[![Tests](https://img.shields.io/badge/Tests-800%2B%20bestanden-22c55e.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-820%2B%20bestanden-22c55e.svg)](tests/)
 [![Vibe Coding](https://img.shields.io/badge/Built%20With-Vibe%20Coding-7c3aed.svg)]()
 [![Portabel](https://img.shields.io/badge/USB-Zero--Footprint-f59e0b.svg)]()
 
@@ -80,6 +80,6 @@ Das Werkzeug erzeugt nach jedem Lauf detaillierte, interaktive HTML-Berichte mit
 
 ## Für Entwickler
 
-* **Tests ausführen:** `Testen.cmd` (über 635 Pester-Tests für Modulverträge, Risikostufen, Dashboard-Logik und AST-Syntax).
+* **Tests ausführen:** `Testen.cmd` (über 800 Pester-Tests für Modulverträge, Risikostufen, Dashboard-Logik und AST-Syntax).
 * **Programm bauen:** `Bauen.cmd` (Syntaxprüfung, Testlauf, EXE-Kompilierung und automatische Archivierung nach `Aktueller Build/`).
 * **Vorgaben:** Quellcode-Änderungen nur in `src/`, UTF-8 mit BOM + CRLF, Modulverträge in `Vertrag.psd1` einhalten (Details in [AGENTS.md](AGENTS.md)).
