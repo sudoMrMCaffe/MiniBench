@@ -1,33 +1,31 @@
-# Leos Minibench: Projektstand
+﻿# Leos Minibench: Projektstand
 
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
-## Stand: Version 3.63 (13.10.2026)
-Letzter Release-Commit auf GitHub: e88577a (Release v3.63: Geschätzter Gesamtsystemverbrauch, Effizienz-Metriken (Punkte pro Watt) und interaktiver Stromkostenrechner).
+## Stand: Version 3.64 (14.10.2026)
+Letzter Release-Commit: dd792f1 (Release v3.64: Überarbeitete Oberfläche: klare Navigation, eindeutiger Startknopf,
+Etiketten für Risikostufen und einheitliches Raster). Erstellt von Claude in der Sandbox auf Grundlage von 8e14f3c
+(origin/main), übergeben als Git-Bundle; Push über Antigravity.
 
+Inhalt von 3.64 (Einzelheiten in Doku\Änderungen_v3.64.txt):
+1. Gestaltungsregeln in der Klasse UI (Abstände, Seitenrand 24 px, Gruppenbreite 780 px, Schriftstufen), neue Steuerelemente
+   Badge, GroupHeader und PrimaryButton, Zweizeilen-Optionen (Opt2), UI.OnAccent für Kontrast auf Akzentflächen.
+2. Seitenleiste in Ablauf und Werkzeuge, Schalter "beim Start ausführen" im Seitenkopf, flache Kopfzeile mit Symbolknöpfen,
+   Seite Systemänderungen, Fußleiste mit Ablauf und Gesamtdauer, Startknopf mit Beschriftung nach Auswahl.
+3. Zusammenfassung vor dem Start (StartUebersicht) nur bei Eingriffen, Neustarts, abgewähltem Wiederherstellungspunkt oder
+   verwalteten Einträgen auf Domänen-PCs; ersetzt die Rückfragen von Wartung und Optimierung.
+4. Diagnose ohne Funktionstest und Nur Absturzanalyse (Skriptparameter bleiben), Lasttest als Tabelle, Wartung und
+   Optimierung mit Etiketten, Tools mit einer Bildlaufleiste und Werkzeugkarten mit Zustand.
 
-Inhalt von 3.63 (Einzelheiten in Doku\Änderungen_v3.63.txt):
-1. Geschätzter Gesamtsystemverbrauch: Mathematisches Modell für Desktop (DC intern und AC an der Steckdose bei 88 % Wirkungsgrad)
-   und Notebooks (Display/Plattform 7 W, LPDDR/SSD 3 W, VRM 5 %, 90 % Wirkungsgrad; reale DischargeRate bei Akkubetrieb).
-2. Effizienz-Metriken (Punkte pro Watt): Ausweisung von CPU-Effizienz (CPU|MT / CpuW), GPU-Effizienz (GPU / GpuW) und Gesamtsystem-
-   Effizienz (Overall / System-Watt) im HTML-Bericht und im interaktiven Multi-System Dashboard.
-3. Interaktiver Stromkostenrechner: Dynamischer Rechner im HTML-Bericht für jährliche Stromkosten mit einstellbaren Nutzungszeiten
-   für Alltag und Volllast sowie editierbarem Kilowattstundenpreis.
-4. Dashboard-Integration: Neue Diagrammansicht "Leistung (W)" für Multi-System Zeitreihenvergleiche, Profilkarten mit Verbrauchs-
-   Plaketten und neue Kategorie in der Vergleichsmatrix.
-5. Robuste Absicherung & Non-Interactive Tests: Saubere Anzeige von "n/v (kein Leistungssensor)" bei sensorlosen Systemen; Testen.cmd
-   beendet Testläufe ohne Tastendruck.
-
-Testlauf Windows (Windows PowerShell 5.1, Pester 6.2.0): 806 bestanden, 0 fehlgeschlagen, 99 übersprungen
-(in Lauf.Tests.ps1; gewollt ohne -Gesamtlauf). Alle Fachgebiets-Tests erfolgreich.
-
-Hotfix & Redesign v3.63 (13.10.2026):
-1. JavaScript-Syntaxfehler in Bausteine_Dashboard.ps1 behoben (doppeltes 'else' im Telemetrie-Tooltip-Handler verhinderte das Laden des Dashboards).
-2. Modernisierte Bericht-Kopfzeile in HtmlBericht.ps1 implementiert: Befunde kompakt zusammengefasst (K/W/H), flankiert von Multicore-Score, Grafik-FPS, SSD-Spitzenleserate (GB/s) und Effizienz-Index (Pkt/100 W).
-3. Aktualisiere-Berichte.ps1: Alle 21 HTML-Berichte und Datenbankeinträge neu gerendert und vollständig auf den modernen v3.63 Standard überführt (Kerne/Threads, Sensorwerte aus Anhang.zip, Section-Tags für Reiterwechsel, Befunde-Filterleiste, Profilkarten, interaktiver Stromkostenrechner; veraltete/redundante Dateien archiviert).
+Testlauf Sandbox (pwsh 7.4, Pester-Nachbau, mono): 804 bestanden, 13 fehlgeschlagen, 3 übersprungen ohne Lauf.Tests.ps1.
+Die 13 Fehler bestehen schon auf 8e14f3c (Bericht 11 und Datenbank 1: Get-CimInstance im Nachbau nicht verfügbar;
+Sensoren 1: Test-OnBattery unter Linux). Lauf.Tests.ps1 (Gesamtläufe) läuft in der Sandbox nicht. Windows-Lauf steht aus.
 
 ## Offene Befunde
-Keine offenen Befunde.
+1. Oberfläche 3.64 unter Windows prüfen: Segoe Fluent Icons, Segmentschalter der Diagnose, Etiketten, Skalierung 100, 125 und
+   150 %, beide Farbschemata; Bildschirmfotos nach Doku\Screenshots. In der Sandbox nur mit mono und Ersatzschriften gesehen.
+2. Testen.cmd unter Windows laufen lassen (Bericht.Tests.ps1 und Datenbank.Tests.ps1 scheitern im Sandbox-Nachbau schon auf
+   8e14f3c an einer Attrappe für Get-CimInstance; prüfen, ob das unter Pester 6.2 auch so ist).
 
 ## Fallstricke
 1. Pester 6.2 auf ULB-PC10039: Attrappen mit -ParameterFilter brauchen eine Vorgabe-Attrappe ohne Filter.
@@ -35,6 +33,8 @@ Keine offenen Befunde.
 3. Dialoge und Formulare: Jeder Dialog muss UI.ThemeDialog aufrufen, um Darstellungsprobleme im dunklen Farbschema zu vermeiden.
 4. Zahlenformate in Tests: Trennzeichen kulturabhängig ([.,]) prüfen.
 5. BOM-Prüfung: Textdateien (außer .cmd) immer mit UTF-8 BOM speichern, da Windows PowerShell 5.1 sonst ANSI annimmt.
+6. Oberfläche ab 3.64: Seiten ohne Dock bekommen ihre Position in BuildSetup (Seitenrand); neue Seiten nicht mit Location 0,0
+   anlegen. Primärknöpfe immer über UI.Primary (Typ PrimaryButton), Schriftfarbe UI.OnAccent, nie Color.White.
 
 ## Testgeräte
 TORRENT: Ryzen 5 7600X, Radeon RX 6800, B650 Gaming X AX, PawnIO 2.2.0.0, 5 Laufwerke (3 NVMe, 2 SATA).
