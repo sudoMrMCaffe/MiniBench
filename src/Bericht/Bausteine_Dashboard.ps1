@@ -61,6 +61,9 @@ function Export-BenchDashboardData {
                     Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
                     $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
                     $entry = $zip.GetEntry('Lasttest-Verlauf.csv')
+                    if (-not $entry) {
+                        $entry = @($zip.Entries | Where-Object { $_.Name -ieq 'Lasttest-Verlauf.csv' }) | Select-Object -First 1
+                    }
                     if ($entry) {
                         $sr = New-Object System.IO.StreamReader($entry.Open(), [System.Text.Encoding]::UTF8)
                         $zipLines = [System.Collections.Generic.List[string]]::new()
@@ -70,6 +73,77 @@ function Export-BenchDashboardData {
                     }
                     $zip.Dispose()
                 } catch { }
+            }
+
+            # Auch .minibench-Archive im oder beim Ordner prüfen
+            $mbCandidates = [System.Collections.Generic.List[string]]::new()
+            if ($cand -like '*.minibench' -and (Test-Path -LiteralPath $cand -PathType Leaf)) {
+                $mbCandidates.Add($cand)
+            }
+            if (Test-Path -LiteralPath ($cand + '.minibench') -PathType Leaf) {
+                $mbCandidates.Add($cand + '.minibench')
+            }
+            if (Test-Path -LiteralPath $cand -PathType Container) {
+                foreach ($mbf in @(Get-ChildItem -LiteralPath $cand -Filter '*.minibench' -File -ErrorAction SilentlyContinue)) {
+                    $mbCandidates.Add($mbf.FullName)
+                }
+            }
+            foreach ($mbPath in $mbCandidates) {
+                try {
+                    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+                    $mbZip = [System.IO.Compression.ZipFile]::OpenRead($mbPath)
+                    $mbEntry = @($mbZip.Entries | Where-Object { $_.Name -ieq 'Lasttest-Verlauf.csv' }) | Select-Object -First 1
+                    if ($mbEntry) {
+                        $sr = New-Object System.IO.StreamReader($mbEntry.Open(), [System.Text.Encoding]::UTF8)
+                        $zipLines = [System.Collections.Generic.List[string]]::new()
+                        while (-not $sr.EndOfStream) { $zipLines.Add($sr.ReadLine()) }
+                        $sr.Dispose()
+                        if ($zipLines.Count -gt 1) { $lines = @($zipLines); $mbZip.Dispose(); break }
+                    } else {
+                        # Falls Anhang.zip innerhalb des .minibench-Archivs liegt
+                        $innerZipEntry = @($mbZip.Entries | Where-Object { $_.Name -ieq 'Anhang.zip' }) | Select-Object -First 1
+                        if ($innerZipEntry) {
+                            $ms = New-Object System.IO.MemoryStream
+                            $st = $innerZipEntry.Open()
+                            $st.CopyTo($ms)
+                            $st.Dispose()
+                            $ms.Position = 0
+                            $innerArchive = New-Object System.IO.Compression.ZipArchive($ms)
+                            $innerCsv = @($innerArchive.Entries | Where-Object { $_.Name -ieq 'Lasttest-Verlauf.csv' }) | Select-Object -First 1
+                            if ($innerCsv) {
+                                $sr = New-Object System.IO.StreamReader($innerCsv.Open(), [System.Text.Encoding]::UTF8)
+                                $zipLines = [System.Collections.Generic.List[string]]::new()
+                                while (-not $sr.EndOfStream) { $zipLines.Add($sr.ReadLine()) }
+                                $sr.Dispose()
+                                if ($zipLines.Count -gt 1) { $lines = @($zipLines); $innerArchive.Dispose(); $ms.Dispose(); $mbZip.Dispose(); break }
+                            }
+                            $innerArchive.Dispose()
+                            $ms.Dispose()
+                        }
+                    }
+                    $mbZip.Dispose()
+                } catch { }
+            }
+            if ($lines.Count -gt 1) { break }
+        }
+
+        # Fallback: Falls der Durchlauf gerade abgeschlossen wurde und im Arbeitsordner liegt
+        if ($lines.Count -le 1) {
+            $fallbackList = [System.Collections.Generic.List[string]]::new()
+            if ($script:WorkDir) {
+                $fallbackList.Add((Join-Path $script:WorkDir 'Anhang\Lasttest-Verlauf.csv'))
+                $fallbackList.Add((Join-Path $script:WorkDir 'Lasttest-Verlauf.csv'))
+            }
+            if ($RawDir) {
+                $fallbackList.Add((Join-Path $RawDir 'Lasttest-Verlauf.csv'))
+            }
+            foreach ($fb in $fallbackList) {
+                if (Test-Path -LiteralPath $fb) {
+                    try {
+                        $fl = @([System.IO.File]::ReadAllLines($fb, [System.Text.Encoding]::UTF8))
+                        if ($fl.Count -gt 1) { $lines = $fl; break }
+                    } catch { }
+                }
             }
         }
         return $lines
@@ -1840,6 +1914,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     btnModeCpu.classList.toggle('active', mode === 'cpu');
     btnModeGpu.classList.toggle('active', mode === 'gpu');
     if (btnModeWatt) btnModeWatt.classList.toggle('active', mode === 'watt');
+    renderChartLegend();
     renderChart();
   }
 
@@ -2308,6 +2383,13 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       </div>`;
     });
 
+    if (chartMode !== 'watt') {
+      html += `<div class="legend-item" style="margin-left: auto; gap: 12px; font-weight: 500;">
+        <span><strong style="color:${isDark ? '#60A5FA' : '#0078D4'};">―</strong> Temperatur (°C)</span>
+        <span><strong style="color:${isDark ? '#6CCB5F' : '#107C41'};">- -</strong> Leistung (W)</span>
+      </div>`;
+    }
+
     chartLegend.innerHTML = html;
   }
 
@@ -2338,7 +2420,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       return;
     }
 
-    const padding = { top: 30, right: 60, bottom: 40, left: 55 };
+    const padding = { top: 32, right: 65, bottom: 40, left: 60 };
     const chartW = width - padding.left - padding.right;
     const chartH = height - padding.top - padding.bottom;
 
@@ -2353,57 +2435,75 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     });
 
     let maxWatt = 200;
-    if (chartMode === 'watt') {
-      comparedSystems.forEach(s => {
-        (s.Telemetry?.Series || []).forEach(pt => {
-          const w = (pt.SysW != null && pt.SysW > 0) ? pt.SysW : (pt.CpuW != null ? pt.CpuW : 0);
-          if (w > maxWatt) maxWatt = w;
-        });
+    comparedSystems.forEach(s => {
+      (s.Telemetry?.Series || []).forEach(pt => {
+        const w = (chartMode === 'gpu')
+          ? (pt.GpuW != null ? pt.GpuW : (pt.IGpuW != null ? pt.IGpuW : 0))
+          : ((pt.SysW != null && pt.SysW > 0) ? pt.SysW : (pt.CpuW != null ? pt.CpuW : 0));
+        if (w > maxWatt) maxWatt = w;
       });
-      maxWatt = Math.min(1000, Math.ceil((maxWatt * 1.15) / 50) * 50);
-    }
+    });
+    maxWatt = Math.min(1000, Math.ceil((maxWatt * 1.15) / 50) * 50);
 
-    const tempMax = 110;
+    const tempMax = 100;
     const getX = t => padding.left + (t / tMax) * chartW;
-    const getYVal = v => {
-      const top = (chartMode === 'watt') ? maxWatt : tempMax;
-      return padding.top + chartH - (v / top) * chartH;
-    };
-    const getYTemp = getYVal;
+    const getYTemp = deg => padding.top + chartH - (deg / tempMax) * chartH;
+    const getYWatt = w => padding.top + chartH - (w / maxWatt) * chartH;
+    const getYVal = (chartMode === 'watt') ? getYWatt : getYTemp;
 
-    // GRID LINES
-    ctx.strokeStyle = isDark ? '#363636' : '#ECEFF1';
-    ctx.lineWidth = 1;
-    ctx.fillStyle = isDark ? '#808080' : '#888888';
+    // GRID LINES & ACHSEN
     ctx.font = '11px system-ui, sans-serif';
+    const gridFractions = [0, 0.25, 0.5, 0.75, 1.0];
 
-    if (chartMode === 'watt') {
-      const stepW = maxWatt <= 300 ? 50 : 100;
-      for (let w = 0; w <= maxWatt; w += stepW) {
-        const y = getYVal(w);
-        ctx.beginPath();
-        ctx.moveTo(padding.left, y);
-        ctx.lineTo(padding.left + chartW, y);
-        ctx.stroke();
+    gridFractions.forEach(f => {
+      const y = padding.top + chartH - f * chartH;
+      ctx.strokeStyle = isDark ? '#363636' : '#ECEFF1';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(padding.left + chartW, y);
+      ctx.stroke();
 
+      if (chartMode === 'watt') {
+        const w = Math.round(f * maxWatt);
+        ctx.fillStyle = isDark ? '#34D399' : '#059669';
         ctx.textAlign = 'right';
         ctx.fillText(w + ' W', padding.left - 8, y + 4);
-      }
-    } else {
-      [0, 25, 50, 75, 100].forEach(deg => {
-        const y = getYTemp(deg);
-        ctx.beginPath();
-        ctx.moveTo(padding.left, y);
-        ctx.lineTo(padding.left + chartW, y);
-        ctx.stroke();
-
+        ctx.textAlign = 'left';
+        ctx.fillText(w + ' W', padding.left + chartW + 8, y + 4);
+      } else {
+        const deg = Math.round(f * tempMax);
+        ctx.fillStyle = isDark ? '#60A5FA' : '#2563EB';
         ctx.textAlign = 'right';
         ctx.fillText(deg + ' °C', padding.left - 8, y + 4);
-      });
+
+        const w = Math.round(f * maxWatt);
+        ctx.fillStyle = isDark ? '#34D399' : '#059669';
+        ctx.textAlign = 'left';
+        ctx.fillText(w + ' W', padding.left + chartW + 8, y + 4);
+      }
+    });
+
+    // Achsen-Beschriftungen oben
+    ctx.font = '600 11px system-ui, sans-serif';
+    if (chartMode === 'watt') {
+      ctx.fillStyle = isDark ? '#34D399' : '#059669';
+      ctx.textAlign = 'right';
+      ctx.fillText('Leistung (W)', padding.left - 8, padding.top - 12);
+    } else {
+      ctx.fillStyle = isDark ? '#60A5FA' : '#2563EB';
+      ctx.textAlign = 'right';
+      ctx.fillText('Temperatur (°C)', padding.left - 8, padding.top - 12);
+
+      ctx.fillStyle = isDark ? '#34D399' : '#059669';
+      ctx.textAlign = 'left';
+      ctx.fillText('Leistung (W)', padding.left + chartW + 8, padding.top - 12);
     }
 
     // X Axis Time Labels
     ctx.textAlign = 'center';
+    ctx.fillStyle = isDark ? '#808080' : '#888888';
+    ctx.font = '11px system-ui, sans-serif';
     const xStep = tMax <= 120 ? 30 : 60;
     for (let sec = 0; sec <= tMax; sec += xStep) {
       const x = getX(sec);
@@ -2413,45 +2513,172 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       ctx.fillText(timeStr, x, padding.top + chartH + 20);
     }
 
+    // Prüfen, ob Zeitreihen-Daten vorliegen
+    const hasAnySeries = comparedSystems.some(s => (s.Telemetry?.Series && s.Telemetry.Series.length >= 2));
+
+    if (!hasAnySeries) {
+      let peakInfo = '';
+      const sysForPeak = baseSystem || (comparedSystems.length > 0 ? comparedSystems[0] : null);
+      if (sysForPeak && sysForPeak.Metrics) {
+        const m = sysForPeak.Metrics;
+        const parts = [];
+        if (m.LAST_CpuTemp != null && m.LAST_CpuTemp > 0) parts.push('CPU ' + Math.round(m.LAST_CpuTemp) + ' °C');
+        if (m.LAST_GpuTemp != null && m.LAST_GpuTemp > 0) parts.push('GPU ' + Math.round(m.LAST_GpuTemp) + ' °C');
+        if (m.GPU_REND != null && m.GPU_REND > 0) parts.push(Math.round(m.GPU_REND) + ' FPS');
+        if (m.LAST_CpuWatt != null && m.LAST_CpuWatt > 0 && parts.length < 3) parts.push(Math.round(m.LAST_CpuWatt) + ' W');
+        if (parts.length > 0) {
+          peakInfo = 'Peak: ' + parts.join(' · ');
+        }
+      }
+
+      const cardW = Math.min(width - 60, 440);
+      const cardH = 68;
+      const cardX = (width - cardW) / 2;
+      const cardY = padding.top + (chartH - cardH) / 2;
+
+      ctx.save();
+      ctx.fillStyle = isDark ? 'rgba(32, 36, 42, 0.94)' : 'rgba(255, 255, 255, 0.94)';
+      ctx.strokeStyle = isDark ? '#475569' : '#CBD5E1';
+      ctx.lineWidth = 1;
+
+      if (typeof ctx.roundRect === 'function') {
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardW, cardH, 8);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.fillRect(cardX, cardY, cardW, cardH);
+        ctx.strokeRect(cardX, cardY, cardW, cardH);
+      }
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = isDark ? '#F1F5F9' : '#0F172A';
+      ctx.font = '600 13px system-ui, sans-serif';
+      ctx.fillText('Keine Zeitreihe vorhanden', width / 2, cardY + 26);
+
+      ctx.fillStyle = isDark ? '#94A3B8' : '#64748B';
+      ctx.font = '12px system-ui, sans-serif';
+      ctx.fillText(peakInfo ? peakInfo : 'Für dieses Profil liegen keine zeitaufgelösten Messkurven vor.', width / 2, cardY + 48);
+      ctx.restore();
+
+      canvas.onmousemove = null;
+      canvas.onmouseleave = null;
+      return;
+    }
+
     // KURVEN ZEICHNEN
     comparedSystems.forEach((s, idx) => {
       const srs = s.Telemetry?.Series || [];
       if (srs.length < 2) return;
-      const color = getSysColor(idx, isDark);
       const isBase = (String(s.Id) === String(baseSystem?.Id));
 
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = isBase ? 3.0 : 2.0;
-      if (!isBase && idx % 2 === 1) ctx.setLineDash([6, 3]);
+      if (chartMode !== 'watt') {
+        // 1. Temperatur-Kurve (Solid)
+        const tempColor = (idx === 0)
+          ? (isDark ? '#4CC2FF' : '#0078D4')
+          : (idx === 1)
+            ? (isDark ? '#FFA057' : '#F7630C')
+            : getSysColor(idx, isDark);
 
-      let inSegment = false;
-      srs.forEach(pt => {
-        const val = (chartMode === 'cpu')
-          ? pt.Temp
-          : (chartMode === 'gpu')
-            ? (pt.GpuTemp != null ? pt.GpuTemp : pt.IGpuTemp)
-            : (pt.SysW != null ? pt.SysW : pt.CpuW);
+        ctx.save();
+        ctx.strokeStyle = tempColor;
+        ctx.lineWidth = isBase ? 2.8 : 2.0;
+        ctx.setLineDash([]);
 
-        if (val != null && val > 0) {
-          const x = getX(pt.T);
-          const y = getYTemp(val);
-          if (!inSegment) {
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            inSegment = true;
+        let inSegment = false;
+        srs.forEach(pt => {
+          const val = (chartMode === 'cpu')
+            ? pt.Temp
+            : (pt.GpuTemp != null ? pt.GpuTemp : pt.IGpuTemp);
+
+          if (val != null && val > 0) {
+            const x = getX(pt.T);
+            const y = getYTemp(val);
+            if (!inSegment) {
+              ctx.beginPath();
+              ctx.moveTo(x, y);
+              inSegment = true;
+            } else {
+              ctx.lineTo(x, y);
+            }
           } else {
-            ctx.lineTo(x, y);
+            if (inSegment) {
+              ctx.stroke();
+              inSegment = false;
+            }
           }
-        } else {
-          if (inSegment) {
-            ctx.stroke();
-            inSegment = false;
+        });
+        if (inSegment) ctx.stroke();
+        ctx.restore();
+
+        // 2. Leistungskurve (Dashed, Watt)
+        const wattColor = (idx === 0)
+          ? (isDark ? '#6CCB5F' : '#107C41')
+          : (idx === 1)
+            ? (isDark ? '#FBBF24' : '#D97706')
+            : getSysColor(idx, isDark);
+
+        ctx.save();
+        ctx.strokeStyle = wattColor;
+        ctx.lineWidth = isBase ? 2.2 : 1.6;
+        ctx.setLineDash([4, 3]);
+
+        let inWattSegment = false;
+        srs.forEach(pt => {
+          const wVal = (chartMode === 'cpu')
+            ? ((pt.SysW != null && pt.SysW > 0) ? pt.SysW : pt.CpuW)
+            : (pt.GpuW != null ? pt.GpuW : pt.IGpuW);
+
+          if (wVal != null && wVal > 0) {
+            const x = getX(pt.T);
+            const y = getYWatt(wVal);
+            if (!inWattSegment) {
+              ctx.beginPath();
+              ctx.moveTo(x, y);
+              inWattSegment = true;
+            } else {
+              ctx.lineTo(x, y);
+            }
+          } else {
+            if (inWattSegment) {
+              ctx.stroke();
+              inWattSegment = false;
+            }
           }
-        }
-      });
-      if (inSegment) ctx.stroke();
-      ctx.restore();
+        });
+        if (inWattSegment) ctx.stroke();
+        ctx.restore();
+      } else {
+        // Reiner Watt-Modus
+        const color = getSysColor(idx, isDark);
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = isBase ? 3.0 : 2.0;
+        if (!isBase && idx % 2 === 1) ctx.setLineDash([6, 3]);
+
+        let inSegment = false;
+        srs.forEach(pt => {
+          const val = (pt.SysW != null && pt.SysW > 0) ? pt.SysW : pt.CpuW;
+          if (val != null && val > 0) {
+            const x = getX(pt.T);
+            const y = getYWatt(val);
+            if (!inSegment) {
+              ctx.beginPath();
+              ctx.moveTo(x, y);
+              inSegment = true;
+            } else {
+              ctx.lineTo(x, y);
+            }
+          } else {
+            if (inSegment) {
+              ctx.stroke();
+              inSegment = false;
+            }
+          }
+        });
+        if (inSegment) ctx.stroke();
+        ctx.restore();
+      }
     });
 
     // HOVER INTERACTION
@@ -2518,9 +2745,17 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           </div>`;
 
           if (closest.Temp != null && closest.Temp > 0) {
-            ctx.fillStyle = color;
+            const tDotColor = (idx === 0) ? (isDark ? '#4CC2FF' : '#0078D4') : (idx === 1 ? (isDark ? '#FFA057' : '#F7630C') : color);
+            ctx.fillStyle = tDotColor;
             ctx.beginPath();
             ctx.arc(cx, getYTemp(closest.Temp), 4.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          if (closest.CpuW != null && closest.CpuW > 0) {
+            const wDotColor = (idx === 0) ? (isDark ? '#6CCB5F' : '#107C41') : (idx === 1 ? (isDark ? '#FBBF24' : '#D97706') : color);
+            ctx.fillStyle = wDotColor;
+            ctx.beginPath();
+            ctx.arc(cx, getYWatt(closest.CpuW), 4.0, 0, Math.PI * 2);
             ctx.fill();
           }
         } else if (chartMode === 'gpu') {
@@ -2540,9 +2775,17 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           </div>`;
 
           if (gTemp != null && gTemp > 0) {
-            ctx.fillStyle = color;
+            const tDotColor = (idx === 0) ? (isDark ? '#4CC2FF' : '#0078D4') : (idx === 1 ? (isDark ? '#FFA057' : '#F7630C') : color);
+            ctx.fillStyle = tDotColor;
             ctx.beginPath();
             ctx.arc(cx, getYTemp(gTemp), 4.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          if (gWatt != null && gWatt > 0) {
+            const wDotColor = (idx === 0) ? (isDark ? '#6CCB5F' : '#107C41') : (idx === 1 ? (isDark ? '#FBBF24' : '#D97706') : color);
+            ctx.fillStyle = wDotColor;
+            ctx.beginPath();
+            ctx.arc(cx, getYWatt(gWatt), 4.0, 0, Math.PI * 2);
             ctx.fill();
           }
         } else {
@@ -2561,7 +2804,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           if (pPlot != null && pPlot > 0) {
             ctx.fillStyle = color;
             ctx.beginPath();
-            ctx.arc(cx, getYVal(pPlot), 4.5, 0, Math.PI * 2);
+            ctx.arc(cx, getYWatt(pPlot), 4.5, 0, Math.PI * 2);
             ctx.fill();
           }
         }

@@ -2,10 +2,23 @@
 
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
-## Stand: Version 3.65 (14.10.2026)
-Release-Commit "Release v3.65: Einheitliche Karten, Wartung im Aufbau der Optimierung, angeglichene Laufansicht und Korrekturen nach dem ersten Windows-Test".
-Übernommen aus Bundle von Claude (v3.65), getestet und gebaut unter Windows mit Windows PowerShell 5.1 und Pester 6.2.0.
+## Stand: Version 3.66 (14.10.2026)
+Release-Commit "Release v3.66: Dark Mode beim Programmstart, Dashboard-Telemetrie und GPU-Effizienz in FPS/Watt".
+Getestet und gebaut unter Windows mit Windows PowerShell 5.1 und Pester 6.2.0.
 
+Inhalt von 3.66 (Einzelheiten in Doku\Änderungen_v3.66.txt):
+1. Dark Mode beim Start: SetPreferredAppMode vor Control-Erzeugung, OnShown und ShowPage wenden DarkMode_Explorer rekursiv auf alle Win32-Scrollbars an.
+2. Sensor-Status-Badge in der Kopfzeile: Dezentes Badge für aktiven Modus (LHM + PawnIO aktiv oder Windows-Fallback), gekoppelt an Treiberwahl.
+3. Dashboard-Telemetrie für Neu-Läufe: Export-BenchDashboardHtml nach Anhang.zip-Erzeugung; extractCsvSeries liest auch .minibench und Fallback-Dateien.
+4. Canvas-Diagramm: Zwei getrennte Y-Achsen (links: °C in Blau/Orange, rechts: Watt in Grün/Gelb); zentrierte Infokarte mit Peak-Werten bei Systemen ohne Zeitreihe.
+5. GPU-Effizienz: Strikt in FPS/Watt aus Render-FPS (GPU|REND) geteilt durch Maximalleistung (GpuWMax); Beschriftung im Bericht auf FPS/W korrigiert.
+6. HTML-Bericht: Sticky-Navigation mit dezentem Schatten und flüssiger Nach-oben-Knopf unten rechts ab 300 px Scrolltiefe.
+7. Bildschirmfoto: Doku\Screenshots\Oberflaeche neu.png als Standard-Vorschaubild Oberflaeche.png übernommen.
+
+Testlauf Windows (Windows PowerShell 5.1, Pester 6.2.0): 821 bestanden, 0 fehlgeschlagen, 99 übersprungen
+(in Lauf.Tests.ps1; gewollt ohne -Gesamtlauf). Alle Fachgebiets-Tests fehlerfrei.
+
+## Vorher: Version 3.65
 Inhalt von 3.65 (Einzelheiten in Doku\Änderungen_v3.65.txt):
 1. Einheitliche Karten (CardPanel) für Optionen der Diagnose, Tabellen des Lasttests, Paketauswahl der Tools und Listen der Laufansicht.
 2. Wartung im Aufbau der Optimierung (CategoryBlock) mit Gruppenbeschreibung, "alle" und "keine", Etiketten rechts und "Alle aufklappen".
@@ -14,9 +27,6 @@ Inhalt von 3.65 (Einzelheiten in Doku\Änderungen_v3.65.txt):
    Netzlaufwerk-Karte ohne Textabschnitt, größeres Schildsymbol.
 5. Diagnosebericht: KPI-Kopfzeile (.cards) auf minmax(120px, 1fr) mit kompakten Abständen und Schriftgröße angepasst, sodass alle
    sieben Kennzahlen (inklusive Zuverlässigkeit) einzeilig nebeneinander stehen und nicht mehr in eine zweite Zeile umbrechen.
-
-Testlauf Windows (Windows PowerShell 5.1, Pester 6.2.0): 820 bestanden, 0 fehlgeschlagen, 99 übersprungen
-(in Lauf.Tests.ps1; gewollt ohne -Gesamtlauf). Alle Fachgebiets-Tests fehlerfrei.
 
 ## Vorher: Version 3.64
 Inhalt von 3.64 (Einzelheiten in Doku\Änderungen_v3.64.txt):

@@ -2,6 +2,16 @@
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
 
+## v3.66 (14.10.2026)
+
+* **Dark Mode beim Start:** Win32-Bildlaufleisten (`ScrollBar`) in Inhaltsbereich, Karten, Listen und Protokollfeldern werden über `SetPreferredAppMode` und `ApplyNativeControlThemes` im `OnShown`-Ereignis bereits beim ersten Öffnen der Anwendung fehlerfrei im dunklen Design gerendert.
+* **Sensor-Status-Badge:** Dezentes Badge in der Kopfzeile signalisiert den aktuellen Treiberstatus (`LHM + PawnIO aktiv` in Grün bzw. `Windows-Fallback` in Gelb).
+* **Dashboard-Telemetrie für Neu-Läufe:** Die Erzeugung von `Dashboard.html` erfolgt nach der Erstellung von `Anhang.zip`; `extractCsvSeries` liest Zeitreihen zusätzlich direkt aus `.minibench`-Paketen sowie dem temporären Arbeitsverzeichnis ein.
+* **Dual-Achsen & Info-Kachel im Dashboard-Chart:** Canvas-Diagramm mit zwei getrennten Y-Achsen (links: Temperatur in °C, rechts: Leistung in Watt); Systeme ohne Zeitreihe zeigen eine formatierte Infokarte mit den gemessenen Peak-Werten.
+* **GPU-Effizienz in FPS/Watt:** Berechnung der GPU-Effizienz (`EFF_GPU`) strikt aus Render-FPS (`GPU|REND`) geteilt durch Maximalleistung (`GpuWMax`), synthetische Renderpunkte werden nicht mehr fälschlich als FPS/Watt ausgewiesen; Beschriftung im Bericht auf `FPS/W` angepasst.
+* **HTML-Bericht:** Fixierte Abschnittsnavigation (`position: sticky`) mit leichtem Schattenwurf und dezenter „Nach oben“-Schaltfläche unten rechts.
+* **Vorschaubild:** Aktualisierter Screenshot der überarbeiteten Benutzeroberfläche (`Doku\Screenshots\Oberflaeche.png`).
+
 ## v3.65 (14.10.2026)
 
 * **Einheitliche Karten:** neues Steuerelement `CardPanel` (abgerundeter Rahmen wie `FluentCard`) für die Optionen der Diagnose, die Tabellen des Lasttests, die Paketauswahl der Tools und die Listen der Laufansicht.

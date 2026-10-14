@@ -1069,7 +1069,7 @@ Describe 'GeschÃ¤tzter Gesamtsystemverbrauch und Effizienz' {
             }
             Werte     = [ordered]@{
                 'CPU|MT'   = 12000.0
-                'GPU|RPKT' = 18000.0
+                'GPU|REND' = 180.0
             }
         }
         $prof = MinibenchTest\Get-SystemPowerProfile $entry
@@ -1079,7 +1079,19 @@ Describe 'GeschÃ¤tzter Gesamtsystemverbrauch und Effizienz' {
         $prof.Teillast.Verfuegbar | Should -BeTrue
 
         $prof.Effizienz.CpuMT_PerWatt | Should -Be 100.0
-        $prof.Effizienz.Gpu_PerWatt | Should -Be 90.0
+        $prof.Effizienz.Gpu_PerWatt | Should -Be 0.9
+    }
+
+    It 'berechnet Gpu_PerWatt nicht aus synthetischen Renderpunkten (GPU|RPKT)' {
+        $entryRpkt = [pscustomobject]@{
+            System    = 'Gaming PC'
+            Hardware  = [pscustomobject]@{ RAM = '32 GB DDR5'; GPU = 'NVIDIA GeForce RTX 4070' }
+            Laufwerke = @('NVMe 1 TB')
+            Sensoren  = [pscustomobject]@{ Last = [pscustomobject]@{ CpuWMax = 120.0; GpuWMax = 200.0 } }
+            Werte     = [ordered]@{ 'CPU|MT' = 12000.0; 'GPU|RPKT' = 18000.0 }
+        }
+        $prof = MinibenchTest\Get-SystemPowerProfile $entryRpkt
+        $prof.Effizienz.Gpu_PerWatt | Should -BeNullOrEmpty
     }
 
     It 'behandelt fehlende Benchmarkwerte oder Sensoren im Leistungsprofil fehlerfrei' {

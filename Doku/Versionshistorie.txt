@@ -5,6 +5,21 @@ Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Info-Knopf oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
 
+VERSION 3.66   (14.10.2026)  DARK MODE BEIM PROGRAMMSTART, DASHBOARD-TELEMETRIE UND GPU-EFFIZIENZ IN FPS/WATT
+====================================================================================================
+Dark Mode beim Start: Bevorzugter Farbmodus (SetPreferredAppMode) wird vor der Steuerelement-Erzeugung gesetzt; OnShown
+und Seitenwechsel wenden das native DarkMode_Explorer-Theme auf alle Bildlaufleisten und Container an, sodass Scrollbars
+bereits beim ersten Erscheinen dunkel sind.
+Sensor-Status: Dezentes Status-Badge in der Kopfzeile signalisiert den Zustand der Treiberanbindung (LHM + PawnIO aktiv
+oder Windows-Fallback).
+Dashboard-Telemetrie: Korrigierte Ablaufreihenfolge im Abschluss stellt sicher, dass neu erstellte Lasttest-Verläufe
+sofort im Vergleichsdashboard visualisiert werden; Unterstützung für .minibench-Container und Fallback auf Arbeitsverzeichnisse.
+Canvas-Diagramm: Zwei getrennte Y-Achsen (links Temperatur in °C, rechts Leistung in Watt), Temperatur- und Wattkurven
+visuell unterschieden; übersichtliche Infokarte mit gemessenen Peak-Werten bei Systemen ohne Zeitreihe.
+GPU-Effizienz: Strikt als Bilder pro Sekunde je Watt (GPU|REND / GpuWMax in FPS/W) berechnet statt fehlerhafter Renderpunkte.
+HTML-Bericht: Sticky-Navigation beim Herunterscrollen fixiert und mit dezentem Schatten versehen; neuer Nach-oben-Knopf
+unten rechts für schnelles Zurückspringen an den Seitenanfang.
+
 VERSION 3.65   (14.10.2026)  EINHEITLICHE KARTEN, WARTUNG IM AUFBAU DER OPTIMIERUNG, ANGEGLICHENE LAUFANSICHT UND KORREKTUREN NACH DEM ERSTEN WINDOWS-TEST
 ====================================================================================================
 Einheitliche Karten: Optionen der Diagnose, Tabellen des Lasttests, die Paketauswahl der Tools und die Listen der

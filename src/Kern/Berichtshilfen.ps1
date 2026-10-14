@@ -1,4 +1,4 @@
-function Add-Line([string]$Text = '') { [void]$script:Report.AppendLine($Text) }
+﻿function Add-Line([string]$Text = '') { [void]$script:Report.AppendLine($Text) }
 
 function Add-Section([string]$Title, [string]$Prefix = '') {
     Add-Line; Add-Line ('=' * 100); Add-Line ('  ' + $Title.ToUpper()); Add-Line ('=' * 100)
@@ -505,7 +505,8 @@ function Get-SystemPowerProfile($Entry = $null) {
     }
 
     $cpuMtScore = 0.0
-    $gpuScore = 0.0
+    $gpuFps = $null
+    $gpuPoints = $null
     $overallScore = 0.0
 
     if ($Entry) {
@@ -518,17 +519,17 @@ function Get-SystemPowerProfile($Entry = $null) {
             $wMt = if ($Entry.Werte -is [System.Collections.IDictionary]) { $Entry.Werte['CPU|MT'] } else { $Entry.Werte.'CPU|MT' }
             if ($null -ne $wMt -and [double]$wMt -gt 0) { $cpuMtScore = [double]$wMt }
 
-            $wGpu = if ($Entry.Werte -is [System.Collections.IDictionary]) { $Entry.Werte['GPU|RPKT'] } else { $Entry.Werte.'GPU|RPKT' }
-            if ($null -eq $wGpu) {
-                $wGpu = if ($Entry.Werte -is [System.Collections.IDictionary]) { $Entry.Werte['GPU|REND'] } else { $Entry.Werte.'GPU|REND' }
-            }
-            if ($null -ne $wGpu -and [double]$wGpu -gt 0) { $gpuScore = [double]$wGpu }
+            $wRend = if ($Entry.Werte -is [System.Collections.IDictionary]) { $Entry.Werte['GPU|REND'] } else { $Entry.Werte.'GPU|REND' }
+            if ($null -ne $wRend -and [double]$wRend -gt 0) { $gpuFps = [double]$wRend }
+
+            $wRpkt = if ($Entry.Werte -is [System.Collections.IDictionary]) { $Entry.Werte['GPU|RPKT'] } else { $Entry.Werte.'GPU|RPKT' }
+            if ($null -ne $wRpkt -and [double]$wRpkt -gt 0) { $gpuPoints = [double]$wRpkt }
 
             if ($overallScore -le 0 -or $overallScore -gt 500) {
                 # Relative Referenzwerte: CPU MT ~28000, GPU ~100 FPS / Rendertest, RAM ~50 GB/s
                 $wSum = 0.0; $logSum = 0.0
                 $cPct = if ($cpuMtScore -gt 0) { ($cpuMtScore / 28000.0) * 100.0 } else { 0.0 }
-                $gPct = if ($gpuScore -gt 0) { ($gpuScore / 100.0) * 100.0 } elseif ($Entry.Werte['GPU|VMB']) { ([double]$Entry.Werte['GPU|VMB'] / 300.0) * 100.0 } else { 0.0 }
+                $gPct = if ($null -ne $gpuFps -and $gpuFps -gt 0) { ($gpuFps / 100.0) * 100.0 } elseif ($null -ne $gpuPoints -and $gpuPoints -gt 0) { ($gpuPoints / 10000.0) * 100.0 } elseif ($Entry.Werte['GPU|VMB']) { ([double]$Entry.Werte['GPU|VMB'] / 300.0) * 100.0 } else { 0.0 }
                 $rPct = if ($Entry.Werte['RAM|Lesen']) { ([double]$Entry.Werte['RAM|Lesen'] / 50.0) * 100.0 } else { 0.0 }
                 if ($cPct -gt 0) { $logSum += 2.0 * [math]::Log($cPct); $wSum += 2.0 }
                 if ($gPct -gt 0) { $logSum += 2.0 * [math]::Log($gPct); $wSum += 2.0 }
@@ -539,15 +540,20 @@ function Get-SystemPowerProfile($Entry = $null) {
         if ($Entry.Sensoren -and $Entry.Sensoren.Verbrauch -and $Entry.Sensoren.Verbrauch.Effizienz) {
             $eEff = $Entry.Sensoren.Verbrauch.Effizienz
             if ($null -ne $eEff.CpuMT_PerWatt -and "$($eEff.CpuMT_PerWatt)" -ne '') { $eff.CpuMT_PerWatt = [double]$eEff.CpuMT_PerWatt }
-            if ($null -ne $eEff.Gpu_PerWatt -and "$($eEff.Gpu_PerWatt)" -ne '') { $eff.Gpu_PerWatt = [double]$eEff.Gpu_PerWatt }
+            if ($null -ne $eEff.Gpu_PerWatt -and "$($eEff.Gpu_PerWatt)" -ne '') {
+                $oldEff = [double]$eEff.Gpu_PerWatt
+                if ($oldEff -le 10.0) { $eff.Gpu_PerWatt = $oldEff }
+            }
             if ($null -ne $eEff.System_PerWatt -and "$($eEff.System_PerWatt)" -ne '') { $eff.System_PerWatt = [double]$eEff.System_PerWatt }
         }
     } else {
         if ($script:BenchResults) {
             $mtRow = @($script:BenchResults | Where-Object { $_.RefKey -eq 'CPU|MT' -and $_.Wert -gt 0 }) | Select-Object -First 1
             if ($mtRow) { $cpuMtScore = [double]$mtRow.Wert }
-            $rpktRow = @($script:BenchResults | Where-Object { $_.RefKey -in 'GPU|RPKT', 'GPU|REND' -and $_.Wert -gt 0 }) | Select-Object -First 1
-            if ($rpktRow) { $gpuScore = [double]$rpktRow.Wert }
+            $rendRow = @($script:BenchResults | Where-Object { $_.RefKey -eq 'GPU|REND' -and $_.Wert -gt 0 }) | Select-Object -First 1
+            if ($rendRow) { $gpuFps = [double]$rendRow.Wert }
+            $rpktRow = @($script:BenchResults | Where-Object { $_.RefKey -eq 'GPU|RPKT' -and $_.Wert -gt 0 }) | Select-Object -First 1
+            if ($rpktRow) { $gpuPoints = [double]$rpktRow.Wert }
         }
         if (Get-Command Get-BenchOverall -ErrorAction SilentlyContinue) {
             $ov = Get-BenchOverall
@@ -558,8 +564,8 @@ function Get-SystemPowerProfile($Entry = $null) {
     if ($null -eq $eff.CpuMT_PerWatt -and $cpuMtScore -gt 0 -and $null -ne $cpuWMax -and $cpuWMax -gt 0) {
         $eff.CpuMT_PerWatt = [math]::Round($cpuMtScore / $cpuWMax, 1)
     }
-    if ($null -eq $eff.Gpu_PerWatt -and $gpuScore -gt 0 -and $null -ne $gpuWMax -and $gpuWMax -gt 0) {
-        $eff.Gpu_PerWatt = [math]::Round($gpuScore / $gpuWMax, 2)
+    if ($null -eq $eff.Gpu_PerWatt -and $null -ne $gpuFps -and $gpuFps -gt 0 -and $null -ne $gpuWMax -and $gpuWMax -gt 0) {
+        $eff.Gpu_PerWatt = [math]::Round($gpuFps / $gpuWMax, 2)
     }
     if ($null -eq $eff.System_PerWatt -and $overallScore -gt 0 -and $pLoad.Verfuegbar -and $pLoad.P_AC -gt 0) {
         $eff.System_PerWatt = [math]::Round(($overallScore / $pLoad.P_AC) * 100.0, 1)

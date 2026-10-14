@@ -1,0 +1,59 @@
+﻿LEOS MINIBENCH 3.66: ÄNDERUNGEN
+===============================
+
+Version 3.66 behebt die Startinitialisierung des dunklen Farbschemas bei Win32-Bildlaufleisten, korrigiert die
+Telemetrie-Einbindung neu abgeschlossener Lasttests im Dashboard, stellt die GPU-Effizienzmetrik auf echte Render-FPS
+pro Watt um und verfeinert Oberfläche, HTML-Bericht und Dashboard.
+
+1. DARK MODE BEIM PROGRAMMSTART
+  Initialisierung     SetPreferredAppMode(2) wird vor Erzeugung der WinForms-Steuerelemente ausgeführt.
+  Handle-Erzeugung    Im OnShown-Ereignis des Hauptfensters sowie bei jedem Seitenwechsel wendet ApplyNativeControlThemes
+                      rekursiv das native Win32-Theme DarkMode_Explorer auf alle ScrollableControl-, ListView- und
+                      TextBox-Instanzen an.
+  Bildlaufleisten     Die Bildlaufleisten von content, pnlCards, lvDb und txtLog sind ab dem ersten Erscheinen dunkel,
+                      ohne dass ein manueller Theme-Wechsel über den Mond-/Sonne-Schalter nötig ist.
+
+2. SENSOR-STATUS-BADGE
+  Kopfzeile           Ein dezentes Badge signalisiert den aktiven Sensormodus (LHM + PawnIO aktiv in Grün oder
+                      Windows-Fallback in Gelb). Die Anzeige aktualisiert sich automatisch bei Treiberwechseln
+                      auf der Seite Sensoren live.
+
+3. DASHBOARD-TELEMETRIE & ZEITREIHEN
+  Ablauf Abschluss    Export-BenchDashboardHtml wird nach der Komprimierung von Anhang.zip und .minibench aufgerufen,
+                      sodass frisch gemessene Lasttest-Verläufe sofort als Zeitreihe im Dashboard zur Verfügung stehen.
+  Archiv-Erkennung    extractCsvSeries durchsucht neben Lasttest-Verlauf.csv und Anhang.zip auch .minibench-Archive
+                      sowie temporäre Arbeitsverzeichnisse.
+  Zwei Y-Achsen       Das Canvas-Diagramm besitzt zwei getrennte vertikale Achsen: links Temperatur in °C (Blau/Orange),
+                      rechts Leistung in Watt (Grün/Gelb) mit dezenten Achsentiteln.
+  Info-Kachel         Besitzt ein System keine Zeitreihe (z. B. Referenzprofile), blendet das Diagramm eine
+                      zentrierte Infokarte mit den gemessenen Peak-Werten (CPU- und GPU-Temperaturen, FPS, Watt) ein.
+
+4. GPU-EFFIZIENZ IN FPS/WATT
+  Berechnung          Die GPU-Effizienz (EFF_GPU / Gpu_PerWatt) wird strikt als Quotient aus GPU-Render-FPS (GPU|REND)
+                      und GPU-Höchstleistung (GpuWMax) berechnet.
+  Bereinigung         Falsche Altwert-Berechnungen auf Basis synthetischer Renderpunkte (GPU|RPKT) werden verworfen
+                      und im Bericht sauber als FPS/W betitelt.
+
+5. HTML-BERICHT
+  Sticky Navigation   Die Abschnittsnavigation bleibt beim Herunterscrollen am oberen Bildschirmrand fixiert
+                      und hebt sich mit einem dezenten Schatten vom Dokument ab.
+  Nach oben           Ein unaufdringlicher Knopf unten rechts blendet sich ab 300 px Scrolltiefe ein und scrollt
+                      per Klick flüssig an den Seitenanfang zurück.
+
+6. DOKUMENTATION & VORSCHAU
+  Bildschirmfoto      Doku\Screenshots\Oberflaeche neu.png wurde als Standard-Vorschaubild Oberflaeche.png übernommen.
+
+
+GEFUNDEN UND BEHOBEN
+  Bildlaufleisten wurden beim ersten Start trotz aktivem Dunkelschema weiß/hellgrau gezeichnet, da Window-Handles im
+  Konstruktor noch nicht existierten.
+  Das Dashboard fand bei frisch abgeschlossenen Durchläufen keine Lasttest-Zeitreihe, weil Anhang.zip erst nach dem
+  Dashboard-Export gepackt wurde.
+  Referenzsysteme wiesen absurd hohe Werte (bis zu 57 FPS/W) auf, weil Renderpunkte durch Watt geteilt wurden.
+
+GRENZEN
+  Die native Win32-Scrollbar-Dunkelfärbung (DarkMode_Explorer / SetPreferredAppMode) basiert auf den internen
+  UxTheme-Schnittstellen von Windows 10 (ab 1809) und Windows 11.
+
+UMSTIEG
+  Keine Schritte nötig; Datenbank, Referenzprofile und Voreinstellungen bleiben unverändert kompatibel.

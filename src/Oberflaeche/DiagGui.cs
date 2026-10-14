@@ -52,6 +52,7 @@ public partial class DiagGui : Form
     Panel setupView, runView, content, head, body, contentHost;
     FlowLayoutPanel left;
     Button btnThemeToggle;
+    Badge badgeSensStatus;
     List<NavItem> nav = new List<NavItem>();
     List<Control> pages = new List<Control>();
     int curPage;
@@ -318,6 +319,7 @@ public partial class DiagGui : Form
         AutoScaleDimensions = new SizeF(96f, 96f); AutoScaleMode = AutoScaleMode.Dpi;
         bool isDark = LoadThemePreference();
         UI.SetTheme(isDark);
+        try { SetPreferredAppMode(isDark ? 2 : 0); } catch { }
         Font = new Font("Segoe UI", 9.75f);
         BackColor = UI.Bg; ForeColor = UI.Text;
         StartPosition = FormStartPosition.CenterScreen;
@@ -349,12 +351,17 @@ public partial class DiagGui : Form
         btnThemeToggle.Click += delegate { ToggleTheme(); };
         Tip(btnThemeToggle, UI.IsDark ? "Zu hellem Farbschema wechseln." : "Zu dunklem Farbschema wechseln.");
         hr.Controls.Add(btnThemeToggle);
+        badgeSensStatus = new Badge("", "ok");
+        badgeSensStatus.Margin = new Padding(UI.S(6), UI.S(5), 0, 0);
+        Tip(badgeSensStatus, "Aktiver Sensormodus für Hardware-Telemetrie und Systemwerte.");
+        hr.Controls.Add(badgeSensStatus);
         head.Controls.Add(hr);
 
         body = new Panel(); body.Dock = DockStyle.Fill; body.Padding = new Padding(UI.S(20), UI.S(16), UI.S(20), UI.S(14)); body.BackColor = UI.Bg;
         LoadDb();
         setupView = BuildSetup(); runView = BuildRun();
         FillPresets(true);
+        UpdateSensStatusBadge();
         setupView.Dock = DockStyle.Fill; runView.Dock = DockStyle.Fill; runView.Visible = false;
         body.Controls.Add(runView); body.Controls.Add(setupView);
         Controls.Add(body); Controls.Add(head);
@@ -390,6 +397,23 @@ public partial class DiagGui : Form
         if (clbDisks != null && clbDisks.IsHandleCreated) try { SetWindowTheme(clbDisks.Handle, subApp, null); } catch { }
         if (clbCompare != null && clbCompare.IsHandleCreated) try { SetWindowTheme(clbCompare.Handle, subApp, null); } catch { }
         if (txtLog != null && txtLog.IsHandleCreated) try { SetWindowTheme(txtLog.Handle, subApp, null); } catch { }
+        ApplyNativeThemeRecursive(this, subApp);
+    }
+
+    void ApplyNativeThemeRecursive(Control c, string subApp)
+    {
+        if (c == null) return;
+        if (c.IsHandleCreated)
+        {
+            if (c is ScrollableControl || c is ListView || c is TextBoxBase || c is ListBox)
+            {
+                try { SetWindowTheme(c.Handle, subApp, null); } catch { }
+            }
+        }
+        foreach (Control child in c.Controls)
+        {
+            ApplyNativeThemeRecursive(child, subApp);
+        }
     }
 
     public void EnableDarkListView(ListView lv)
@@ -1000,6 +1024,7 @@ public partial class DiagGui : Form
         content.AutoScrollPosition = new Point(0, 0);
         for (int k = 0; k < pages.Count; k++) pages[k].Visible = (k == i);
         if (i == 2) UpdateLoadExtras();
+        ApplyNativeControlThemes();
     }
 
     static CheckBox Chk(string text, bool on)
@@ -2300,6 +2325,31 @@ public partial class DiagGui : Form
         return k.Length > 0 ? " -WerkzeugeBehalten " + k : "";
     }
 
+    void UpdateSensStatusBadge()
+    {
+        if (badgeSensStatus == null) return;
+        string pv = PawnIoVersion();
+        bool drvActive = (cmbDriver == null || cmbDriver.SelectedIndex == 0);
+        if (LhmPresent && (pv.Length > 0 || (PawnSetupPresent && drvActive)))
+        {
+            badgeSensStatus.Text = "● LHM + PawnIO aktiv";
+            badgeSensStatus.Level = "ok";
+            Tip(badgeSensStatus, "Vollständige Sensordaten aktiv: LibreHardwareMonitor und PawnIO-Treiber erfassen CPU, GPU und Mainboard.");
+        }
+        else if (LhmPresent)
+        {
+            badgeSensStatus.Text = "● LHM aktiv";
+            badgeSensStatus.Level = "info";
+            Tip(badgeSensStatus, "LibreHardwareMonitor aktiv: Sensordaten ohne PawnIO-Treiber (eingeschränkte Mainboard-Sensoren).");
+        }
+        else
+        {
+            badgeSensStatus.Text = "○ Windows-Fallback";
+            badgeSensStatus.Level = "warn";
+            Tip(badgeSensStatus, "Kein LibreHardwareMonitor gefunden: Sensordaten über Windows-Leistungszähler, ACPI und Grafiktreiber.");
+        }
+    }
+
     void UpdateSensTools()
     {
         if (lblSensTools == null) return;
@@ -2311,6 +2361,7 @@ public partial class DiagGui : Form
         lblSensTools.Text = t;
         lblSensTools.ForeColor = LhmPresent ? UI.Muted : UI.Warn;
         btnSensTools.Text = LhmPresent && PawnSetupPresent ? "Sensorwerkzeuge erneut holen" : "Sensorwerkzeuge holen";
+        UpdateSensStatusBadge();
     }
 
     Control BuildSensorPage()
@@ -2336,7 +2387,7 @@ public partial class DiagGui : Form
         f.Controls.Add(bk);
         LoadDeviceTools();
         cmbKeep.SelectedIndexChanged += delegate { SaveDeviceTools(); };
-        cmbDriver.SelectedIndexChanged += delegate { SaveDeviceTools(); };
+        cmbDriver.SelectedIndexChanged += delegate { SaveDeviceTools(); UpdateSensStatusBadge(); };
         lblSensInfo = Lbl("Live-Ansicht nicht gestartet.", 9f, false, UI.Muted); lblSensInfo.MaximumSize = new Size(UI.S(UI.Gruppenbreite), 0); lblSensInfo.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(6)); f.Controls.Add(lblSensInfo);
         chartLive = new SensorChart(); chartLive.Width = UI.S(UI.Gruppenbreite); chartLive.Height = UI.S(330); chartLive.WindowSec = 600; chartLive.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
         chartLive.Empty = "Noch keine Messwerte. \"Live-Ansicht starten\" öffnet die Sensoren.";
@@ -3448,8 +3499,11 @@ public partial class DiagGui : Form
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
+        ApplyTitleBarTheme(UI.IsDark);
+        ApplyNativeControlThemes();
         BringToFront2();
         BeginInvoke(new System.Windows.Forms.MethodInvoker(BringToFront2));
+        BeginInvoke(new System.Windows.Forms.MethodInvoker(delegate { ApplyNativeControlThemes(); }));
         // erst nach dem ersten Zeichnen: Startfenster der exe schließen und die Startzeit protokollieren
         BeginInvoke(new System.Windows.Forms.MethodInvoker(delegate { StartLog.Phase("Oberfläche bereit"); StartLog.SignalReady(); StartLog.Finish(dataDir, version, script); }));
     }

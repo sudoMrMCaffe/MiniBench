@@ -224,10 +224,6 @@ catch {
     [IO.File]::WriteAllText($reportFile, ($head.ToString() + $script:Report.ToString()), (New-Object Text.UTF8Encoding($true)))
 }
 
-try {
-    [void](Export-BenchDashboardHtml -ErrorAction SilentlyContinue)
-} catch { }
-
 if ($script:GuiLog) { try { $script:GuiLog.Close(); $script:GuiLog = $null } catch { } }
 
 # KI-Datei: vollständige Fassung mit Rohdaten
@@ -244,6 +240,10 @@ try {
         Remove-Item $RawDir -Recurse -Force -ErrorAction SilentlyContinue
     } else { Remove-Item $RawDir -Force -ErrorAction SilentlyContinue; $zipFile = '' }
 } catch { $zipFile = '' }
+
+try {
+    [void](Export-BenchDashboardHtml -ErrorAction SilentlyContinue)
+} catch { }
 
 Write-Host ''
 Write-Host ('=' * 80) -ForegroundColor Cyan

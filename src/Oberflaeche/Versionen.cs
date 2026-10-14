@@ -11,6 +11,13 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.66", "14.10.2026", "Dark Mode beim Programmstart, Dashboard-Telemetrie und GPU-Effizienz in FPS/Watt",
+            "Dark Mode beim Start: Bevorzugter Farbmodus (SetPreferredAppMode) wird vor der Control-Initialisierung gesetzt; OnShown und ShowPage wenden die nativen Win32-Themes für Scrollbars auf allen Fenstern und Containern (content, pnlCards, lvDb, txtLog) an. " +
+            "Sensor-Status-Badge: Die Kopfzeile zeigt ein dezentes Status-Badge für den aktiven Treiber (LHM + PawnIO aktiv oder Windows-Fallback). " +
+            "Dashboard-Telemetrie: Export-BenchDashboardHtml wird nach der Archivierung ausgeführt; Unterstützung für .minibench-Archive und direktes CSV-Einlesen. " +
+            "Leistungskurven & Dual-Achsen: Das Multi-System-Dashboard visualisiert Temperatur (°C) auf der linken Achse und Leistung (Watt) auf der rechten Achse; Infokarte mit Peak-Werten bei Läufen ohne Zeitreihe. " +
+            "GPU-Effizienz in FPS/Watt: Berechnung der GPU-Effizienz strikt auf Basis tatsächlicher Render-FPS (GPU|REND) statt synthetischer Renderpunkte; Beschriftung im HTML-Bericht auf FPS/W korrigiert. " +
+            "HTML-Bericht Navigation: Fixierte Abschnittsnavigation (sticky) mit dezentem Schatten und flüssiger Nach-oben-Schaltfläche."),
         new Eintrag("3.65", "14.10.2026", "Einheitliche Karten, Wartung im Aufbau der Optimierung, angeglichene Laufansicht und Korrekturen nach dem ersten Windows-Test",
             "Einheitliche Karten: Optionen der Diagnose, Tabellen des Lasttests, die Paketauswahl der Tools und die Listen der Laufansicht stehen in abgerundeten Karten wie die Werkzeugkarten. " +
             "Wartung im Aufbau der Optimierung: jede Gruppe mit Beschreibung, alle und keine, Etiketten rechts und Knopf Alle aufklappen; die Befehle stehen im Hinweis. " +

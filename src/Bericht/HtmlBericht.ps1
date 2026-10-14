@@ -1,4 +1,4 @@
-function Get-TelemetryTip {
+﻿function Get-TelemetryTip {
     param($Sample)
     $t = [int]$Sample.T
     $mm = [int][math]::Floor($t / 60); $ss = [int]($t % 60)
@@ -276,6 +276,24 @@ function initBefundCounts() {
             hideTip();
         }
     });
+
+    var btnTop = document.createElement('button');
+    btnTop.className = 'back-to-top';
+    btnTop.setAttribute('title', 'Nach oben springen');
+    btnTop.setAttribute('aria-label', 'Nach oben springen');
+    btnTop.innerHTML = '&#9650;';
+    btnTop.onclick = function() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    document.body.appendChild(btnTop);
+
+    window.addEventListener('scroll', function() {
+        if (window.pageYOffset > 300) {
+            btnTop.classList.add('visible');
+        } else {
+            btnTop.classList.remove('visible');
+        }
+    });
 })();
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initBefundCounts);
@@ -331,7 +349,7 @@ function New-PowerEfficiencyHtml($Profile) {
             $effParts += ('<b>CPU-Effizienz:</b> {0:N1} Punkte/W <small class="muted">(Mehrkern-Score je Watt CPU-Paket)</small>' -f $eff.CpuMT_PerWatt)
         }
         if ($null -ne $eff.Gpu_PerWatt) {
-            $effParts += ('<b>GPU-Effizienz:</b> {0:N2} Punkte/W <small class="muted">(Renderleistung je Watt Grafik)</small>' -f $eff.Gpu_PerWatt)
+            $effParts += ('<b>GPU-Effizienz:</b> {0:N2} FPS/W <small class="muted">(Renderleistung je Watt Grafik)</small>' -f $eff.Gpu_PerWatt)
         }
         if ($null -ne $eff.System_PerWatt) {
             $effParts += ('<b>Gesamtsystem-Effizienz:</b> {0:N1} Punkte/100 W <small class="muted">(Gesamtscore je 100 W an der Steckdose)</small>' -f $eff.System_PerWatt)

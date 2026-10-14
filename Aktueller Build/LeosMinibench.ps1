@@ -238,7 +238,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Export
 }
 #endregion
 
-$ScriptVersion = '3.65'
+$ScriptVersion = '3.66'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -5634,6 +5634,7 @@ public partial class DiagGui : Form
     Panel setupView, runView, content, head, body, contentHost;
     FlowLayoutPanel left;
     Button btnThemeToggle;
+    Badge badgeSensStatus;
     List<NavItem> nav = new List<NavItem>();
     List<Control> pages = new List<Control>();
     int curPage;
@@ -5900,6 +5901,7 @@ public partial class DiagGui : Form
         AutoScaleDimensions = new SizeF(96f, 96f); AutoScaleMode = AutoScaleMode.Dpi;
         bool isDark = LoadThemePreference();
         UI.SetTheme(isDark);
+        try { SetPreferredAppMode(isDark ? 2 : 0); } catch { }
         Font = new Font("Segoe UI", 9.75f);
         BackColor = UI.Bg; ForeColor = UI.Text;
         StartPosition = FormStartPosition.CenterScreen;
@@ -5931,12 +5933,17 @@ public partial class DiagGui : Form
         btnThemeToggle.Click += delegate { ToggleTheme(); };
         Tip(btnThemeToggle, UI.IsDark ? "Zu hellem Farbschema wechseln." : "Zu dunklem Farbschema wechseln.");
         hr.Controls.Add(btnThemeToggle);
+        badgeSensStatus = new Badge("", "ok");
+        badgeSensStatus.Margin = new Padding(UI.S(6), UI.S(5), 0, 0);
+        Tip(badgeSensStatus, "Aktiver Sensormodus für Hardware-Telemetrie und Systemwerte.");
+        hr.Controls.Add(badgeSensStatus);
         head.Controls.Add(hr);
 
         body = new Panel(); body.Dock = DockStyle.Fill; body.Padding = new Padding(UI.S(20), UI.S(16), UI.S(20), UI.S(14)); body.BackColor = UI.Bg;
         LoadDb();
         setupView = BuildSetup(); runView = BuildRun();
         FillPresets(true);
+        UpdateSensStatusBadge();
         setupView.Dock = DockStyle.Fill; runView.Dock = DockStyle.Fill; runView.Visible = false;
         body.Controls.Add(runView); body.Controls.Add(setupView);
         Controls.Add(body); Controls.Add(head);
@@ -5972,6 +5979,23 @@ public partial class DiagGui : Form
         if (clbDisks != null && clbDisks.IsHandleCreated) try { SetWindowTheme(clbDisks.Handle, subApp, null); } catch { }
         if (clbCompare != null && clbCompare.IsHandleCreated) try { SetWindowTheme(clbCompare.Handle, subApp, null); } catch { }
         if (txtLog != null && txtLog.IsHandleCreated) try { SetWindowTheme(txtLog.Handle, subApp, null); } catch { }
+        ApplyNativeThemeRecursive(this, subApp);
+    }
+
+    void ApplyNativeThemeRecursive(Control c, string subApp)
+    {
+        if (c == null) return;
+        if (c.IsHandleCreated)
+        {
+            if (c is ScrollableControl || c is ListView || c is TextBoxBase || c is ListBox)
+            {
+                try { SetWindowTheme(c.Handle, subApp, null); } catch { }
+            }
+        }
+        foreach (Control child in c.Controls)
+        {
+            ApplyNativeThemeRecursive(child, subApp);
+        }
     }
 
     public void EnableDarkListView(ListView lv)
@@ -6582,6 +6606,7 @@ public partial class DiagGui : Form
         content.AutoScrollPosition = new Point(0, 0);
         for (int k = 0; k < pages.Count; k++) pages[k].Visible = (k == i);
         if (i == 2) UpdateLoadExtras();
+        ApplyNativeControlThemes();
     }
 
     static CheckBox Chk(string text, bool on)
@@ -7882,6 +7907,31 @@ public partial class DiagGui : Form
         return k.Length > 0 ? " -WerkzeugeBehalten " + k : "";
     }
 
+    void UpdateSensStatusBadge()
+    {
+        if (badgeSensStatus == null) return;
+        string pv = PawnIoVersion();
+        bool drvActive = (cmbDriver == null || cmbDriver.SelectedIndex == 0);
+        if (LhmPresent && (pv.Length > 0 || (PawnSetupPresent && drvActive)))
+        {
+            badgeSensStatus.Text = "● LHM + PawnIO aktiv";
+            badgeSensStatus.Level = "ok";
+            Tip(badgeSensStatus, "Vollständige Sensordaten aktiv: LibreHardwareMonitor und PawnIO-Treiber erfassen CPU, GPU und Mainboard.");
+        }
+        else if (LhmPresent)
+        {
+            badgeSensStatus.Text = "● LHM aktiv";
+            badgeSensStatus.Level = "info";
+            Tip(badgeSensStatus, "LibreHardwareMonitor aktiv: Sensordaten ohne PawnIO-Treiber (eingeschränkte Mainboard-Sensoren).");
+        }
+        else
+        {
+            badgeSensStatus.Text = "○ Windows-Fallback";
+            badgeSensStatus.Level = "warn";
+            Tip(badgeSensStatus, "Kein LibreHardwareMonitor gefunden: Sensordaten über Windows-Leistungszähler, ACPI und Grafiktreiber.");
+        }
+    }
+
     void UpdateSensTools()
     {
         if (lblSensTools == null) return;
@@ -7893,6 +7943,7 @@ public partial class DiagGui : Form
         lblSensTools.Text = t;
         lblSensTools.ForeColor = LhmPresent ? UI.Muted : UI.Warn;
         btnSensTools.Text = LhmPresent && PawnSetupPresent ? "Sensorwerkzeuge erneut holen" : "Sensorwerkzeuge holen";
+        UpdateSensStatusBadge();
     }
 
     Control BuildSensorPage()
@@ -7918,7 +7969,7 @@ public partial class DiagGui : Form
         f.Controls.Add(bk);
         LoadDeviceTools();
         cmbKeep.SelectedIndexChanged += delegate { SaveDeviceTools(); };
-        cmbDriver.SelectedIndexChanged += delegate { SaveDeviceTools(); };
+        cmbDriver.SelectedIndexChanged += delegate { SaveDeviceTools(); UpdateSensStatusBadge(); };
         lblSensInfo = Lbl("Live-Ansicht nicht gestartet.", 9f, false, UI.Muted); lblSensInfo.MaximumSize = new Size(UI.S(UI.Gruppenbreite), 0); lblSensInfo.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(6)); f.Controls.Add(lblSensInfo);
         chartLive = new SensorChart(); chartLive.Width = UI.S(UI.Gruppenbreite); chartLive.Height = UI.S(330); chartLive.WindowSec = 600; chartLive.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
         chartLive.Empty = "Noch keine Messwerte. \"Live-Ansicht starten\" öffnet die Sensoren.";
@@ -9030,8 +9081,11 @@ public partial class DiagGui : Form
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
+        ApplyTitleBarTheme(UI.IsDark);
+        ApplyNativeControlThemes();
         BringToFront2();
         BeginInvoke(new System.Windows.Forms.MethodInvoker(BringToFront2));
+        BeginInvoke(new System.Windows.Forms.MethodInvoker(delegate { ApplyNativeControlThemes(); }));
         // erst nach dem ersten Zeichnen: Startfenster der exe schließen und die Startzeit protokollieren
         BeginInvoke(new System.Windows.Forms.MethodInvoker(delegate { StartLog.Phase("Oberfläche bereit"); StartLog.SignalReady(); StartLog.Finish(dataDir, version, script); }));
     }
@@ -13075,6 +13129,13 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.66", "14.10.2026", "Dark Mode beim Programmstart, Dashboard-Telemetrie und GPU-Effizienz in FPS/Watt",
+            "Dark Mode beim Start: Bevorzugter Farbmodus (SetPreferredAppMode) wird vor der Control-Initialisierung gesetzt; OnShown und ShowPage wenden die nativen Win32-Themes für Scrollbars auf allen Fenstern und Containern (content, pnlCards, lvDb, txtLog) an. " +
+            "Sensor-Status-Badge: Die Kopfzeile zeigt ein dezentes Status-Badge für den aktiven Treiber (LHM + PawnIO aktiv oder Windows-Fallback). " +
+            "Dashboard-Telemetrie: Export-BenchDashboardHtml wird nach der Archivierung ausgeführt; Unterstützung für .minibench-Archive und direktes CSV-Einlesen. " +
+            "Leistungskurven & Dual-Achsen: Das Multi-System-Dashboard visualisiert Temperatur (°C) auf der linken Achse und Leistung (Watt) auf der rechten Achse; Infokarte mit Peak-Werten bei Läufen ohne Zeitreihe. " +
+            "GPU-Effizienz in FPS/Watt: Berechnung der GPU-Effizienz strikt auf Basis tatsächlicher Render-FPS (GPU|REND) statt synthetischer Renderpunkte; Beschriftung im HTML-Bericht auf FPS/W korrigiert. " +
+            "HTML-Bericht Navigation: Fixierte Abschnittsnavigation (sticky) mit dezentem Schatten und flüssiger Nach-oben-Schaltfläche."),
         new Eintrag("3.65", "14.10.2026", "Einheitliche Karten, Wartung im Aufbau der Optimierung, angeglichene Laufansicht und Korrekturen nach dem ersten Windows-Test",
             "Einheitliche Karten: Optionen der Diagnose, Tabellen des Lasttests, die Paketauswahl der Tools und die Listen der Laufansicht stehen in abgerundeten Karten wie die Werkzeugkarten. " +
             "Wartung im Aufbau der Optimierung: jede Gruppe mit Beschreibung, alle und keine, Etiketten rechts und Knopf Alle aufklappen; die Befehle stehen im Hinweis. " +
@@ -14865,7 +14926,8 @@ function Get-SystemPowerProfile($Entry = $null) {
     }
 
     $cpuMtScore = 0.0
-    $gpuScore = 0.0
+    $gpuFps = $null
+    $gpuPoints = $null
     $overallScore = 0.0
 
     if ($Entry) {
@@ -14878,17 +14940,17 @@ function Get-SystemPowerProfile($Entry = $null) {
             $wMt = if ($Entry.Werte -is [System.Collections.IDictionary]) { $Entry.Werte['CPU|MT'] } else { $Entry.Werte.'CPU|MT' }
             if ($null -ne $wMt -and [double]$wMt -gt 0) { $cpuMtScore = [double]$wMt }
 
-            $wGpu = if ($Entry.Werte -is [System.Collections.IDictionary]) { $Entry.Werte['GPU|RPKT'] } else { $Entry.Werte.'GPU|RPKT' }
-            if ($null -eq $wGpu) {
-                $wGpu = if ($Entry.Werte -is [System.Collections.IDictionary]) { $Entry.Werte['GPU|REND'] } else { $Entry.Werte.'GPU|REND' }
-            }
-            if ($null -ne $wGpu -and [double]$wGpu -gt 0) { $gpuScore = [double]$wGpu }
+            $wRend = if ($Entry.Werte -is [System.Collections.IDictionary]) { $Entry.Werte['GPU|REND'] } else { $Entry.Werte.'GPU|REND' }
+            if ($null -ne $wRend -and [double]$wRend -gt 0) { $gpuFps = [double]$wRend }
+
+            $wRpkt = if ($Entry.Werte -is [System.Collections.IDictionary]) { $Entry.Werte['GPU|RPKT'] } else { $Entry.Werte.'GPU|RPKT' }
+            if ($null -ne $wRpkt -and [double]$wRpkt -gt 0) { $gpuPoints = [double]$wRpkt }
 
             if ($overallScore -le 0 -or $overallScore -gt 500) {
                 # Relative Referenzwerte: CPU MT ~28000, GPU ~100 FPS / Rendertest, RAM ~50 GB/s
                 $wSum = 0.0; $logSum = 0.0
                 $cPct = if ($cpuMtScore -gt 0) { ($cpuMtScore / 28000.0) * 100.0 } else { 0.0 }
-                $gPct = if ($gpuScore -gt 0) { ($gpuScore / 100.0) * 100.0 } elseif ($Entry.Werte['GPU|VMB']) { ([double]$Entry.Werte['GPU|VMB'] / 300.0) * 100.0 } else { 0.0 }
+                $gPct = if ($null -ne $gpuFps -and $gpuFps -gt 0) { ($gpuFps / 100.0) * 100.0 } elseif ($null -ne $gpuPoints -and $gpuPoints -gt 0) { ($gpuPoints / 10000.0) * 100.0 } elseif ($Entry.Werte['GPU|VMB']) { ([double]$Entry.Werte['GPU|VMB'] / 300.0) * 100.0 } else { 0.0 }
                 $rPct = if ($Entry.Werte['RAM|Lesen']) { ([double]$Entry.Werte['RAM|Lesen'] / 50.0) * 100.0 } else { 0.0 }
                 if ($cPct -gt 0) { $logSum += 2.0 * [math]::Log($cPct); $wSum += 2.0 }
                 if ($gPct -gt 0) { $logSum += 2.0 * [math]::Log($gPct); $wSum += 2.0 }
@@ -14899,15 +14961,20 @@ function Get-SystemPowerProfile($Entry = $null) {
         if ($Entry.Sensoren -and $Entry.Sensoren.Verbrauch -and $Entry.Sensoren.Verbrauch.Effizienz) {
             $eEff = $Entry.Sensoren.Verbrauch.Effizienz
             if ($null -ne $eEff.CpuMT_PerWatt -and "$($eEff.CpuMT_PerWatt)" -ne '') { $eff.CpuMT_PerWatt = [double]$eEff.CpuMT_PerWatt }
-            if ($null -ne $eEff.Gpu_PerWatt -and "$($eEff.Gpu_PerWatt)" -ne '') { $eff.Gpu_PerWatt = [double]$eEff.Gpu_PerWatt }
+            if ($null -ne $eEff.Gpu_PerWatt -and "$($eEff.Gpu_PerWatt)" -ne '') {
+                $oldEff = [double]$eEff.Gpu_PerWatt
+                if ($oldEff -le 10.0) { $eff.Gpu_PerWatt = $oldEff }
+            }
             if ($null -ne $eEff.System_PerWatt -and "$($eEff.System_PerWatt)" -ne '') { $eff.System_PerWatt = [double]$eEff.System_PerWatt }
         }
     } else {
         if ($script:BenchResults) {
             $mtRow = @($script:BenchResults | Where-Object { $_.RefKey -eq 'CPU|MT' -and $_.Wert -gt 0 }) | Select-Object -First 1
             if ($mtRow) { $cpuMtScore = [double]$mtRow.Wert }
-            $rpktRow = @($script:BenchResults | Where-Object { $_.RefKey -in 'GPU|RPKT', 'GPU|REND' -and $_.Wert -gt 0 }) | Select-Object -First 1
-            if ($rpktRow) { $gpuScore = [double]$rpktRow.Wert }
+            $rendRow = @($script:BenchResults | Where-Object { $_.RefKey -eq 'GPU|REND' -and $_.Wert -gt 0 }) | Select-Object -First 1
+            if ($rendRow) { $gpuFps = [double]$rendRow.Wert }
+            $rpktRow = @($script:BenchResults | Where-Object { $_.RefKey -eq 'GPU|RPKT' -and $_.Wert -gt 0 }) | Select-Object -First 1
+            if ($rpktRow) { $gpuPoints = [double]$rpktRow.Wert }
         }
         if (Get-Command Get-BenchOverall -ErrorAction SilentlyContinue) {
             $ov = Get-BenchOverall
@@ -14918,8 +14985,8 @@ function Get-SystemPowerProfile($Entry = $null) {
     if ($null -eq $eff.CpuMT_PerWatt -and $cpuMtScore -gt 0 -and $null -ne $cpuWMax -and $cpuWMax -gt 0) {
         $eff.CpuMT_PerWatt = [math]::Round($cpuMtScore / $cpuWMax, 1)
     }
-    if ($null -eq $eff.Gpu_PerWatt -and $gpuScore -gt 0 -and $null -ne $gpuWMax -and $gpuWMax -gt 0) {
-        $eff.Gpu_PerWatt = [math]::Round($gpuScore / $gpuWMax, 2)
+    if ($null -eq $eff.Gpu_PerWatt -and $null -ne $gpuFps -and $gpuFps -gt 0 -and $null -ne $gpuWMax -and $gpuWMax -gt 0) {
+        $eff.Gpu_PerWatt = [math]::Round($gpuFps / $gpuWMax, 2)
     }
     if ($null -eq $eff.System_PerWatt -and $overallScore -gt 0 -and $pLoad.Verfuegbar -and $pLoad.P_AC -gt 0) {
         $eff.System_PerWatt = [math]::Round(($overallScore / $pLoad.P_AC) * 100.0, 1)
@@ -15206,7 +15273,7 @@ function Get-ReportCss {
 @media (prefers-color-scheme:dark){:root{--bg:#111419;--panel:#1a1f27;--text:#e5e8ee;--muted:#98a1b0;--line:#2b323d;--code:#141820;
 --accent:#4cc2ff;--accent-hover:#60cdff;--accent-soft:#233446;--accent-border:#1e4e79;
 --crit:#ff8f86;--crit-bg:#3b1d1c;--warn:#f3c26e;--warn-bg:#3a2d12;--info:#94b6ff;--info-bg:#1b2944;--ok:#7cd6a0;--ok-bg:#14321f;--skip:#a3abb8;--skip-bg:#252b35}}
-.report-nav{position:sticky;top:0;z-index:100;background:var(--bg);padding:10px 0;margin-bottom:18px;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.report-nav{position:sticky;top:0;z-index:100;background:var(--bg);padding:10px 0;margin-bottom:18px;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
 .tab-btn{font:inherit;font-size:13.5px;font-weight:600;padding:7px 16px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer;transition:all .15s ease}
 .tab-btn:hover{border-color:var(--muted);background:var(--code)}
 .tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 6px rgba(0,103,192,0.25)}
@@ -15225,6 +15292,9 @@ a.tab-btn{text-decoration:none;display:inline-flex;align-items:center}
 .fchip.chip-info.active{background:var(--info);color:#fff;border-color:var(--info)}
 .filter-count{font-size:12.5px;color:var(--muted);font-weight:600;white-space:nowrap;margin-left:auto}
 .chart-tooltip{position:absolute;pointer-events:none;z-index:1000;padding:8px 12px;border-radius:8px;font-size:12.5px;font-weight:500;line-height:1.45;background:var(--panel);color:var(--text);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,0.2);transition:opacity .1s ease;min-width:140px;max-width:320px}
+.back-to-top{position:fixed;bottom:24px;right:24px;width:40px;height:40px;border-radius:50%;background:var(--panel);border:1px solid var(--line);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.15);opacity:0;visibility:hidden;transition:all .2s ease;z-index:99}
+.back-to-top.visible{opacity:.9;visibility:visible}
+.back-to-top:hover{opacity:1;background:var(--accent);color:#fff;border-color:var(--accent);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,103,192,0.35)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif}
 main{max-width:1200px;margin:0 auto;padding:28px 20px 60px}
@@ -15839,6 +15909,9 @@ function Export-BenchDashboardData {
                     Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
                     $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
                     $entry = $zip.GetEntry('Lasttest-Verlauf.csv')
+                    if (-not $entry) {
+                        $entry = @($zip.Entries | Where-Object { $_.Name -ieq 'Lasttest-Verlauf.csv' }) | Select-Object -First 1
+                    }
                     if ($entry) {
                         $sr = New-Object System.IO.StreamReader($entry.Open(), [System.Text.Encoding]::UTF8)
                         $zipLines = [System.Collections.Generic.List[string]]::new()
@@ -15848,6 +15921,77 @@ function Export-BenchDashboardData {
                     }
                     $zip.Dispose()
                 } catch { }
+            }
+
+            # Auch .minibench-Archive im oder beim Ordner prüfen
+            $mbCandidates = [System.Collections.Generic.List[string]]::new()
+            if ($cand -like '*.minibench' -and (Test-Path -LiteralPath $cand -PathType Leaf)) {
+                $mbCandidates.Add($cand)
+            }
+            if (Test-Path -LiteralPath ($cand + '.minibench') -PathType Leaf) {
+                $mbCandidates.Add($cand + '.minibench')
+            }
+            if (Test-Path -LiteralPath $cand -PathType Container) {
+                foreach ($mbf in @(Get-ChildItem -LiteralPath $cand -Filter '*.minibench' -File -ErrorAction SilentlyContinue)) {
+                    $mbCandidates.Add($mbf.FullName)
+                }
+            }
+            foreach ($mbPath in $mbCandidates) {
+                try {
+                    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+                    $mbZip = [System.IO.Compression.ZipFile]::OpenRead($mbPath)
+                    $mbEntry = @($mbZip.Entries | Where-Object { $_.Name -ieq 'Lasttest-Verlauf.csv' }) | Select-Object -First 1
+                    if ($mbEntry) {
+                        $sr = New-Object System.IO.StreamReader($mbEntry.Open(), [System.Text.Encoding]::UTF8)
+                        $zipLines = [System.Collections.Generic.List[string]]::new()
+                        while (-not $sr.EndOfStream) { $zipLines.Add($sr.ReadLine()) }
+                        $sr.Dispose()
+                        if ($zipLines.Count -gt 1) { $lines = @($zipLines); $mbZip.Dispose(); break }
+                    } else {
+                        # Falls Anhang.zip innerhalb des .minibench-Archivs liegt
+                        $innerZipEntry = @($mbZip.Entries | Where-Object { $_.Name -ieq 'Anhang.zip' }) | Select-Object -First 1
+                        if ($innerZipEntry) {
+                            $ms = New-Object System.IO.MemoryStream
+                            $st = $innerZipEntry.Open()
+                            $st.CopyTo($ms)
+                            $st.Dispose()
+                            $ms.Position = 0
+                            $innerArchive = New-Object System.IO.Compression.ZipArchive($ms)
+                            $innerCsv = @($innerArchive.Entries | Where-Object { $_.Name -ieq 'Lasttest-Verlauf.csv' }) | Select-Object -First 1
+                            if ($innerCsv) {
+                                $sr = New-Object System.IO.StreamReader($innerCsv.Open(), [System.Text.Encoding]::UTF8)
+                                $zipLines = [System.Collections.Generic.List[string]]::new()
+                                while (-not $sr.EndOfStream) { $zipLines.Add($sr.ReadLine()) }
+                                $sr.Dispose()
+                                if ($zipLines.Count -gt 1) { $lines = @($zipLines); $innerArchive.Dispose(); $ms.Dispose(); $mbZip.Dispose(); break }
+                            }
+                            $innerArchive.Dispose()
+                            $ms.Dispose()
+                        }
+                    }
+                    $mbZip.Dispose()
+                } catch { }
+            }
+            if ($lines.Count -gt 1) { break }
+        }
+
+        # Fallback: Falls der Durchlauf gerade abgeschlossen wurde und im Arbeitsordner liegt
+        if ($lines.Count -le 1) {
+            $fallbackList = [System.Collections.Generic.List[string]]::new()
+            if ($script:WorkDir) {
+                $fallbackList.Add((Join-Path $script:WorkDir 'Anhang\Lasttest-Verlauf.csv'))
+                $fallbackList.Add((Join-Path $script:WorkDir 'Lasttest-Verlauf.csv'))
+            }
+            if ($RawDir) {
+                $fallbackList.Add((Join-Path $RawDir 'Lasttest-Verlauf.csv'))
+            }
+            foreach ($fb in $fallbackList) {
+                if (Test-Path -LiteralPath $fb) {
+                    try {
+                        $fl = @([System.IO.File]::ReadAllLines($fb, [System.Text.Encoding]::UTF8))
+                        if ($fl.Count -gt 1) { $lines = $fl; break }
+                    } catch { }
+                }
             }
         }
         return $lines
@@ -17618,6 +17762,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     btnModeCpu.classList.toggle('active', mode === 'cpu');
     btnModeGpu.classList.toggle('active', mode === 'gpu');
     if (btnModeWatt) btnModeWatt.classList.toggle('active', mode === 'watt');
+    renderChartLegend();
     renderChart();
   }
 
@@ -18086,6 +18231,13 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       </div>`;
     });
 
+    if (chartMode !== 'watt') {
+      html += `<div class="legend-item" style="margin-left: auto; gap: 12px; font-weight: 500;">
+        <span><strong style="color:${isDark ? '#60A5FA' : '#0078D4'};">―</strong> Temperatur (°C)</span>
+        <span><strong style="color:${isDark ? '#6CCB5F' : '#107C41'};">- -</strong> Leistung (W)</span>
+      </div>`;
+    }
+
     chartLegend.innerHTML = html;
   }
 
@@ -18116,7 +18268,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       return;
     }
 
-    const padding = { top: 30, right: 60, bottom: 40, left: 55 };
+    const padding = { top: 32, right: 65, bottom: 40, left: 60 };
     const chartW = width - padding.left - padding.right;
     const chartH = height - padding.top - padding.bottom;
 
@@ -18131,57 +18283,75 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     });
 
     let maxWatt = 200;
-    if (chartMode === 'watt') {
-      comparedSystems.forEach(s => {
-        (s.Telemetry?.Series || []).forEach(pt => {
-          const w = (pt.SysW != null && pt.SysW > 0) ? pt.SysW : (pt.CpuW != null ? pt.CpuW : 0);
-          if (w > maxWatt) maxWatt = w;
-        });
+    comparedSystems.forEach(s => {
+      (s.Telemetry?.Series || []).forEach(pt => {
+        const w = (chartMode === 'gpu')
+          ? (pt.GpuW != null ? pt.GpuW : (pt.IGpuW != null ? pt.IGpuW : 0))
+          : ((pt.SysW != null && pt.SysW > 0) ? pt.SysW : (pt.CpuW != null ? pt.CpuW : 0));
+        if (w > maxWatt) maxWatt = w;
       });
-      maxWatt = Math.min(1000, Math.ceil((maxWatt * 1.15) / 50) * 50);
-    }
+    });
+    maxWatt = Math.min(1000, Math.ceil((maxWatt * 1.15) / 50) * 50);
 
-    const tempMax = 110;
+    const tempMax = 100;
     const getX = t => padding.left + (t / tMax) * chartW;
-    const getYVal = v => {
-      const top = (chartMode === 'watt') ? maxWatt : tempMax;
-      return padding.top + chartH - (v / top) * chartH;
-    };
-    const getYTemp = getYVal;
+    const getYTemp = deg => padding.top + chartH - (deg / tempMax) * chartH;
+    const getYWatt = w => padding.top + chartH - (w / maxWatt) * chartH;
+    const getYVal = (chartMode === 'watt') ? getYWatt : getYTemp;
 
-    // GRID LINES
-    ctx.strokeStyle = isDark ? '#363636' : '#ECEFF1';
-    ctx.lineWidth = 1;
-    ctx.fillStyle = isDark ? '#808080' : '#888888';
+    // GRID LINES & ACHSEN
     ctx.font = '11px system-ui, sans-serif';
+    const gridFractions = [0, 0.25, 0.5, 0.75, 1.0];
 
-    if (chartMode === 'watt') {
-      const stepW = maxWatt <= 300 ? 50 : 100;
-      for (let w = 0; w <= maxWatt; w += stepW) {
-        const y = getYVal(w);
-        ctx.beginPath();
-        ctx.moveTo(padding.left, y);
-        ctx.lineTo(padding.left + chartW, y);
-        ctx.stroke();
+    gridFractions.forEach(f => {
+      const y = padding.top + chartH - f * chartH;
+      ctx.strokeStyle = isDark ? '#363636' : '#ECEFF1';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(padding.left + chartW, y);
+      ctx.stroke();
 
+      if (chartMode === 'watt') {
+        const w = Math.round(f * maxWatt);
+        ctx.fillStyle = isDark ? '#34D399' : '#059669';
         ctx.textAlign = 'right';
         ctx.fillText(w + ' W', padding.left - 8, y + 4);
-      }
-    } else {
-      [0, 25, 50, 75, 100].forEach(deg => {
-        const y = getYTemp(deg);
-        ctx.beginPath();
-        ctx.moveTo(padding.left, y);
-        ctx.lineTo(padding.left + chartW, y);
-        ctx.stroke();
-
+        ctx.textAlign = 'left';
+        ctx.fillText(w + ' W', padding.left + chartW + 8, y + 4);
+      } else {
+        const deg = Math.round(f * tempMax);
+        ctx.fillStyle = isDark ? '#60A5FA' : '#2563EB';
         ctx.textAlign = 'right';
         ctx.fillText(deg + ' °C', padding.left - 8, y + 4);
-      });
+
+        const w = Math.round(f * maxWatt);
+        ctx.fillStyle = isDark ? '#34D399' : '#059669';
+        ctx.textAlign = 'left';
+        ctx.fillText(w + ' W', padding.left + chartW + 8, y + 4);
+      }
+    });
+
+    // Achsen-Beschriftungen oben
+    ctx.font = '600 11px system-ui, sans-serif';
+    if (chartMode === 'watt') {
+      ctx.fillStyle = isDark ? '#34D399' : '#059669';
+      ctx.textAlign = 'right';
+      ctx.fillText('Leistung (W)', padding.left - 8, padding.top - 12);
+    } else {
+      ctx.fillStyle = isDark ? '#60A5FA' : '#2563EB';
+      ctx.textAlign = 'right';
+      ctx.fillText('Temperatur (°C)', padding.left - 8, padding.top - 12);
+
+      ctx.fillStyle = isDark ? '#34D399' : '#059669';
+      ctx.textAlign = 'left';
+      ctx.fillText('Leistung (W)', padding.left + chartW + 8, padding.top - 12);
     }
 
     // X Axis Time Labels
     ctx.textAlign = 'center';
+    ctx.fillStyle = isDark ? '#808080' : '#888888';
+    ctx.font = '11px system-ui, sans-serif';
     const xStep = tMax <= 120 ? 30 : 60;
     for (let sec = 0; sec <= tMax; sec += xStep) {
       const x = getX(sec);
@@ -18191,45 +18361,172 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       ctx.fillText(timeStr, x, padding.top + chartH + 20);
     }
 
+    // Prüfen, ob Zeitreihen-Daten vorliegen
+    const hasAnySeries = comparedSystems.some(s => (s.Telemetry?.Series && s.Telemetry.Series.length >= 2));
+
+    if (!hasAnySeries) {
+      let peakInfo = '';
+      const sysForPeak = baseSystem || (comparedSystems.length > 0 ? comparedSystems[0] : null);
+      if (sysForPeak && sysForPeak.Metrics) {
+        const m = sysForPeak.Metrics;
+        const parts = [];
+        if (m.LAST_CpuTemp != null && m.LAST_CpuTemp > 0) parts.push('CPU ' + Math.round(m.LAST_CpuTemp) + ' °C');
+        if (m.LAST_GpuTemp != null && m.LAST_GpuTemp > 0) parts.push('GPU ' + Math.round(m.LAST_GpuTemp) + ' °C');
+        if (m.GPU_REND != null && m.GPU_REND > 0) parts.push(Math.round(m.GPU_REND) + ' FPS');
+        if (m.LAST_CpuWatt != null && m.LAST_CpuWatt > 0 && parts.length < 3) parts.push(Math.round(m.LAST_CpuWatt) + ' W');
+        if (parts.length > 0) {
+          peakInfo = 'Peak: ' + parts.join(' · ');
+        }
+      }
+
+      const cardW = Math.min(width - 60, 440);
+      const cardH = 68;
+      const cardX = (width - cardW) / 2;
+      const cardY = padding.top + (chartH - cardH) / 2;
+
+      ctx.save();
+      ctx.fillStyle = isDark ? 'rgba(32, 36, 42, 0.94)' : 'rgba(255, 255, 255, 0.94)';
+      ctx.strokeStyle = isDark ? '#475569' : '#CBD5E1';
+      ctx.lineWidth = 1;
+
+      if (typeof ctx.roundRect === 'function') {
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardW, cardH, 8);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.fillRect(cardX, cardY, cardW, cardH);
+        ctx.strokeRect(cardX, cardY, cardW, cardH);
+      }
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = isDark ? '#F1F5F9' : '#0F172A';
+      ctx.font = '600 13px system-ui, sans-serif';
+      ctx.fillText('Keine Zeitreihe vorhanden', width / 2, cardY + 26);
+
+      ctx.fillStyle = isDark ? '#94A3B8' : '#64748B';
+      ctx.font = '12px system-ui, sans-serif';
+      ctx.fillText(peakInfo ? peakInfo : 'Für dieses Profil liegen keine zeitaufgelösten Messkurven vor.', width / 2, cardY + 48);
+      ctx.restore();
+
+      canvas.onmousemove = null;
+      canvas.onmouseleave = null;
+      return;
+    }
+
     // KURVEN ZEICHNEN
     comparedSystems.forEach((s, idx) => {
       const srs = s.Telemetry?.Series || [];
       if (srs.length < 2) return;
-      const color = getSysColor(idx, isDark);
       const isBase = (String(s.Id) === String(baseSystem?.Id));
 
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = isBase ? 3.0 : 2.0;
-      if (!isBase && idx % 2 === 1) ctx.setLineDash([6, 3]);
+      if (chartMode !== 'watt') {
+        // 1. Temperatur-Kurve (Solid)
+        const tempColor = (idx === 0)
+          ? (isDark ? '#4CC2FF' : '#0078D4')
+          : (idx === 1)
+            ? (isDark ? '#FFA057' : '#F7630C')
+            : getSysColor(idx, isDark);
 
-      let inSegment = false;
-      srs.forEach(pt => {
-        const val = (chartMode === 'cpu')
-          ? pt.Temp
-          : (chartMode === 'gpu')
-            ? (pt.GpuTemp != null ? pt.GpuTemp : pt.IGpuTemp)
-            : (pt.SysW != null ? pt.SysW : pt.CpuW);
+        ctx.save();
+        ctx.strokeStyle = tempColor;
+        ctx.lineWidth = isBase ? 2.8 : 2.0;
+        ctx.setLineDash([]);
 
-        if (val != null && val > 0) {
-          const x = getX(pt.T);
-          const y = getYTemp(val);
-          if (!inSegment) {
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            inSegment = true;
+        let inSegment = false;
+        srs.forEach(pt => {
+          const val = (chartMode === 'cpu')
+            ? pt.Temp
+            : (pt.GpuTemp != null ? pt.GpuTemp : pt.IGpuTemp);
+
+          if (val != null && val > 0) {
+            const x = getX(pt.T);
+            const y = getYTemp(val);
+            if (!inSegment) {
+              ctx.beginPath();
+              ctx.moveTo(x, y);
+              inSegment = true;
+            } else {
+              ctx.lineTo(x, y);
+            }
           } else {
-            ctx.lineTo(x, y);
+            if (inSegment) {
+              ctx.stroke();
+              inSegment = false;
+            }
           }
-        } else {
-          if (inSegment) {
-            ctx.stroke();
-            inSegment = false;
+        });
+        if (inSegment) ctx.stroke();
+        ctx.restore();
+
+        // 2. Leistungskurve (Dashed, Watt)
+        const wattColor = (idx === 0)
+          ? (isDark ? '#6CCB5F' : '#107C41')
+          : (idx === 1)
+            ? (isDark ? '#FBBF24' : '#D97706')
+            : getSysColor(idx, isDark);
+
+        ctx.save();
+        ctx.strokeStyle = wattColor;
+        ctx.lineWidth = isBase ? 2.2 : 1.6;
+        ctx.setLineDash([4, 3]);
+
+        let inWattSegment = false;
+        srs.forEach(pt => {
+          const wVal = (chartMode === 'cpu')
+            ? ((pt.SysW != null && pt.SysW > 0) ? pt.SysW : pt.CpuW)
+            : (pt.GpuW != null ? pt.GpuW : pt.IGpuW);
+
+          if (wVal != null && wVal > 0) {
+            const x = getX(pt.T);
+            const y = getYWatt(wVal);
+            if (!inWattSegment) {
+              ctx.beginPath();
+              ctx.moveTo(x, y);
+              inWattSegment = true;
+            } else {
+              ctx.lineTo(x, y);
+            }
+          } else {
+            if (inWattSegment) {
+              ctx.stroke();
+              inWattSegment = false;
+            }
           }
-        }
-      });
-      if (inSegment) ctx.stroke();
-      ctx.restore();
+        });
+        if (inWattSegment) ctx.stroke();
+        ctx.restore();
+      } else {
+        // Reiner Watt-Modus
+        const color = getSysColor(idx, isDark);
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = isBase ? 3.0 : 2.0;
+        if (!isBase && idx % 2 === 1) ctx.setLineDash([6, 3]);
+
+        let inSegment = false;
+        srs.forEach(pt => {
+          const val = (pt.SysW != null && pt.SysW > 0) ? pt.SysW : pt.CpuW;
+          if (val != null && val > 0) {
+            const x = getX(pt.T);
+            const y = getYWatt(val);
+            if (!inSegment) {
+              ctx.beginPath();
+              ctx.moveTo(x, y);
+              inSegment = true;
+            } else {
+              ctx.lineTo(x, y);
+            }
+          } else {
+            if (inSegment) {
+              ctx.stroke();
+              inSegment = false;
+            }
+          }
+        });
+        if (inSegment) ctx.stroke();
+        ctx.restore();
+      }
     });
 
     // HOVER INTERACTION
@@ -18296,9 +18593,17 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           </div>`;
 
           if (closest.Temp != null && closest.Temp > 0) {
-            ctx.fillStyle = color;
+            const tDotColor = (idx === 0) ? (isDark ? '#4CC2FF' : '#0078D4') : (idx === 1 ? (isDark ? '#FFA057' : '#F7630C') : color);
+            ctx.fillStyle = tDotColor;
             ctx.beginPath();
             ctx.arc(cx, getYTemp(closest.Temp), 4.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          if (closest.CpuW != null && closest.CpuW > 0) {
+            const wDotColor = (idx === 0) ? (isDark ? '#6CCB5F' : '#107C41') : (idx === 1 ? (isDark ? '#FBBF24' : '#D97706') : color);
+            ctx.fillStyle = wDotColor;
+            ctx.beginPath();
+            ctx.arc(cx, getYWatt(closest.CpuW), 4.0, 0, Math.PI * 2);
             ctx.fill();
           }
         } else if (chartMode === 'gpu') {
@@ -18318,9 +18623,17 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           </div>`;
 
           if (gTemp != null && gTemp > 0) {
-            ctx.fillStyle = color;
+            const tDotColor = (idx === 0) ? (isDark ? '#4CC2FF' : '#0078D4') : (idx === 1 ? (isDark ? '#FFA057' : '#F7630C') : color);
+            ctx.fillStyle = tDotColor;
             ctx.beginPath();
             ctx.arc(cx, getYTemp(gTemp), 4.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          if (gWatt != null && gWatt > 0) {
+            const wDotColor = (idx === 0) ? (isDark ? '#6CCB5F' : '#107C41') : (idx === 1 ? (isDark ? '#FBBF24' : '#D97706') : color);
+            ctx.fillStyle = wDotColor;
+            ctx.beginPath();
+            ctx.arc(cx, getYWatt(gWatt), 4.0, 0, Math.PI * 2);
             ctx.fill();
           }
         } else {
@@ -18339,7 +18652,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           if (pPlot != null && pPlot > 0) {
             ctx.fillStyle = color;
             ctx.beginPath();
-            ctx.arc(cx, getYVal(pPlot), 4.5, 0, Math.PI * 2);
+            ctx.arc(cx, getYWatt(pPlot), 4.5, 0, Math.PI * 2);
             ctx.fill();
           }
         }
@@ -18742,6 +19055,24 @@ function initBefundCounts() {
             hideTip();
         }
     });
+
+    var btnTop = document.createElement('button');
+    btnTop.className = 'back-to-top';
+    btnTop.setAttribute('title', 'Nach oben springen');
+    btnTop.setAttribute('aria-label', 'Nach oben springen');
+    btnTop.innerHTML = '&#9650;';
+    btnTop.onclick = function() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    document.body.appendChild(btnTop);
+
+    window.addEventListener('scroll', function() {
+        if (window.pageYOffset > 300) {
+            btnTop.classList.add('visible');
+        } else {
+            btnTop.classList.remove('visible');
+        }
+    });
 })();
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initBefundCounts);
@@ -18797,7 +19128,7 @@ function New-PowerEfficiencyHtml($Profile) {
             $effParts += ('<b>CPU-Effizienz:</b> {0:N1} Punkte/W <small class="muted">(Mehrkern-Score je Watt CPU-Paket)</small>' -f $eff.CpuMT_PerWatt)
         }
         if ($null -ne $eff.Gpu_PerWatt) {
-            $effParts += ('<b>GPU-Effizienz:</b> {0:N2} Punkte/W <small class="muted">(Renderleistung je Watt Grafik)</small>' -f $eff.Gpu_PerWatt)
+            $effParts += ('<b>GPU-Effizienz:</b> {0:N2} FPS/W <small class="muted">(Renderleistung je Watt Grafik)</small>' -f $eff.Gpu_PerWatt)
         }
         if ($null -ne $eff.System_PerWatt) {
             $effParts += ('<b>Gesamtsystem-Effizienz:</b> {0:N1} Punkte/100 W <small class="muted">(Gesamtscore je 100 W an der Steckdose)</small>' -f $eff.System_PerWatt)
@@ -28767,10 +29098,6 @@ catch {
     [IO.File]::WriteAllText($reportFile, ($head.ToString() + $script:Report.ToString()), (New-Object Text.UTF8Encoding($true)))
 }
 
-try {
-    [void](Export-BenchDashboardHtml -ErrorAction SilentlyContinue)
-} catch { }
-
 if ($script:GuiLog) { try { $script:GuiLog.Close(); $script:GuiLog = $null } catch { } }
 
 # KI-Datei: vollständige Fassung mit Rohdaten
@@ -28787,6 +29114,10 @@ try {
         Remove-Item $RawDir -Recurse -Force -ErrorAction SilentlyContinue
     } else { Remove-Item $RawDir -Force -ErrorAction SilentlyContinue; $zipFile = '' }
 } catch { $zipFile = '' }
+
+try {
+    [void](Export-BenchDashboardHtml -ErrorAction SilentlyContinue)
+} catch { }
 
 Write-Host ''
 Write-Host ('=' * 80) -ForegroundColor Cyan

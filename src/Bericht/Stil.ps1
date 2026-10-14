@@ -6,7 +6,7 @@
 @media (prefers-color-scheme:dark){:root{--bg:#111419;--panel:#1a1f27;--text:#e5e8ee;--muted:#98a1b0;--line:#2b323d;--code:#141820;
 --accent:#4cc2ff;--accent-hover:#60cdff;--accent-soft:#233446;--accent-border:#1e4e79;
 --crit:#ff8f86;--crit-bg:#3b1d1c;--warn:#f3c26e;--warn-bg:#3a2d12;--info:#94b6ff;--info-bg:#1b2944;--ok:#7cd6a0;--ok-bg:#14321f;--skip:#a3abb8;--skip-bg:#252b35}}
-.report-nav{position:sticky;top:0;z-index:100;background:var(--bg);padding:10px 0;margin-bottom:18px;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.report-nav{position:sticky;top:0;z-index:100;background:var(--bg);padding:10px 0;margin-bottom:18px;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
 .tab-btn{font:inherit;font-size:13.5px;font-weight:600;padding:7px 16px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer;transition:all .15s ease}
 .tab-btn:hover{border-color:var(--muted);background:var(--code)}
 .tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 6px rgba(0,103,192,0.25)}
@@ -25,6 +25,9 @@ a.tab-btn{text-decoration:none;display:inline-flex;align-items:center}
 .fchip.chip-info.active{background:var(--info);color:#fff;border-color:var(--info)}
 .filter-count{font-size:12.5px;color:var(--muted);font-weight:600;white-space:nowrap;margin-left:auto}
 .chart-tooltip{position:absolute;pointer-events:none;z-index:1000;padding:8px 12px;border-radius:8px;font-size:12.5px;font-weight:500;line-height:1.45;background:var(--panel);color:var(--text);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,0.2);transition:opacity .1s ease;min-width:140px;max-width:320px}
+.back-to-top{position:fixed;bottom:24px;right:24px;width:40px;height:40px;border-radius:50%;background:var(--panel);border:1px solid var(--line);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.15);opacity:0;visibility:hidden;transition:all .2s ease;z-index:99}
+.back-to-top.visible{opacity:.9;visibility:visible}
+.back-to-top:hover{opacity:1;background:var(--accent);color:#fff;border-color:var(--accent);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,103,192,0.35)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif}
 main{max-width:1200px;margin:0 auto;padding:28px 20px 60px}
