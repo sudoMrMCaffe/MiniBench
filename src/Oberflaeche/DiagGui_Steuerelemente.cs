@@ -223,7 +223,7 @@ public static class UI
         Bitmap bmp = new Bitmap(Math.Max(1, size), Math.Max(1, size));
         // GDI+ statt TextRenderer: TextRenderer (GDI) lässt den Alphakanal auf transparentem Grund bei 0
         using (Graphics g = Graphics.FromImage(bmp))
-        using (Font f = SymbolFont(size * 0.62f * 0.75f))
+        using (Font f = SymbolFont(size * 0.72f * 0.75f))
         using (SolidBrush br = new SolidBrush(color))
         using (StringFormat sf = new StringFormat())
         {
@@ -359,6 +359,27 @@ public static class UI
         if (c.HasChildren)
         {
             ThemeDialogControls(c.Controls);
+        }
+    }
+}
+
+// ab v3.65: Karte mit abgerundetem Rahmen für Gruppen auf allen Seiten (wie FluentCard), Inhalt als Kindelemente
+public class CardPanel : Panel
+{
+    public CardPanel()
+    {
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        BackColor = UI.Panel; Padding = new Padding(UI.S(14), UI.S(10), UI.S(14), UI.S(10));
+    }
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+        Color outer = Parent != null ? Parent.BackColor : UI.Panel;
+        using (SolidBrush ob = new SolidBrush(outer)) g.FillRectangle(ob, ClientRectangle);
+        using (GraphicsPath p = UI.Round(new RectangleF(0.5f, 0.5f, Width - 2, Height - 2), UI.SF(8)))
+        {
+            using (SolidBrush b = new SolidBrush(UI.Panel)) g.FillPath(b, p);
+            using (Pen pen = new Pen(UI.Line, 1f)) g.DrawPath(pen, p);
         }
     }
 }

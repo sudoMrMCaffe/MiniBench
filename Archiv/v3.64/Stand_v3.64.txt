@@ -1,0 +1,18 @@
+﻿LEOS MINIBENCH: AKTUELLER BUILD
+===============================
+Version   : 3.64 (Dateiversion 3.64.0.0)
+Gebaut    : 14.10.2026 10:14 in der Claude-Sandbox (mono mcs, Ressourcen mit windres; nicht mit csc.exe)
+Tests     : 804 bestanden, 13 fehlgeschlagen, 3 übersprungen (Sandbox, Pester-Nachbau; Fehler bestehen schon in 3.63, Lauf.Tests.ps1 nicht ausgeführt)
+Quelltext : 44 Teile aus src, 28.728 Zeilen
+
+Dateien (SHA-256 gelten für die Fassung in Git mit LF; nach dem Auschecken unter Windows mit CRLF weichen ps1 und cmd ab)
+  LeosMinibench.exe         1.987 KB  4230fee039ca17d719190bcc6de964683d9181a6270bd7f664971c03752079df
+  LeosMinibench.ps1         1.885 KB  38ac636143c97d122238662adb3668b0db8baad111f2a7c41c309791c01db5f4
+  LeosMinibench.cmd             1 KB  e9d1f704e9dfddc078ed0181c4ee80b59040f15b24203184d83e10442e09844c
+
+Für den USB-Stick: den Inhalt dieses Ordners auf den Stick kopieren und vorhandene Dateien ersetzen.
+LeosMinibench.exe genügt allein; LeosMinibench.ps1 und .cmd sind für den Start ohne exe.
+Änderungen dieser Version: Doku\Änderungen_v3.64.txt; alle Versionen: Seite Info und Versionen im Programm und Doku\Versionshistorie.txt.
+Der Ordner Minibench-Daten auf dem Stick (Berichte, Datenbank, Tools, Änderungsprotokoll) bleibt dabei erhalten.
+Ein Ordner Minibench-Daten hier im Aktuellen Build entsteht nur, wenn das Programm von hier gestartet wurde; er gehört nicht auf den Stick.
+Diesen Ordner nicht von Hand ändern: Bauen.cmd erzeugt ihn bei jedem Bau neu aus src. Ein Bau mit Bauen.cmd unter Windows ersetzt diesen Sandbox-Bau.

@@ -521,7 +521,9 @@ public partial class DiagGui : Form
             ApplyDiagProfile();
             // ab v3.64: Warnfelder und gedämpfte Beschriftungen tragen eigene Farben
             foreach (Label w in new Label[] { lblAkku, lblRestoreWarn }) if (w != null) { w.ForeColor = UI.Warn; w.BackColor = UI.WarnBg; }
-            UpdateLoadEnabled(); UpdateRefState();
+            UpdateLoadEnabled(); UpdateRefState(); ThemeLog();
+            if (barAll != null && !done) barAll.Fill = UI.Accent;
+            if (barSub != null) barSub.Fill = UI.AccentActive;
         }
         finally
         {
@@ -1134,11 +1136,10 @@ public partial class DiagGui : Form
         else if (k == "zustand") Tip(b, "Zustand auf diesem PC, ermittelt mit Zustand prüfen oder beim letzten Lauf.");
     }
 
+    // ab v3.65: Gruppen als abgerundete Karten (CardPanel) wie die Werkzeugkarten
     static Panel OptionCard(string categoryTitle, string icon, Control[] controls)
     {
-        Panel card = new Panel();
-        card.BackColor = UI.Panel;
-        card.Padding = new Padding(UI.S(14), UI.S(10), UI.S(14), UI.S(10));
+        CardPanel card = new CardPanel();
         card.Margin = new Padding(0, UI.S(4), 0, UI.S(UI.Abstand2));
         // ab v3.64: alle Gruppen einer Seite gleich breit (vorher schrumpfte jede auf ihren Inhalt)
         card.MinimumSize = new Size(UI.S(UI.Gruppenbreite), 0);
@@ -1174,14 +1175,18 @@ public partial class DiagGui : Form
         }
 
         card.Controls.Add(inner);
-        card.Paint += delegate(object sender, PaintEventArgs e)
-        {
-            Rectangle r = card.ClientRectangle; r.Width--; r.Height--;
-            using (Pen pen = new Pen(UI.Line, 1f))
-            {
-                e.Graphics.DrawRectangle(pen, r);
-            }
-        };
+        return card;
+    }
+
+    // Beliebigen Inhalt (Tabelle, Liste) in eine Karte der Gruppenbreite setzen
+    static CardPanel Card(Control content)
+    {
+        CardPanel card = new CardPanel();
+        card.Margin = new Padding(0, UI.S(4), 0, UI.S(UI.Abstand2));
+        card.MinimumSize = new Size(UI.S(UI.Gruppenbreite), 0);
+        card.AutoSize = true; card.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        content.Margin = new Padding(0); content.Dock = DockStyle.Fill;
+        card.Controls.Add(content);
         return card;
     }
 
@@ -1276,6 +1281,16 @@ public partial class DiagGui : Form
         return t;
     }
 
+    // Schätzung der Diagnose für eine Auswahl, bei paralleler Ausführung abzüglich der nebenher laufenden Prüfungen
+    // (ab v3.65 auch für die Zeile unter dem Profil; vorher zeigte sie ohne Abzug eine andere Zahl als die Seitenleiste)
+    int DiagEstimate(bool[] sel)
+    {
+        int t = DiagMinutes(sel);
+        // schneller Modus: Updatesuche, Defender und Energieanalyse laufen neben den übrigen Prüfungen
+        if (chkFast != null && chkFast.Checked && chkFast.Enabled) { int par = (diagChk[1].Checked ? 2 : 0) + (diagChk[3].Checked ? 3 : 0) + (diagChk[7].Checked ? 2 : 0); t -= Math.Min(par, Math.Max(0, t - 3)); }
+        return t;
+    }
+
     void UpdateDiagSummary()
     {
         if (diagToggle == null || diagChk == null) return;
@@ -1287,9 +1302,10 @@ public partial class DiagGui : Form
         if (lblDiagProfil != null)
         {
             string smart = cur.Length > 4 && cur[4] ? ", dazu das Warten auf den SMART-Langtest (höchstens " + SmartMax() + " Min.)" : "";
-            string t = rbVoll != null && rbVoll.Checked ? "Alle " + diagChk.Length + " Prüfungen, ca. " + DiagMinutes(diagVoll) + " Min." + smart
-                : rbSchnell != null && rbSchnell.Checked ? "Inventar, Ereignisse, Updatesuche, Netzwerk und kurzer RAM-Test (25 % des freien RAM), ca. " + DiagMinutes(diagSchnell) + " Min."
-                : "Prüfungen unten frei wählen, derzeit " + sel + " gewählt, ca. " + DiagMinutes(cur) + " Min." + smart;
+            string par = chkFast != null && chkFast.Checked ? " mit paralleler Ausführung" : "";
+            string t = rbVoll != null && rbVoll.Checked ? "Alle " + diagChk.Length + " Prüfungen, ca. " + DiagEstimate(cur) + " Min." + par + smart
+                : rbSchnell != null && rbSchnell.Checked ? "Inventar, Ereignisse, Updatesuche, Netzwerk und kurzer RAM-Test (25 % des freien RAM), ca. " + DiagEstimate(cur) + " Min." + par
+                : "Prüfungen unten frei wählen, derzeit " + sel + " gewählt, ca. " + DiagEstimate(cur) + " Min." + par + smart;
             SetText(lblDiagProfil, t);
         }
     }
@@ -1480,7 +1496,7 @@ public partial class DiagGui : Form
         lblAkku.BackColor = UI.WarnBg; lblAkku.Padding = new Padding(UI.S(6)); lblAkku.Margin = new Padding(0, UI.S(4), 0, UI.S(4)); lblAkku.Visible = false; f.Controls.Add(lblAkku);
         f.Controls.Add(Section("Komponenten und Dauer"));
         TableLayoutPanel t = LoadTable();
-        t.Controls.Add(CellLabel("Komponente", 250), 0, 0); t.Controls.Add(CellLabel("Dauer", 120), 1, 0); t.Controls.Add(CellLabel("Einstellungen", 150), 2, 0);
+        t.Controls.Add(CellLabel("Komponente", 230), 0, 0); t.Controls.Add(CellLabel("Dauer", 120), 1, 0); t.Controls.Add(CellLabel("Einstellungen", 150), 2, 0);
         foreach (Control c in t.Controls) { c.ForeColor = UI.Muted; c.Font = new Font("Segoe UI Semibold", UI.SchriftHinweis); }
 
         chkLCpu = Chk("Prozessor", true); cmbLCpu = Combo(110, mins, 0);
@@ -1517,7 +1533,7 @@ public partial class DiagGui : Form
         cmbLDiskDrive = Combo(260, letters.ToArray(), 0);
         Label lDrv = CellLabel("Laufwerk", 100);
         AddLoadRow(t, 4, chkLDisk, "Schreiben, Lesen und Prüfen jedes Blocks; Testdatei bis 4 GB, wird danach gelöscht", cmbLDisk, new Control[] { SettingRow(lDrv, cmbLDiskDrive) });
-        f.Controls.Add(t);
+        f.Controls.Add(Card(t));
         lblLoadTotal = Lbl("", UI.SchriftText, true, UI.Text); lblLoadTotal.Margin = new Padding(UI.S(4), UI.S(UI.Abstand2), 0, 0); f.Controls.Add(lblLoadTotal);
 
         foreach (CheckBox c in new CheckBox[] { chkLCpu, chkLRam, chkLGpu, chkLDisk }) c.CheckedChanged += delegate { UpdateLoadEnabled(); UpdateSummary(); };
@@ -1529,9 +1545,9 @@ public partial class DiagGui : Form
         cmbLAbortGpu = Combo(140, new string[] { "85 °C", "90 °C", "95 °C", "aus" }, 1);
         badgePawn = new Badge("PawnIO vorübergehend", "info");
         Tip(badgePawn, "Echte CPU-Temperaturen liefert LibreHardwareMonitor mit dem Treiber PawnIO. Er wird für den Lauf vorübergehend installiert und danach wieder entfernt (einstellbar auf der Seite Sensoren live).");
-        ta.Controls.Add(CellLabel("CPU-Temperatur", 250), 0, 0); ta.Controls.Add(cmbLAbortCpu, 1, 0); ta.Controls.Add(badgePawn, 2, 0);
-        ta.Controls.Add(CellLabel("GPU-Temperatur", 250), 0, 1); ta.Controls.Add(cmbLAbortGpu, 1, 1);
-        f.Controls.Add(ta);
+        ta.Controls.Add(CellLabel("CPU-Temperatur", 230), 0, 0); ta.Controls.Add(cmbLAbortCpu, 1, 0); ta.Controls.Add(badgePawn, 2, 0);
+        ta.Controls.Add(CellLabel("GPU-Temperatur", 230), 0, 1); ta.Controls.Add(cmbLAbortGpu, 1, 1);
+        f.Controls.Add(Card(ta));
         f.Controls.Add(Hint("Liegt die Temperatur rund 10 Sekunden auf oder über der Schwelle, endet der Test mit einem Befund. Automatisch: TjMax der CPU, sonst 100 °C.", 4));
         UpdateLoadEnabled();
         return f;
@@ -1541,7 +1557,7 @@ public partial class DiagGui : Form
     {
         TableLayoutPanel t = new TableLayoutPanel(); t.AutoSize = true; t.AutoSizeMode = AutoSizeMode.GrowAndShrink; t.ColumnCount = 3; t.BackColor = UI.Panel;
         t.Margin = new Padding(0, 0, 0, 0);
-        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UI.S(260))); t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UI.S(130))); t.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UI.S(240))); t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UI.S(130))); t.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         return t;
     }
 
@@ -1555,7 +1571,7 @@ public partial class DiagGui : Form
     {
         Control comp = Opt2(chk, detail);
         Label d = comp.Controls.Count > 1 ? comp.Controls[1] as Label : null;
-        if (d != null) d.MaximumSize = new Size(UI.S(236), 0);
+        if (d != null) d.MaximumSize = new Size(UI.S(216), 0);
         comp.Margin = new Padding(0, UI.S(4), UI.S(4), UI.S(6));
         dur.Margin = new Padding(0, UI.S(6), 0, 0);
         t.Controls.Add(comp, 0, row); t.Controls.Add(dur, 1, row);
@@ -1636,6 +1652,7 @@ public partial class DiagGui : Form
     // ab v3.64: Risikostufe und Neustart als Etiketten rechts in einer Spalte, Befehle in der Detailzeile, Legende oben,
     // Warnung ohne Wiederherstellungspunkt bei gewählten Eingriffen
     Label lblRestoreWarn;
+    Button btnRepAll;
 
     Control BuildRepairPage()
     {
@@ -1646,8 +1663,7 @@ public partial class DiagGui : Form
         lblRestoreWarn.MaximumSize = new Size(UI.S(UI.Gruppenbreite), 0); lblRestoreWarn.Visible = false; f.Controls.Add(lblRestoreWarn);
         chkRestorePoint.CheckedChanged += delegate { UpdateRestoreWarn(); UpdateSummary(); };
         f.Controls.Add(Section("Reparaturen"));
-        f.Controls.Add(RiskLegend());
-        FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(UI.Abstand2), 0, UI.S(UI.Abstand1));
+        FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(2), 0, UI.S(UI.Abstand2));
         Button all = UI.Secondary("Empfohlene Auswahl"); all.Margin = new Padding(0);
         Tip(all, "Wählt in allen Gruppen die risikoarmen Routineaufgaben wie Bereinigungen und Cache-Leerungen aus.");
         all.Click += delegate {
@@ -1662,7 +1678,17 @@ public partial class DiagGui : Form
             UpdateRepairCounts();
             UpdateRepairGroupVisibility();
         };
-        b.Controls.Add(all); b.Controls.Add(none); f.Controls.Add(b);
+        btnRepAll = UI.Secondary("Alle aufklappen"); btnRepAll.Margin = new Padding(UI.S(16), 0, 0, 0);
+        btnRepAll.Click += delegate {
+            bool open = false;
+            foreach (Control c in repCatBody.Values) if (!c.Visible) { open = true; break; }
+            foreach (KeyValuePair<string, Control> kv in repCatBody) { kv.Value.Visible = open; repCatToggle[kv.Key].Expanded = open; }
+            btnRepAll.Text = open ? "Alle zuklappen" : "Alle aufklappen";
+        };
+        Tip(btnRepAll, "Alle Gruppen auf- oder zuklappen.");
+        b.Controls.Add(all); b.Controls.Add(none); b.Controls.Add(btnRepAll); f.Controls.Add(b);
+        // Reihenfolge wie auf der Seite Optimierung: Knöpfe, Legende, Gruppen
+        f.Controls.Add(RiskLegend());
 
         repChk = new CheckBox[repKeys.Length];
         for (int i = 0; i < repKeys.Length; i++)
@@ -1677,34 +1703,55 @@ public partial class DiagGui : Form
             List<int> indices = new List<int>();
             for (int i = 0; i < repKeys.Length; i++) if (GetRepairGroup(i) == grp) indices.Add(i);
             if (indices.Count == 0) continue;
-
-            GroupHeader tg = new GroupHeader(grp);
-            f.Controls.Add(tg);
-            TableLayoutPanel body = BadgeTable();
-            body.Margin = new Padding(UI.S(UI.Abstand4), UI.S(UI.Abstand1), 0, UI.S(UI.Abstand1));
+            string gd; repairGroupText.TryGetValue(grp, out gd);
+            GroupHeader tg; LinkLabel lAll, lNone;
+            TableLayoutPanel body = CategoryBlock(f, grp, gd, out tg, out lAll, out lNone);
             bool hasChecked = false;
             int row = 0;
             foreach (int idx in indices)
             {
                 if (repChk[idx].Checked) hasChecked = true;
-                string[] td = SplitDetail(repText[idx]);
-                Control item = Opt2(repChk[idx], td[1]);
-                body.Controls.Add(item, 0, row);
+                repChk[idx].Margin = new Padding(UI.S(4), UI.S(2), 0, UI.S(2));
+                body.Controls.Add(repChk[idx], 0, row);
                 body.Controls.Add(BadgeCell(RiskBadge(idx < repRisk.Length ? repRisk[idx] : ""), RestartBadge(idx < repRestart.Length ? repRestart[idx] : "")), 1, row);
                 row++;
             }
             body.Visible = hasChecked;
             tg.Expanded = hasChecked;
-            f.Controls.Add(body);
-
             repCatCount[grp] = tg; repCatBody[grp] = body; repCatToggle[grp] = tg;
+            List<int> mine = indices;
             tg.Toggled += delegate { body.Visible = tg.Expanded; };
-            Tip(tg, "Klicken zeigt oder verbirgt die Maßnahmen dieser Gruppe.");
+            lAll.LinkClicked += delegate { foreach (int i in mine) repChk[i].Checked = true; UpdateRepairGroupVisibility(); };
+            lNone.LinkClicked += delegate { foreach (int i in mine) repChk[i].Checked = false; };
+            Tip(tg, (gd ?? grp) + "\r\nKlicken zeigt oder verbirgt die Maßnahmen dieser Gruppe.");
+            Tip(lAll, "Alle Maßnahmen dieser Gruppe wählen."); Tip(lNone, "Keine Maßnahme dieser Gruppe wählen.");
         }
         UpdateRepairCounts();
         UpdateRestoreWarn();
         return f;
     }
+
+    // ab v3.65 gemeinsamer Aufbau einer Kategorie für Wartung und Optimierung: Kopfzeile mit Zähler, rechts alle und
+    // keine, darunter die Beschreibung und die Tabelle der Einträge (Haken links, Etiketten rechts)
+    TableLayoutPanel CategoryBlock(FlowLayoutPanel f, string title, string desc, out GroupHeader tg, out LinkLabel all, out LinkLabel none)
+    {
+        FlowLayoutPanel h = new FlowLayoutPanel(); h.AutoSize = true; h.WrapContents = false; h.BackColor = UI.Panel; h.Margin = new Padding(0, UI.S(UI.Abstand2), 0, 0);
+        tg = new GroupHeader(title); tg.Width = UI.S(UI.Gruppenbreite - 110); tg.Margin = new Padding(0);
+        all = new LinkLabel(); all.Text = "alle"; all.AutoSize = true; all.Margin = new Padding(UI.S(12), UI.S(8), UI.S(8), 0); all.LinkColor = UI.Accent;
+        none = new LinkLabel(); none.Text = "keine"; none.AutoSize = true; none.Margin = new Padding(0, UI.S(8), 0, 0); none.LinkColor = UI.Accent;
+        h.Controls.Add(tg); h.Controls.Add(all); h.Controls.Add(none);
+        f.Controls.Add(h);
+        if (!String.IsNullOrEmpty(desc)) f.Controls.Add(Hint(desc, 30));
+        TableLayoutPanel body = BadgeTable(); body.Margin = new Padding(UI.S(UI.Abstand4), 0, 0, UI.S(UI.Abstand1)); body.Visible = false;
+        f.Controls.Add(body);
+        return body;
+    }
+
+    static readonly Dictionary<string, string> repairGroupText = new Dictionary<string, string> {
+        { "Systemdateien und Komponentenspeicher", "Windows-Systemdateien, Komponentenspeicher und Dateisystem prüfen und reparieren." },
+        { "Bereinigung und Speicherplatz", "Temporäre Dateien, Caches, alte Update-Downloads und Absturzabbilder entfernen." },
+        { "Windows Update, Netzwerk und Zeit", "Update-Komponenten, Netzwerkeinstellungen und Zeitsynchronisierung zurücksetzen." },
+        { "Dienste, Geräte und Energie", "WMI, Leistungszähler, Druckwarteschlange, Geräteerkennung, Schnellstart und Energiepläne." } };
 
     // Legende der Risikostufen als Etiketten mit kurzer Erklärung (Wartung und Optimierung)
     Control RiskLegend()
@@ -1959,7 +2006,10 @@ public partial class DiagGui : Form
             pb.Click += delegate { ApplyOptPreset(key); };
             optPresetButtons.Add(pb); b.Controls.Add(pb);
         }
-        btnOptCheck = UI.Secondary("Zustand prüfen"); btnOptCheck.Margin = new Padding(UI.S(16), 0, 0, 0); btnOptCheck.Click += delegate { CheckOptState(); }; b.Controls.Add(btnOptCheck);
+        f.Controls.Add(b);
+        // ab v3.65 zweite Zeile für die Werkzeugknöpfe (vorher ragte die Leiste über die Gruppenbreite hinaus)
+        b = Row(); b.Margin = new Padding(UI.S(4), UI.S(6), 0, UI.S(4));
+        btnOptCheck = UI.Secondary("Zustand prüfen"); btnOptCheck.Margin = new Padding(0); btnOptCheck.Click += delegate { CheckOptState(); }; b.Controls.Add(btnOptCheck);
         btnOptTools = UI.Secondary("Werkzeuge holen ..."); btnOptTools.Margin = new Padding(UI.S(8), 0, 0, 0); btnOptTools.Click += delegate { FetchOptTools(); }; b.Controls.Add(btnOptTools);
         btnOptAll = UI.Secondary("Alle aufklappen"); btnOptAll.Margin = new Padding(UI.S(8), 0, 0, 0); btnOptAll.Click += delegate { ToggleOptAll(); }; b.Controls.Add(btnOptAll);
         f.Controls.Add(b);
@@ -1972,15 +2022,9 @@ public partial class DiagGui : Form
             string key = k[0];
             List<OptItem> items = optItems.FindAll(delegate(OptItem it) { return it.Kat == key; });
             if (items.Count == 0) continue;
-            // ab v3.64 Kopfzeile wie bei Diagnose und Wartung, rechts daneben alle und keine
-            FlowLayoutPanel h = new FlowLayoutPanel(); h.AutoSize = true; h.WrapContents = false; h.BackColor = UI.Panel; h.Margin = new Padding(0, UI.S(UI.Abstand2), 0, 0);
-            GroupHeader tg = new GroupHeader(k[1]); tg.Width = UI.S(UI.Gruppenbreite - 110); tg.Margin = new Padding(0);
-            LinkLabel all = new LinkLabel(); all.Text = "alle"; all.AutoSize = true; all.Margin = new Padding(UI.S(12), UI.S(8), UI.S(8), 0); all.LinkColor = UI.Accent;
-            LinkLabel none = new LinkLabel(); none.Text = "keine"; none.AutoSize = true; none.Margin = new Padding(0, UI.S(8), 0, 0); none.LinkColor = UI.Accent;
-            h.Controls.Add(tg); h.Controls.Add(all); h.Controls.Add(none);
-            f.Controls.Add(h);
-            f.Controls.Add(Hint(k[2], 30));
-            TableLayoutPanel body = BadgeTable(); body.Margin = new Padding(UI.S(UI.Abstand4), 0, 0, UI.S(UI.Abstand1)); body.Visible = false;
+            // Kopfzeile, Beschreibung und Tabelle wie auf der Seite Wartung (CategoryBlock)
+            GroupHeader tg; LinkLabel all, none;
+            TableLayoutPanel body = CategoryBlock(f, k[1], k[2], out tg, out all, out none);
             int row = 0;
             foreach (OptItem it in items)
             {
@@ -1993,7 +2037,6 @@ public partial class DiagGui : Form
                 body.Controls.Add(BadgeCell(it.Risiko == "Eingriff" ? RiskBadge("Eingriff") : null, it.Neustart == "immer" ? RestartBadge("immer") : null, bv, it.StateBadge), 1, row);
                 row++;
             }
-            f.Controls.Add(body);
             optCatCount[key] = tg; optCatBody[key] = body; optCatToggle[key] = tg;
             tg.Toggled += delegate { body.Visible = tg.Expanded; };
             all.LinkClicked += delegate { foreach (OptItem it in items) it.Box.Checked = true; };
@@ -2036,7 +2079,7 @@ public partial class DiagGui : Form
             string name = key == "M" ? "Minimal" : key == "S" ? "Leos Empfehlung" : key == "E" ? "Erweitert" : "";
             int n = SelectedOptIds().Count;
             lblOptInfo.Text = (name.Length > 0 ? "Vorlage " + name + ": " + n + " Einträge gewählt." : "Keine Einträge gewählt.")
-                + (DomainPc ? "  Dieser PC ist Mitglied einer Domäne" + (skip > 0 ? "; " + skip + " verwaltete Einträge sind nicht gewählt" : "") + ". Gruppenrichtlinien können Einstellungen wieder überschreiben." : "");
+                + (DomainPc ? "  Dieser PC ist Mitglied einer Domäne" + (skip == 1 ? "; 1 verwalteter Eintrag ist nicht gewählt" : skip > 1 ? "; " + skip + " verwaltete Einträge sind nicht gewählt" : "") + ". Gruppenrichtlinien können Einstellungen wieder überschreiben." : "");
             lblOptInfo.ForeColor = DomainPc ? UI.Warn : UI.Muted;
         }
     }
@@ -2620,9 +2663,7 @@ public partial class DiagGui : Form
         {
             bool[] cur = new bool[diagChk.Length];
             for (int i = 0; i < diagChk.Length; i++) cur[i] = diagChk[i].Checked;
-            t = DiagMinutes(cur);
-            // schneller Modus: Updatesuche, Defender und Energieanalyse laufen neben den übrigen Prüfungen
-            if (chkFast != null && chkFast.Checked && chkFast.Enabled) { int par = (diagChk[1].Checked ? 2 : 0) + (diagChk[3].Checked ? 3 : 0) + (diagChk[7].Checked ? 2 : 0); t -= Math.Min(par, Math.Max(0, t - 3)); }
+            t = DiagEstimate(cur);
         }
         else if (mod == 1)
         {
@@ -2692,7 +2733,9 @@ public partial class DiagGui : Form
         int min = EstimateMinutes();
         bool smart = nav[0].Checked && diagChk[4].Checked;
         lblSel.ForeColor = UI.Text;
-        lblSel.Text = String.Join("  →  ", m.ToArray()) + (nav[0].Checked && chkFast != null && chkFast.Checked && chkFast.Enabled ? " (Diagnose parallel)" : "")
+        List<string> shown = new List<string>(m);
+        if (nav[0].Checked && chkFast != null && chkFast.Checked && chkFast.Enabled && shown.Count > 0 && shown[0] == "Diagnose") shown[0] = "Diagnose (parallel)";
+        lblSel.Text = String.Join("  →  ", shown.ToArray())
             + "   ·   ca. " + MinText(min) + (smart ? ", mit SMART-Langtest höchstens " + MinText(min + SmartMax()) : "");
         btnStart.Enabled = true;
         Tip(btnStart, "Startet " + (m.Count == 1 ? "das Modul " + m[0] : "die Module in dieser Reihenfolge: " + String.Join(", ", m.ToArray())) + ". Geschätzte Dauer ca. " + MinText(min) + (smart ? " zuzüglich Warten auf den SMART-Langtest" : "") + ".");
@@ -3195,13 +3238,14 @@ public partial class DiagGui : Form
 
         TableLayoutPanel stepRow = new TableLayoutPanel(); stepRow.Dock = DockStyle.Fill; stepRow.AutoSize = true; stepRow.ColumnCount = 2; stepRow.BackColor = UI.Bg;
         stepRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); stepRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        lblStep = Lbl("Wird gestartet ...", 13f, true, UI.Text); lblStep.AutoEllipsis = true;
+        // ab v3.65 an die Einstellungsseiten angeglichen: Titelgröße, Karte um die Listen, Fußleiste wie beim Start
+        lblStep = Lbl("Wird gestartet ...", UI.SchriftTitel, true, UI.Text); lblStep.AutoEllipsis = true;
         lblCounter = Lbl("", 10f, false, UI.Muted); lblCounter.Anchor = AnchorStyles.Right; lblCounter.Margin = new Padding(UI.S(3), UI.S(6), 0, UI.S(3));
         stepRow.Controls.Add(lblStep, 0, 0); stepRow.Controls.Add(lblCounter, 1, 0);
         t.Controls.Add(stepRow, 0, 0);
         barAll = new FlatBar(); barAll.Dock = DockStyle.Fill; barAll.Margin = new Padding(UI.S(3), UI.S(4), UI.S(3), UI.S(6)); t.Controls.Add(barAll, 0, 1);
         lblSub = Lbl(" ", 9.5f, false, UI.Muted); lblSub.AutoEllipsis = true; lblSub.Margin = new Padding(UI.S(3), UI.S(4), UI.S(3), UI.S(2)); t.Controls.Add(lblSub, 0, 2);
-        barSub = new FlatBar(); barSub.Dock = DockStyle.Fill; barSub.Fill = Color.FromArgb(96, 140, 245); barSub.Margin = new Padding(UI.S(3), UI.S(3), UI.S(3), UI.S(5)); t.Controls.Add(barSub, 0, 3);
+        barSub = new FlatBar(); barSub.Dock = DockStyle.Fill; barSub.Fill = UI.AccentActive; barSub.Margin = new Padding(UI.S(3), UI.S(3), UI.S(3), UI.S(5)); t.Controls.Add(barSub, 0, 3);
         lblPar = Lbl(" ", 9f, false, UI.Muted); lblPar.AutoEllipsis = true; lblPar.Margin = new Padding(UI.S(3), 0, UI.S(3), 0); lblPar.Visible = false; t.Controls.Add(lblPar, 0, 4);
 
         FlowLayoutPanel cards = new FlowLayoutPanel(); cards.AutoSize = true; cards.BackColor = UI.Bg; cards.Margin = new Padding(0, UI.S(14), 0, UI.S(10));
@@ -3212,14 +3256,14 @@ public partial class DiagGui : Form
         tabs = new TabStrip(); tabs.Dock = DockStyle.Fill; tabs.Items.Add("Befunde"); tabs.Items.Add("Tests"); tabs.Items.Add("Leistung"); tabs.Items.Add("Sensoren"); tabs.Items.Add("Protokoll");
         t.Controls.Add(tabs, 0, 6);
 
-        Panel host = new Panel(); host.Dock = DockStyle.Fill; host.BackColor = UI.Panel; host.Padding = new Padding(1); host.Margin = new Padding(0, 0, 0, UI.S(10));
+        CardPanel host = new CardPanel(); host.Dock = DockStyle.Fill; host.Padding = new Padding(UI.S(6)); host.Margin = new Padding(0, UI.S(6), 0, UI.S(12));
         lvFind = MakeList(new string[] { "Stufe", "Bereich", "Befund" }, new int[] { UI.S(110), UI.S(140), UI.S(700) });
         lvTests = MakeList(new string[] { "Ergebnis", "Test", "Details" }, new int[] { UI.S(110), UI.S(320), UI.S(520) });
         lvBench = MakeList(new string[] { "Ergebnis", "Messung", "Wert", "Index", "Referenz", "Vergleich" }, new int[] { UI.S(110), UI.S(330), UI.S(160), UI.S(190), UI.S(95), UI.S(220) });
         lvBench.Tag = "bench";
         txtLog = new TextBox(); txtLog.Multiline = true; txtLog.ReadOnly = true; txtLog.ScrollBars = ScrollBars.Vertical; txtLog.WordWrap = true;
         txtLog.Dock = DockStyle.Fill; txtLog.Font = new Font("Consolas", 9.75f); txtLog.BorderStyle = BorderStyle.None;
-        txtLog.BackColor = Color.FromArgb(18, 24, 34); txtLog.ForeColor = Color.FromArgb(214, 222, 235);
+        ThemeLog();
         Panel sensHost = new Panel(); sensHost.Dock = DockStyle.Fill; sensHost.BackColor = UI.Panel; sensHost.Padding = new Padding(10, 6, 10, 6);
         chartRun = new SensorChart(); chartRun.Dock = DockStyle.Fill; chartRun.WindowSec = 0;
         chartRun.Empty = "Kurven erscheinen hier während des Benchmarks und des Lasttests (Temperatur, Takt, Leistung von CPU und GPU).";
@@ -3229,18 +3273,18 @@ public partial class DiagGui : Form
         lvTests.Visible = false; lvBench.Visible = false; sensHost.Visible = false; txtLog.Visible = false;
         tabs.SelectedChanged += delegate {
             lvFind.Visible = tabs.Selected == 0; lvTests.Visible = tabs.Selected == 1; lvBench.Visible = tabs.Selected == 2; sensHost.Visible = tabs.Selected == 3; txtLog.Visible = tabs.Selected == 4;
-            host.BackColor = tabs.Selected == 4 ? txtLog.BackColor : UI.Panel;
         };
         t.Controls.Add(host, 0, 7);
 
         TableLayoutPanel foot = new TableLayoutPanel(); foot.Dock = DockStyle.Fill; foot.AutoSize = true; foot.ColumnCount = 2; foot.BackColor = UI.Bg;
         foot.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); foot.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        lblResult = Lbl("", 11f, true, UI.Text); lblResult.Anchor = AnchorStyles.Left; lblResult.AutoEllipsis = true;
-        FlowLayoutPanel btns = new FlowLayoutPanel(); btns.AutoSize = true; btns.WrapContents = false; btns.BackColor = UI.Bg;
+        lblResult = Lbl("", 10.5f, true, UI.Text); lblResult.Anchor = AnchorStyles.Left; lblResult.AutoEllipsis = true;
+        FlowLayoutPanel btns = new FlowLayoutPanel(); btns.AutoSize = true; btns.WrapContents = false; btns.BackColor = UI.Bg; btns.Anchor = AnchorStyles.Right;
         btnStopWait = UI.Secondary("Test beenden"); btnSkipStep = UI.SkipStepButton(); btnCancel = UI.Secondary("Abbrechen");
         btnFolder = UI.Secondary("Ordner öffnen"); btnNew = UI.Secondary("Neuer Lauf"); btnKi = UI.Secondary("KI-Datei zeigen");
         btnExportRun = UI.Secondary("Lauf exportieren …"); btnHtml = UI.Primary("Bericht öffnen");
-        btnHtml.Margin = new Padding(8, 0, 0, 0); btnHtml.Padding = new Padding(14, 3, 14, 3); btnHtml.Font = new Font("Segoe UI Semibold", 9.75f);
+        btnHtml.Margin = new Padding(UI.S(UI.Abstand5), 0, 0, 0); btnHtml.MinimumSize = new Size(UI.S(150), UI.S(44));
+        foreach (Button sb in new Button[] { btnStopWait, btnSkipStep, btnCancel, btnFolder, btnNew, btnKi, btnExportRun }) { sb.Margin = new Padding(UI.S(8), UI.S(6), 0, 0); sb.MinimumSize = new Size(0, UI.S(32)); }
         btns.Controls.Add(btnStopWait); btns.Controls.Add(btnSkipStep); btns.Controls.Add(btnCancel); btns.Controls.Add(btnNew); btns.Controls.Add(btnFolder); btns.Controls.Add(btnExportRun); btns.Controls.Add(btnKi); btns.Controls.Add(btnHtml);
         foot.Controls.Add(lblResult, 0, 0); foot.Controls.Add(btns, 1, 0);
         t.Controls.Add(foot, 0, 8);
@@ -3262,6 +3306,22 @@ public partial class DiagGui : Form
         p.Controls.Add(t);
         ApplyRunTips();
         return p;
+    }
+
+    // Stufe als Etikett: "KRITISCH" wird "Kritisch", kurze Kürzel wie "OK" bleiben
+    public static string BadgeCase(string t)
+    {
+        t = (t ?? "").Trim();
+        if (t.Length <= 2) return t.ToUpperInvariant();
+        return t.Substring(0, 1).ToUpperInvariant() + t.Substring(1).ToLowerInvariant();
+    }
+
+    // Protokollfeld: im Dunkelschema konsolenartig dunkel, im Hellschema hell (vorher in beiden Schemata dunkelblau)
+    void ThemeLog()
+    {
+        if (txtLog == null) return;
+        txtLog.BackColor = UI.IsDark ? Color.FromArgb(18, 24, 34) : Color.FromArgb(246, 247, 249);
+        txtLog.ForeColor = UI.IsDark ? Color.FromArgb(214, 222, 235) : Color.FromArgb(28, 29, 31);
     }
 
     ListView MakeList(string[] cols, int[] widths)
@@ -3311,17 +3371,19 @@ public partial class DiagGui : Form
             else if (e.ColumnIndex == 0 && txt.Length == 0) { }
             else if (e.ColumnIndex == 0)
             {
+                // ab v3.65 wie die Etiketten der Einstellungsseiten: gleiche Schrift, Höhe und Schreibweise
                 Color fg, bg; UI.Level(txt, out fg, out bg);
+                string label = BadgeCase(txt);
                 using (Font f = new Font("Segoe UI Semibold", 8.25f))
                 {
-                    Size sz = TextRenderer.MeasureText(g, txt.ToUpperInvariant(), f);
-                    int pillH = UI.S(20);
-                    int pillW = sz.Width + UI.S(12);
+                    Size sz = TextRenderer.MeasureText(g, label, f, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding);
+                    int pillH = Math.Max(UI.S(18), sz.Height + UI.S(4));
+                    int pillW = sz.Width + UI.S(14);
                     RectangleF pill = new RectangleF(e.Bounds.X + UI.S(8), e.Bounds.Y + (e.Bounds.Height - pillH) / 2f, pillW, pillH);
                     g.SmoothingMode = SmoothingMode.AntiAlias;
-                    using (GraphicsPath gp = UI.Round(pill, UI.SF(10))) using (SolidBrush pb = new SolidBrush(bg)) g.FillPath(pb, gp);
+                    using (GraphicsPath gp = UI.Round(pill, (pillH - 1) / 2f)) using (SolidBrush pb = new SolidBrush(bg)) g.FillPath(pb, gp);
                     g.SmoothingMode = SmoothingMode.None;
-                    TextRenderer.DrawText(g, txt.ToUpperInvariant(), f, Rectangle.Round(pill), fg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                    TextRenderer.DrawText(g, label, f, Rectangle.Round(pill), fg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
                 }
             }
             else if ("bench".Equals(lv.Tag) && e.ColumnIndex == 3)

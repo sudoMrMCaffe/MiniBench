@@ -1,0 +1,54 @@
+﻿LEOS MINIBENCH 3.65: ÄNDERUNGEN
+===============================
+
+Version 3.65 setzt die nach dem ersten Windows-Test von 3.64 gewählten Verbesserungen um (Auswahl Leonardos:
+einheitliche Karten, Wartung im Aufbau der Optimierung, angeglichene Laufansicht) und behebt Unstimmigkeiten, die auf
+den Bildschirmfotos von ULB-PC10039 zu sehen waren. Messabläufe, Parameter und Ereigniskanal bleiben unverändert.
+
+1. EINHEITLICHE KARTEN
+  CardPanel           Neues Steuerelement mit abgerundetem Rahmen (Radius 8 px, Farbe UI.Line) wie die Werkzeugkarten.
+  Diagnose            Die Gruppen Zusatzwerkzeuge und Speicherdiagnose sowie Prüfzeiträume (vorher eckiger Rahmen).
+  Lasttest            Die Tabellen Komponenten und Dauer sowie Abbruchschwelle stehen in Karten der Gruppenbreite.
+  Tools               Die Paketauswahl (winget) als Karte statt Panel mit Rahmenlinie.
+  Laufansicht         Die Listen Befunde, Tests, Leistung, Sensoren und Protokoll in einer Karte.
+
+2. WARTUNG IM AUFBAU DER OPTIMIERUNG
+  CategoryBlock       Gemeinsamer Aufbau für beide Seiten: Kopfzeile mit Zähler, rechts alle und keine, darunter eine
+                      Beschreibung und die Tabelle der Einträge mit den Etiketten in der rechten Spalte.
+  Wartung             Je Gruppe eine Beschreibung, alle und keine je Gruppe, Knopf Alle aufklappen. Die Einträge zeigen
+                      nur die Bezeichnung; Befehle wie DISM ScanHealth stehen im Hinweis beim Überfahren.
+  Reihenfolge         Wie in der Optimierung: Knöpfe, Legende der Risikostufen, Gruppen.
+  Optimierung         Die Knöpfe stehen in zwei Zeilen (Vorlagen, dann Zustand prüfen, Werkzeuge holen, Alle aufklappen);
+                      vorher ragte die Leiste über die Gruppenbreite hinaus.
+
+3. LAUFANSICHT
+  Titel               Schritt in der Titelgröße der Seiten (15 pt).
+  Etiketten           Stufen der Befunde und Tests in derselben Schrift, Höhe und Schreibweise wie die Etiketten der
+                      Einstellungsseiten ("Warnung" statt "WARNUNG").
+  Fußleiste           Bericht öffnen als großer Hauptknopf wie der Startknopf, die übrigen Knöpfe gleich hoch.
+  Farbschema          Protokollfeld im Hellschema hell, Fortschrittsbalken in den Akzentfarben des Schemas (vorher feste
+                      Farben, die nach einem Wechsel des Farbschemas stehen blieben).
+
+4. KORREKTUREN
+  Diagnose            Die Zeile unter dem Profil rechnet die parallele Ausführung ein wie Seitenleiste und Fußleiste
+                      (vorher Schnell ca. 9 Min. unter dem Profil, ca. 7 Min. in der Seitenleiste).
+  Fußleiste           "Diagnose (parallel)" steht beim Modul Diagnose, nicht hinter dem letzten Modul.
+  Optimierung         Einzahl bei einem verwalteten Eintrag ("1 verwalteter Eintrag ist nicht gewählt").
+  Tools               Die Beschreibung der Netzlaufwerk-Karte wurde abgeschnitten; kürzer, der Rest steht im Hinweis.
+                      Das Schildsymbol im Knopf Starten ist größer gezeichnet.
+
+5. TESTS
+  Selbsttest          Neue Fälle Etikett.Schreibweise und Karte in tests\Daten\Oberflaeche\GuiSelbsttest.cs.
+
+GEFUNDEN UND BEHOBEN
+  Nach einem Wechsel des Farbschemas behielten Fortschrittsbalken und Protokollfeld der Laufansicht ihre Farben.
+  Der Ergebnisbalken eines beendeten Laufs wird dabei nicht mehr auf die Akzentfarbe zurückgesetzt.
+
+GRENZEN
+  Geprüft mit mono unter Linux (Übersetzung, Selbsttest, Vorschau aller Seiten und der Laufansicht). Die Darstellung unter
+  Windows bei 125 und 150 % Skalierung steht weiter aus.
+  Der Aktuelle Build ist wieder in der Sandbox gebaut (mcs, Ressourcen mit windres); Bauen.cmd ersetzt ihn durch einen
+  Bau mit csc.exe.
+
+UMSTIEG
+  Keine Schritte nötig; Voreinstellungen und Datenordner bleiben gültig.

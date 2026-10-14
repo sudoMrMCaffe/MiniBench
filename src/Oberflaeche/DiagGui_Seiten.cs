@@ -197,11 +197,10 @@ public partial class DiagGui
             pnlCards.Controls.Add(Section("Softwarepakete installieren"));
             pnlCards.Controls.Add(Hint("Stille Installation gängiger Programme über den Windows-Paket-Manager (winget). Jede Installation steht danach auf der Seite Systemänderungen und lässt sich dort wieder entfernen.", 0));
 
-            Panel pnlWgBox = new Panel();
+            // ab v3.65 als abgerundete Karte wie die Werkzeugkarten (vorher eckiger Rahmen)
+            CardPanel pnlWgBox = new CardPanel();
             pnlWgBox.MinimumSize = new Size(cardW, 0);
-            pnlWgBox.BackColor = UI.Panel;
-            pnlWgBox.BorderStyle = BorderStyle.FixedSingle;
-            pnlWgBox.Padding = new Padding(UI.S(12));
+            pnlWgBox.Padding = new Padding(UI.S(16), UI.S(12), UI.S(16), UI.S(12));
             pnlWgBox.AutoSize = true;
             pnlWgBox.Margin = new Padding(0, 0, 0, UI.S(12));
 
@@ -291,13 +290,13 @@ public partial class DiagGui
 
             // 3. Netzlaufwerk (vorher als Knopf zwischen den Werkzeugknöpfen)
             pnlCards.Controls.Add(Section("Netzlaufwerk"));
-            FluentCard cNas = new FluentCard("Netzlaufwerk als Spiegel", "Berichte und Datenbank zusätzlich auf einem Netzlaufwerk ablegen. Werkzeuge bleiben immer auf dem Stick.", UI.IcoNetz);
+            FluentCard cNas = new FluentCard("Netzlaufwerk als Spiegel", "Berichte und Datenbank zusätzlich auf einem Netzlaufwerk spiegeln.", UI.IcoNetz);
             cNas.Width = cardW; cNas.Height = cardH;
             Button bNas = UI.Secondary("Einrichten ..."); bNas.MinimumSize = new Size(UI.S(130), 0);
             Tip(bNas, "Richtet ein Netzlaufwerk als Spiegel der Berichte und der Datenbank ein. Werkzeuge bleiben immer auf dem Stick.");
             bNas.Click += delegate { ShowConnectNasDialog(); };
             cNas.ActionButton = bNas;
-            Tip(cNas, "Netzlaufwerk als Spiegel von Berichten und Datenbank.");
+            Tip(cNas, "Netzlaufwerk als Spiegel von Berichten und Datenbank. Abgeglichen wird nur über Aktualisieren; Werkzeuge bleiben immer auf dem Stick.");
             pnlCards.Controls.Add(cNas);
 
             // 4. Schnellstarter
@@ -347,7 +346,7 @@ public partial class DiagGui
             bool portable = path.IndexOf("Minibench-Daten", StringComparison.OrdinalIgnoreCase) >= 0;
             c.StatusText = portable ? "Bereit, portabel" : "Bereit, installiert"; c.StatusLevel = "ok";
             bMain = UI.Primary("Starten");
-            bMain.Image = UI.GlyphImage(UI.IcoAdmin, UI.OnAccent, UI.S(16)); bMain.Tag = UI.IcoAdmin; bMain.ImageAlign = ContentAlignment.MiddleLeft; bMain.TextImageRelation = TextImageRelation.ImageBeforeText;
+            bMain.Image = UI.GlyphImage(UI.IcoAdmin, UI.OnAccent, UI.S(20)); bMain.Tag = UI.IcoAdmin; bMain.ImageAlign = ContentAlignment.MiddleLeft; bMain.TextImageRelation = TextImageRelation.ImageBeforeText;
             Tip(bMain, "Startet " + title + " mit Administratorrechten (" + path + ").");
             string p = path; bMain.Click += delegate { StartAdminProcess(p, ""); };
             Tip(bFolder, "Öffnet den Speicherort von " + title + ".");

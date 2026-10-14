@@ -54,6 +54,8 @@ Describe 'Selbsttest der Oberfläche' {
         @{ Fall = 'Etikett.Risikostufe' }
         @{ Fall = 'Aufklappgruppe' }
         @{ Fall = 'Diagnose.Profile' }
+        @{ Fall = 'Etikett.Schreibweise' }
+        @{ Fall = 'Karte' }
     ) {
         Assert-GuiSelbsttest $Fall
     }

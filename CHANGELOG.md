@@ -2,6 +2,14 @@
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
 
+## v3.65 (14.10.2026)
+
+* **Einheitliche Karten:** neues Steuerelement `CardPanel` (abgerundeter Rahmen wie `FluentCard`) für die Optionen der Diagnose, die Tabellen des Lasttests, die Paketauswahl der Tools und die Listen der Laufansicht.
+* **Wartung wie Optimierung:** gemeinsamer Aufbau `CategoryBlock` mit Beschreibung je Gruppe, „alle“ und „keine“, Etiketten rechts und „Alle aufklappen“.
+* **Laufansicht angeglichen:** Titelgröße, Karte um die Listen, Etiketten in normaler Schreibweise (`BadgeCase`), „Bericht öffnen“ als großer Hauptknopf, Protokollfeld und Fortschrittsbalken folgen dem Farbschema.
+* **Korrekturen:** Zeitangabe unter dem Diagnoseprofil mit paralleler Ausführung, „Diagnose (parallel)“ in der Fußleiste, Knöpfe der Optimierung in zwei Zeilen, Einzahl bei einem verwalteten Eintrag, Netzlaufwerk-Karte, Schildsymbol.
+* **Tests:** zwei neue Fälle im Selbsttest der Oberfläche (Etikett.Schreibweise, Karte).
+
 ## v3.64 (14.10.2026)
 
 * **Navigation und Kopfzeile:** Seitenleiste in die Gruppen „Ablauf“ und „Werkzeuge“ geteilt, angezeigte Seite nur über Akzentbalken, Dauer je angehaktem Modul. Flachere Kopfzeile mit Symbolknöpfen für Farbschema und Info; die Seite „Änderungen“ heißt „Systemänderungen“.

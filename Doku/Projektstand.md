@@ -2,11 +2,16 @@
 
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
-## Stand: Version 3.64 (14.10.2026)
-Letzter Release-Commit: dd792f1 (Release v3.64: Überarbeitete Oberfläche: klare Navigation, eindeutiger Startknopf,
-Etiketten für Risikostufen und einheitliches Raster). Erstellt von Claude in der Sandbox auf Grundlage von 8e14f3c
-(origin/main), übergeben als Git-Bundle; Push über Antigravity.
+## Stand: Version 3.65 (14.10.2026)
+Release-Commit "Release v3.65" (Hash im git log), erstellt von Claude in der Sandbox auf 3.64 (fc942f3), Grundlage
+GitHub 8e14f3c. Übergabe als Bundle mit Claude outputs\v3.65\Uebernehmen_v3.65.cmd im Projektordner.
 
+Inhalt von 3.65 (Einzelheiten in Doku\Änderungen_v3.65.txt): einheitliche Karten (CardPanel), Wartung im Aufbau der
+Optimierung (CategoryBlock), angeglichene Laufansicht und Korrekturen nach dem ersten Windows-Test von 3.64.
+Testlauf Sandbox für 3.65 (Oberfläche, Modulvertrag, Aufbau, Praxistest, Release, Optimierung, Werkzeuge, Risiko,
+Ablauf, Änderungen, Ablage): 399 bestanden, 0 fehlgeschlagen, 1 übersprungen. Übrige Dateien wie bei 3.64.
+
+## Vorher: Version 3.64
 Inhalt von 3.64 (Einzelheiten in Doku\Änderungen_v3.64.txt):
 1. Gestaltungsregeln in der Klasse UI (Abstände, Seitenrand 24 px, Gruppenbreite 780 px, Schriftstufen), neue Steuerelemente
    Badge, GroupHeader und PrimaryButton, Zweizeilen-Optionen (Opt2), UI.OnAccent für Kontrast auf Akzentflächen.
@@ -22,7 +27,7 @@ Die 13 Fehler bestehen schon auf 8e14f3c (Bericht 11 und Datenbank 1: Get-CimIns
 Sensoren 1: Test-OnBattery unter Linux). Lauf.Tests.ps1 (Gesamtläufe) läuft in der Sandbox nicht. Windows-Lauf steht aus.
 
 ## Offene Befunde
-1. Oberfläche 3.64 unter Windows prüfen: Segoe Fluent Icons, Segmentschalter der Diagnose, Etiketten, Skalierung 100, 125 und
+1. Oberfläche 3.65 unter Windows prüfen: Segoe Fluent Icons, Segmentschalter der Diagnose, Etiketten, Skalierung 100, 125 und
    150 %, beide Farbschemata; Bildschirmfotos nach Doku\Screenshots. In der Sandbox nur mit mono und Ersatzschriften gesehen.
 2. Testen.cmd unter Windows laufen lassen (Bericht.Tests.ps1 und Datenbank.Tests.ps1 scheitern im Sandbox-Nachbau schon auf
    8e14f3c an einer Attrappe für Get-CimInstance; prüfen, ob das unter Pester 6.2 auch so ist).
