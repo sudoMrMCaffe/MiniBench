@@ -2,10 +2,22 @@
 
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
-## Stand: Version 3.66 (14.10.2026)
-Release-Commit "Release v3.66: Dark Mode beim Programmstart, Dashboard-Telemetrie und GPU-Effizienz in FPS/Watt".
+## Stand: Version 3.67 (14.10.2026)
+Release-Commit "Release v3.67: Multi-System-Sensorverlauf, differenzierte Nutzungsprofile und kalibrierte Moduldauern".
 Getestet und gebaut unter Windows mit Windows PowerShell 5.1 und Pester 6.2.0.
 
+Inhalt von 3.67 (Einzelheiten in Doku\Änderungen_v3.67.txt):
+1. Multi-System-Sensorverlauf: Achsenbeschriftung Temperatur (°C) durch 75 px Randabstand und linksbündige Ausrichtung vollständig sichtbar; Tooltip mit kompakten Systemnamen (getShortSysName), zweizeiligem Layout und stets vorangestelltem Basissystem (auch ohne Zeitreihe).
+2. Differenzierte Nutzungsprofile: Gewichtung für Gaming (70 % GPU-FPS, 20 % ST, 10 % RAM/SSD; Kerne > 8 neutral), Büro/Desktop (45 % SSD-Reaktionszeit, 35 % ST, 20 % RAM-Latenz; 0 % GPU/MT) und Workstation (45 % MT, 20 % Instruktionen, 20 % RAM-Bandbreite, 15 % Dauertransfer); redundante Stromverbrauchs-Badges im Profilgitter entfernt.
+3. Hervorhebung des Basissystems: Markante Akzent-Umrandung mit Anker-Symbol im Auswahlbereich, durchgehende Hintergrundhervorhebung mit 100-%-Basis-Badge in Hardware- und Matrix-Tabelle sowie Akzent-Rahmen in den Profilkarten.
+4. Hardware-Tabelle aufgeräumt: Redundante Berichtszeile entfernt; kompakte Datenträger-Zusammenfassung nach Typ und Gesamtkapazität mit vollständiger Modellliste im Hinweis beim Überfahren.
+5. Kalibrierte Moduldauern: Grundzeit der Diagnose auf 0 Min. gesenkt, Zuschläge für Systemprüfungen und WinSAT auf reale SSD-Dauern kalibriert.
+6. Dashboard-Feinschliff: Versionspille dynamisch an Skriptversion gekoppelt, kompakte Matrix-Tabellenzeilen und fixierte Tabellenköpfe (sticky) beim Scrollen.
+
+Testlauf Windows (Windows PowerShell 5.1, Pester 6.2.0): 821 bestanden, 0 fehlgeschlagen, 99 übersprungen
+(in Lauf.Tests.ps1; gewollt ohne -Gesamtlauf). Alle Fachgebiets-Tests fehlerfrei.
+
+## Vorher: Version 3.66
 Inhalt von 3.66 (Einzelheiten in Doku\Änderungen_v3.66.txt):
 1. Dark Mode beim Start: SetPreferredAppMode vor Control-Erzeugung, OnShown und ShowPage wenden DarkMode_Explorer rekursiv auf alle Win32-Scrollbars an.
 2. Sensor-Status-Badge in der Kopfzeile: Dezentes Badge für aktiven Modus (LHM + PawnIO aktiv oder Windows-Fallback), gekoppelt an Treiberwahl.
@@ -14,9 +26,6 @@ Inhalt von 3.66 (Einzelheiten in Doku\Änderungen_v3.66.txt):
 5. GPU-Effizienz: Strikt in FPS/Watt aus Render-FPS (GPU|REND) geteilt durch Maximalleistung (GpuWMax); Beschriftung im Bericht auf FPS/W korrigiert.
 6. HTML-Bericht: Sticky-Navigation mit dezentem Schatten und flüssiger Nach-oben-Knopf unten rechts ab 300 px Scrolltiefe.
 7. Bildschirmfoto: Doku\Screenshots\Oberflaeche neu.png als Standard-Vorschaubild Oberflaeche.png übernommen.
-
-Testlauf Windows (Windows PowerShell 5.1, Pester 6.2.0): 821 bestanden, 0 fehlgeschlagen, 99 übersprungen
-(in Lauf.Tests.ps1; gewollt ohne -Gesamtlauf). Alle Fachgebiets-Tests fehlerfrei.
 
 ## Vorher: Version 3.65
 Inhalt von 3.65 (Einzelheiten in Doku\Änderungen_v3.65.txt):

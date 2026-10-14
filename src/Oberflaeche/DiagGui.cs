@@ -1300,8 +1300,8 @@ public partial class DiagGui : Form
     // Geschätzte Minuten der Diagnose ohne Wartezeit auf den SMART-Langtest (Grundlage für Profiltext und Fußleiste)
     public static int DiagMinutes(bool[] sel)
     {
-        int t = 3;
-        int[] add = new int[] { 1, 2, 12, 3, 10, 1, 2, 2 };
+        int t = 0;
+        int[] add = new int[] { 1, 2, 3, 1, 2, 1, 2, 2 };
         for (int i = 0; sel != null && i < sel.Length && i < add.Length; i++) if (sel[i]) t += add[i];
         return t;
     }
@@ -1312,7 +1312,7 @@ public partial class DiagGui : Form
     {
         int t = DiagMinutes(sel);
         // schneller Modus: Updatesuche, Defender und Energieanalyse laufen neben den übrigen Prüfungen
-        if (chkFast != null && chkFast.Checked && chkFast.Enabled) { int par = (diagChk[1].Checked ? 2 : 0) + (diagChk[3].Checked ? 3 : 0) + (diagChk[7].Checked ? 2 : 0); t -= Math.Min(par, Math.Max(0, t - 3)); }
+        if (chkFast != null && chkFast.Checked && chkFast.Enabled) { int par = (diagChk[1].Checked ? 2 : 0) + (diagChk[3].Checked ? 1 : 0) + (diagChk[7].Checked ? 2 : 0); t -= Math.Min(par, Math.Max(0, t - 1)); }
         return t;
     }
 
@@ -2723,7 +2723,7 @@ public partial class DiagGui : Form
             if (benchChk[1].Checked) t += 1;
             if (benchChk[2].Checked) t += 2;
             if (benchChk[3].Checked) t += clbDisks.CheckedItems.Count;
-            if (benchChk[4].Checked) t += 4;
+            if (benchChk[4].Checked) t += 1;
         }
         else if (mod == 2)
         {

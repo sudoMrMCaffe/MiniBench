@@ -238,7 +238,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Export
 }
 #endregion
 
-$ScriptVersion = '3.66'
+$ScriptVersion = '3.67'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -6882,8 +6882,8 @@ public partial class DiagGui : Form
     // Geschätzte Minuten der Diagnose ohne Wartezeit auf den SMART-Langtest (Grundlage für Profiltext und Fußleiste)
     public static int DiagMinutes(bool[] sel)
     {
-        int t = 3;
-        int[] add = new int[] { 1, 2, 12, 3, 10, 1, 2, 2 };
+        int t = 0;
+        int[] add = new int[] { 1, 2, 3, 1, 2, 1, 2, 2 };
         for (int i = 0; sel != null && i < sel.Length && i < add.Length; i++) if (sel[i]) t += add[i];
         return t;
     }
@@ -6894,7 +6894,7 @@ public partial class DiagGui : Form
     {
         int t = DiagMinutes(sel);
         // schneller Modus: Updatesuche, Defender und Energieanalyse laufen neben den übrigen Prüfungen
-        if (chkFast != null && chkFast.Checked && chkFast.Enabled) { int par = (diagChk[1].Checked ? 2 : 0) + (diagChk[3].Checked ? 3 : 0) + (diagChk[7].Checked ? 2 : 0); t -= Math.Min(par, Math.Max(0, t - 3)); }
+        if (chkFast != null && chkFast.Checked && chkFast.Enabled) { int par = (diagChk[1].Checked ? 2 : 0) + (diagChk[3].Checked ? 1 : 0) + (diagChk[7].Checked ? 2 : 0); t -= Math.Min(par, Math.Max(0, t - 1)); }
         return t;
     }
 
@@ -8305,7 +8305,7 @@ public partial class DiagGui : Form
             if (benchChk[1].Checked) t += 1;
             if (benchChk[2].Checked) t += 2;
             if (benchChk[3].Checked) t += clbDisks.CheckedItems.Count;
-            if (benchChk[4].Checked) t += 4;
+            if (benchChk[4].Checked) t += 1;
         }
         else if (mod == 2)
         {
@@ -13129,6 +13129,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.67", "14.10.2026", "Multi-System-Sensorverlauf, differenzierte Nutzungsprofile und kalibrierte Moduldauern",
+            "Multi-System-Sensorverlauf: Achsenbeschriftung Temperatur (°C) vollständig sichtbar durch vergrößertes linkes Padding (75 px) und linksbündige Ausrichtung; Tooltip mit kompakten Systemnamen (getShortSysName), zweizeiligem Layout und stets vorangestelltem Basissystem (auch ohne Zeitreihe). " +
+            "Differenzierte Nutzungsprofile: Gewichtung für Gaming (70 % GPU-FPS, 20 % ST, 10 % RAM/SSD; Kerne > 8 neutral), Büro/Desktop (45 % SSD-Reaktionszeit, 35 % ST, 20 % RAM-Latenz; 0 % GPU/MT) und Workstation (45 % MT, 20 % Instruktionen, 20 % RAM-Bandbreite, 15 % Dauertransfer); redundante Stromverbrauchs-Badges im Profilgitter entfernt. " +
+            "Hervorhebung des Basissystems: Markante Akzent-Umrandung mit Anker-Symbol im Auswahlbereich, durchgehende Hintergrundhervorhebung mit 100-%-Basis-Badge in Hardware- und Matrix-Tabelle sowie Akzent-Rahmen in den Profilkarten. " +
+            "Hardware-Tabelle aufgeräumt: Redundante Berichtszeile entfernt; kompakte Datenträger-Zusammenfassung nach Typ und Gesamtkapazität mit vollständiger Modellliste im Hinweis beim Überfahren. " +
+            "Realistische Laufzeitschätzungen: Grundzeit der Diagnose auf 0 Min. gesenkt, Zuschläge für Systemprüfungen und WinSAT auf reale SSD-Dauern kalibriert."),
         new Eintrag("3.66", "14.10.2026", "Dark Mode beim Programmstart, Dashboard-Telemetrie und GPU-Effizienz in FPS/Watt",
             "Dark Mode beim Start: Bevorzugter Farbmodus (SetPreferredAppMode) wird vor der Control-Initialisierung gesetzt; OnShown und ShowPage wenden die nativen Win32-Themes für Scrollbars auf allen Fenstern und Containern (content, pnlCards, lvDb, txtLog) an. " +
             "Sensor-Status-Badge: Die Kopfzeile zeigt ein dezentes Status-Badge für den aktiven Treiber (LHM + PawnIO aktiv oder Windows-Fallback). " +
@@ -16278,29 +16284,94 @@ function Export-BenchDashboardData {
         if ($ramLesen -gt 0) { $logSum += 1.0 * [math]::Log($ramLesen * 500.0); $wSum += 1.0 }
         if ($wSum -gt 0) { $overallScore = [int][math]::Round([math]::Exp($logSum / $wSum), 0) }
 
-        # Nutzungsprofile (Gaming, Büro/Desktop, Workstation)
-        $calcProf = {
-            param([hashtable]$weights)
-            $pVals = [System.Collections.Generic.List[double]]::new()
-            $pWts  = [System.Collections.Generic.List[double]]::new()
-            if ($cpuSt -gt 0) { $pVals.Add($cpuSt); $pWts.Add($weights['CPU_ST']) }
-            if ($cpuMt -gt 0) { $pVals.Add($cpuMt); $pWts.Add($weights['CPU_MT']) }
-            if ($gpuRend -gt 0) { $pVals.Add($gpuRend * 100.0); $pWts.Add($weights['GPU']) }
-            elseif ($gpuScoreVal -gt 0) { $pVals.Add($gpuScoreVal * 100.0); $pWts.Add($weights['GPU']) }
-            if ($ramLesen -gt 0) { $pVals.Add($ramLesen * 500.0); $pWts.Add($weights['RAM']) }
-            if ($fastestDisk.SR -gt 0) { $pVals.Add($fastestDisk.SR * 5.0); $pWts.Add($weights['DISK']) }
-            if (-not $pVals.Count) { return 0 }
+        # Nutzungsprofile (Gaming, Büro/Desktop, Workstation) - neu gewichtet ab v3.67
+        $calcGeoScore = {
+            param([System.Collections.Generic.List[double]]$vals, [System.Collections.Generic.List[double]]$wts)
+            if (-not $vals -or $vals.Count -eq 0) { return 0 }
             $s = 0.0; $ws = 0.0
-            for ($i = 0; $i -lt $pVals.Count; $i++) {
-                $s += $pWts[$i] * [math]::Log($pVals[$i])
-                $ws += $pWts[$i]
+            for ($i = 0; $i -lt $vals.Count; $i++) {
+                if ($vals[$i] -gt 0 -and $wts[$i] -gt 0) {
+                    $s += $wts[$i] * [math]::Log($vals[$i])
+                    $ws += $wts[$i]
+                }
             }
             if ($ws -le 0) { return 0 }
             return [int][math]::Round([math]::Exp($s / $ws), 0)
         }
-        $gamingScore      = & $calcProf @{ CPU_ST = 1.0; CPU_MT = 0.5; GPU = 3.0; RAM = 0.5; DISK = 0.5 }
-        $desktopScore     = & $calcProf @{ CPU_ST = 2.0; CPU_MT = 1.0; GPU = 0.5; RAM = 1.0; DISK = 2.0 }
-        $workstationScore = & $calcProf @{ CPU_ST = 0.5; CPU_MT = 3.0; GPU = 1.0; RAM = 2.0; DISK = 1.0 }
+
+        # 1. Gaming (70 % GPU Render-FPS & Frametimes, 20 % Single-Core IPC, 10 % RAM & SSD; MT über 8 Kerne fließt nicht ein)
+        $gVals = [System.Collections.Generic.List[double]]::new()
+        $gWts  = [System.Collections.Generic.List[double]]::new()
+        $gpuGamingVal = 0.0
+        if ($gpuRend -gt 0) {
+            if ($gpuRend1 -gt 0) {
+                $gpuGamingVal = ($gpuRend * 0.7 + $gpuRend1 * 0.3) * 100.0
+            } else {
+                $gpuGamingVal = $gpuRend * 100.0
+            }
+        } elseif ($gpuScoreVal -gt 0) {
+            $gpuGamingVal = $gpuScoreVal * 100.0
+        }
+        if ($gpuGamingVal -gt 0) { $gVals.Add($gpuGamingVal); $gWts.Add(0.70) }
+        if ($cpuSt -gt 0) { $gVals.Add($cpuSt); $gWts.Add(0.20) }
+        $ramGaming = $(if ($ramLesen -gt 0) { $ramLesen * 500.0 } else { 0.0 })
+        $ssdGaming = $(if ($fastestDisk.R1 -gt 0) { $fastestDisk.R1 } elseif ($fastestDisk.SR -gt 0) { $fastestDisk.SR * 5.0 } else { 0.0 })
+        if ($ramGaming -gt 0 -and $ssdGaming -gt 0) {
+            $gVals.Add($ramGaming); $gWts.Add(0.05)
+            $gVals.Add($ssdGaming); $gWts.Add(0.05)
+        } elseif ($ramGaming -gt 0) {
+            $gVals.Add($ramGaming); $gWts.Add(0.10)
+        } elseif ($ssdGaming -gt 0) {
+            $gVals.Add($ssdGaming); $gWts.Add(0.10)
+        }
+        $gamingScore = & $calcGeoScore $gVals $gWts
+
+        # 2. Büro / Desktop (45 % SSD 4K Random Response R1/W1, 35 % CPU-ST Alltagsleistung, 20 % RAM-Latenz; 0 % GPU & MT)
+        $dVals = [System.Collections.Generic.List[double]]::new()
+        $dWts  = [System.Collections.Generic.List[double]]::new()
+        $ssd4k = 0.0
+        if ($fastestDisk.R1 -gt 0 -and $fastestDisk.W1 -gt 0) {
+            $ssd4k = ($fastestDisk.R1 * 0.6 + $fastestDisk.W1 * 0.4)
+        } elseif ($fastestDisk.R1 -gt 0) {
+            $ssd4k = $fastestDisk.R1
+        } elseif ($fastestDisk.SR -gt 0) {
+            $ssd4k = $fastestDisk.SR * 5.0
+        }
+        if ($ssd4k -gt 0) { $dVals.Add($ssd4k); $dWts.Add(0.45) }
+        if ($cpuSt -gt 0) { $dVals.Add($cpuSt); $dWts.Add(0.35) }
+        $ramResp = 0.0
+        if ($ramLatenz -gt 0) {
+            $ramResp = 200000.0 / $ramLatenz
+        } elseif ($ramLesen -gt 0) {
+            $ramResp = $ramLesen * 100.0
+        }
+        if ($ramResp -gt 0) { $dVals.Add($ramResp); $dWts.Add(0.20) }
+        $desktopScore = & $calcGeoScore $dVals $dWts
+
+        # 3. Workstation (45 % CPU-MT, 20 % Verschlüsselung/Kompression AES/SHA/DEFL, 20 % RAM-Bandbreite, 15 % SSD-Dauertransfer SW/SR)
+        $wVals = [System.Collections.Generic.List[double]]::new()
+        $wWts  = [System.Collections.Generic.List[double]]::new()
+        if ($cpuMt -gt 0) { $wVals.Add($cpuMt); $wWts.Add(0.45) }
+        $cryptoVal = 0.0
+        if ($cpuAes -gt 0 -or $cpuSha -gt 0 -or $cpuDefl -gt 0) {
+            $cryptoVal = ($cpuAes * 3.0 + $cpuSha * 2.0 + $cpuDefl * 10.0)
+        } elseif ($cpuMt -gt 0) {
+            $cryptoVal = $cpuMt * 0.3
+        }
+        if ($cryptoVal -gt 0) { $wVals.Add($cryptoVal); $wWts.Add(0.20) }
+        $ramBw = 0.0
+        if ($ramLesen -gt 0 -or $ramSchreiben -gt 0 -or $ramKopieren -gt 0) {
+            $ramBw = (($ramLesen * 1.0 + $ramSchreiben * 1.0 + $ramKopieren * 1.0) / 3.0) * 500.0
+        }
+        if ($ramBw -gt 0) { $wVals.Add($ramBw); $wWts.Add(0.20) }
+        $ssdThru = 0.0
+        if ($fastestDisk.SR -gt 0 -and $fastestDisk.SW -gt 0) {
+            $ssdThru = ($fastestDisk.SR * 0.4 + $fastestDisk.SW * 0.6) * 5.0
+        } elseif ($fastestDisk.SR -gt 0) {
+            $ssdThru = $fastestDisk.SR * 5.0
+        }
+        if ($ssdThru -gt 0) { $wVals.Add($ssdThru); $wWts.Add(0.15) }
+        $workstationScore = & $calcGeoScore $wVals $wWts
 
         # Telemetrie-Extraktion
         $cpuTMax = $null; $cpuTIdle = $null; $tjMax = $null; $gpuTMax = $null
@@ -16685,7 +16756,7 @@ function Export-BenchDashboardData {
     }
 
     $aggData = [ordered]@{
-        Version        = $(if ($script:ScriptVersion) { $script:ScriptVersion } else { '3.4' })
+        Version        = $(if ($script:ScriptVersion) { $script:ScriptVersion } else { '3.67' })
         Generated      = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
         PreselectedIds = @($preselectedIds)
         Systems        = @($systems)
@@ -16726,6 +16797,7 @@ function Get-BenchDashboardHtmlTemplate {
       --accent-hover: #005A9E;
       --accent-soft: #EBF3FB;
       --accent-border: #BDD7EE;
+      --accent-subtle: rgba(0, 103, 192, 0.08);
       --ok-bg: #E2F5E9;
       --ok-text: #11703F;
       --ok-border: #7CD6A0;
@@ -16760,6 +16832,7 @@ function Get-BenchDashboardHtmlTemplate {
       --accent-hover: #60CDFF;
       --accent-soft: #233446;
       --accent-border: #1E4E79;
+      --accent-subtle: rgba(76, 194, 255, 0.12);
       --ok-bg: #14321F;
       --ok-text: #7CD6A0;
       --ok-border: #11703F;
@@ -16912,6 +16985,11 @@ function Get-BenchDashboardHtmlTemplate {
     .selector-base-wrap {
       flex: 1;
       min-width: 280px;
+      padding: 10px 14px;
+      border: 2px solid var(--accent);
+      border-radius: 8px;
+      background: var(--accent-subtle);
+      box-shadow: 0 0 10px var(--accent-subtle);
     }
     .selector-label {
       font-size: 0.82rem;
@@ -17069,7 +17147,8 @@ function Get-BenchDashboardHtmlTemplate {
     /* MATRIX TABLES */
     .table-scroll {
       width: 100%;
-      overflow-x: auto;
+      max-height: 75vh;
+      overflow: auto;
       border: 1px solid var(--card-border);
       border-radius: 8px;
     }
@@ -17081,7 +17160,7 @@ function Get-BenchDashboardHtmlTemplate {
       min-width: 650px;
     }
     .matrix-table th, .matrix-table td {
-      padding: 8px 12px;
+      padding: 6px 10px;
       border-bottom: 1px solid var(--card-border);
       vertical-align: middle;
     }
@@ -17094,15 +17173,17 @@ function Get-BenchDashboardHtmlTemplate {
       letter-spacing: 0.03em;
       position: sticky;
       top: 0;
-      z-index: 1;
+      z-index: 5;
     }
     .matrix-table th.col-feature {
       text-align: left;
       width: 220px;
       min-width: 180px;
       position: sticky;
+      top: 0;
       left: 0;
-      z-index: 2;
+      z-index: 10;
+      background: var(--neutral-bg);
     }
     .matrix-table td.col-feature {
       text-align: left;
@@ -17110,8 +17191,12 @@ function Get-BenchDashboardHtmlTemplate {
       background: var(--card-bg);
       position: sticky;
       left: 0;
-      z-index: 1;
+      z-index: 2;
       border-right: 1px solid var(--card-border);
+    }
+    .matrix-table th.col-base,
+    .matrix-table td.col-base {
+      background: var(--accent-subtle) !important;
     }
     .matrix-table tr.category-header td {
       background: var(--accent-soft);
@@ -17215,8 +17300,9 @@ function Get-BenchDashboardHtmlTemplate {
       background: var(--neutral-bg);
     }
     .profile-sys-row.is-base {
+      border: 1px solid var(--accent);
       border-left: 3px solid var(--accent);
-      background: var(--accent-soft);
+      background: var(--accent-subtle);
       font-weight: 600;
     }
 
@@ -17370,7 +17456,7 @@ function Get-BenchDashboardHtmlTemplate {
     <div class="brand">
       <div class="brand-icon">⚡</div>
       <div class="brand-titles">
-        <h1>Leos Minibench <span class="badge-ver">v3.31</span></h1>
+        <h1>Leos Minibench <span class="badge-ver">v3.67</span></h1>
         <p>Interaktives Benchmark- & Diagnose-Dashboard (Multi-System-Vergleich)</p>
       </div>
     </div>
@@ -17388,7 +17474,7 @@ function Get-BenchDashboardHtmlTemplate {
   <section class="selector-card">
     <div class="selector-top">
       <div class="selector-base-wrap">
-        <div class="selector-label">🎯 Basis- / Referenzsystem (100 % Bezugspunkt)</div>
+        <div class="selector-label">⚓ Basis- / Referenzsystem (100 % Bezugspunkt)</div>
         <div class="select-wrapper">
           <select id="baseSelect"></select>
           <span class="select-arrow">▼</span>
@@ -17496,7 +17582,7 @@ function Get-BenchDashboardHtmlTemplate {
 
   <!-- FOOTER -->
   <footer>
-    Leos Minibench v3.31 &middot; Multi-System Benchmark- &amp; Diagnose-Dashboard &middot; 100 % Offline &middot; UTF-8
+    Leos Minibench v3.67 &middot; Multi-System Benchmark- &amp; Diagnose-Dashboard &middot; 100 % Offline &middot; UTF-8
   </footer>
 
 </div>
@@ -17539,6 +17625,104 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
   function getSysColor(idx, isDark) {
     const c = SYSTEM_COLORS[idx % SYSTEM_COLORS.length];
     return isDark ? c.strokeDark : c.stroke;
+  }
+
+  function getShortSysName(s) {
+    if (!s) return '';
+    if (s.IsReference) {
+      return s.DisplayName || s.Computer || 'Referenz';
+    }
+    const comp = s.Computer || (s.DisplayName ? s.DisplayName.split('(')[0].trim() : 'System');
+    const cpu = s.Hardware?.CleanCpu || s.Hardware?.CpuKurz || '';
+    let gpu = s.Hardware?.GPU || '';
+    if (gpu) {
+      gpu = gpu.replace(/NVIDIA\s+GeForce\s+/i, '')
+               .replace(/AMD\s+Radeon\s+RX\s+/i, 'RX ')
+               .replace(/AMD\s+Radeon\s+/i, '')
+               .replace(/Radeon\s+RX\s+/i, 'RX ')
+               .replace(/Radeon\s+/i, '')
+               .replace(/Intel\s+Arc\s+/i, 'Arc ')
+               .replace(/Intel\s+/i, '')
+               .replace(/\s*\(.*?\)/g, '')
+               .trim();
+    }
+    const parts = [cpu, gpu].filter(Boolean);
+    if (parts.length > 0) {
+      return `${comp} (${parts.join(' · ')})`;
+    }
+    return s.DisplayName || comp;
+  }
+
+  function formatDiskSummary(raw) {
+    if (!raw || raw === '-' || raw === 'n/v') return '-';
+    const items = raw.split(';').map(x => x.trim()).filter(Boolean);
+    if (items.length === 0) return escapeHtml(raw);
+
+    let nvmeCount = 0;
+    let sataSsdCount = 0;
+    let otherSsdCount = 0;
+    let hddCount = 0;
+    let totalGb = 0;
+
+    items.forEach(it => {
+      if (/\bUSB\b/i.test(it)) return;
+
+      let gb = 0;
+      const mCap = it.match(/([\d\.,]+)\s*(TB|GB|MB)/i);
+      if (mCap) {
+        const num = parseFloat(mCap[1].replace(',', '.'));
+        const unit = mCap[2].toUpperCase();
+        if (unit === 'TB') gb = num * 1000;
+        else if (unit === 'GB') gb = num;
+        else if (unit === 'MB') gb = num / 1000;
+        totalGb += gb;
+      }
+
+      const isNvme = /\bNVMe\b/i.test(it);
+      const isHdd = /\b(HDD|Festplatte|ST\d{3,}|WD\d{3,}[A-Z])\b/i.test(it) && !/\bSSD\b/i.test(it);
+      const isSsdGeneric = /\b(SSD|Solid State|EVO|PRO|FireCuda\s+SSD)\b/i.test(it);
+
+      if (isNvme) {
+        nvmeCount++;
+      } else if (isHdd) {
+        hddCount++;
+      } else if (/\bSATA\b/i.test(it) || isSsdGeneric) {
+        sataSsdCount++;
+      } else {
+        otherSsdCount++;
+      }
+    });
+
+    const parts = [];
+    const totalSsd = nvmeCount + sataSsdCount + otherSsdCount;
+
+    if (nvmeCount > 0 && sataSsdCount > 0) {
+      parts.push(nvmeCount + 'x NVMe');
+      parts.push(sataSsdCount + 'x SATA-SSD');
+      if (otherSsdCount > 0) parts.push(otherSsdCount + 'x weitere SSD');
+    } else if (nvmeCount > 0 && sataSsdCount === 0 && otherSsdCount === 0) {
+      parts.push(nvmeCount + 'x NVMe-SSD');
+    } else if (sataSsdCount > 0 && nvmeCount === 0 && otherSsdCount === 0) {
+      parts.push(sataSsdCount + 'x SATA-SSD');
+    } else if (totalSsd > 0) {
+      parts.push(totalSsd + 'x SSD');
+    }
+
+    if (hddCount > 0) {
+      parts.push(hddCount + 'x HDD');
+    }
+
+    if (parts.length === 0) return escapeHtml(raw);
+
+    let capStr = '';
+    if (totalGb >= 1000) {
+      capStr = (totalGb / 1000).toFixed(1).replace('.', ',') + ' TB';
+    } else if (totalGb > 0) {
+      capStr = Math.round(totalGb) + ' GB';
+    }
+
+    const countStr = parts.join(', ');
+    return capStr ? `${countStr} · ${capStr} Gesamt` : countStr;
   }
 
   // DOM-Elemente
@@ -17881,11 +18065,11 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       const repBadge = repUrl
         ? `<a href="${repUrl}" target="_blank" class="report-badge-btn" title="Diagnosebericht öffnen" style="margin-left:auto; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; font-size:0.75rem; border-radius:4px; background:var(--accent-subtle); color:var(--accent); text-decoration:none; border:1px solid var(--accent); font-weight:600; cursor:pointer;">Bericht</a>`
         : '';
-      html += `<th>
+      html += `<th class="${isBase ? 'col-base' : ''}" style="${isBase ? 'background: var(--accent-subtle);' : ''}">
         <div style="display: flex; align-items: center; gap: 6px;">
           <span class="sys-dot" style="background: ${color};"></span>
           ${nameHtml}
-          ${isBase ? '<span class="pill ok">Basis</span>' : ''}
+          ${isBase ? '<span class="pill ok" style="font-weight:700;">100 % Basis</span>' : ''}
           ${repBadge}
         </div>
         <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">${escapeHtml(s.Datum || 'Referenz')}</div>
@@ -17894,16 +18078,20 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     html += '</tr></thead><tbody>';
 
     const rows = [
-      { key: 'Bericht', label: 'Diagnosebericht', get: s => s.ReportUrl ? `<a href="${escapeHtml(s.ReportUrl)}" target="_blank" style="color:var(--accent); text-decoration:underline; font-weight:600;">Diagnosebericht.html öffnen</a>` : '<span style="color:var(--text-muted);">-</span>' },
       { key: 'Computer', label: 'Rechnername', get: s => escapeHtml(s.Computer || '-') },
       { key: 'CPU', label: 'Prozessor (CPU)', get: s => escapeHtml(s.Hardware?.CpuKurz || s.Hardware?.CPU || '-') },
       { key: 'KerneThreads', label: 'Kerne / Threads', get: s => escapeHtml((s.Hardware?.Kerne && s.Hardware?.Threads) ? `${s.Hardware.Kerne} / ${s.Hardware.Threads}` : (s.Hardware?.KerneThreads || 'n/v')) },
       { key: 'RAM', label: 'Arbeitsspeicher (RAM)', get: s => escapeHtml(s.Hardware?.RAM || '-') },
       { key: 'GPU', label: 'Grafikkarte (GPU)', get: s => escapeHtml(s.Hardware?.GPU || '-') },
-      { key: 'Disk', label: 'Datenträger', get: s => escapeHtml(s.Hardware?.Datentraeger || s.Hardware?.FastestDisk || '-') },
+      { key: 'Disk', label: 'Datenträger', get: s => {
+        const raw = s.Hardware?.Datentraeger || s.Hardware?.FastestDisk || '';
+        if (!raw || raw === 'n/v' || raw === '-') return '<span style="color:var(--text-muted);">-</span>';
+        const summary = formatDiskSummary(raw);
+        return `<span title="${escapeHtml(raw)}" style="cursor:help; border-bottom:1px dotted var(--text-muted);">${escapeHtml(summary)}</span>`;
+      }},
       { key: 'Mainboard', label: 'Mainboard / System', get: s => escapeHtml(s.Hardware?.Mainboard || s.Hardware?.System || '-') },
       { key: 'OS', label: 'Betriebssystem', get: s => escapeHtml(s.OS || s.Hardware?.Betriebssystem || '-') },
-            { key: 'Installiert', label: 'Windows installiert', get: s => escapeHtml(s.Hardware?.WindowsInstalliert || '-') },
+      { key: 'Installiert', label: 'Windows installiert', get: s => escapeHtml(s.Hardware?.WindowsInstalliert || '-') },
       { key: 'Verbrauch', label: 'Geschätzter Systemverbrauch (Last / Leerlauf)', get: s => {
         const v = s.Hardware?.PowerDisplay;
         if (!v || v === 'n/v') {
@@ -17925,8 +18113,9 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
 
     rows.forEach(r => {
       html += `<tr><td class="col-feature">${r.label}</td>`;
-      comparedSystems.forEach(s => {
-        html += `<td>${r.get(s)}</td>`;
+      comparedSystems.forEach((s, idx) => {
+        const isBase = (idx === 0);
+        html += `<td class="${isBase ? 'col-base' : ''}" style="${isBase ? 'background: var(--accent-subtle);' : ''}">${r.get(s)}</td>`;
       });
       html += '</tr>';
     });
@@ -18000,16 +18189,12 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           ? `<a href="${repUrl}" target="_blank" title="Diagnosebericht für ${sName} öffnen" style="color:inherit; text-decoration:underline; cursor:pointer;">${sName}</a>`
           : `<span>${sName}</span>`;
 
-        const pwrVal = s.Hardware?.PowerLoad ? `~${Math.round(s.Hardware.PowerLoad)} W` : (s.Metrics?.POWER_LOAD ? `~${Math.round(s.Metrics.POWER_LOAD)} W` : '');
-        const pwrBadge = pwrVal ? `<span class="badge" title="${escapeHtml(s.Hardware?.PowerLoadTip || 'Geschätzter Volllastverbrauch')}" style="font-size:0.7rem; padding:1px 5px; background:rgba(217,119,6,0.15); color:#d97706; border:1px solid rgba(217,119,6,0.3); border-radius:3px;">⚡ ${pwrVal}</span>` : '';
-
         html += `<div class="profile-sys-row ${isBase ? 'is-base' : ''}">
           <div style="display: flex; align-items: center; gap: 6px;">
             <span class="sys-dot" style="background: ${color};"></span>
             <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nameLink}</span>
           </div>
           <div style="display: flex; align-items: center; gap: 4px;">
-            ${pwrBadge}
             <span style="font-weight: 700;">${scoreText}</span>
             ${deltaHtml}
           </div>
@@ -18039,11 +18224,11 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       const repBtn = repUrl
         ? `<a href="${repUrl}" target="_blank" title="Diagnosebericht öffnen" style="font-size:0.75rem; color:var(--accent); text-decoration:none; margin-left:4px;">Bericht</a>`
         : '';
-      html += `<th style="text-align: right;">
+      html += `<th class="${isBase ? 'col-base' : ''}" style="text-align: right; ${isBase ? 'background: var(--accent-subtle);' : ''}">
         <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
           <span class="sys-dot" style="background: ${color};"></span>
           ${nameLink}
-          ${isBase ? '<span class="pill ok">Basis</span>' : ''}
+          ${isBase ? '<span class="pill ok" style="font-weight:700;">100 % Basis</span>' : ''}
           ${repBtn}
         </div>
       </th>`;
@@ -18138,7 +18323,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           const isBest = (bestVal !== null && v === bestVal);
           const delta = (isBase || v <= 0 || baseVal <= 0) ? null : calcDelta(v, baseVal, m.lower);
 
-          html += `<td class="sys-val ${isBest ? 'is-best' : ''}">
+          html += `<td class="sys-val ${isBase ? 'col-base' : ''} ${isBest ? 'is-best' : ''}" style="${isBase ? 'background: var(--accent-subtle);' : ''}">
             <span class="val-main">${fmtNum(v, m.dec)}</span>
             <span class="val-sub">${m.unit}</span>
             ${isBest ? '<span class="badge-best" title="Bestwert aller Systeme">👑 Bestwert</span>' : ''}
@@ -18268,7 +18453,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       return;
     }
 
-    const padding = { top: 32, right: 65, bottom: 40, left: 60 };
+    const padding = { top: 32, right: 65, bottom: 40, left: 75 };
     const chartW = width - padding.left - padding.right;
     const chartH = height - padding.top - padding.bottom;
 
@@ -18336,12 +18521,12 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     ctx.font = '600 11px system-ui, sans-serif';
     if (chartMode === 'watt') {
       ctx.fillStyle = isDark ? '#34D399' : '#059669';
-      ctx.textAlign = 'right';
-      ctx.fillText('Leistung (W)', padding.left - 8, padding.top - 12);
+      ctx.textAlign = 'left';
+      ctx.fillText('Leistung (W)', padding.left, padding.top - 12);
     } else {
       ctx.fillStyle = isDark ? '#60A5FA' : '#2563EB';
-      ctx.textAlign = 'right';
-      ctx.fillText('Temperatur (°C)', padding.left - 8, padding.top - 12);
+      ctx.textAlign = 'left';
+      ctx.fillText('Temperatur (°C)', padding.left, padding.top - 12);
 
       ctx.fillStyle = isDark ? '#34D399' : '#059669';
       ctx.textAlign = 'left';
@@ -18567,8 +18752,21 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       `;
 
       comparedSystems.forEach((s, idx) => {
+        const isBase = (String(s.Id) === String(baseSystem?.Id));
+        const color = getSysColor(idx, isDark);
+        const sName = getShortSysName(s);
+        const name = (isBase ? 'Basis: ' : '') + sName;
+
         const srs = s.Telemetry?.Series || [];
-        if (srs.length === 0) return;
+        if (srs.length === 0) {
+          if (isBase) {
+            tipHtml += `<div style="margin-top: 5px; font-size: 11px; line-height: 1.35;">
+              <div style="color: ${color}; font-weight: 600; white-space: nowrap;">● ${escapeHtml(name)}</div>
+              <div style="padding-left: 14px; font-style: italic; color: var(--text-muted); white-space: nowrap;">(keine Zeitreihe)</div>
+            </div>`;
+          }
+          return;
+        }
 
         let closest = srs[0];
         let minDiff = Infinity;
@@ -18577,20 +18775,12 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           if (diff < minDiff) { minDiff = diff; closest = pt; }
         });
 
-        const color = getSysColor(idx, isDark);
-        const isBase = (String(s.Id) === String(baseSystem?.Id));
-        const sName = escapeHtml(s.DisplayName || s.Computer);
-        const name = (isBase ? 'Basis: ' : '') + sName;
-
+        let valStr = '';
         if (chartMode === 'cpu') {
           const tempStr = closest.Temp != null ? closest.Temp.toFixed(1) + ' °C' : 'n/v';
           const mhzStr = closest.MHz != null ? closest.MHz.toFixed(0) + ' MHz' : 'n/v';
           const wattStr = closest.CpuW != null ? closest.CpuW.toFixed(1) + ' W' : 'n/v';
-
-          tipHtml += `<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 3px;">
-            <span style="color: ${color}; font-weight: 600;">● ${name}</span>
-            <span style="font-weight: 700;">${tempStr} &middot; ${mhzStr} &middot; ${wattStr}</span>
-          </div>`;
+          valStr = `${tempStr} &middot; ${mhzStr} &middot; ${wattStr}`;
 
           if (closest.Temp != null && closest.Temp > 0) {
             const tDotColor = (idx === 0) ? (isDark ? '#4CC2FF' : '#0078D4') : (idx === 1 ? (isDark ? '#FFA057' : '#F7630C') : color);
@@ -18616,11 +18806,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           const mhzStr = gMhz != null ? gMhz.toFixed(0) + ' MHz' : 'n/v';
           const wattStr = gWatt != null ? gWatt.toFixed(1) + ' W' : 'n/v';
           const fpsStr = closest.Fps != null ? (' &middot; ' + closest.Fps.toFixed(0) + ' Bilder/s') : '';
-
-          tipHtml += `<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 3px;">
-            <span style="color: ${color}; font-weight: 600;">● ${name}</span>
-            <span style="font-weight: 700;">${tempStr} &middot; ${mhzStr} &middot; ${wattStr}${fpsStr}</span>
-          </div>`;
+          valStr = `${tempStr} &middot; ${mhzStr} &middot; ${wattStr}${fpsStr}`;
 
           if (gTemp != null && gTemp > 0) {
             const tDotColor = (idx === 0) ? (isDark ? '#4CC2FF' : '#0078D4') : (idx === 1 ? (isDark ? '#FFA057' : '#F7630C') : color);
@@ -18641,12 +18827,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
           const sysWStr = closest.SysW != null ? '~' + closest.SysW.toFixed(0) + ' W (System)' : 'n/v';
           const cpuWStr = closest.CpuW != null ? closest.CpuW.toFixed(1) + ' W (CPU)' : 'n/v';
           const gpuWStr = closest.GpuW != null ? closest.GpuW.toFixed(1) + ' W (GPU)' : '';
-          const pDetails = [sysWStr, cpuWStr, gpuWStr].filter(Boolean).join(' · ');
-
-          tipHtml += `<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 3px;">
-            <span style="color: ${color}; font-weight: 600;">● ${name}</span>
-            <span style="font-weight: 700;">${pDetails}</span>
-          </div>`;
+          valStr = [sysWStr, cpuWStr, gpuWStr].filter(Boolean).join(' · ');
 
           const pPlot = closest.SysW != null ? closest.SysW : closest.CpuW;
           if (pPlot != null && pPlot > 0) {
@@ -18656,6 +18837,11 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
             ctx.fill();
           }
         }
+
+        tipHtml += `<div style="margin-top: 5px; font-size: 11px; line-height: 1.35;">
+          <div style="color: ${color}; font-weight: 600; white-space: nowrap;">● ${escapeHtml(name)}</div>
+          <div style="padding-left: 14px; font-weight: 700; white-space: nowrap;">${valStr}</div>
+        </div>`;
       });
 
       ctx.restore();
@@ -18663,8 +18849,9 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       tooltip.innerHTML = tipHtml;
       tooltip.style.display = 'block';
 
+      const tipW = Math.max(260, tooltip.offsetWidth || 280);
       let tooltipX = cx + 15;
-      if (tooltipX + 240 > width) tooltipX = cx - 250;
+      if (tooltipX + tipW > width) tooltipX = cx - tipW - 15;
       tooltip.style.left = Math.max(10, tooltipX) + 'px';
       tooltip.style.top = (padding.top + 10) + 'px';
     };
@@ -18715,9 +18902,11 @@ function New-BenchDashboardHtml {
     $json = $data | ConvertTo-Json -Depth 10 -Compress
     $json = $json -replace '</', '<\/'
     $template = Get-BenchDashboardHtmlTemplate
+    $curVer = if ($script:ScriptVersion) { $script:ScriptVersion } else { '3.67' }
+    $html = $template.Replace('v3.67', ('v' + $curVer))
 
     # Daten einbetten
-    $html = $template.Replace('window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;', ('window.MINIBENCH_DASHBOARD_DATA = ' + $json + ';'))
+    $html = $html.Replace('window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;', ('window.MINIBENCH_DASHBOARD_DATA = ' + $json + ';'))
 
     if ($OutputPath) {
         $outDir = Split-Path $OutputPath -Parent

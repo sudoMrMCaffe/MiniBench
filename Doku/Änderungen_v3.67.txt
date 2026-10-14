@@ -1,0 +1,62 @@
+﻿LEOS MINIBENCH 3.67: ÄNDERUNGEN
+===============================
+
+Version 3.67 optimiert die Diagrammdarstellung und Tooltips im Multi-System-Dashboard, führt differenzierte Formeln
+für Nutzungsprofile ein, hebt das Basissystem im gesamten Vergleich hervor, fasst Datenträgerübersichten kompakt
+zusammen und kalibriert die Zeitschätzungen in der Oberfläche auf moderne Hardware.
+
+1. MULTI-SYSTEM-SENSORVERLAUF
+  Achsenbeschriftung  Padding links von 60 auf 75 px vergrößert und Achsentitel linksbündig bei padding.left gerendert,
+                      sodass "Temperatur (°C)" nicht mehr am linken Rand abgeschnitten wird.
+  Kompakter Tooltip   Systemnamen werden auf Rechnername und relevante CPU/GPU-Kürzel verkürzt (getShortSysName),
+                      Messwerte zweizeilig ohne störende Einheitenumbrüche formatiert.
+  Basissystem         Das Basissystem wird im Tooltip immer an oberster Stelle gelistet; liegt keine Zeitreihe vor,
+                      erscheint ein klarer Hinweis ("keine Zeitreihe").
+
+2. DIFFERENZIERTE NUTZUNGSPROFILE
+  Gaming              Fokus auf Grafik und Einzelkern: 70 % GPU-FPS, 20 % CPU_ST, 10 % RAM & SSD; Mehrkernleistung
+                      über 8 Kerne hinaus fließt nicht ein.
+  Büro / Desktop      Fokus auf Ansprechverhalten: 45 % SSD 4K Random Response (R1/W1), 35 % CPU_ST, 20 % RAM-Latenz;
+                      GPU und Multi-Threading erhalten bewusst 0 % Gewichtung.
+  Workstation         Fokus auf Rechenleistung und Durchsatz: 45 % CPU_MT, 20 % Instruktionen (AES, SHA, DEFL),
+                      20 % RAM-Bandbreite, 15 % Dauertransfer (SW/SR).
+  Profilgitter        Redundante Stromverbrauchs-Badges (~... W) aus den Zeilen der Profilkarten entfernt.
+
+3. HERVORHEBUNG DES BASISSYSTEMS
+  Auswahlbereich      Kasten des Basis-/Referenzsystems mit leuchtender Akzent-Umrandung und Anker-Icon hervorgehoben.
+  Tabellen            Spalte des Basissystems in Hardware- und Matrix-Tabelle mit durchgehend dezentem Hintergrund
+                      und 100-%-Basis-Badge im Tabellenkopf versehen.
+  Profilkarten        Zeile des Basissystems mit Akzent-Rahmen und 100 % (Basis) eindeutig als Referenz erkennbar.
+
+4. HARDWARE-SPEZIFIKATIONEN
+  Bericht-Link        Doppelte Zeile "Diagnosebericht" entfernt, da jeder Spaltenkopf bereits die Schaltfläche enthält.
+  Datenträger         Kompakte Zusammenfassung nach Anzahl NVMe/SATA-SSDs, HDDs und Gesamtkapazität; vollständige
+                      Laufwerks- und Modellliste bleibt als Tooltip beim Überfahren mit der Maus erhalten.
+
+5. KALIBRIERTE LAUFZEITSCHÄTZUNGEN
+  Diagnose            Grundzeit von 3 auf 0 Minuten gesenkt; Prüfungszuschläge für Dateisystem/DISM/sfc von 12 auf
+                      3 Minuten, SMART von 10 auf 2 Minuten und Defender von 3 auf 1 Minute reduziert.
+  Benchmark           Zuschlag für WinSAT von 4 auf 1 Minute verringert.
+
+6. DASHBOARD-FEINSCHLIFF
+  Versionsanzeige     Statische Angabe v3.31 im Kopfbereich durch die tatsächliche Skriptversion ersetzt.
+  Tabellenlayout      Zeilenabstände der Matrix-Tabelle verdichtet; Spaltenköpfe beim Herunterscrollen fixiert (sticky).
+
+
+GEFUNDEN UND BEHOBEN
+  Die Y-Achsenbeschriftung Temperatur (°C) begann bei negativer Koordinate und wurde links abgeschnitten.
+  Lange Systemnamen führten im Tooltip zu unschönen Zeilenumbrüchen mitten in Einheitenangaben.
+  War das Basissystem eine Referenz ohne Zeitreihe, fehlte es vollständig im Diagramm-Tooltip.
+  Büro- und Gaming-Profile lieferten nahezu identische Bewertungen, da GPU-Werte das Büro-Profil dominierten.
+  Die Diagnose schätzte für schnelle SSD-Systeme mit drei gewählten Tests überzogene 7 bis 15 Minuten Laufzeit.
+
+GRENZEN
+  Die Datenträger-Zusammenfassung stützt sich auf die von WMI gelieferten Bus- und Medientypen (NVMe, SATA, SSD, HDD);
+  bei unbekannten Controllern wird die Modellbezeichnung als Fallback herangezogen.
+
+UMSTIEG
+  Keine Schritte nötig; Datenbank, Referenzprofile und Voreinstellungen bleiben unverändert kompatibel.
+
+QUELLEN
+  W3C CSS Positioned Layout Module Level 3 (position: sticky)
+  HTML Living Standard (CanvasRenderingContext2D text alignment)

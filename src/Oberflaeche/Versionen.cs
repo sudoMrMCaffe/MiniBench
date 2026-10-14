@@ -11,6 +11,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.67", "14.10.2026", "Multi-System-Sensorverlauf, differenzierte Nutzungsprofile und kalibrierte Moduldauern",
+            "Multi-System-Sensorverlauf: Achsenbeschriftung Temperatur (°C) vollständig sichtbar durch vergrößertes linkes Padding (75 px) und linksbündige Ausrichtung; Tooltip mit kompakten Systemnamen (getShortSysName), zweizeiligem Layout und stets vorangestelltem Basissystem (auch ohne Zeitreihe). " +
+            "Differenzierte Nutzungsprofile: Gewichtung für Gaming (70 % GPU-FPS, 20 % ST, 10 % RAM/SSD; Kerne > 8 neutral), Büro/Desktop (45 % SSD-Reaktionszeit, 35 % ST, 20 % RAM-Latenz; 0 % GPU/MT) und Workstation (45 % MT, 20 % Instruktionen, 20 % RAM-Bandbreite, 15 % Dauertransfer); redundante Stromverbrauchs-Badges im Profilgitter entfernt. " +
+            "Hervorhebung des Basissystems: Markante Akzent-Umrandung mit Anker-Symbol im Auswahlbereich, durchgehende Hintergrundhervorhebung mit 100-%-Basis-Badge in Hardware- und Matrix-Tabelle sowie Akzent-Rahmen in den Profilkarten. " +
+            "Hardware-Tabelle aufgeräumt: Redundante Berichtszeile entfernt; kompakte Datenträger-Zusammenfassung nach Typ und Gesamtkapazität mit vollständiger Modellliste im Hinweis beim Überfahren. " +
+            "Realistische Laufzeitschätzungen: Grundzeit der Diagnose auf 0 Min. gesenkt, Zuschläge für Systemprüfungen und WinSAT auf reale SSD-Dauern kalibriert."),
         new Eintrag("3.66", "14.10.2026", "Dark Mode beim Programmstart, Dashboard-Telemetrie und GPU-Effizienz in FPS/Watt",
             "Dark Mode beim Start: Bevorzugter Farbmodus (SetPreferredAppMode) wird vor der Control-Initialisierung gesetzt; OnShown und ShowPage wenden die nativen Win32-Themes für Scrollbars auf allen Fenstern und Containern (content, pnlCards, lvDb, txtLog) an. " +
             "Sensor-Status-Badge: Die Kopfzeile zeigt ein dezentes Status-Badge für den aktiven Treiber (LHM + PawnIO aktiv oder Windows-Fallback). " +

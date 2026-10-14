@@ -5,6 +5,21 @@ Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Info-Knopf oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
 
+VERSION 3.67   (14.10.2026)  MULTI-SYSTEM-SENSORVERLAUF, DIFFERENZIERTE NUTZUNGSPROFILE UND KALIBRIERTE MODULDAUERN
+====================================================================================================
+Sensorverlauf im Dashboard: Y-Achsenbeschriftung für Temperatur (°C) durch 75 px Randabstand und linksbündige Platzierung
+vollständig lesbar; Tooltip mit kompakten Systemnamen ohne unschöne Einheitenumbrüche, zweizeiligem Layout und stets
+an oberster Stelle angeführtem Basissystem (auch wenn keine Zeitreihe vorliegt).
+Nutzungsprofile: Differenzierte Gewichtungsformeln für Gaming (70 % GPU-FPS, 20 % ST, 10 % RAM/SSD; Kerne > 8 neutral),
+Büro/Desktop (45 % SSD-Reaktionszeit, 35 % ST, 20 % RAM-Latenz; 0 % GPU/MT) und Workstation (45 % MT, 20 % Instruktionen,
+20 % RAM-Bandbreite, 15 % Dauertransfer); redundante Stromverbrauchs-Badges in den Profilkarten entfernt.
+Basissystem-Hervorhebung: Leuchtende Akzent-Umrandung mit Anker-Symbol im oberen Auswahlbereich, durchgehende Spaltenhervorhebung
+mit 100-%-Basis-Badge in Hardware- und Matrix-Tabelle sowie Akzent-Rahmen in den Profilkarten.
+Hardware-Spezifikationen: Redundante Diagnoseberichts-Zeile entfernt; kompakte Datenträger-Zusammenfassung nach Anzahl SSDs
+(NVMe/SATA), HDDs und Gesamtkapazität mit vollständigen Modellbezeichnungen im Tooltip beim Überfahren.
+Geschätzte Moduldauern: Diagnose-Grundzeit auf 0 Min. gesenkt, Zuschläge für Dateisystem/DISM/sfc (3 Min.), SMART (2 Min.),
+Defender (1 Min.) und WinSAT (1 Min.) auf realistische SSD-Laufzeiten kalibriert.
+
 VERSION 3.66   (14.10.2026)  DARK MODE BEIM PROGRAMMSTART, DASHBOARD-TELEMETRIE UND GPU-EFFIZIENZ IN FPS/WATT
 ====================================================================================================
 Dark Mode beim Start: Bevorzugter Farbmodus (SetPreferredAppMode) wird vor der Steuerelement-Erzeugung gesetzt; OnShown

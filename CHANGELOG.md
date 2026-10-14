@@ -2,6 +2,15 @@
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
 
+## v3.67 (14.10.2026)
+
+* **Multi-System-Sensorverlauf:** Achsenbeschriftung `Temperatur (°C)` durch vergrößertes linkes Padding (75 px) und linksbündige Ausrichtung vollständig sichtbar; Tooltip mit kompakten Systemnamen (`getShortSysName`), zweizeiligem Layout ohne Einheitenumbrüche und stets vorangestelltem Basissystem (auch bei Systemen ohne Zeitreihe).
+* **Differenzierte Nutzungsprofile:** Gewichtung für Gaming (70 % GPU-FPS, 20 % ST, 10 % RAM/SSD), Büro/Desktop (45 % SSD 4K-Reaktionszeit, 35 % ST, 20 % RAM-Latenz; 0 % GPU/MT) und Workstation (45 % MT, 20 % Instruktionen, 20 % RAM-Bandbreite, 15 % Dauertransfer); redundante Stromverbrauchs-Badges im Profilgitter entfernt.
+* **Basissystem-Hervorhebung:** Markante Akzent-Umrandung mit Anker-Symbol im Auswahlbereich, Spaltenhervorhebung (`col-base`) mit `100 % Basis`-Badge in Hardware- und Matrix-Tabelle sowie Akzent-Rahmen in den Profilkarten.
+* **Hardware-Tabelle aufgeräumt:** Redundante Berichtszeile entfernt; kompakte Datenträger-Zusammenfassung nach Typ und Gesamtkapazität (`formatDiskSummary`) mit vollständiger Modellliste im Hinweis beim Überfahren.
+* **Laufzeitschätzungen kalibriert:** Diagnose-Grundzeit in der Oberfläche auf 0 Min. gesenkt, Zeitzuschläge für Dateisystem/DISM/sfc (3 Min.), SMART (2 Min.), Defender (1 Min.) und WinSAT-Benchmark (1 Min.) auf realistische SSD-Messdauern angepasst.
+* **Dashboard-Feinschliff:** HTML-Kopfzeile dynamisch an die Skriptversion gekoppelt, kompakte Matrix-Tabellenzeilen und fixierte Tabellenköpfe (`position: sticky`) beim vertikalen Scrollen.
+
 ## v3.66 (14.10.2026)
 
 * **Dark Mode beim Start:** Win32-Bildlaufleisten (`ScrollBar`) in Inhaltsbereich, Karten, Listen und Protokollfeldern werden über `SetPreferredAppMode` und `ApplyNativeControlThemes` im `OnShown`-Ereignis bereits beim ersten Öffnen der Anwendung fehlerfrei im dunklen Design gerendert.

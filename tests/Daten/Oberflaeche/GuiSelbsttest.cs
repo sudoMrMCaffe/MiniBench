@@ -460,9 +460,9 @@ public static class GuiSelbsttest
     // Profile der Diagnose: Schätzung passt zur Fußleiste (vorher drei verschiedene Zeitangaben)
     static void DiagnoseProfile()
     {
-        Ist(DiagGui.DiagMinutes(new bool[] { true, true, true, true, true, true, true, true }) == 36, "Vollständig 36 Min.");
-        Ist(DiagGui.DiagMinutes(new bool[] { true, true, false, false, false, true, true, false }) == 9, "Schnell 9 Min.");
-        Ist(DiagGui.DiagMinutes(null) == 3, "ohne Prüfungen Grundzeit");
+        Ist(DiagGui.DiagMinutes(new bool[] { true, true, true, true, true, true, true, true }) == 14, "Vollständig 14 Min.");
+        Ist(DiagGui.DiagMinutes(new bool[] { true, true, false, false, false, true, true, false }) == 6, "Schnell 6 Min.");
+        Ist(DiagGui.DiagMinutes(null) == 0, "ohne Prüfungen Grundzeit");
     }
 
     // ab v3.65: Stufen in der Laufansicht wie die Etiketten der Einstellungsseiten

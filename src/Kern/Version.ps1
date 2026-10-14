@@ -1,2 +1,2 @@
-﻿$ScriptVersion = '3.66'
+﻿$ScriptVersion = '3.67'
 $AppName       = 'Leos Minibench'
