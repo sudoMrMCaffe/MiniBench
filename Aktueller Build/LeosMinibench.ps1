@@ -238,7 +238,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Export
 }
 #endregion
 
-$ScriptVersion = '3.63'
+$ScriptVersion = '3.64'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -5640,7 +5640,8 @@ public partial class DiagGui : Form
 #pragma warning restore 414
 
     // Diagnose
-    RadioButton rbSchnell, rbVoll, rbCustom, rbTest, rbCrash;
+    RadioButton rbSchnell, rbVoll, rbCustom;
+    Label lblDiagProfil;
     string[] diagKeys = new string[] { "Ereignisse", "Updatesuche", "Integritaet", "Defender", "SmartLang", "Netzwerk", "RamTest", "Energieanalyse" };
     string[] diagText = new string[] {
         "Ereignisprotokolle, Bluescreens, Absturzabbilder, Zuverlässigkeit",
@@ -5685,20 +5686,14 @@ public partial class DiagGui : Form
     List<string> gpuSelValues = new List<string>();
     // Schneller Modus (ab v2.6): parallele Prüfungen der Diagnose
     CheckBox chkFast;
-    LinkLabel diagToggle;
-    Label diagSummaryLbl;
+    GroupHeader diagToggle;
     FlowLayoutPanel diagBody;
     Label lblPar;
     Dictionary<string, string[]> parJobs = new Dictionary<string, string[]>();
     List<string> parOrder = new List<string>();
     // Benchmark
     string[] benchKeys = new string[] { "CPU", "RAM", "GPU", "Disk", "WinSAT" };
-    string[] benchText = new string[] {
-        "Prozessor: Einzel- und Mehrkern, AES-256, SHA-256, Kompression",
-        "Arbeitsspeicher: Lesen, Schreiben, Kopieren, Latenz",
-        "Grafik: Rendertest je Grafikeinheit (Bilder/s, 1-%-Low, Punktzahl), Speicherdurchsatz, Desktop-Komposition, PCIe",
-        "Laufwerke: sequentiell und 4K (Auswahl unten)",
-        "WinSAT-Leistungsbewertung von Windows (2 bis 5 Minuten)" };
+    string[] benchText = new string[] { "Prozessor", "Arbeitsspeicher", "Grafik", "Laufwerke", "WinSAT-Leistungsbewertung" };
     CheckBox[] benchChk;
     CheckedListBox clbDisks, clbCompare;
     List<string> diskNums = new List<string>();
@@ -5769,15 +5764,18 @@ public partial class DiagGui : Form
     List<ContractStep> steps = new List<ContractStep>();
     string[] repRisk = new string[0], repGroup = new string[0];
     bool[] repDefault = new bool[0], repUsual = new bool[0];
-    Dictionary<string, Label> repCatCount = new Dictionary<string, Label>();
-    Dictionary<string, FlowLayoutPanel> repCatBody = new Dictionary<string, FlowLayoutPanel>();
-    Dictionary<string, LinkLabel> repCatToggle = new Dictionary<string, LinkLabel>();
+    string[] repRestart = new string[0];
+    Dictionary<string, GroupHeader> repCatCount = new Dictionary<string, GroupHeader>();
+    Dictionary<string, Control> repCatBody = new Dictionary<string, Control>();
+    Dictionary<string, GroupHeader> repCatToggle = new Dictionary<string, GroupHeader>();
     string changeDir = "";
     List<ChangeEntry> changes = new List<ChangeEntry>();
     ListView lvChg;
     Button btnUndo;
     // Fuß
     Label lblSel;
+    LinkLabel lnkAblage;
+    Action footLayout = delegate { };
     CheckBox chkAnon;
     Button btnStart;
     // ab v2.7: Datenpflege beim Start (vom Skript gesetzt) und Schaltfläche Aufräumen auf der Seite Vergleichsdatenbank
@@ -5854,6 +5852,21 @@ public partial class DiagGui : Form
         l.Font = new Font(bold ? "Segoe UI Semibold" : "Segoe UI", size); return l;
     }
 
+    // Ablage kurz: die letzten zwei Ordner des Datenordners ("LMB\Minibench-Daten"), der volle Pfad steht im Hinweis
+    public static string AblageKurz(string dir)
+    {
+        string d = (dir ?? "").TrimEnd('\\', '/');
+        if (d.Length == 0) return "Ablage: kein Datenordner";
+        string[] parts = d.Split(new char[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries);
+        string kurz = parts.Length >= 2 ? parts[parts.Length - 2] + "\\" + parts[parts.Length - 1] : d;
+        return "Ablage: " + (parts.Length > 2 ? "...\\" : "") + kurz;
+    }
+
+    static Label SideHead(string text)
+    {
+        Label l = Lbl(text.ToUpperInvariant(), 8.5f, true, UI.Muted); return l;
+    }
+
     static string OsName()
     {
         try
@@ -5894,40 +5907,30 @@ public partial class DiagGui : Form
         int startW = Math.Min(UI.S(1320), (int)(workArea.Width * 0.96));
         int startH = Math.Min(UI.S(860), (int)(workArea.Height * 0.95));
         ClientSize = new Size(startW, startH);
-        MinimumSize = new Size(UI.S(880), UI.S(560));
+        // ab v3.64 Mindestgröße, bei der jede Seite ohne waagerechte Bildlaufleiste auskommt: Seitenleiste 246, Ränder 90,
+        // Gruppenbreite 780 und senkrechte Bildlaufleiste; höchstens 60 % der Arbeitsfläche, damit das Fenster bei hoher
+        // Skalierung oder kleinem Bildschirm verkleinerbar bleibt (dann mit waagerechter Bildlaufleiste)
+        MinimumSize = new Size(Math.Max(640, Math.Min(UI.S(1160), (int)(workArea.Width * 0.6))), Math.Min(UI.S(600), workArea.Height));
         try { Icon ic = AppSymbol.Get(); if (ic != null) Icon = ic; else Icon = Icon.ExtractAssociatedIcon(psExe); } catch { }
         try { int round = DWMWCP_ROUND; DwmSetWindowAttribute(Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int)); } catch { }
 
-        head = new Panel(); head.Dock = DockStyle.Top; head.Height = UI.S(74); head.BackColor = UI.Header;
-        Label t1 = Lbl("Leos Minibench", 18f, true, Color.White); t1.Location = new Point(UI.S(76), UI.S(10));
-        Label t2 = Lbl(Environment.MachineName + "   ·   " + OsName() + "   ·   Version " + this.version, 9.75f, false, Color.FromArgb(170, 182, 200)); t2.Location = new Point(UI.S(78), UI.S(44));
-        PictureBox logo = new PictureBox(); logo.Size = new Size(UI.S(48), UI.S(48)); logo.Location = new Point(UI.S(18), UI.S(13)); logo.SizeMode = PictureBoxSizeMode.Zoom; logo.BackColor = Color.Transparent;
-        try { logo.Image = AppSymbol.Image(UI.S(48)); } catch { }
+        // ab v3.64: flachere Kopfzeile (56 statt 74 px), Version nur noch in der Titelleiste und auf der Seite Info,
+        // rechts Symbolknöpfe für Farbschema und Info statt Emoji-Text und Verweis
+        head = new Panel(); head.Dock = DockStyle.Top; head.Height = UI.S(56); head.BackColor = UI.Header;
+        PictureBox logo = new PictureBox(); logo.Size = new Size(UI.S(36), UI.S(36)); logo.Location = new Point(UI.S(18), UI.S(10)); logo.SizeMode = PictureBoxSizeMode.Zoom; logo.BackColor = Color.Transparent;
+        try { logo.Image = AppSymbol.Image(UI.S(36)); } catch { }
+        Label t1 = Lbl("Leos Minibench", 13.5f, true, Color.White); t1.Location = new Point(UI.S(64), UI.S(6));
+        Label t2 = Lbl(Environment.MachineName + "   ·   " + OsName(), 8.75f, false, Color.FromArgb(170, 182, 200)); t2.Location = new Point(UI.S(65), UI.S(31));
         head.Controls.Add(logo); head.Controls.Add(t1); head.Controls.Add(t2);
-        // ab v2.7: Versionshistorie oben rechts
-        FlowLayoutPanel hr = new FlowLayoutPanel(); hr.Dock = DockStyle.Right; hr.Width = UI.S(320); hr.FlowDirection = FlowDirection.RightToLeft; hr.BackColor = Color.Transparent; hr.Padding = new Padding(0, UI.S(24), UI.S(20), 0);
-        LinkLabel lnkVer = new LinkLabel(); lnkVer.Text = "Versionshistorie"; lnkVer.AutoSize = true; lnkVer.Font = new Font("Segoe UI", 9.75f);
-        lnkVer.LinkColor = Color.FromArgb(147, 197, 253); lnkVer.ActiveLinkColor = Color.White; lnkVer.VisitedLinkColor = Color.FromArgb(147, 197, 253); lnkVer.BackColor = Color.Transparent;
-        lnkVer.LinkClicked += delegate { if (setupView != null && setupView.Visible && versionPage >= 0) ShowPage(versionPage); };
-        Tip(lnkVer, "Was sich von Version 1.0 bis " + this.version + " geändert hat.");
-        hr.Controls.Add(lnkVer);
-
-        // ab v3.31: Theme-Umschalter (Dark Mode)
-        btnThemeToggle = new Button();
-        btnThemeToggle.Text = UI.IsDark ? "☀️ Hell" : "🌙 Dunkel";
-        btnThemeToggle.FlatStyle = FlatStyle.Flat;
-        btnThemeToggle.FlatAppearance.BorderSize = 0;
-        btnThemeToggle.BackColor = UI.IsDark ? Color.FromArgb(38, 44, 54) : Color.FromArgb(40, 52, 72);
-        btnThemeToggle.ForeColor = Color.White;
-        btnThemeToggle.Font = new Font("Segoe UI", 8.75f);
-        btnThemeToggle.AutoSize = true;
-        btnThemeToggle.Margin = new Padding(0, 0, UI.S(16), 0);
-        btnThemeToggle.Padding = new Padding(UI.S(8), UI.S(2), UI.S(8), UI.S(2));
-        btnThemeToggle.Cursor = Cursors.Hand;
+        FlowLayoutPanel hr = new FlowLayoutPanel(); hr.Dock = DockStyle.Right; hr.AutoSize = true; hr.FlowDirection = FlowDirection.RightToLeft; hr.WrapContents = false; hr.BackColor = Color.Transparent; hr.Padding = new Padding(0, UI.S(12), UI.S(14), 0);
+        Button btnInfo = HeadButton(UI.IcoInfo);
+        btnInfo.Click += delegate { if (setupView != null && setupView.Visible && versionPage >= 0) ShowPage(versionPage); };
+        Tip(btnInfo, "Info und Versionshistorie: was sich von Version 1.0 bis " + this.version + " geändert hat.");
+        hr.Controls.Add(btnInfo);
+        btnThemeToggle = HeadButton(UI.IsDark ? UI.IcoSonne : UI.IcoMond);
         btnThemeToggle.Click += delegate { ToggleTheme(); };
-        Tip(btnThemeToggle, "Wechselt zwischen hellem und dunklem Erscheinungsbild (Dark Mode).");
+        Tip(btnThemeToggle, UI.IsDark ? "Zu hellem Farbschema wechseln." : "Zu dunklem Farbschema wechseln.");
         hr.Controls.Add(btnThemeToggle);
-
         head.Controls.Add(hr);
 
         body = new Panel(); body.Dock = DockStyle.Fill; body.Padding = new Padding(UI.S(20), UI.S(16), UI.S(20), UI.S(14)); body.BackColor = UI.Bg;
@@ -6006,6 +6009,18 @@ public partial class DiagGui : Form
         catch { }
     }
 
+    static Color HeadButtonBack() { return UI.IsDark ? Color.FromArgb(32, 35, 40) : Color.FromArgb(34, 44, 62); }
+    static Color HeadButtonHover() { return UI.IsDark ? Color.FromArgb(48, 52, 60) : Color.FromArgb(52, 64, 86); }
+
+    // Symbolknopf der Kopfzeile (Farbschema, Info)
+    static Button HeadButton(string glyph)
+    {
+        Button b = new Button(); b.Text = glyph; b.Font = UI.SymbolFont(11f); b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderSize = 0;
+        b.BackColor = HeadButtonBack(); b.ForeColor = Color.White; b.FlatAppearance.MouseOverBackColor = HeadButtonHover();
+        b.Size = new Size(UI.S(34), UI.S(32)); b.Margin = new Padding(UI.S(6), 0, 0, 0); b.Cursor = Cursors.Hand; b.UseVisualStyleBackColor = false;
+        return b;
+    }
+
     string SettingsFile { get { return dataDir.Length > 0 ? Path.Combine(dataDir, "Einstellungen.json") : ""; } }
 
     bool DetectWindowsDarkTheme()
@@ -6075,9 +6090,8 @@ public partial class DiagGui : Form
         ApplyNativeControlThemes();
         if (btnThemeToggle != null)
         {
-            btnThemeToggle.Text = dark ? "☀️ Hell" : "🌙 Dunkel";
-            btnThemeToggle.BackColor = dark ? Color.FromArgb(38, 44, 54) : Color.FromArgb(40, 52, 72);
-            Tip(btnThemeToggle, dark ? "Zu hellem Design wechseln." : "Zu dunklem Design wechseln (Dark Mode).");
+            btnThemeToggle.Text = dark ? UI.IcoSonne : UI.IcoMond;
+            Tip(btnThemeToggle, dark ? "Zu hellem Farbschema wechseln." : "Zu dunklem Farbschema wechseln.");
         }
 
         SuspendLayout();
@@ -6087,6 +6101,9 @@ public partial class DiagGui : Form
             ForeColor = UI.Text;
             ApplyThemeRecursive(this);
             ApplyDiagProfile();
+            // ab v3.64: Warnfelder und gedämpfte Beschriftungen tragen eigene Farben
+            foreach (Label w in new Label[] { lblAkku, lblRestoreWarn }) if (w != null) { w.ForeColor = UI.Warn; w.BackColor = UI.WarnBg; }
+            UpdateLoadEnabled(); UpdateRefState();
         }
         finally
         {
@@ -6122,8 +6139,13 @@ public partial class DiagGui : Form
             c.BackColor = UI.Panel;
             c.Invalidate();
         }
-        else if (c is ToggleSwitch)
+        else if (c is ToggleSwitch || c is Badge)
         {
+            c.Invalidate();
+        }
+        else if (c is GroupHeader)
+        {
+            c.BackColor = UI.Panel;
             c.Invalidate();
         }
         else if (c is FlatBar)
@@ -6178,6 +6200,10 @@ public partial class DiagGui : Form
             if (c.IsHandleCreated) try { SetWindowTheme(c.Handle, UI.IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { }
             c.Invalidate();
         }
+        else if (c is RadioButton && ((RadioButton)c).Appearance == Appearance.Button)
+        {
+            StyleSegment((RadioButton)c);
+        }
         else if (c is CheckBox || c is RadioButton)
         {
             c.ForeColor = c.Enabled ? UI.Text : UI.Muted;
@@ -6199,15 +6225,19 @@ public partial class DiagGui : Form
         else if (c is Button)
         {
             Button btn = (Button)c;
-            if (btn == btnThemeToggle)
+            if (btn.Parent != null && btn.Parent.Parent == head)
             {
-                btn.BackColor = UI.IsDark ? Color.FromArgb(38, 44, 54) : Color.FromArgb(40, 52, 72);
+                btn.BackColor = HeadButtonBack();
                 btn.ForeColor = Color.White;
+                btn.FlatAppearance.MouseOverBackColor = HeadButtonHover();
             }
-            else if (btn == btnHtml || btn == btnStart || (btnUndo != null && btn == btnUndo) || (btnDashboard != null && btn == btnDashboard) || (btn.Font.Name.Contains("Semibold") && btn.ForeColor == Color.White && btn.BackColor != UI.Panel))
+            else if (btn is PrimaryButton || btn == btnHtml || btn == btnStart || (btnUndo != null && btn == btnUndo) || (btnDashboard != null && btn == btnDashboard))
             {
                 btn.BackColor = UI.Accent;
-                btn.ForeColor = Color.White;
+                btn.ForeColor = UI.OnAccent;
+                // Symbol im Knopf (Tag = Zeichen der Symbolschrift) in der neuen Schriftfarbe neu zeichnen
+                string glyph = btn.Tag as string;
+                if (btn.Image != null && !String.IsNullOrEmpty(glyph)) { Image old = btn.Image; btn.Image = UI.GlyphImage(glyph, UI.OnAccent, old.Width); old.Dispose(); }
                 btn.FlatAppearance.MouseOverBackColor = UI.AccentHover;
                 btn.FlatAppearance.MouseDownBackColor = UI.AccentActive;
             }
@@ -6224,7 +6254,8 @@ public partial class DiagGui : Form
         else if (c is Label)
         {
             Label lbl = (Label)c;
-            if (lbl.Parent != head && lbl.ForeColor != Color.White)
+            if ((lbl.Tag as string) == "accent") lbl.ForeColor = UI.Accent;
+            else if (lbl.Parent != head && lbl.ForeColor != Color.White)
             {
                 Color fc = lbl.ForeColor;
                 if (fc == Color.FromArgb(28, 29, 31) || fc == Color.FromArgb(245, 246, 247) || fc == Color.Black || fc == SystemColors.ControlText || fc.ToArgb() == Color.Black.ToArgb())
@@ -6312,16 +6343,17 @@ public partial class DiagGui : Form
         List<ContractStep> rep = steps.FindAll(delegate(ContractStep c) { return (c.Module == "Reparatur" || c.Module == "Wartung") && c.Typ == "Massnahme"; });
         if (rep.Count > 0)
         {
-            repKeys = new string[rep.Count]; repText = new string[rep.Count]; repMinutes = new int[rep.Count];
+            repKeys = new string[rep.Count]; repText = new string[rep.Count]; repMinutes = new int[rep.Count]; repRestart = new string[rep.Count];
             repRisk = new string[rep.Count]; repGroup = new string[rep.Count]; repDefault = new bool[rep.Count]; repUsual = new bool[rep.Count];
             for (int i = 0; i < rep.Count; i++)
             {
                 repKeys[i] = rep[i].Key; repText[i] = rep[i].Text; repMinutes[i] = rep[i].Minuten;
-                repRisk[i] = rep[i].Risiko; repGroup[i] = rep[i].Gruppe; repDefault[i] = rep[i].Vorauswahl; repUsual[i] = rep[i].Ueblich;
+                repRestart[i] = rep[i].Neustart; repRisk[i] = rep[i].Risiko; repGroup[i] = rep[i].Gruppe; repDefault[i] = rep[i].Vorauswahl; repUsual[i] = rep[i].Ueblich;
             }
         }
         else
         {
+            repRestart = new string[repKeys.Length]; for (int i = 0; i < repKeys.Length; i++) repRestart[i] = "";
             repRisk = new string[repKeys.Length]; repGroup = new string[repKeys.Length]; repDefault = new bool[repKeys.Length]; repUsual = new bool[repKeys.Length];
             for (int i = 0; i < repKeys.Length; i++) { repRisk[i] = ""; repGroup[i] = ""; repDefault[i] = i < 2; repUsual[i] = i < 2 || repKeys[i] == "Dateisystem" || repKeys[i] == "Temp" || repKeys[i] == "WMI"; }
         }
@@ -6342,7 +6374,8 @@ public partial class DiagGui : Form
 
         left = new FlowLayoutPanel(); left.Dock = DockStyle.Left; left.Width = UI.S(246); left.FlowDirection = FlowDirection.TopDown; left.WrapContents = false;
         left.BackColor = UI.Bg; left.Padding = new Padding(0, 0, UI.S(14), 0); left.AutoScroll = true;
-        Label lm = Lbl("Module", 12f, true, UI.Text); lm.Margin = new Padding(UI.S(2), 0, 0, UI.S(10)); left.Controls.Add(lm);
+        // ab v3.64 zwei Gruppen: ausführbare Module (mit Haken) und Werkzeugseiten (ohne Haken)
+        Label lm = SideHead("Ablauf"); lm.Margin = new Padding(UI.S(4), 0, 0, UI.S(6)); left.Controls.Add(lm);
         nav.Add(ModNav("Diagnose", "Diagnose", "Inventar, Prüfungen, Ereignisse", UI.IcoDiag));
         nav.Add(ModNav("Benchmark", "Benchmark", "Wählbare Messungen mit Vergleich", UI.IcoCpu));
         nav.Add(ModNav("Lasttest", "Lasttest", "Komponenten und Dauer wählbar", UI.IcoFlame));
@@ -6351,57 +6384,65 @@ public partial class DiagGui : Form
         navTools = ModNav("Tools", "Tools", "Portable Werkzeuge und Schnellstarter", UI.IcoTools); navTools.HasCheck = false; nav.Add(navTools);
         navSens = ModNav("Sensoren", "Sensoren live", "Temperatur, Takt, Lüfter, Leistung", UI.IcoSens); navSens.HasCheck = false; nav.Add(navSens);
         navDb = new NavItem("Vergleichsdatenbank", db.Count + " gespeicherte Systeme", UI.IcoDb); navDb.HasCheck = false; Tip(navDb, "Vergleichsdatenbank aller gespeicherten Systeme verwalten und vergleichen."); nav.Add(navDb);
-        navChg = new NavItem("Änderungen", "Protokoll und Rückgängig", UI.IcoChg); navChg.HasCheck = false; Tip(navChg, "Änderungsprotokoll und Rückgängigmachung von Systemeinstellungen."); nav.Add(navChg);
+        navChg = new NavItem("Systemänderungen", "Protokoll und Rückgängig", UI.IcoChg); navChg.HasCheck = false; Tip(navChg, "Änderungsprotokoll: was Leos Minibench an diesem PC verändert hat, mit Rückgängig."); nav.Add(navChg);
         for (int i = 0; i < nav.Count; i++)
         {
             int idx = i;
             nav[i].Picked += delegate { ShowPage(idx); };
             nav[i].CheckedChanged += delegate { UpdateSummary(); };
+            if (nav[i] == navTools) { Label lw = SideHead("Werkzeuge"); lw.Margin = new Padding(UI.S(4), UI.S(UI.Abstand4), 0, UI.S(6)); left.Controls.Add(lw); }
             left.Controls.Add(nav[i]);
         }
         nav[0].Checked = true;
         // ab v2.8 acht Einträge: bei kleinem Fenster mit senkrechter Bildlaufleiste schmaler statt waagerecht zu scrollen
         left.Layout += delegate { int w = left.ClientSize.Width - left.Padding.Horizontal - 2; if (w > UI.S(150)) foreach (NavItem n in nav) if (n.Width != w) n.Width = w; };
 
-        content = new Panel(); content.Dock = DockStyle.Fill; content.BackColor = UI.Panel; content.Padding = new Padding(UI.S(32), UI.S(22), UI.S(28), UI.S(20)); content.AutoScroll = true;
+        content = new Panel(); content.Dock = DockStyle.Fill; content.BackColor = UI.Panel; content.Padding = new Padding(UI.S(UI.Seitenrand), UI.S(UI.Seitenrand), UI.S(UI.Seitenrand), UI.S(20)); content.AutoScroll = true;
         contentHost = new Panel(); contentHost.Dock = DockStyle.Fill; contentHost.BackColor = UI.Line; contentHost.Padding = new Padding(1);
         contentHost.Controls.Add(content);
 
         pages.Add(BuildDiagPage()); pages.Add(BuildBenchPage()); pages.Add(BuildLoadPage()); pages.Add(BuildRepairPage()); pages.Add(BuildOptPage()); pages.Add(BuildToolsPage()); pages.Add(BuildSensorPage()); pages.Add(BuildDbPage()); pages.Add(BuildChangePage()); versionPage = pages.Count; pages.Add(BuildVersionPage());
-        foreach (Control c in pages) { c.Visible = false; content.Controls.Add(c); }
+        // ab v3.64 einheitlicher Seitenrand: Seiten ohne Dock stehen an der Position des Innenabstands (vorher bei 0,0,
+        // dort wirkte der Innenabstand des Bildlaufbereichs nicht und der Titel klebte am Rahmen)
+        foreach (Control c in pages) { c.Visible = false; if (c.Dock == DockStyle.None) c.Location = new Point(UI.S(UI.Seitenrand), UI.S(UI.Seitenrand)); content.Controls.Add(c); }
 
-        TableLayoutPanel foot = new TableLayoutPanel(); foot.Dock = DockStyle.Bottom; foot.Height = UI.S(72); foot.ColumnCount = 2; foot.BackColor = UI.Bg; foot.Padding = new Padding(0, UI.S(8), 0, 0);
+        // ab v3.64 Fußleiste in zwei Zeilen: oben Module in Ablaufreihenfolge mit Gesamtschätzung, darunter Voreinstellung,
+        // Ablage und KI-Datei; der Startknopf steht allein rechts und sagt, was er startet
+        TableLayoutPanel foot = new TableLayoutPanel(); foot.Dock = DockStyle.Bottom; foot.Height = UI.S(76); foot.ColumnCount = 2; foot.RowCount = 2; foot.BackColor = UI.Bg; foot.Padding = new Padding(0, UI.S(10), 0, 0);
         foot.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); foot.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        FlowLayoutPanel fl = new FlowLayoutPanel(); fl.FlowDirection = FlowDirection.TopDown; fl.WrapContents = false; fl.AutoSize = true; fl.BackColor = UI.Bg; fl.Dock = DockStyle.Fill;
-        lblSel = Lbl("", 9.5f, true, UI.Text); lblSel.Margin = new Padding(0, 0, 0, UI.S(2)); lblSel.AutoEllipsis = true;
+        foot.RowStyles.Add(new RowStyle(SizeType.AutoSize)); foot.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        lblSel = Lbl("", 10f, true, UI.Text); lblSel.Margin = new Padding(0, 0, 0, UI.S(6)); lblSel.AutoEllipsis = true;
         FlowLayoutPanel fo = new FlowLayoutPanel(); fo.AutoSize = true; fo.WrapContents = false; fo.BackColor = UI.Bg; fo.Margin = new Padding(0);
-        chkAnon = Chk("Persönliche Daten in der KI-Datei unkenntlich machen", true); chkAnon.Margin = new Padding(0, UI.S(2), UI.S(16), 0);
-        Label ld = Lbl("Ablage: " + (this.dataDir.Length > 0 ? this.dataDir : "(kein Datenordner)"), 9f, false, UI.Muted); ld.Margin = new Padding(0, UI.S(4), 0, 0); ld.AutoEllipsis = true;
-        fo.Controls.Add(chkAnon); fo.Controls.Add(ld);
-        fl.Controls.Add(lblSel); fl.Controls.Add(fo);
-        btnStart = UI.Primary("Start"); btnStart.Margin = new Padding(UI.S(12), 0, 0, 0);
+        Label lp = Lbl("Voreinstellung", UI.SchriftHinweis, false, UI.Muted); lp.Margin = new Padding(0, UI.S(6), UI.S(6), 0); fo.Controls.Add(lp);
+        cmbPreset = Combo(180, new string[0], 0); cmbPreset.Margin = new Padding(0, UI.S(2), UI.S(4), 0); fo.Controls.Add(cmbPreset);
+        btnPresetSave = UI.Secondary("Speichern ..."); btnPresetSave.Margin = new Padding(0, 0, UI.S(4), 0); fo.Controls.Add(btnPresetSave);
+        btnPresetDel = UI.Secondary("Löschen"); btnPresetDel.Margin = new Padding(0, 0, UI.S(UI.Abstand5), 0); fo.Controls.Add(btnPresetDel);
+        lnkAblage = new LinkLabel(); lnkAblage.AutoSize = true; lnkAblage.Font = new Font("Segoe UI", UI.SchriftHinweis); lnkAblage.LinkColor = UI.Accent; lnkAblage.ActiveLinkColor = UI.AccentHover;
+        lnkAblage.Text = AblageKurz(this.dataDir); lnkAblage.Margin = new Padding(0, UI.S(7), UI.S(UI.Abstand4), 0); lnkAblage.AutoEllipsis = true; lnkAblage.LinkBehavior = LinkBehavior.HoverUnderline;
+        lnkAblage.LinkClicked += delegate { if (this.dataDir.Length > 0) { try { Directory.CreateDirectory(this.dataDir); } catch { } OpenShell(this.dataDir); } };
+        fo.Controls.Add(lnkAblage);
+        chkAnon = Chk("Personenbezogene Daten für die KI-Auswertung entfernen", true); chkAnon.Margin = new Padding(0, UI.S(5), 0, 0);
+        fo.Controls.Add(chkAnon);
+        btnStart = UI.Primary("Start"); btnStart.Margin = new Padding(UI.S(UI.Abstand5), 0, 0, 0); btnStart.MinimumSize = new Size(UI.S(150), UI.S(44)); btnStart.Anchor = AnchorStyles.Right;
         btnStart.Click += delegate { StartRun(); };
-        // Voreinstellungen (ab v2.65): gespeicherte Auswahl laden, speichern, löschen
-        FlowLayoutPanel fr = new FlowLayoutPanel(); fr.AutoSize = true; fr.WrapContents = false; fr.BackColor = UI.Bg; fr.Anchor = AnchorStyles.Right; fr.Margin = new Padding(0, UI.S(4), 0, 0);
-        Label lp = Lbl("Voreinstellung", 9f, false, UI.Muted); lp.Margin = new Padding(0, UI.S(6), UI.S(6), 0); fr.Controls.Add(lp);
-        cmbPreset = Combo(170, new string[0], 0); cmbPreset.Margin = new Padding(0, UI.S(2), UI.S(6), 0); fr.Controls.Add(cmbPreset);
-        btnPresetSave = UI.Secondary("Speichern ..."); btnPresetSave.Margin = new Padding(0, 0, UI.S(4), 0); fr.Controls.Add(btnPresetSave);
-        btnPresetDel = UI.Secondary("Löschen"); btnPresetDel.Margin = new Padding(0, 0, 0, 0); fr.Controls.Add(btnPresetDel);
-        fr.Controls.Add(btnStart);
         cmbPreset.SelectedIndexChanged += delegate { if (!presetFilling) PresetPicked(); };
         btnPresetSave.Click += delegate { SavePresetDialog(); };
         btnPresetDel.Click += delegate { DeletePreset(); };
-        foot.Controls.Add(fl, 0, 0); foot.Controls.Add(fr, 1, 0);
-        foot.Resize += delegate
+        foot.Controls.Add(lblSel, 0, 0); foot.Controls.Add(fo, 0, 1); foot.Controls.Add(btnStart, 1, 0); foot.SetRowSpan(btnStart, 2);
+        footLayout = delegate
         {
-            int avail = foot.ClientSize.Width - fr.Width - UI.S(20);
-            if (avail > UI.S(80))
-            {
-                lblSel.MaximumSize = new Size(avail, UI.S(22));
-                int availAblage = avail - chkAnon.Width - UI.S(16);
-                ld.MaximumSize = new Size(Math.Max(UI.S(80), availAblage), UI.S(20));
-            }
+            int avail = foot.ClientSize.Width - btnStart.Width - btnStart.Margin.Horizontal - UI.S(8);
+            if (avail <= UI.S(80)) return;
+            lblSel.MaximumSize = new Size(avail, UI.S(24));
+            int rest = avail - lp.Width - lp.Margin.Horizontal - cmbPreset.Width - cmbPreset.Margin.Horizontal - btnPresetSave.Width - btnPresetSave.Margin.Horizontal - btnPresetDel.Width - btnPresetDel.Margin.Horizontal;
+            int anonW = TextRenderer.MeasureText(chkAnon.Text, chkAnon.Font).Width + UI.S(24);
+            // wird es eng, zuerst die Ablage kürzen, dann den Text der KI-Option
+            int ablW = Math.Max(UI.S(60), Math.Min(TextRenderer.MeasureText(lnkAblage.Text, lnkAblage.Font).Width + UI.S(4), rest - anonW - lnkAblage.Margin.Horizontal));
+            lnkAblage.AutoSize = false; lnkAblage.Size = new Size(ablW, UI.S(20));
+            chkAnon.AutoSize = false; chkAnon.Size = new Size(Math.Max(UI.S(60), Math.Min(anonW, rest - ablW - lnkAblage.Margin.Horizontal)), UI.S(22)); chkAnon.AutoEllipsis = true;
         };
+        foot.Resize += delegate { footLayout(); };
+        btnStart.SizeChanged += delegate { footLayout(); };
 
         p.Controls.Add(contentHost); p.Controls.Add(left); p.Controls.Add(foot);
         ShowPage(0);
@@ -6414,9 +6455,9 @@ public partial class DiagGui : Form
     // Erklärt jedes Bedienelement: was es tut, wie lange es dauert und ob es etwas am PC verändert.
     static readonly Dictionary<string, string> diagTips = new Dictionary<string, string> {
         { "Ereignisse", "Liest die Ereignisprotokolle der gewählten Tage: Bluescreens mit Erklärung des Stoppcodes, unerwartete Abschaltungen (Kernel-Power 41), Absturzabbilder, Datenträger- und Hardwarefehler sowie den Zuverlässigkeitsindex von Windows. Nur lesend, etwa 1 Minute." },
-        { "Updatesuche", "Fragt Windows Update nach ausstehenden Updates (bis 3 Minuten). Es wird nichts heruntergeladen oder installiert. Läuft im schnellen Modus nebenher." },
+        { "Updatesuche", "Fragt Windows Update nach ausstehenden Updates (bis 3 Minuten). Es wird nichts heruntergeladen oder installiert. Läuft bei paralleler Ausführung nebenher." },
         { "Integritaet", "Prüft das Dateisystem (Onlinescan), den Komponentenspeicher (DISM ScanHealth) und die Systemdateien (sfc /verifyonly). Nur prüfen, nichts reparieren: Reparaturen bietet das Modul Reparatur. Dauer etwa 10 bis 20 Minuten." },
-        { "Defender", "Startet einen Schnellscan von Microsoft Defender und meldet Funde. Entfällt, wenn ein anderer Virenschutz aktiv ist. Läuft im schnellen Modus nebenher." },
+        { "Defender", "Startet einen Schnellscan von Microsoft Defender und meldet Funde. Entfällt, wenn ein anderer Virenschutz aktiv ist. Läuft bei paralleler Ausführung nebenher." },
         { "SmartLang", "Startet in jedem Laufwerk den erweiterten SMART-Selbsttest (smartctl). SSDs brauchen meist unter 15 Minuten, Festplatten Stunden. Wie lange auf das Ergebnis gewartet wird, steht unten unter SMART-Langtest; der Test läuft im Laufwerk danach weiter." },
         { "Netzwerk", "Prüft Ping zum Router und ins Internet, Namensauflösung (DNS), eine HTTPS-Verbindung und die Download-Geschwindigkeit. Etwa 1 Minute, braucht die Leitung kurz für sich." },
         { "RamTest", "Schreibt Bitmuster in einen Teil des freien Arbeitsspeichers und liest sie zurück (Vollständig: 60 % in 3 Durchläufen, Schnell: 25 % in einem). Findet grobe RAM-Fehler; den ganzen Speicher prüft nur die Windows-Speicherdiagnose oder MemTest86." },
@@ -6424,7 +6465,7 @@ public partial class DiagGui : Form
     static readonly Dictionary<string, string> benchTips = new Dictionary<string, string> {
         { "CPU", "Einzelkern und Mehrkern mit eigener Rechenlast (Punkte), AES-256 und SHA-256 über die Windows-Kryptografie (ein Thread) und ZIP-Kompression auf allen Threads. Dazu der Takt unter Einzel- und Mehrkernlast. Je Messung 5 Sekunden, im Kurzlauf 2." },
         { "RAM", "Lesen, Schreiben und Kopieren auf allen Threads über bis zu 1 GB sowie die Latenz zufälliger Zugriffe über 256 MB. Bewertet wird gegen den theoretischen Wert aus Takt und Kanalzahl." },
-        { "GPU", "WinSAT DWM (Grafikspeicher-Durchsatz, Desktop-Komposition) und der eigene Rendertest mit Direct3D 11 auf jeder gewählten Grafikeinheit (Bilder/s, 1-%-Low, Punktzahl), dazu PCIe-Anbindung und Grafikspeicher." },
+        { "GPU", "WinSAT DWM (Grafikspeicher-Durchsatz, Desktop-Komposition) und der eigene Rendertest mit Direct3D 11 auf jeder gewählten Grafikeinheit (Bilder/s, 1-%-Low, Punktzahl), dazu PCIe-Anbindung und Grafikspeicher. Je Grafikeinheit 6 s Aufwärmen und 20 s Messung ohne VSync; vorher prüft eine kurze Gegenprobe, ob eine Bildratengrenze im Treiber bremst." },
         { "Disk", "Sequentiell Lesen und Schreiben (1-MiB-Blöcke) und 4K zufällig (QD1, 8 Threads, Schreiben), jeweils ohne Windows-Cache. Die Testdatei (1 GB, im Kurzlauf 256 MB) wird danach gelöscht. Welche Laufwerke, steht in der Liste darunter." },
         { "WinSAT", "Vollständige Leistungsbewertung von Windows (winsat formal), 2 bis 5 Minuten. Auf Akku, per Remotedesktop und in virtuellen Maschinen oft nicht möglich." } };
 
@@ -6439,14 +6480,12 @@ public partial class DiagGui : Form
             "Tools: Portable Hilfswerkzeuge wie Revo Uninstaller, MiniTool Partition Wizard, WizTree sowie Windows-Schnellstarter.",
             "Sensoren live: Temperatur, Takt, Lüfter, Spannung und Leistung laufend anzeigen und aufzeichnen. Kein Modul für den Start.",
             "Vergleichsdatenbank: alle gespeicherten Läufe, Vergleich mehrerer Systeme ohne neuen Benchmark, Import älterer Ordner und Aufräumen.",
-            "Änderungen: was Leos Minibench an einem PC verändert hat, mit Vorher-Wert und Rückgängig." };
+            "Systemänderungen: was Leos Minibench an einem PC verändert hat, mit Vorher-Wert und Rückgängig." };
         for (int i = 0; i < nav.Count && i < navTips.Length; i++) Tip(nav[i], navTips[i]);
         // Diagnose
-        Tip(rbVoll, "Alle Prüfungen der Liste. 30 bis 60 Minuten, mit SMART-Langtest länger.");
-        Tip(rbSchnell, "Inventar, Ereignisse, Updatesuche, Netzwerk und ein kurzer RAM-Test (25 % des freien RAM, ein Durchlauf). 5 bis 10 Minuten.");
+        Tip(rbVoll, "Alle Prüfungen der Liste, ca. " + DiagMinutes(diagVoll) + " Min., mit SMART-Langtest länger.");
+        Tip(rbSchnell, "Inventar, Ereignisse, Updatesuche, Netzwerk und ein kurzer RAM-Test (25 % des freien RAM, ein Durchlauf), ca. " + DiagMinutes(diagSchnell) + " Min.");
         Tip(rbCustom, "Die Prüfungen unten frei wählen.");
-        Tip(rbTest, "Prüft in 1 bis 2 Minuten nur, ob das Programm auf diesem PC läuft (Ereignisse der letzten 3 Tage, kleiner RAM-Test). Für die Fehlersuche am Programm, keine Diagnose. Solche Läufe räumt die Datenpflege ins Archiv.");
-        Tip(rbCrash, "Wertet nur den letzten unterbrochenen Lauf und die Ereignisprotokolle aus: Woran ist der PC zuletzt abgestürzt? Ohne weitere Prüfungen.");
         Tip(chkFast, "Lesende Prüfungen ohne Messcharakter (Updatesuche, Defender, Energieanalyse, Start des SMART-Langtests) laufen nebenher. Messungen wie RAM-Test, Netzwerk, Benchmark und Lasttest warten immer, bis alles andere fertig ist.");
         for (int i = 0; diagChk != null && i < diagChk.Length && i < diagKeys.Length; i++) { string t; if (diagTips.TryGetValue(diagKeys[i], out t)) Tip(diagChk[i], t); }
         Tip(chkInstall, "smartctl liefert SMART-Werte und den Langtest. Liegt es im Tools-Ordner des Datenordners, wird es von dort verwendet, sonst per winget geholt und nach dem Lauf entfernt (oder auf Wunsch behalten). Risikostufe Eingriff.");
@@ -6485,7 +6524,7 @@ public partial class DiagGui : Form
             StringBuilder t = new StringBuilder(repText[i]);
             if (cs != null)
             {
-                t.Append("\r\nRisikostufe: ").Append(ContractStep.RiskLabel(cs.Risiko)).Append(cs.Risiko == "Aendern" ? " (protokolliert, auf der Seite Änderungen rücknehmbar)" : cs.Risiko == "Eingriff" ? " (nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt)" : "");
+                t.Append("\r\nRisikostufe: ").Append(ContractStep.RiskLabel(cs.Risiko)).Append(cs.Risiko == "Aendern" ? " (protokolliert, auf der Seite Systemänderungen rücknehmbar)" : cs.Risiko == "Eingriff" ? " (nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt)" : "");
                 t.Append("\r\nNeustart: ").Append(cs.Neustart == "immer" ? "nötig" : cs.Neustart == "moeglich" ? "kann nötig sein" : "nicht nötig");
                 if (cs.Minuten > 0) t.Append("\r\nDauer: etwa ").Append(cs.Minuten).Append(" Min.");
             }
@@ -6503,8 +6542,8 @@ public partial class DiagGui : Form
         Tip(btnDelete, "Entfernt die angehakten Einträge aus der Datenbank. Die Berichtsordner bleiben erhalten.");
         Tip(btnDbClean, "Datenpflege: verschiebt Lasttests vor v2.67 (andere Last, nicht vergleichbar), abgebrochene Läufe ohne Bericht und kurze Läufe (Funktionstest, Lasttest nach wenigen Sekunden beendet, Lauf ohne Messwert) sowie ungenutzte Teile von smartmontools nach Minibench-Daten\\Archiv. Gelöscht werden nur ältere Übersetzungen im Cache und Reste der Live-Ansicht; das Protokoll steht in Archiv\\Datenpflege.log.");
         Tip(btnUndo, "Nimmt die angehakten Änderungen zurück (nur Stufe Ändern und nur auf dem PC, auf dem sie entstanden sind).");
+        Tip(lnkAblage, "Öffnet den Datenordner mit Berichten, Datenbank, Werkzeugen und Voreinstellungen: " + (dataDir.Length > 0 ? dataDir : "kein Datenordner"));
         Tip(chkAnon, "Ersetzt in der KI-Datei Benutzernamen, Seriennummern, Domäne und ähnliche persönliche Angaben durch Platzhalter, bevor sie an ein KI-Modell geht.");
-        Tip(btnStart, "Startet die angehakten Module in fester Reihenfolge: Diagnose, Benchmark, Lasttest, Wartung, Optimierung.");
         // Optimierung
         Tip(chkOptRestore, "Legt vor der Optimierung einen Systemwiederherstellungspunkt an. Er ist der Weg zurück für Eingriffe wie entfernte Apps und Zusatzfeatures.");
         Tip(btnOptCheck, "Liest für jeden Eintrag, ob er auf diesem PC schon so eingestellt ist (aktiv, teilweise, offen). Verändert nichts, dauert bis zu einer Minute.");
@@ -6538,8 +6577,9 @@ public partial class DiagGui : Form
     {
         curPage = i;
         for (int k = 0; k < nav.Count; k++) nav[k].Selected = (k == i);
-        for (int k = 0; k < pages.Count; k++) pages[k].Visible = (k == i);
         content.AutoScrollPosition = new Point(0, 0);
+        for (int k = 0; k < pages.Count; k++) pages[k].Visible = (k == i);
+        if (i == 2) UpdateLoadExtras();
     }
 
     static CheckBox Chk(string text, bool on)
@@ -6558,25 +6598,61 @@ public partial class DiagGui : Form
         return c;
     }
 
+    // ab v3.64: Seitenkopf mit Titel, rechts daneben der Schalter "beim Start ausführen" (gekoppelt an den Haken der
+    // Seitenleiste; vorher eine zweite Checkbox im Inhalt), darunter die Einleitung
     FlowLayoutPanel Page(string title, string hint, int idx)
     {
         FlowLayoutPanel f = new FlowLayoutPanel(); f.FlowDirection = FlowDirection.TopDown; f.WrapContents = false; f.AutoSize = true; f.BackColor = UI.Panel; f.Location = new Point(0, 0);
-        f.Controls.Add(Lbl(title, 14.5f, true, UI.Text));
-        Label h = Lbl(hint, 9.5f, false, UI.Muted); h.MaximumSize = new Size(UI.S(820), 0); h.Margin = new Padding(0, UI.S(3), 0, UI.S(10)); f.Controls.Add(h);
+        FlowLayoutPanel tr = new FlowLayoutPanel(); tr.AutoSize = true; tr.WrapContents = false; tr.BackColor = UI.Panel; tr.Margin = new Padding(0);
+        Label lt = Lbl(title, UI.SchriftTitel, true, UI.Text); lt.Margin = new Padding(0, 0, UI.S(UI.Abstand5), 0); tr.Controls.Add(lt);
         if (idx >= 0)
         {
-            CheckBox on = Chk("Dieses Modul beim Start ausführen", nav[idx].Checked);
-            on.Font = new Font("Segoe UI Semibold", 9.75f); on.Margin = new Padding(UI.S(4), 0, 0, UI.S(10));
+            ToggleSwitch on = new ToggleSwitch(); on.Checked = nav[idx].Checked; on.Margin = new Padding(0, UI.S(6), UI.S(4), 0);
+            Label lo = Lbl("beim Start ausführen", UI.SchriftText, false, UI.Text); lo.Margin = new Padding(0, UI.S(8), 0, 0); lo.Cursor = Cursors.Hand;
+            lo.Click += delegate { on.Checked = !on.Checked; };
             on.CheckedChanged += delegate { nav[idx].Checked = on.Checked; };
             nav[idx].CheckedChanged += delegate { if (on.Checked != nav[idx].Checked) on.Checked = nav[idx].Checked; };
-            f.Controls.Add(on);
+            Tip(on, "Schaltet das Modul für den nächsten Start ein oder aus (gleich wie der Haken in der Seitenleiste).");
+            Tip(lo, "Schaltet das Modul für den nächsten Start ein oder aus (gleich wie der Haken in der Seitenleiste).");
+            tr.Controls.Add(on); tr.Controls.Add(lo);
         }
+        f.Controls.Add(tr);
+        Label h = Lbl(hint, UI.SchriftText, false, UI.Muted); h.MaximumSize = new Size(UI.S(UI.Gruppenbreite), 0); h.Margin = new Padding(0, UI.S(UI.Abstand1), 0, UI.S(UI.Abstand2)); f.Controls.Add(h);
         return f;
     }
 
     static Label Section(string text)
     {
-        Label l = Lbl(text, 10.5f, true, UI.Text); l.Margin = new Padding(0, UI.S(14), 0, UI.S(6)); return l;
+        Label l = Lbl(text, UI.SchriftAbschnitt, true, UI.Text); l.Margin = new Padding(0, UI.S(18), 0, UI.S(UI.Abstand2)); return l;
+    }
+
+    // Hinweis unter einem Element: mindestens 9 pt, höchstens Gruppenbreite
+    static Label Hint(string text, int left)
+    {
+        Label l = Lbl(text, UI.SchriftHinweis, false, UI.Muted); l.MaximumSize = new Size(UI.S(UI.Gruppenbreite) - UI.S(left), 0);
+        l.Margin = new Padding(UI.S(left), UI.S(2), 0, UI.S(UI.Abstand1)); return l;
+    }
+
+    // Option mit zwei Zeilen: kurze Bezeichnung, darunter eine kleinere Detailzeile; Etiketten (Risikostufe, Neustart) rechts
+    // daneben. Ein Klick auf die Detailzeile schaltet die Option wie ein Klick auf ihren Text.
+    Control Opt2(ButtonBase c, string detail, params Badge[] badges)
+    {
+        FlowLayoutPanel box = new FlowLayoutPanel(); box.FlowDirection = FlowDirection.TopDown; box.WrapContents = false; box.AutoSize = true; box.BackColor = UI.Panel;
+        box.Margin = new Padding(0, UI.S(2), 0, UI.S(2));
+        FlowLayoutPanel top = new FlowLayoutPanel(); top.AutoSize = true; top.WrapContents = false; top.BackColor = UI.Panel; top.Margin = new Padding(0);
+        c.Margin = new Padding(UI.S(4), UI.S(2), 0, 0);
+        top.Controls.Add(c);
+        if (badges != null) foreach (Badge b in badges) if (b != null && b.Text.Length > 0) { BadgeTip(b); top.Controls.Add(b); }
+        box.Controls.Add(top);
+        if (!String.IsNullOrEmpty(detail))
+        {
+            Label d = Lbl(detail, UI.SchriftHinweis, false, UI.Muted); d.MaximumSize = new Size(UI.S(UI.Gruppenbreite - 24), 0);
+            d.Margin = new Padding(UI.S(24), 0, 0, UI.S(2)); d.Cursor = Cursors.Hand;
+            d.Click += delegate { if (!c.Enabled) return; CheckBox cb = c as CheckBox; RadioButton rb = c as RadioButton; if (cb != null && cb.AutoCheck) cb.Checked = !cb.Checked; else if (rb != null) rb.Checked = true; };
+            c.EnabledChanged += delegate { d.ForeColor = c.Enabled ? UI.Muted : DisabledText(); };
+            box.Controls.Add(d);
+        }
+        return box;
     }
 
     static FlowLayoutPanel Row()
@@ -6591,13 +6667,63 @@ public partial class DiagGui : Form
         return l;
     }
 
+    // ab v3.64: Auswahl als Segmentschalter (RadioButton mit Knopfdarstellung), gemeinsam umschaltbar mit dem Farbschema
+    static void StyleSegment(RadioButton r)
+    {
+        r.Appearance = Appearance.Button; r.FlatStyle = FlatStyle.Flat; r.TextAlign = ContentAlignment.MiddleCenter;
+        r.FlatAppearance.BorderColor = UI.Line; r.FlatAppearance.BorderSize = 1;
+        r.FlatAppearance.CheckedBackColor = UI.AccentSoft;
+        r.FlatAppearance.MouseOverBackColor = UI.IsDark ? Color.FromArgb(45, 48, 52) : Color.FromArgb(243, 244, 246);
+        r.BackColor = UI.Panel; r.ForeColor = r.Checked ? (UI.IsDark ? UI.Accent : UI.AccentDark) : UI.Text;
+        r.Font = new Font(r.Checked ? "Segoe UI Semibold" : "Segoe UI", UI.SchriftText);
+    }
+
+    public static Color DisabledText() { return UI.IsDark ? Color.FromArgb(120, 125, 135) : Color.FromArgb(160, 163, 168); }
+
+    // Text der Vertragszeile in Bezeichnung und Detail teilen: "Titel (Detail)" -> Titel, Detail
+    public static string[] SplitDetail(string text)
+    {
+        string t = (text ?? "").Trim();
+        // ", Neustart nötig" steht seit v3.64 als Etikett daneben
+        if (t.EndsWith(", Neustart nötig")) t = t.Substring(0, t.Length - ", Neustart nötig".Length);
+        int k = t.IndexOf(" (");
+        if (k > 0 && t.EndsWith(")") && t.IndexOf('(', k + 2) < 0) return new string[] { t.Substring(0, k), t.Substring(k + 2, t.Length - k - 3) };
+        return new string[] { t, "" };
+    }
+
+    static Badge RiskBadge(string risiko)
+    {
+        string r = risiko ?? "";
+        if (r.Length == 0 || r == "Lesen") return null;
+        Badge b = new Badge(ContractStep.RiskLabel(r), UI.RiskLevel(r)); b.Tag = "risiko"; return b;
+    }
+
+    static Badge RestartBadge(string neustart)
+    {
+        Badge b = neustart == "immer" ? new Badge("Neustart", "skip") : neustart == "moeglich" ? new Badge("Neustart möglich", "skip") : null;
+        if (b != null) b.Tag = "neustart";
+        return b;
+    }
+
+    // Hinweis eines Etiketts nach seiner Art (Risikostufe, Neustart, verwaltet, Zustand)
+    void BadgeTip(Badge b)
+    {
+        if (b == null) return;
+        string k = b.Tag as string;
+        if (k == "risiko") Tip(b, b.Level == "info" ? "Ändern: wird mit Vorher-Wert protokolliert und lässt sich auf der Seite Systemänderungen zurücknehmen." : "Eingriff: nicht automatisch umkehrbar; der Weg zurück ist der Wiederherstellungspunkt.");
+        else if (k == "neustart") Tip(b, b.Text == "Neustart" ? "Wird erst nach einem Neustart vollständig wirksam." : "Kann einen Neustart brauchen, je nach Zustand des PCs.");
+        else if (k == "verwaltet") Tip(b, "Berührt Gruppenrichtlinien oder zentrale Verwaltung; auf Domänen-PCs nicht in den Vorlagen.");
+        else if (k == "zustand") Tip(b, "Zustand auf diesem PC, ermittelt mit Zustand prüfen oder beim letzten Lauf.");
+    }
+
     static Panel OptionCard(string categoryTitle, string icon, Control[] controls)
     {
         Panel card = new Panel();
         card.BackColor = UI.Panel;
         card.Padding = new Padding(UI.S(14), UI.S(10), UI.S(14), UI.S(10));
-        card.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(8));
-        card.Width = UI.S(840);
+        card.Margin = new Padding(0, UI.S(4), 0, UI.S(UI.Abstand2));
+        // ab v3.64: alle Gruppen einer Seite gleich breit (vorher schrumpfte jede auf ihren Inhalt)
+        card.MinimumSize = new Size(UI.S(UI.Gruppenbreite), 0);
         card.AutoSize = true;
         card.AutoSizeMode = AutoSizeMode.GrowAndShrink;
 
@@ -6610,9 +6736,16 @@ public partial class DiagGui : Form
         inner.Margin = new Padding(0);
         inner.Dock = DockStyle.Fill;
 
-        Label header = Lbl((icon != null && icon.Length > 0 ? icon + "  " : "") + categoryTitle, 9.75f, true, UI.Text);
-        header.Margin = new Padding(0, 0, 0, UI.S(6));
-        inner.Controls.Add(header);
+        // Symbol in der Symbolschrift (vorher in Segoe UI gezeichnet, dort erschien es als Punkt vor dem Titel)
+        FlowLayoutPanel hr = new FlowLayoutPanel(); hr.AutoSize = true; hr.WrapContents = false; hr.BackColor = UI.Panel; hr.Margin = new Padding(0, 0, 0, UI.S(6));
+        if (icon != null && icon.Length > 0)
+        {
+            Label li = new Label(); li.AutoSize = true; li.Text = icon; li.Font = UI.SymbolFont(11f); li.ForeColor = UI.Accent; li.Tag = "accent"; li.BackColor = Color.Transparent; li.Margin = new Padding(0, UI.S(2), UI.S(6), 0);
+            hr.Controls.Add(li);
+        }
+        Label header = Lbl(categoryTitle, UI.SchriftGruppe, true, UI.Text); header.Margin = new Padding(0);
+        hr.Controls.Add(header);
+        inner.Controls.Add(hr);
 
         if (controls != null)
         {
@@ -6636,50 +6769,40 @@ public partial class DiagGui : Form
 
     Control BuildDiagPage()
     {
-        FlowLayoutPanel f = Page("Diagnose", "Liest Hardware, Treiber, Sicherheit und Ereignisprotokolle aus, führt die gewählten Prüfungen durch und bewertet alles in einem Bericht. Prüfungen verändern nichts am System.", 0);
+        FlowLayoutPanel f = Page("Diagnose", "Liest Hardware, Treiber, Sicherheit und Ereignisprotokolle aus, führt die gewählten Prüfungen durch und bewertet alles in einem Bericht. Die Prüfungen verändern nichts am System; gekennzeichnete Optionen nehmen Änderungen vor.", 0);
         if (File.Exists(Path.Combine(cpDir, "laufend.json")))
         {
             Label warn = Lbl("  Der letzte Lauf wurde nicht beendet (Absturz?). Die Absturzanalyse läuft beim nächsten Start automatisch zuerst.  ", 9.75f, true, UI.Crit);
             warn.BackColor = UI.CritBg; warn.Padding = new Padding(UI.S(6)); warn.Margin = new Padding(0, 0, 0, UI.S(8));
             f.Controls.Add(warn);
         }
+        // ab v3.64 drei Profile als Segmentschalter; Funktionstest und Nur Absturzanalyse entfallen in der Oberfläche
+        // (die Absturzanalyse läuft nach einem unterbrochenen Lauf ohnehin automatisch zuerst)
         f.Controls.Add(Section("Umfang"));
-        rbSchnell = new RadioButton(); rbVoll = new RadioButton(); rbCustom = new RadioButton(); rbTest = new RadioButton(); rbCrash = new RadioButton();
-        RadioButton[] rbs = new RadioButton[] { rbVoll, rbSchnell, rbCustom, rbTest, rbCrash };
-        string[] rt = new string[] {
-            "Vollständig (30 bis 60 Minuten, zuzüglich SMART-Langtest)",
-            "Schnell (5 bis 10 Minuten: Inventar, Ereignisse, Netzwerk, kurzer RAM-Test)",
-            "Benutzerdefiniert (Prüfungen unten frei wählen)",
-            "Funktionstest (1 bis 2 Minuten, prüft nur das Skript)",
-            "Nur Absturzanalyse (letzter unterbrochener Lauf und Ereignisprotokolle)" };
+        rbVoll = new RadioButton(); rbSchnell = new RadioButton(); rbCustom = new RadioButton();
+        FlowLayoutPanel seg = new FlowLayoutPanel(); seg.AutoSize = true; seg.WrapContents = false; seg.BackColor = UI.Panel; seg.Margin = new Padding(UI.S(4), 0, 0, UI.S(4));
+        RadioButton[] rbs = new RadioButton[] { rbVoll, rbSchnell, rbCustom };
+        string[] rt = new string[] { "Vollständig", "Schnell", "Benutzerdefiniert" };
         for (int i = 0; i < rbs.Length; i++) {
-            rbs[i].Text = rt[i]; rbs[i].AutoSize = true; rbs[i].ForeColor = UI.Text;
-            rbs[i].Font = new Font("Segoe UI", 9.5f);
-            rbs[i].Margin = new Padding(UI.S(4), UI.S(3), 0, UI.S(3));
+            rbs[i].Text = rt[i]; rbs[i].AutoSize = false; rbs[i].Size = new Size(UI.S(160), UI.S(34)); rbs[i].Margin = new Padding(0, 0, UI.S(6), 0);
+            rbs[i].Cursor = Cursors.Hand; StyleSegment(rbs[i]);
             rbs[i].CheckedChanged += delegate { ApplyDiagProfile(); };
-            f.Controls.Add(rbs[i]);
+            seg.Controls.Add(rbs[i]);
         }
-        chkFast = Chk("Schneller Modus (lesende Prüfungen laufen parallel)", false);
-        chkFast.Margin = new Padding(UI.S(4), UI.S(8), 0, UI.S(2));
-        chkFast.Font = new Font("Segoe UI Semibold", 9.5f);
-        chkFast.CheckedChanged += delegate { UpdateSummary(); }; f.Controls.Add(chkFast);
-        Label fastHint = Lbl("Updatesuche, Defender-Schnellscan, Energieanalyse und SMART-Langtest laufen nebenher. Messungen bleiben exklusiv, damit die Werte vergleichbar sind.", 8.5f, false, UI.Muted);
-        fastHint.MaximumSize = new Size(UI.S(820), 0); fastHint.Margin = new Padding(UI.S(24), 0, 0, UI.S(4)); f.Controls.Add(fastHint);
-        FlowLayoutPanel dh = Row(); dh.Margin = new Padding(UI.S(4), UI.S(10), 0, 0);
-        diagToggle = new LinkLabel(); diagToggle.Text = "▸ Prüfungen"; diagToggle.AutoSize = true;
-        diagToggle.Font = new Font("Segoe UI Semibold", 10.5f); diagToggle.LinkColor = UI.Text;
-        diagToggle.ActiveLinkColor = UI.Accent; diagToggle.LinkBehavior = LinkBehavior.HoverUnderline;
-        diagToggle.Margin = new Padding(0, UI.S(2), UI.S(10), 0);
-        Tip(diagToggle, "Klicken zeigt oder verbirgt die einzelnen Diagnoseprüfungen.");
+        f.Controls.Add(seg);
+        lblDiagProfil = Hint("", 4); f.Controls.Add(lblDiagProfil);
+        chkFast = Chk("Lesende Prüfungen parallel ausführen", false);
+        chkFast.CheckedChanged += delegate { UpdateSummary(); };
+        Control fastBox = Opt2(chkFast, "Updatesuche, Defender-Schnellscan, Energieanalyse und SMART-Langtest laufen nebenher. Messungen bleiben exklusiv, damit die Werte vergleichbar sind.");
+        fastBox.Margin = new Padding(0, UI.S(UI.Abstand2), 0, 0); f.Controls.Add(fastBox);
 
-        diagSummaryLbl = Lbl("", 9f, false, UI.Muted);
-        diagSummaryLbl.Margin = new Padding(0, UI.S(4), UI.S(12), 0);
-        dh.Controls.Add(diagToggle); dh.Controls.Add(diagSummaryLbl);
-        f.Controls.Add(dh);
+        diagToggle = new GroupHeader("Prüfungen"); diagToggle.Margin = new Padding(0, UI.S(UI.Abstand3), 0, 0);
+        Tip(diagToggle, "Klicken zeigt oder verbirgt die einzelnen Diagnoseprüfungen. Wer eine Prüfung ändert, wechselt zum Profil Benutzerdefiniert.");
+        f.Controls.Add(diagToggle);
 
         diagBody = new FlowLayoutPanel(); diagBody.FlowDirection = FlowDirection.TopDown;
         diagBody.WrapContents = false; diagBody.AutoSize = true; diagBody.BackColor = UI.Panel;
-        diagBody.Margin = new Padding(UI.S(16), 0, 0, UI.S(4)); diagBody.Visible = false;
+        diagBody.Margin = new Padding(UI.S(UI.Abstand4), UI.S(UI.Abstand1), 0, UI.S(UI.Abstand1)); diagBody.Visible = false;
 
         diagChk = new CheckBox[diagKeys.Length];
         for (int i = 0; i < diagKeys.Length; i++) {
@@ -6694,119 +6817,135 @@ public partial class DiagGui : Form
             diagChk[i].CheckedChanged += delegate { UpdateSummary(); };
             diagBody.Controls.Add(diagChk[i]);
         }
-        Label cpuHint = Lbl("Die CPU-Stabilität prüft ab v2.7 das Modul Lasttest (Prozessor, ab 2 Minuten): eigener Lastprozess, Rechenfehler, Takt- und Temperaturverlauf und Drosselnachweis.", 8.5f, false, UI.Muted);
-        cpuHint.MaximumSize = new Size(UI.S(820), 0); cpuHint.Margin = new Padding(UI.S(4), UI.S(2), 0, UI.S(4));
-        diagBody.Controls.Add(cpuHint);
+        diagBody.Controls.Add(Hint("Die CPU-Stabilität prüft das Modul Lasttest (Prozessor, ab 2 Min.): eigener Lastprozess, Rechenfehler, Takt- und Temperaturverlauf und Drosselnachweis.", 4));
         f.Controls.Add(diagBody);
+        diagToggle.Toggled += delegate { diagBody.Visible = diagToggle.Expanded; };
 
-        diagToggle.LinkClicked += delegate {
-            diagBody.Visible = !diagBody.Visible;
-            diagToggle.Text = (diagBody.Visible ? "▾ " : "▸ ") + "Prüfungen";
-        };
         f.Controls.Add(Section("Optionen"));
-        chkInstall = Chk("smartmontools bei Bedarf installieren (winget) oder aus dem Datenordner verwenden", true);
+        chkInstall = Chk("smartmontools bei Bedarf installieren oder aus dem Datenordner verwenden", true);
         chkMem = Chk("Windows-Speicherdiagnose beim nächsten Neustart einplanen", false);
-        f.Controls.Add(OptionCard("Zusatzwerkzeuge & Speicherdiagnose", UI.IcoTools, new Control[] { chkInstall, chkMem }));
+        f.Controls.Add(OptionCard("Zusatzwerkzeuge und Speicherdiagnose", UI.IcoTools, new Control[] {
+            Opt2(chkInstall, "Liegt smartctl im Tools-Ordner, wird es von dort verwendet, sonst per winget geholt und nach dem Lauf entfernt.", RiskBadge("Eingriff")),
+            Opt2(chkMem, "Prüft den gesamten Arbeitsspeicher außerhalb von Windows; das Ergebnis liest der nächste Lauf.", RestartBadge("immer")) }));
 
-        FlowLayoutPanel r = Row(); r.Controls.Add(RowLabel("Ereignisse der letzten", 150));
+        FlowLayoutPanel r = Row(); r.Controls.Add(RowLabel("Ereignisse der letzten", 170));
         cmbDays = Combo(110, new string[] { "3 Tage", "7 Tage", "14 Tage", "30 Tage", "60 Tage" }, 2); r.Controls.Add(cmbDays);
-        FlowLayoutPanel rs = Row(); rs.Controls.Add(RowLabel("SMART-Langtest", 150));
+        FlowLayoutPanel rs = Row(); rs.Controls.Add(RowLabel("SMART-Langtest", 170));
         string[] sm = new string[smartMinutes.Length]; for (int i = 0; i < sm.Length; i++) sm[i] = "höchstens " + smartMinutes[i] + " Min. warten";
         cmbSmartMax = Combo(220, sm, 3); cmbSmartMax.SelectedIndexChanged += delegate { UpdateSummary(); }; rs.Controls.Add(cmbSmartMax);
-        Label lsm = Lbl("danach wird der Bericht ohne Ergebnis des Langtests erstellt; der Test läuft im Laufwerk weiter", 8.75f, false, UI.Muted); lsm.Margin = new Padding(0, UI.S(5), 0, 0); rs.Controls.Add(lsm);
-        f.Controls.Add(OptionCard("Prüfzeiträume & Schwellenwerte", UI.IcoDiag, new Control[] { r, rs }));
+        f.Controls.Add(OptionCard("Prüfzeiträume", UI.IcoDiag, new Control[] { r, rs, Hint("Danach entsteht der Bericht ohne Ergebnis des Langtests; der Test läuft im Laufwerk weiter.", 180) }));
         rbVoll.Checked = true;
         return f;
     }
 
+    // Ereignisse, Updatesuche, Integritaet, Defender, SmartLang, Netzwerk, RamTest, Energieanalyse
+    // (CPU-Stabilität ab v2.7 nur noch im Modul Lasttest)
+    static readonly bool[] diagVoll = DiagPreset(true);
+    static readonly bool[] diagSchnell = DiagPreset(false);
+    static bool[] DiagPreset(bool full)
+    {
+        bool[] voll = new bool[] { true, true, true, true, true, true, true, true };
+        bool[] schnell = new bool[] { true, true, false, false, false, true, true, false };
+        return full ? voll : schnell;
+    }
+
+    // Geschätzte Minuten der Diagnose ohne Wartezeit auf den SMART-Langtest (Grundlage für Profiltext und Fußleiste)
+    public static int DiagMinutes(bool[] sel)
+    {
+        int t = 3;
+        int[] add = new int[] { 1, 2, 12, 3, 10, 1, 2, 2 };
+        for (int i = 0; sel != null && i < sel.Length && i < add.Length; i++) if (sel[i]) t += add[i];
+        return t;
+    }
+
     void UpdateDiagSummary()
     {
-        if (diagSummaryLbl == null || diagChk == null) return;
+        if (diagToggle == null || diagChk == null) return;
         int sel = 0;
-        for (int i = 0; i < diagChk.Length; i++)
+        bool[] cur = new bool[diagChk.Length];
+        for (int i = 0; i < diagChk.Length; i++) { cur[i] = diagChk[i] != null && diagChk[i].Checked; if (cur[i]) sel++; }
+        string pName = rbVoll != null && rbVoll.Checked ? "Vollständig" : rbSchnell != null && rbSchnell.Checked ? "Schnell" : "Benutzerdefiniert";
+        diagToggle.CountText = sel + " von " + diagChk.Length + " gewählt, Profil " + pName;
+        if (lblDiagProfil != null)
         {
-            if (diagChk[i] != null && diagChk[i].Checked) sel++;
+            string smart = cur.Length > 4 && cur[4] ? ", dazu das Warten auf den SMART-Langtest (höchstens " + SmartMax() + " Min.)" : "";
+            string t = rbVoll != null && rbVoll.Checked ? "Alle " + diagChk.Length + " Prüfungen, ca. " + DiagMinutes(diagVoll) + " Min." + smart
+                : rbSchnell != null && rbSchnell.Checked ? "Inventar, Ereignisse, Updatesuche, Netzwerk und kurzer RAM-Test (25 % des freien RAM), ca. " + DiagMinutes(diagSchnell) + " Min."
+                : "Prüfungen unten frei wählen, derzeit " + sel + " gewählt, ca. " + DiagMinutes(cur) + " Min." + smart;
+            SetText(lblDiagProfil, t);
         }
-        string pName = rbVoll != null && rbVoll.Checked ? "Vollständig" :
-                       rbSchnell != null && rbSchnell.Checked ? "Schnell" :
-                       rbCustom != null && rbCustom.Checked ? "Benutzerdefiniert" :
-                       rbTest != null && rbTest.Checked ? "Funktionstest" :
-                       rbCrash != null && rbCrash.Checked ? "Nur Absturzanalyse" : "";
-        diagSummaryLbl.Text = sel + " von " + diagChk.Length + " Prüfungen gewählt" + (pName.Length > 0 ? " (Profil " + pName + ")" : "");
     }
 
     void ApplyDiagProfile()
     {
         if (diagChk == null) return;
-        bool custom = rbCustom.Checked, crash = rbCrash.Checked;
+        bool custom = rbCustom.Checked;
         if (custom && diagBody != null)
         {
             diagBody.Visible = true;
-            if (diagToggle != null) diagToggle.Text = "▾ Prüfungen";
+            if (diagToggle != null) diagToggle.Expanded = true;
         }
-        // Ereignisse, Updatesuche, Integritaet, Defender, SmartLang, Netzwerk, RamTest, Energieanalyse
-        // (CPU-Stabilität ab v2.7 nur noch im Modul Lasttest)
-        bool[] voll = new bool[] { true, true, true, true, true, true, true, true };
-        bool[] schnell = new bool[] { true, true, false, false, false, true, true, false };
-        bool[] test = new bool[] { true, false, false, false, false, true, true, false };
-        bool[] none = new bool[] { true, false, false, false, false, false, false, false };
-        bool[] pick = rbVoll.Checked ? voll : rbSchnell.Checked ? schnell : rbTest.Checked ? test : crash ? none : null;
+        bool[] pick = rbVoll.Checked ? diagVoll : rbSchnell.Checked ? diagSchnell : null;
         for (int i = 0; i < diagChk.Length; i++)
         {
             if (pick != null) diagChk[i].Checked = pick[i];
             diagChk[i].AutoCheck = custom;
             diagChk[i].ForeColor = custom ? UI.Text : (UI.IsDark ? Color.FromArgb(195, 200, 210) : Color.FromArgb(80, 85, 95));
         }
-        chkInstall.Enabled = !crash && !rbTest.Checked;
-        chkInstall.ForeColor = chkInstall.Enabled ? UI.Text : (UI.IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168));
-        chkMem.Enabled = !crash && !rbTest.Checked;
-        chkMem.ForeColor = chkMem.Enabled ? UI.Text : (UI.IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168));
-        if (chkFast != null) {
-            chkFast.Enabled = !crash && !rbTest.Checked;
-            chkFast.ForeColor = chkFast.Enabled ? UI.Text : (UI.IsDark ? Color.FromArgb(140, 145, 155) : Color.FromArgb(160, 163, 168));
-        }
-        cmbDays.Enabled = !rbTest.Checked;
-        if (cmbSmartMax != null) cmbSmartMax.Enabled = !crash && !rbTest.Checked;
+        foreach (RadioButton r in new RadioButton[] { rbVoll, rbSchnell, rbCustom }) if (r != null) StyleSegment(r);
         UpdateDiagSummary();
         UpdateSummary();
     }
 
+    // ab v3.64: Messungen mit kurzer Bezeichnung und Detailzeile, Laufwerke mit Ziel und freiem Platz, Referenz-Zustand neben der Liste
+    static readonly string[] benchDetail = new string[] {
+        "Einzel- und Mehrkern, AES-256, SHA-256, Kompression",
+        "Lesen, Schreiben, Kopieren, Latenz",
+        "Rendertest je Grafikeinheit (Bilder/s, 1-%-Low, Punktzahl), Speicherdurchsatz, Desktop-Komposition, PCIe",
+        "sequentiell und 4K-Zufallszugriff, Auswahl unten",
+        "Leistungsbewertung von Windows, 2 bis 5 Min." };
+    Label lblRefState;
+
     Control BuildBenchPage()
     {
-        FlowLayoutPanel f = Page("Benchmark", "Misst die Leistung der gewählten Komponenten und vergleicht sie mit einer Referenz, mit früheren Läufen auf diesem PC und optional mit bereits geprüften Systemen. Temperatur, Takt und Leistung während der Messungen stehen im Bericht unter Sensoren während des Benchmarks.", 1);
+        FlowLayoutPanel f = Page("Benchmark", "Misst die Leistung der gewählten Komponenten und vergleicht sie mit der Referenz, mit früheren Läufen auf diesem PC und mit bereits geprüften Systemen.", 1);
         f.Controls.Add(Section("Messungen"));
         benchChk = new CheckBox[benchKeys.Length];
-        for (int i = 0; i < benchKeys.Length; i++) { benchChk[i] = Chk(benchText[i], i < 4); benchChk[i].CheckedChanged += delegate { clbDisks.Enabled = benchChk[3].Checked; UpdateSummary(); }; f.Controls.Add(benchChk[i]); }
+        for (int i = 0; i < benchKeys.Length; i++)
+        {
+            benchChk[i] = Chk(benchText[i], i < 4);
+            benchChk[i].CheckedChanged += delegate { clbDisks.Enabled = benchChk[3].Checked; UpdateSummary(); };
+            f.Controls.Add(Opt2(benchChk[i], benchDetail[i]));
+        }
         f.Controls.Add(Section("Laufwerke"));
-        clbDisks = new CheckedListBox(); clbDisks.CheckOnClick = true; clbDisks.Width = UI.S(640); clbDisks.BorderStyle = BorderStyle.FixedSingle; clbDisks.IntegralHeight = false; clbDisks.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(4)); clbDisks.BackColor = UI.Panel; clbDisks.ForeColor = UI.Text;
+        clbDisks = new CheckedListBox(); clbDisks.CheckOnClick = true; clbDisks.Width = UI.S(UI.Gruppenbreite); clbDisks.BorderStyle = BorderStyle.FixedSingle; clbDisks.IntegralHeight = false; clbDisks.Margin = new Padding(UI.S(4), UI.S(2), 0, UI.S(4)); clbDisks.BackColor = UI.Panel; clbDisks.ForeColor = UI.Text;
         foreach (string d in disks)
         {
             string[] x = d.Split('|');
             if (x.Length < 7) continue;
-            string letters = x[5].Length > 0 ? x[5] : "kein Laufwerksbuchstabe";
-            clbDisks.Items.Add(String.Format("Datenträger {0}:  {1}   ({2}, {3}, {4}, {5})", x[0], x[1], x[2], x[3], x[4], letters), x[6] != "1" && x[5].Length > 0);
+            clbDisks.Items.Add(DiskLine(x), x[6] != "1" && x[5].Length > 0);
             diskNums.Add(x[0]);
         }
-        clbDisks.Height = Math.Max(UI.S(48), Math.Min(8, clbDisks.Items.Count) * UI.S(21) + UI.S(6));
+        // Höhe nach Anzahl der Einträge (vorher mindestens 48 px, ein Laufwerk stand in einem fast leeren Feld)
+        clbDisks.Height = Math.Max(1, Math.Min(8, clbDisks.Items.Count)) * UI.S(21) + UI.S(6);
         clbDisks.ItemCheck += delegate { BeginInvoke(new System.Windows.Forms.MethodInvoker(UpdateSummary)); };
         f.Controls.Add(clbDisks);
-        Label dh = Lbl("Gemessen wird mit einer Testdatei auf dem Volume mit dem meisten freien Platz. USB-Datenträger sind abgewählt.", 8.75f, false, UI.Muted); dh.Margin = new Padding(UI.S(4), UI.S(3), 0, 0); dh.MaximumSize = new Size(UI.S(820), 0); f.Controls.Add(dh);
+        f.Controls.Add(Hint("Je Laufwerk wird mit einer Testdatei auf dessen Volume mit dem meisten freien Platz gemessen (1 GB, im Kurzlauf 256 MB, danach gelöscht). USB-Datenträger sind zunächst abgewählt.", 4));
         f.Controls.Add(Section("Rendertest (Grafik)"));
-        FlowLayoutPanel rg0 = Row(); rg0.Controls.Add(RowLabel("Grafikeinheit", 150));
+        FlowLayoutPanel rg0 = Row(); rg0.Controls.Add(RowLabel("Grafikeinheit", 170));
         cmbGpuSel = Combo(420, GpuChoiceTexts(), 0); rg0.Controls.Add(cmbGpuSel); f.Controls.Add(rg0);
-        FlowLayoutPanel rg = Row(); rg.Controls.Add(RowLabel("Auflösung", 150));
+        FlowLayoutPanel rg = Row(); rg.Controls.Add(RowLabel("Auflösung", 170));
         cmbGpuRes = Combo(140, new string[] { "1280x720", "1920x1080" }, 0); rg.Controls.Add(cmbGpuRes);
         rg.Controls.Add(RowLabel("Anzeige", 70)); cmbGpuShow = Combo(170, new string[] { "Fenster", "Vollbild", "ohne Anzeige" }, 0); rg.Controls.Add(cmbGpuShow);
         f.Controls.Add(rg);
-        Label gh = Lbl("Eigener Rendertest mit Direct3D 11, je Grafikeinheit 6 s Aufwärmen und 20 s Messung ohne VSync. Ergebnis: Ø Bilder/s, 1-%-Low und Punktzahl. Vorher prüft eine kurze Gegenprobe, ob eine Bildratengrenze im Treiber bremst. Esc im Fenster beendet den Test.", 8.75f, false, UI.Muted);
-        gh.Margin = new Padding(UI.S(4), UI.S(3), 0, 0); gh.MaximumSize = new Size(UI.S(820), 0); f.Controls.Add(gh);
-        chkGpuWahl = Chk("Bei Hybridgrafik WinSAT zusätzlich auf der Grafikkarte messen (kurze Umstellung, steht im Änderungsprotokoll)", false);
-        chkGpuWahl.MaximumSize = new Size(UI.S(840), 0); chkGpuWahl.Margin = new Padding(UI.S(4), UI.S(8), 0, UI.S(3)); f.Controls.Add(chkGpuWahl);
+        f.Controls.Add(Hint("Ergebnis: Ø Bilder/s, 1-%-Low und Punktzahl je Grafikeinheit. Esc im Fenster beendet den Test.", 4));
+        chkGpuWahl = Chk("Bei Hybridgrafik WinSAT zusätzlich auf der Grafikkarte messen", false);
+        Control gw = Opt2(chkGpuWahl, "kurze Umstellung der Grafikeinheit für WinSAT, gleich danach zurück", RiskBadge("Aendern")); gw.Margin = new Padding(0, UI.S(UI.Abstand2), 0, 0); f.Controls.Add(gw);
 
         f.Controls.Add(Section("Messdauer und Referenz"));
-        FlowLayoutPanel r1 = Row(); r1.Controls.Add(RowLabel("Messdauer", 150));
+        FlowLayoutPanel r1 = Row(); r1.Controls.Add(RowLabel("Messdauer", 170));
         cmbBenchDur = Combo(260, new string[] { "Normal (stabile Werte)", "Kurz (etwa halbe Dauer)" }, 0); cmbBenchDur.SelectedIndexChanged += delegate { UpdateSummary(); }; r1.Controls.Add(cmbBenchDur); f.Controls.Add(r1);
-        FlowLayoutPanel r2 = Row(); r2.Controls.Add(RowLabel("Referenz (100 %)", 150));
+        FlowLayoutPanel r2 = Row(); r2.Controls.Add(RowLabel("Referenz (100 %)", 170));
         cmbRef = Combo(360, new string[0], 0); r2.Controls.Add(cmbRef);
         btnUpdateMed = UI.Secondary("Median aktualisieren");
         btnUpdateMed.Click += delegate {
@@ -6819,12 +6958,56 @@ public partial class DiagGui : Form
         };
         r2.Controls.Add(btnUpdateMed);
         f.Controls.Add(r2);
+        lblRefState = Hint("", 180); f.Controls.Add(lblRefState);
+        cmbRef.SelectedIndexChanged += delegate { UpdateRefState(); };
         clbCompare = new CheckedListBox(); clbCompare.BackColor = UI.Panel; clbCompare.ForeColor = UI.Text;
         f.Controls.Add(Section("Speichern"));
         chkDbSave = Chk("Ergebnis in der Vergleichsdatenbank speichern", dbDir.Length > 0); chkDbSave.Enabled = dbDir.Length > 0; f.Controls.Add(chkDbSave);
         chkRefSave = Chk("Dieses System als Referenz (100 %) festlegen", false); f.Controls.Add(chkRefSave);
         FillRefLists();
         return f;
+    }
+
+    // Laufwerkszeile: Nummer, Name, Bus, Medium, Größe und je Laufwerksbuchstabe der freie Platz; das Ziel der Messung
+    // ist das Volume mit dem meisten freien Platz
+    static string DiskLine(string[] x)
+    {
+        string head = String.Format("Datenträger {0}:  {1}   ({2}, {3}, {4})", x[0], x[1], x[2], x[3], x[4]);
+        if (x[5].Length == 0) return head + "   ·   kein Laufwerksbuchstabe";
+        List<string> vols = new List<string>(); string best = ""; long bestFree = -1;
+        foreach (string l in x[5].Split(','))
+        {
+            string t = l.Trim(); if (t.Length == 0) continue;
+            long free = -1;
+            // USB-Datenträger nicht abfragen (ein schlafendes Laufwerk verzögerte sonst den Start)
+            if (x.Length < 7 || x[6] != "1") try { DriveInfo di = new DriveInfo(t.Substring(0, 1)); if (di.IsReady) free = di.AvailableFreeSpace; } catch { }
+            vols.Add(free >= 0 ? t + " " + GbText(free) + " frei" : t);
+            if (free > bestFree) { bestFree = free; best = t; }
+        }
+        return head + "   ·   " + String.Join(", ", vols.ToArray()) + (vols.Count > 1 && best.Length > 0 ? "   ·   gemessen auf " + best : "");
+    }
+
+    static string GbText(long bytes)
+    {
+        double gb = bytes / 1073741824.0;
+        return gb >= 1024 ? (gb / 1024).ToString("0.0", CultureInfo.GetCultureInfo("de-DE")) + " TB" : gb.ToString("0", CultureInfo.GetCultureInfo("de-DE")) + " GB";
+    }
+
+    void UpdateRefState()
+    {
+        if (lblRefState == null || cmbRef == null) return;
+        int i = cmbRef.SelectedIndex;
+        string t; bool warn = false;
+        if (i == 0)
+        {
+            string st = SavedRefText();
+            warn = st.Length == 0;
+            t = warn ? "Noch keine Referenz gespeichert: unter Speichern den Haken \"Dieses System als Referenz festlegen\" setzen." : st;
+        }
+        else if (i >= 1 && i <= 3) t = "Median aus den Systemen der Vergleichsdatenbank (" + db.FindAll(delegate(DbEntry e) { return e.HasBench; }).Count + " mit Benchmark).";
+        else t = "Einzelner gespeicherter Lauf als Bezug.";
+        SetText(lblRefState, t);
+        lblRefState.ForeColor = warn ? UI.Warn : UI.Muted;
     }
 
     void FillRefLists()
@@ -6837,10 +7020,10 @@ public partial class DiagGui : Form
         HashSet<string> prevCmp = new HashSet<string>();
         for (int i = 0; i < clbCompare.Items.Count; i++) if (clbCompare.GetItemChecked(i) && i < cmpItems.Count) prevCmp.Add(cmpItems[i].Path);
         cmbRef.Items.Clear(); refItems.Clear(); clbCompare.Items.Clear(); cmpItems.Clear();
-        cmbRef.Items.Add(SavedRefText());
-        cmbRef.Items.Add("Median aller Systeme in der Vergleichsdatenbank");
-        cmbRef.Items.Add("Median Notebooks in der Vergleichsdatenbank");
-        cmbRef.Items.Add("Median Desktop-PCs in der Vergleichsdatenbank");
+        cmbRef.Items.Add("Gespeicherte Referenz");
+        cmbRef.Items.Add("Median aller Systeme");
+        cmbRef.Items.Add("Median der Notebooks");
+        cmbRef.Items.Add("Median der Desktop-PCs");
         int sel = 0;
         foreach (DbEntry e in db)
         {
@@ -6858,25 +7041,44 @@ public partial class DiagGui : Form
         if (clbCompare.Items.Count == 0) { clbCompare.Items.Add("(noch keine Systeme mit Benchmark in der Datenbank)"); clbCompare.Enabled = false; }
         else clbCompare.Enabled = true;
         clbCompare.Height = Math.Max(UI.S(48), Math.Min(8, clbCompare.Items.Count) * UI.S(21) + UI.S(6));
+        UpdateRefState();
+    }
+
+    // ab v3.64 Lasttest als Tabelle: Komponente, Dauer, Einstellungen; Hinweise stehen bei ihrem Feld statt am Seitenende
+    Dictionary<CheckBox, List<Control>> loadParts = new Dictionary<CheckBox, List<Control>>();
+    Label lblLoadTotal, lblAkku;
+    Badge badgePawn;
+
+    static Label CellLabel(string text, int width)
+    {
+        Label l = RowLabel(text, width); l.Font = new Font("Segoe UI", UI.SchriftText); return l;
     }
 
     Control BuildLoadPage()
     {
-        FlowLayoutPanel f = Page("Lasttest", "Belastet die gewählten Komponenten gleichzeitig, jede mit eigener Dauer, und zeichnet Temperatur, Takt, Leistung und Lüfter auf. Gemeldet werden Rechen-, Bit- und Datenfehler, WHEA-Fehler und Drosselung. \"Test beenden\" bricht jederzeit ab.", 2);
-        string[] mins = new string[] { "2 Minuten", "5 Minuten", "10 Minuten", "15 Minuten", "30 Minuten", "60 Minuten", "120 Minuten", "240 Minuten" };
+        FlowLayoutPanel f = Page("Lasttest", "Belastet die gewählten Komponenten gleichzeitig, jede mit eigener Dauer, und zeichnet Temperatur, Takt, Leistung und Lüfter auf. Gemeldet werden Rechen-, Bit- und Datenfehler, WHEA-Fehler und Drosselung. Während des Tests lässt er sich jederzeit beenden.", 2);
+        string[] mins = new string[] { "2 Min.", "5 Min.", "10 Min.", "15 Min.", "30 Min.", "60 Min.", "120 Min.", "240 Min." };
+        lblAkku = Lbl("  Akkubetrieb: Für den Lasttest das Netzteil anschließen, sonst begrenzt die Energieverwaltung Takt und Leistung.  ", UI.SchriftText, true, UI.Warn);
+        lblAkku.BackColor = UI.WarnBg; lblAkku.Padding = new Padding(UI.S(6)); lblAkku.Margin = new Padding(0, UI.S(4), 0, UI.S(4)); lblAkku.Visible = false; f.Controls.Add(lblAkku);
         f.Controls.Add(Section("Komponenten und Dauer"));
-        FlowLayoutPanel r1 = Row(); chkLCpu = Chk("Prozessor (alle Threads, Ergebnisprüfung)", true); chkLCpu.Width = UI.S(350); chkLCpu.AutoSize = false; r1.Controls.Add(chkLCpu);
-        cmbLCpu = Combo(120, mins, 0); r1.Controls.Add(cmbLCpu); f.Controls.Add(r1);
-        FlowLayoutPanel r2 = Row(); chkLRam = Chk("Arbeitsspeicher (Mustertest, Bitfehler)", true); chkLRam.Width = UI.S(350); chkLRam.AutoSize = false; r2.Controls.Add(chkLRam);
-        cmbLRam = Combo(120, mins, 0); r2.Controls.Add(cmbLRam);
-        r2.Controls.Add(RowLabel("Anteil am freien RAM", 140)); cmbLRamPct = Combo(80, new string[] { "25 %", "40 %", "60 %", "75 %" }, 1); r2.Controls.Add(cmbLRamPct); f.Controls.Add(r2);
-        FlowLayoutPanel r3 = Row(); chkLGpu = Chk("Grafik (Rendertest)", false); chkLGpu.Width = UI.S(350); chkLGpu.AutoSize = false; r3.Controls.Add(chkLGpu);
-        cmbLGpu = Combo(120, mins, 0); r3.Controls.Add(cmbLGpu);
-        cmbLGpuRes = Combo(110, new string[] { "1280x720", "1920x1080" }, 0); r3.Controls.Add(cmbLGpuRes);
-        cmbLGpuShow = Combo(140, new string[] { "Fenster", "Vollbild", "ohne Anzeige" }, 0); r3.Controls.Add(cmbLGpuShow);
-        f.Controls.Add(r3);
-        FlowLayoutPanel r3b = Row(); Label lsel = RowLabel("Grafikeinheit", 332); lsel.Margin = new Padding(UI.S(22), UI.S(1), UI.S(6), UI.S(1)); r3b.Controls.Add(lsel);
-        cmbLGpuSel = Combo(420, GpuChoiceTexts(), 0); r3b.Controls.Add(cmbLGpuSel); f.Controls.Add(r3b);
+        TableLayoutPanel t = LoadTable();
+        t.Controls.Add(CellLabel("Komponente", 250), 0, 0); t.Controls.Add(CellLabel("Dauer", 120), 1, 0); t.Controls.Add(CellLabel("Einstellungen", 150), 2, 0);
+        foreach (Control c in t.Controls) { c.ForeColor = UI.Muted; c.Font = new Font("Segoe UI Semibold", UI.SchriftHinweis); }
+
+        chkLCpu = Chk("Prozessor", true); cmbLCpu = Combo(110, mins, 0);
+        AddLoadRow(t, 1, chkLCpu, "alle Threads mit Ergebnisprüfung", cmbLCpu, null);
+
+        chkLRam = Chk("Arbeitsspeicher", true); cmbLRam = Combo(110, mins, 0);
+        cmbLRamPct = Combo(90, new string[] { "25 %", "40 %", "60 %", "75 %" }, 1);
+        Label lPct = CellLabel("Anteil am freien RAM", 150);
+        AddLoadRow(t, 2, chkLRam, "Mustertest mit Bitfehlerprüfung", cmbLRam, new Control[] { SettingRow(lPct, cmbLRamPct) });
+
+        chkLGpu = Chk("Grafik", false); cmbLGpu = Combo(110, mins, 0);
+        cmbLGpuSel = Combo(260, GpuChoiceTexts(), 0);
+        cmbLGpuRes = Combo(120, new string[] { "1280x720", "1920x1080" }, 0);
+        cmbLGpuShow = Combo(140, new string[] { "Fenster", "Vollbild", "ohne Anzeige" }, 0);
+        Label lSel = CellLabel("Grafikeinheit", 100), lRes = CellLabel("Auflösung", 100), lShow = CellLabel("Anzeige", 100);
+        AddLoadRow(t, 3, chkLGpu, "Rendertest mit Direct3D 11, Bildprüfung alle 30 s, Erkennung von Treiber-Resets", cmbLGpu, new Control[] { SettingRow(lSel, cmbLGpuSel), SettingRow(lRes, cmbLGpuRes), SettingRow(lShow, cmbLGpuShow) });
         // Einstellungen des Rendertests auf beiden Seiten gleich halten: Benchmark -> Lasttest und Lasttest -> Benchmark
         // (ab 3.53 über CopySelection; vorher setzte sync2 die Grafikeinheit des Lasttests auf den Wert des Benchmarks zurück)
         EventHandler sync1 = delegate { if (syncGpu || cmbGpuRes == null) return; syncGpu = true; try { CopySelection(GpuCombosBench(), GpuCombosLast()); } finally { syncGpu = false; } };
@@ -6884,38 +7086,112 @@ public partial class DiagGui : Form
         if (cmbGpuRes != null) { cmbGpuRes.SelectedIndexChanged += sync1; cmbGpuShow.SelectedIndexChanged += sync1; }
         if (cmbGpuSel != null) cmbGpuSel.SelectedIndexChanged += sync1;
         cmbLGpuRes.SelectedIndexChanged += sync2; cmbLGpuShow.SelectedIndexChanged += sync2; cmbLGpuSel.SelectedIndexChanged += sync2;
-        FlowLayoutPanel r4 = Row(); chkLDisk = Chk("Datenträger (Schreiben, Lesen, Datenprüfung)", false); chkLDisk.Width = UI.S(350); chkLDisk.AutoSize = false; r4.Controls.Add(chkLDisk);
-        cmbLDisk = Combo(120, mins, 0); r4.Controls.Add(cmbLDisk);
-        r4.Controls.Add(RowLabel("Laufwerk", 70));
+
+        chkLDisk = Chk("Datenträger", false); cmbLDisk = Combo(110, mins, 0);
         List<string> letters = new List<string>();
         foreach (string d in disks)
         {
             string[] x = d.Split('|'); if (x.Length < 7 || x[5].Length == 0) continue;
-            foreach (string l in x[5].Split(',')) { string t = l.Trim(); if (t.Length > 0) letters.Add(t + "   " + x[1]); }
+            foreach (string l in x[5].Split(',')) { string tl = l.Trim(); if (tl.Length > 0) letters.Add(tl + "  " + ShortDiskName(x[1]) + (x[4].Length > 0 ? " (" + x[4] + ")" : "")); }
         }
         if (letters.Count == 0) letters.Add("C:");
         letters.Sort();
-        cmbLDiskDrive = Combo(260, letters.ToArray(), 0); r4.Controls.Add(cmbLDiskDrive); f.Controls.Add(r4);
+        cmbLDiskDrive = Combo(260, letters.ToArray(), 0);
+        Label lDrv = CellLabel("Laufwerk", 100);
+        AddLoadRow(t, 4, chkLDisk, "Schreiben, Lesen und Prüfen jedes Blocks; Testdatei bis 4 GB, wird danach gelöscht", cmbLDisk, new Control[] { SettingRow(lDrv, cmbLDiskDrive) });
+        f.Controls.Add(t);
+        lblLoadTotal = Lbl("", UI.SchriftText, true, UI.Text); lblLoadTotal.Margin = new Padding(UI.S(4), UI.S(UI.Abstand2), 0, 0); f.Controls.Add(lblLoadTotal);
+
         foreach (CheckBox c in new CheckBox[] { chkLCpu, chkLRam, chkLGpu, chkLDisk }) c.CheckedChanged += delegate { UpdateLoadEnabled(); UpdateSummary(); };
         foreach (ComboBox c in new ComboBox[] { cmbLCpu, cmbLRam, cmbLGpu, cmbLDisk }) c.SelectedIndexChanged += delegate { UpdateSummary(); };
+
         f.Controls.Add(Section("Abbruchschwelle"));
-        FlowLayoutPanel r5 = Row(); r5.Controls.Add(RowLabel("CPU-Temperatur", 140));
-        cmbLAbortCpu = Combo(260, new string[] { "automatisch (TjMax, sonst 100 °C)", "85 °C", "90 °C", "95 °C", "100 °C", "aus" }, 0); r5.Controls.Add(cmbLAbortCpu);
-        r5.Controls.Add(RowLabel("GPU-Temperatur", 120)); cmbLAbortGpu = Combo(100, new string[] { "85 °C", "90 °C", "95 °C", "aus" }, 1); r5.Controls.Add(cmbLAbortGpu); f.Controls.Add(r5);
-        Label ha = Lbl("Liegt die Temperatur rund 10 Sekunden auf oder über der Schwelle, endet der Test mit einem Befund. Echte CPU-Temperaturen gibt es mit LibreHardwareMonitor und dem Treiber PawnIO (nur nach Rückfrage, wird nach dem Lauf entfernt).", 8.75f, false, UI.Muted);
-        ha.MaximumSize = new Size(UI.S(820), 0); ha.Margin = new Padding(UI.S(4), UI.S(4), 0, 0); f.Controls.Add(ha);
-        Label h = Lbl("Grafiklast: eigener Rendertest mit Direct3D 11 (Volllast ähnlich FurMark) auf den gewählten Grafikeinheiten gleichzeitig, mit Bilder/s-Verlauf, Bildprüfung alle 30 Sekunden und Erkennung von Treiber-Resets. Der Datenträgertest schreibt eine Testdatei (bis 4 GB) und löscht sie danach. Am Notebook das Netzteil anschließen.", 8.75f, false, UI.Muted);
-        h.MaximumSize = new Size(UI.S(820), 0); h.Margin = new Padding(UI.S(4), UI.S(12), 0, 0); f.Controls.Add(h);
+        TableLayoutPanel ta = LoadTable();
+        cmbLAbortCpu = Combo(140, new string[] { "Automatisch", "85 °C", "90 °C", "95 °C", "100 °C", "aus" }, 0);
+        cmbLAbortGpu = Combo(140, new string[] { "85 °C", "90 °C", "95 °C", "aus" }, 1);
+        badgePawn = new Badge("PawnIO vorübergehend", "info");
+        Tip(badgePawn, "Echte CPU-Temperaturen liefert LibreHardwareMonitor mit dem Treiber PawnIO. Er wird für den Lauf vorübergehend installiert und danach wieder entfernt (einstellbar auf der Seite Sensoren live).");
+        ta.Controls.Add(CellLabel("CPU-Temperatur", 250), 0, 0); ta.Controls.Add(cmbLAbortCpu, 1, 0); ta.Controls.Add(badgePawn, 2, 0);
+        ta.Controls.Add(CellLabel("GPU-Temperatur", 250), 0, 1); ta.Controls.Add(cmbLAbortGpu, 1, 1);
+        f.Controls.Add(ta);
+        f.Controls.Add(Hint("Liegt die Temperatur rund 10 Sekunden auf oder über der Schwelle, endet der Test mit einem Befund. Automatisch: TjMax der CPU, sonst 100 °C.", 4));
         UpdateLoadEnabled();
         return f;
     }
 
+    static TableLayoutPanel LoadTable()
+    {
+        TableLayoutPanel t = new TableLayoutPanel(); t.AutoSize = true; t.AutoSizeMode = AutoSizeMode.GrowAndShrink; t.ColumnCount = 3; t.BackColor = UI.Panel;
+        t.Margin = new Padding(0, 0, 0, 0);
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UI.S(260))); t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UI.S(130))); t.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        return t;
+    }
+
+    static Control SettingRow(Label l, Control c)
+    {
+        FlowLayoutPanel r = new FlowLayoutPanel(); r.AutoSize = true; r.WrapContents = false; r.BackColor = UI.Panel; r.Margin = new Padding(0, 0, 0, UI.S(2));
+        r.Controls.Add(l); r.Controls.Add(c); return r;
+    }
+
+    void AddLoadRow(TableLayoutPanel t, int row, CheckBox chk, string detail, ComboBox dur, Control[] settings)
+    {
+        Control comp = Opt2(chk, detail);
+        Label d = comp.Controls.Count > 1 ? comp.Controls[1] as Label : null;
+        if (d != null) d.MaximumSize = new Size(UI.S(236), 0);
+        comp.Margin = new Padding(0, UI.S(4), UI.S(4), UI.S(6));
+        dur.Margin = new Padding(0, UI.S(6), 0, 0);
+        t.Controls.Add(comp, 0, row); t.Controls.Add(dur, 1, row);
+        List<Control> parts = new List<Control>(); parts.Add(dur);
+        if (settings != null && settings.Length > 0)
+        {
+            FlowLayoutPanel s = new FlowLayoutPanel(); s.FlowDirection = FlowDirection.TopDown; s.WrapContents = false; s.AutoSize = true; s.BackColor = UI.Panel; s.Margin = new Padding(0, UI.S(4), 0, UI.S(4));
+            foreach (Control c in settings) { s.Controls.Add(c); foreach (Control k in c.Controls) parts.Add(k); }
+            t.Controls.Add(s, 2, row);
+        }
+        loadParts[chk] = parts;
+    }
+
+    // Elemente einer abgewählten Komponente einheitlich deaktivieren: Auswahllisten aus, Beschriftungen gedämpft
+    public static void SetPartEnabled(IEnumerable<Control> parts, bool on)
+    {
+        if (parts == null) return;
+        foreach (Control c in parts)
+        {
+            if (c is Label) c.ForeColor = on ? UI.Text : DisabledText();
+            else c.Enabled = on;
+        }
+    }
+
     void UpdateLoadEnabled()
     {
-        cmbLCpu.Enabled = chkLCpu.Checked; cmbLRam.Enabled = chkLRam.Checked; cmbLRamPct.Enabled = chkLRam.Checked;
-        cmbLGpu.Enabled = chkLGpu.Checked; cmbLDisk.Enabled = chkLDisk.Checked; cmbLDiskDrive.Enabled = chkLDisk.Checked;
-        if (cmbLGpuRes != null) { cmbLGpuRes.Enabled = chkLGpu.Checked; cmbLGpuShow.Enabled = chkLGpu.Checked; }
-        if (cmbLGpuSel != null) cmbLGpuSel.Enabled = chkLGpu.Checked;
+        foreach (KeyValuePair<CheckBox, List<Control>> kv in loadParts) SetPartEnabled(kv.Value, kv.Key.Checked);
+        UpdateLoadTotal();
+    }
+
+    void UpdateLoadTotal()
+    {
+        if (lblLoadTotal == null || chkLCpu == null) return;
+        int m = LoadTotalMinutes(new bool[] { chkLCpu.Checked, chkLRam.Checked, chkLGpu.Checked, chkLDisk.Checked },
+            new int[] { Minutes(cmbLCpu), Minutes(cmbLRam), Minutes(cmbLGpu), Minutes(cmbLDisk) });
+        SetText(lblLoadTotal, m == 0 ? "Keine Komponente gewählt" : "Gesamtdauer: " + MinText(m) + " (alle gewählten Komponenten laufen gleichzeitig)");
+        lblLoadTotal.ForeColor = m == 0 ? UI.Warn : UI.Text;
+    }
+
+    // Hinweise der Seite Lasttest, die sich nach Gerät und Einstellung richten (Akkubetrieb, PawnIO)
+    void UpdateLoadExtras()
+    {
+        try { if (lblAkku != null) lblAkku.Visible = SystemInformation.PowerStatus.PowerLineStatus == PowerLineStatus.Offline; } catch { }
+        try { if (badgePawn != null) badgePawn.Text = (cmbDriver == null || cmbDriver.SelectedIndex == 0) && PawnIoVersion().Length == 0 ? "PawnIO vorübergehend" : ""; } catch { }
+    }
+
+    // Laufwerksname kurz: Busangaben und Größenangabe im Namen entfallen ("NVMe PC SN820 NVMe WD 4096GB" -> "PC SN820 WD")
+    public static string ShortDiskName(string name)
+    {
+        string n = " " + (name ?? "") + " ";
+        n = System.Text.RegularExpressions.Regex.Replace(n, @"(?i)\b(NVMe|SATA|SCSI|ATA|USB|Device|Disk)\b", " ");
+        n = System.Text.RegularExpressions.Regex.Replace(n, @"(?i)\b\d+([.,]\d+)?\s?(GB|TB|G|T)\b", " ");
+        n = System.Text.RegularExpressions.Regex.Replace(n, @"\s+", " ").Trim();
+        return n.Length > 0 ? n : (name ?? "").Trim();
     }
 
     string[] repairGroupOrder = new string[] {
@@ -6939,22 +7215,30 @@ public partial class DiagGui : Form
         return "Dienste, Geräte und Energie";
     }
 
+    // ab v3.64: Risikostufe und Neustart als Etiketten rechts in einer Spalte, Befehle in der Detailzeile, Legende oben,
+    // Warnung ohne Wiederherstellungspunkt bei gewählten Eingriffen
+    Label lblRestoreWarn;
+
     Control BuildRepairPage()
     {
-        FlowLayoutPanel f = Page("Wartung", "Führt die gewählten Wartungs- und Reparaturaufgaben nacheinander aus. Vorher wird auf Wunsch ein Wiederherstellungspunkt angelegt. Einige Aufgaben werden erst nach einem Neustart wirksam.", 3);
+        FlowLayoutPanel f = Page("Wartung", "Führt die gewählten Wartungs- und Reparaturaufgaben nacheinander aus. Vorher wird auf Wunsch ein Wiederherstellungspunkt angelegt. Aufgaben mit dem Etikett Neustart werden erst danach vollständig wirksam.", 3);
         f.Controls.Add(Section("Absicherung"));
-        chkRestorePoint = Chk("Vorher einen Systemwiederherstellungspunkt anlegen", true); f.Controls.Add(chkRestorePoint);
+        chkRestorePoint = Chk("Vorher einen Systemwiederherstellungspunkt anlegen", true); chkRestorePoint.Margin = new Padding(UI.S(4), UI.S(2), 0, UI.S(2)); f.Controls.Add(chkRestorePoint);
+        lblRestoreWarn = Lbl("", UI.SchriftText, true, UI.Warn); lblRestoreWarn.BackColor = UI.WarnBg; lblRestoreWarn.Padding = new Padding(UI.S(6)); lblRestoreWarn.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(2));
+        lblRestoreWarn.MaximumSize = new Size(UI.S(UI.Gruppenbreite), 0); lblRestoreWarn.Visible = false; f.Controls.Add(lblRestoreWarn);
+        chkRestorePoint.CheckedChanged += delegate { UpdateRestoreWarn(); UpdateSummary(); };
         f.Controls.Add(Section("Reparaturen"));
-        FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(8));
-        Button all = UI.Secondary("Übliche Auswahl"); all.Margin = new Padding(0);
-        Tip(all, "Wählt alle risikoarmen Routine-Wartungsaufgaben wie Bereinigungen und Cache-Leerungen aus.");
+        f.Controls.Add(RiskLegend());
+        FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(UI.Abstand2), 0, UI.S(UI.Abstand1));
+        Button all = UI.Secondary("Empfohlene Auswahl"); all.Margin = new Padding(0);
+        Tip(all, "Wählt in allen Gruppen die risikoarmen Routineaufgaben wie Bereinigungen und Cache-Leerungen aus.");
         all.Click += delegate {
             for (int i = 0; i < repChk.Length; i++) repChk[i].Checked = repUsual[i];
             UpdateRepairCounts();
             UpdateRepairGroupVisibility();
         };
-        Button none = UI.Secondary("Keine");
-        Tip(none, "Hebt die Auswahl aller Wartungs- und Reparaturaufgaben auf.");
+        Button none = UI.Secondary("Auswahl aufheben");
+        Tip(none, "Hebt die Auswahl in allen Gruppen auf.");
         none.Click += delegate {
             foreach (CheckBox c in repChk) c.Checked = false;
             UpdateRepairCounts();
@@ -6965,9 +7249,8 @@ public partial class DiagGui : Form
         repChk = new CheckBox[repKeys.Length];
         for (int i = 0; i < repKeys.Length; i++)
         {
-            string t = repText[i] + (repRisk[i].Length > 0 ? "   ·  " + ContractStep.RiskLabel(repRisk[i]) : "");
-            repChk[i] = Chk(t, repDefault[i]);
-            repChk[i].CheckedChanged += delegate { UpdateRepairCounts(); UpdateSummary(); };
+            repChk[i] = Chk(SplitDetail(repText[i])[0], repDefault[i]);
+            repChk[i].CheckedChanged += delegate { UpdateRepairCounts(); UpdateRestoreWarn(); UpdateSummary(); };
         }
 
         repCatCount.Clear(); repCatBody.Clear(); repCatToggle.Clear();
@@ -6977,36 +7260,104 @@ public partial class DiagGui : Form
             for (int i = 0; i < repKeys.Length; i++) if (GetRepairGroup(i) == grp) indices.Add(i);
             if (indices.Count == 0) continue;
 
-            FlowLayoutPanel h = Row(); h.Margin = new Padding(UI.S(4), UI.S(10), 0, 0);
-            LinkLabel tg = new LinkLabel(); tg.Text = "▸ " + grp; tg.AutoSize = true; tg.Font = new Font("Segoe UI Semibold", 10f); tg.LinkColor = UI.Text; tg.ActiveLinkColor = UI.Accent; tg.LinkBehavior = LinkBehavior.HoverUnderline; tg.Margin = new Padding(0, UI.S(2), UI.S(10), 0);
-            Label cnt = Lbl("", 9f, false, UI.Muted); cnt.Margin = new Padding(0, UI.S(4), UI.S(12), 0);
-            h.Controls.Add(tg); h.Controls.Add(cnt);
-            f.Controls.Add(h);
-
-            FlowLayoutPanel body = new FlowLayoutPanel(); body.FlowDirection = FlowDirection.TopDown; body.WrapContents = false; body.AutoSize = true; body.BackColor = UI.Panel; body.Margin = new Padding(UI.S(16), 0, 0, UI.S(4));
+            GroupHeader tg = new GroupHeader(grp);
+            f.Controls.Add(tg);
+            TableLayoutPanel body = BadgeTable();
+            body.Margin = new Padding(UI.S(UI.Abstand4), UI.S(UI.Abstand1), 0, UI.S(UI.Abstand1));
             bool hasChecked = false;
+            int row = 0;
             foreach (int idx in indices)
             {
                 if (repChk[idx].Checked) hasChecked = true;
-                body.Controls.Add(repChk[idx]);
+                string[] td = SplitDetail(repText[idx]);
+                Control item = Opt2(repChk[idx], td[1]);
+                body.Controls.Add(item, 0, row);
+                body.Controls.Add(BadgeCell(RiskBadge(idx < repRisk.Length ? repRisk[idx] : ""), RestartBadge(idx < repRestart.Length ? repRestart[idx] : "")), 1, row);
+                row++;
             }
             body.Visible = hasChecked;
-            tg.Text = (hasChecked ? "▾ " : "▸ ") + grp;
+            tg.Expanded = hasChecked;
             f.Controls.Add(body);
 
-            repCatCount[grp] = cnt; repCatBody[grp] = body; repCatToggle[grp] = tg;
-            string gName = grp;
-            tg.LinkClicked += delegate {
-                body.Visible = !body.Visible;
-                tg.Text = (body.Visible ? "▾ " : "▸ ") + gName;
-            };
+            repCatCount[grp] = tg; repCatBody[grp] = body; repCatToggle[grp] = tg;
+            tg.Toggled += delegate { body.Visible = tg.Expanded; };
             Tip(tg, "Klicken zeigt oder verbirgt die Maßnahmen dieser Gruppe.");
         }
         UpdateRepairCounts();
-
-        Label lg = Lbl("Ändern: wird mit Vorher-Wert protokolliert und lässt sich auf der Seite Änderungen zurücknehmen.  Eingriff: nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt.", 8.75f, false, UI.Muted);
-        lg.MaximumSize = new Size(UI.S(820), 0); lg.Margin = new Padding(UI.S(4), UI.S(8), 0, 0); f.Controls.Add(lg);
+        UpdateRestoreWarn();
         return f;
+    }
+
+    // Legende der Risikostufen als Etiketten mit kurzer Erklärung (Wartung und Optimierung)
+    Control RiskLegend()
+    {
+        FlowLayoutPanel l = new FlowLayoutPanel(); l.AutoSize = true; l.FlowDirection = FlowDirection.TopDown; l.WrapContents = false; l.BackColor = UI.Panel; l.Margin = new Padding(UI.S(4), 0, 0, UI.S(2));
+        Badge ba = new Badge(ContractStep.RiskLabel("Aendern"), "info"); ba.Margin = new Padding(0, UI.S(2), UI.S(6), 0);
+        Label ta = Lbl("protokolliert, auf der Seite Systemänderungen rücknehmbar", UI.SchriftHinweis, false, UI.Muted); ta.Margin = new Padding(0, UI.S(3), UI.S(UI.Abstand4), 0);
+        Badge be = new Badge(ContractStep.RiskLabel("Eingriff"), "warn"); be.Margin = new Padding(0, UI.S(2), UI.S(6), 0);
+        Label te = Lbl("nicht automatisch umkehrbar, abgesichert über den Wiederherstellungspunkt", UI.SchriftHinweis, false, UI.Muted); te.Margin = new Padding(0, UI.S(3), 0, 0);
+        Tip(ba, "Wird mit Vorher-Wert protokolliert und lässt sich auf der Seite Systemänderungen zurücknehmen.");
+        Tip(be, "Lässt sich nicht automatisch umkehren; der Weg zurück ist der Wiederherstellungspunkt.");
+        foreach (Control[] pair in new Control[][] { new Control[] { ba, ta }, new Control[] { be, te } })
+        {
+            FlowLayoutPanel r = new FlowLayoutPanel(); r.AutoSize = true; r.WrapContents = false; r.BackColor = UI.Panel; r.Margin = new Padding(0, 0, 0, UI.S(2));
+            pair[0].Width = Math.Max(pair[0].Width, UI.S(70));
+            r.Controls.Add(pair[0]); r.Controls.Add(pair[1]); l.Controls.Add(r);
+        }
+        return l;
+    }
+
+    const int BadgeSpalte = 230;
+
+    static TableLayoutPanel BadgeTable()
+    {
+        TableLayoutPanel t = new TableLayoutPanel(); t.AutoSize = true; t.AutoSizeMode = AutoSizeMode.GrowAndShrink; t.ColumnCount = 2; t.BackColor = UI.Panel;
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UI.S(UI.Gruppenbreite - 16 - BadgeSpalte))); t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UI.S(BadgeSpalte)));
+        return t;
+    }
+
+    Control BadgeCell(params Badge[] badges)
+    {
+        // Etiketten rechtsbündig; reicht die Spalte nicht (verwaltet, Zustand), brechen sie in eine zweite Zeile um
+        FlowLayoutPanel c = new FlowLayoutPanel(); c.AutoSize = true; c.WrapContents = true; c.FlowDirection = FlowDirection.RightToLeft; c.BackColor = UI.Panel; c.Dock = DockStyle.Top; c.Margin = new Padding(0, UI.S(2), 0, 0);
+        c.MaximumSize = new Size(UI.S(BadgeSpalte), 0);
+        foreach (Badge b in badges) if (b != null)
+        {
+            b.Margin = new Padding(UI.S(6), UI.S(2), 0, 0);
+            BadgeTip(b);
+            c.Controls.Add(b);
+        }
+        return c;
+    }
+
+    // Warnung: Eingriffe gewählt, aber kein Wiederherstellungspunkt; Computerschutz aus (soweit lesend feststellbar)
+    void UpdateRestoreWarn()
+    {
+        if (lblRestoreWarn == null || repChk == null) return;
+        int ein = 0;
+        for (int i = 0; i < repChk.Length; i++) if (repChk[i] != null && repChk[i].Checked && i < repRisk.Length && (repRisk[i] == "Eingriff" || repRisk[i] == "Zerstoerend")) ein++;
+        string t = "";
+        if (ein > 0 && !chkRestorePoint.Checked) t = "Es sind " + ein + (ein == 1 ? " Eingriff" : " Eingriffe") + " gewählt, aber kein Wiederherstellungspunkt. Ohne ihn gibt es keinen Weg zurück.";
+        else if (chkRestorePoint.Checked && SystemRestoreOff()) t = "Der Computerschutz scheint auf diesem PC ausgeschaltet zu sein; der Wiederherstellungspunkt kann dann nicht angelegt werden.";
+        SetText(lblRestoreWarn, t);
+        lblRestoreWarn.Visible = t.Length > 0;
+    }
+
+    // Computerschutz per Richtlinie oder Systemeinstellung aus (nur lesend, ohne Gewähr; unbekannt gilt als an)
+    static int systemRestoreOff = -1;
+    static bool SystemRestoreOff()
+    {
+        if (systemRestoreOff >= 0) return systemRestoreOff == 1;
+        systemRestoreOff = 0;
+        try
+        {
+            using (Microsoft.Win32.RegistryKey k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Policies\Microsoft\Windows NT\SystemRestore"))
+                if (k != null && (Convert.ToInt32(k.GetValue("DisableSR", 0)) == 1 || Convert.ToInt32(k.GetValue("DisableConfig", 0)) == 1)) systemRestoreOff = 1;
+            using (Microsoft.Win32.RegistryKey k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore"))
+                if (k != null) { object v = k.GetValue("RPSessionInterval"); if (v != null && Convert.ToInt32(v) == 0) systemRestoreOff = 1; }
+        }
+        catch { }
+        return systemRestoreOff == 1;
     }
 
     void UpdateRepairCounts()
@@ -7023,7 +7374,7 @@ public partial class DiagGui : Form
                     if (repChk[i] != null && repChk[i].Checked) sel++;
                 }
             }
-            repCatCount[grp].Text = sel + " von " + tot + " gewählt";
+            repCatCount[grp].CountText = sel + " von " + tot + " gewählt";
         }
     }
 
@@ -7038,7 +7389,7 @@ public partial class DiagGui : Form
                 if (GetRepairGroup(i) == grp && repChk[i] != null && repChk[i].Checked) { hasChecked = true; break; }
             }
             repCatBody[grp].Visible = hasChecked;
-            repCatToggle[grp].Text = (hasChecked ? "▾ " : "▸ ") + grp;
+            repCatToggle[grp].Expanded = hasChecked;
         }
     }
 
@@ -7046,9 +7397,9 @@ public partial class DiagGui : Form
     // Katalog aus dem Skript (Get-OptGuiLines): Kategorien zum Auf- und Zuklappen, je Eintrag ein Haken mit Risikostufe.
     List<OptItem> optItems = new List<OptItem>();
     List<string[]> optCats = new List<string[]>();
-    Dictionary<string, Label> optCatCount = new Dictionary<string, Label>();
-    Dictionary<string, FlowLayoutPanel> optCatBody = new Dictionary<string, FlowLayoutPanel>();
-    Dictionary<string, LinkLabel> optCatToggle = new Dictionary<string, LinkLabel>();
+    Dictionary<string, GroupHeader> optCatCount = new Dictionary<string, GroupHeader>();
+    Dictionary<string, Control> optCatBody = new Dictionary<string, Control>();
+    Dictionary<string, GroupHeader> optCatToggle = new Dictionary<string, GroupHeader>();
     CheckBox chkOptRestore;
     Label lblOptInfo, lblOptState;
     Button btnOptCheck, btnOptTools, btnOptAll;
@@ -7057,7 +7408,7 @@ public partial class DiagGui : Form
         "Minimal wie im Optimisation Pack: Datenschutz-Einstellungen (O&O-Auswahl), Dienste und Aufgaben, Indizierung aus, Caches leeren.",
         "Leos Empfehlung: Wie die Voreinstellung beim Start ausgewählt (empfohlene Optimierungen für Datenschutz, Apps, Dienste und System).",
         "Erweitert wie im Optimisation Pack: Leos Empfehlung plus Windows-Funktionen, Zusatzfeatures, vorinstallierte Apps und Darstellung.",
-        "Nichts gewählt." };
+        "Hebt die Auswahl in allen Kategorien auf." };
 
     static readonly string[] defaultMinimal = new string[] {
         "TelemetrieMinimal", "Fehlerberichte", "WerbeId", "Speicheroptimierung", "TaskbarEndTask"
@@ -7146,20 +7497,21 @@ public partial class DiagGui : Form
         }
     }
 
+    // ab v3.64 nur noch der Titel; Risikostufe, Neustart, verwaltet und Zustand stehen als Etiketten daneben
     string OptBoxText(OptItem it)
     {
-        StringBuilder t = new StringBuilder(it.Titel);
-        if (it.Risiko == "Eingriff") t.Append("   ·  Eingriff");
-        if (it.Neustart == "immer") t.Append("   ·  Neustart");
-        if (it.Verwaltet && DomainPc) t.Append("   ·  verwaltet");
-        if (it.Zustand.Length > 0) t.Append("   ·  " + (it.Zustand == "aktiv" ? "bereits aktiv" : it.Zustand));
-        return t.ToString();
+        if (it.StateBadge != null)
+        {
+            it.StateBadge.Text = it.Zustand.Length > 0 ? (it.Zustand == "aktiv" ? "bereits aktiv" : it.Zustand) : "";
+            it.StateBadge.Level = it.Zustand == "aktiv" ? "ok" : it.Zustand == "teilweise" ? "info" : it.Zustand == "fehlgeschlagen" || it.Zustand == "Fehler" ? "crit" : "skip";
+        }
+        return it.Titel;
     }
 
     string OptTipText(OptItem it)
     {
         StringBuilder t = new StringBuilder(it.Tip.Replace(" ¶", "\r\n"));
-        t.Append("\r\nRisikostufe: ").Append(ContractStep.RiskLabel(it.Risiko)).Append(it.Risiko == "Aendern" ? " (protokolliert, auf der Seite Änderungen einzeln rücknehmbar)" : " (nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt)");
+        t.Append("\r\nRisikostufe: ").Append(ContractStep.RiskLabel(it.Risiko)).Append(it.Risiko == "Aendern" ? " (protokolliert, auf der Seite Systemänderungen einzeln rücknehmbar)" : " (nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt)");
         t.Append("\r\nNeustart: ").Append(it.Neustart == "immer" ? "nötig" : it.Neustart == "moeglich" ? "kann nötig sein" : "nicht nötig");
         List<string> vList = new List<string>();
         if (it.Vorlagen.Contains("M")) vList.Add("Minimal");
@@ -7176,12 +7528,12 @@ public partial class DiagGui : Form
     Control BuildOptPage()
     {
         ReadOptCatalog();
-        FlowLayoutPanel f = Page("Optimierung", "Die Einstellungen des Windows Optimisation Pack mit seiner Sophia- und O&O-Auswahl, nativ umgesetzt und nach Kategorien gruppiert. Ändern steht mit Vorher-Wert im Änderungsprotokoll und lässt sich auf der Seite Änderungen einzeln zurücknehmen; Eingriffe sichert der Wiederherstellungspunkt ab.", 4);
+        FlowLayoutPanel f = Page("Optimierung", "Die Einstellungen des Windows Optimisation Pack mit seiner Sophia- und O&O-Auswahl, nativ umgesetzt und nach Kategorien gruppiert.", 4);
         f.Controls.Add(Section("Absicherung"));
         chkOptRestore = Chk("Vorher einen Systemwiederherstellungspunkt anlegen", true); f.Controls.Add(chkOptRestore);
         f.Controls.Add(Section("Vorlagen und Zustand"));
         FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), UI.S(2), 0, UI.S(4));
-        string[] pn = new string[] { "Minimal", "Leos Empfehlung", "Erweitert", "Keine" };
+        string[] pn = new string[] { "Minimal", "Leos Empfehlung", "Erweitert", "Auswahl aufheben" };
         for (int i = 0; i < pn.Length; i++)
         {
             string key = i == 0 ? "M" : i == 1 ? "S" : i == 2 ? "E" : "";
@@ -7193,38 +7545,45 @@ public partial class DiagGui : Form
         btnOptTools = UI.Secondary("Werkzeuge holen ..."); btnOptTools.Margin = new Padding(UI.S(8), 0, 0, 0); btnOptTools.Click += delegate { FetchOptTools(); }; b.Controls.Add(btnOptTools);
         btnOptAll = UI.Secondary("Alle aufklappen"); btnOptAll.Margin = new Padding(UI.S(8), 0, 0, 0); btnOptAll.Click += delegate { ToggleOptAll(); }; b.Controls.Add(btnOptAll);
         f.Controls.Add(b);
-        lblOptInfo = Lbl("", 9f, false, UI.Muted); lblOptInfo.MaximumSize = new Size(UI.S(820), 0); lblOptInfo.Margin = new Padding(UI.S(4), UI.S(4), UI.S(4), 0); f.Controls.Add(lblOptInfo);
-        lblOptState = Lbl("", 9f, false, UI.Muted); lblOptState.MaximumSize = new Size(UI.S(820), 0); lblOptState.Margin = new Padding(UI.S(4), UI.S(2), UI.S(4), UI.S(4)); f.Controls.Add(lblOptState);
+        lblOptInfo = Lbl("", 9f, false, UI.Muted); lblOptInfo.MaximumSize = new Size(UI.S(UI.Gruppenbreite), 0); lblOptInfo.Margin = new Padding(UI.S(4), UI.S(4), UI.S(4), 0); f.Controls.Add(lblOptInfo);
+        lblOptState = Lbl("", 9f, false, UI.Muted); lblOptState.MaximumSize = new Size(UI.S(UI.Gruppenbreite), 0); lblOptState.Margin = new Padding(UI.S(4), UI.S(2), UI.S(4), UI.S(4)); f.Controls.Add(lblOptState);
         if (optItems.Count == 0) { lblOptInfo.Text = "Der Katalog der Optimierung fehlt (Skript ohne Modul Optimierung)."; return f; }
+        f.Controls.Add(RiskLegend());
         foreach (string[] k in optCats)
         {
             string key = k[0];
             List<OptItem> items = optItems.FindAll(delegate(OptItem it) { return it.Kat == key; });
             if (items.Count == 0) continue;
-            FlowLayoutPanel h = Row(); h.Margin = new Padding(UI.S(4), UI.S(10), 0, 0);
-            LinkLabel tg = new LinkLabel(); tg.Text = "▸ " + k[1]; tg.AutoSize = true; tg.Font = new Font("Segoe UI Semibold", 10f); tg.LinkColor = UI.Text; tg.ActiveLinkColor = UI.Accent; tg.LinkBehavior = LinkBehavior.HoverUnderline; tg.Margin = new Padding(0, UI.S(2), UI.S(10), 0);
-            Label cnt = Lbl("", 9f, false, UI.Muted); cnt.Margin = new Padding(0, UI.S(4), UI.S(12), 0);
-            LinkLabel all = new LinkLabel(); all.Text = "alle"; all.AutoSize = true; all.Margin = new Padding(0, UI.S(4), UI.S(8), 0); all.LinkColor = UI.Accent;
-            LinkLabel none = new LinkLabel(); none.Text = "keine"; none.AutoSize = true; none.Margin = new Padding(0, UI.S(4), 0, 0); none.LinkColor = UI.Accent;
-            h.Controls.Add(tg); h.Controls.Add(cnt); h.Controls.Add(all); h.Controls.Add(none);
+            // ab v3.64 Kopfzeile wie bei Diagnose und Wartung, rechts daneben alle und keine
+            FlowLayoutPanel h = new FlowLayoutPanel(); h.AutoSize = true; h.WrapContents = false; h.BackColor = UI.Panel; h.Margin = new Padding(0, UI.S(UI.Abstand2), 0, 0);
+            GroupHeader tg = new GroupHeader(k[1]); tg.Width = UI.S(UI.Gruppenbreite - 110); tg.Margin = new Padding(0);
+            LinkLabel all = new LinkLabel(); all.Text = "alle"; all.AutoSize = true; all.Margin = new Padding(UI.S(12), UI.S(8), UI.S(8), 0); all.LinkColor = UI.Accent;
+            LinkLabel none = new LinkLabel(); none.Text = "keine"; none.AutoSize = true; none.Margin = new Padding(0, UI.S(8), 0, 0); none.LinkColor = UI.Accent;
+            h.Controls.Add(tg); h.Controls.Add(all); h.Controls.Add(none);
             f.Controls.Add(h);
-            Label desc = Lbl(k[2], 8.75f, false, UI.Muted); desc.MaximumSize = new Size(UI.S(820), 0); desc.Margin = new Padding(UI.S(20), 0, UI.S(4), UI.S(2)); f.Controls.Add(desc);
-            FlowLayoutPanel body = new FlowLayoutPanel(); body.FlowDirection = FlowDirection.TopDown; body.WrapContents = false; body.AutoSize = true; body.BackColor = UI.Panel; body.Margin = new Padding(UI.S(16), 0, 0, UI.S(4)); body.Visible = false;
+            f.Controls.Add(Hint(k[2], 30));
+            TableLayoutPanel body = BadgeTable(); body.Margin = new Padding(UI.S(UI.Abstand4), 0, 0, UI.S(UI.Abstand1)); body.Visible = false;
+            int row = 0;
             foreach (OptItem it in items)
             {
                 it.Box = Chk(OptBoxText(it), false); it.Box.Margin = new Padding(UI.S(4), UI.S(2), 0, UI.S(2)); it.Box.UseMnemonic = false;
                 it.Box.CheckedChanged += delegate { UpdateOptCounts(); };
-                body.Controls.Add(it.Box);
+                it.StateBadge = new Badge("", "ok"); it.StateBadge.Tag = "zustand";
+                Badge bv = it.Verwaltet && DomainPc ? new Badge("verwaltet", "warn") : null;
+                if (bv != null) bv.Tag = "verwaltet";
+                body.Controls.Add(it.Box, 0, row);
+                body.Controls.Add(BadgeCell(it.Risiko == "Eingriff" ? RiskBadge("Eingriff") : null, it.Neustart == "immer" ? RestartBadge("immer") : null, bv, it.StateBadge), 1, row);
+                row++;
             }
             f.Controls.Add(body);
-            optCatCount[key] = cnt; optCatBody[key] = body; optCatToggle[key] = tg;
-            tg.LinkClicked += delegate { body.Visible = !body.Visible; tg.Text = (body.Visible ? "▾ " : "▸ ") + k[1]; };
+            optCatCount[key] = tg; optCatBody[key] = body; optCatToggle[key] = tg;
+            tg.Toggled += delegate { body.Visible = tg.Expanded; };
             all.LinkClicked += delegate { foreach (OptItem it in items) it.Box.Checked = true; };
             none.LinkClicked += delegate { foreach (OptItem it in items) it.Box.Checked = false; };
             Tip(tg, k[2] + "\r\nKlicken zeigt oder verbirgt die Einträge.");
             Tip(all, "Alle Einträge dieser Kategorie wählen."); Tip(none, "Keinen Eintrag dieser Kategorie wählen.");
         }
-        Label lg = Lbl("Ändern: mit Vorher-Wert protokolliert, auf der Seite Änderungen einzeln rücknehmbar.  Eingriff: nicht automatisch umkehrbar (Apps, Zusatzfeatures, Bereinigung, DDU).  verwaltet: berührt Gruppenrichtlinien, auf Domänen-PCs nicht in den Vorlagen.  Benutzereinstellungen gelten für den angemeldeten Benutzer.", 8.75f, false, UI.Muted);
+        f.Controls.Add(Hint("verwaltet: berührt Gruppenrichtlinien, auf Domänen-PCs nicht in den Vorlagen. Benutzereinstellungen gelten für den angemeldeten Benutzer.", 4));
         // Start-Vorauswahl: ab v3.5 ApplyOptPreset("M") (Minimal), früher ApplyOptPreset("S") (Leos Empfehlung)
         ApplyOptPreset("M");
         return f;
@@ -7273,12 +7632,11 @@ public partial class DiagGui : Form
 
     void UpdateOptCounts()
     {
-        foreach (KeyValuePair<string, Label> kv in optCatCount)
+        foreach (KeyValuePair<string, GroupHeader> kv in optCatCount)
         {
             int a = 0, n = 0;
             foreach (OptItem it in optItems) if (it.Kat == kv.Key) { a++; if (it.Box.Checked) n++; }
-            SetText(kv.Value, n + " von " + a + " gewählt");
-            kv.Value.ForeColor = n > 0 ? UI.Text : UI.Muted;
+            kv.Value.CountText = n + " von " + a + " gewählt";
         }
         UpdateSummary();
     }
@@ -7286,12 +7644,11 @@ public partial class DiagGui : Form
     void ToggleOptAll()
     {
         bool open = false;
-        foreach (FlowLayoutPanel p in optCatBody.Values) if (!p.Visible) { open = true; break; }
-        foreach (KeyValuePair<string, FlowLayoutPanel> kv in optCatBody)
+        foreach (Control p in optCatBody.Values) if (!p.Visible) { open = true; break; }
+        foreach (KeyValuePair<string, Control> kv in optCatBody)
         {
             kv.Value.Visible = open;
-            string t = optCatToggle[kv.Key].Text.Substring(2);
-            optCatToggle[kv.Key].Text = (open ? "▾ " : "▸ ") + t;
+            optCatToggle[kv.Key].Expanded = open;
         }
         btnOptAll.Text = open ? "Alle zuklappen" : "Alle aufklappen";
     }
@@ -7335,38 +7692,44 @@ public partial class DiagGui : Form
         MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Keine Rückmeldung vom Arbeitsprozess.", "Werkzeuge für die Optimierung", MessageBoxButtons.OK, res == "1" ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
     }
 
-    // Argumente für den Arbeitsprozess nach Rückfrage; null = nicht starten
-    string OptStartArgs()
+    // Argumente für den Arbeitsprozess; null = nicht starten. Eingriffe und Neustarts gehen in die Zusammenfassung vor dem
+    // Start (ab v3.64 statt einer eigenen Rückfrage der Optimierung)
+    string OptStartArgs(List<StartPunkt> punkte, List<string> zusatz)
     {
         List<string> ids = SelectedOptIds();
         if (ids.Count == 0) { MessageBox.Show(this, "In der Optimierung ist kein Eintrag ausgewählt.", "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Information); ShowPage(4); return null; }
-        int aend = 0; List<string> ein = new List<string>(); List<string> ver = new List<string>(); bool rs = false;
-        Dictionary<string, int> perCat = new Dictionary<string, int>();
+        int ver = 0;
         foreach (OptItem it in optItems)
         {
             if (!it.Box.Checked) continue;
-            if (it.Risiko == "Eingriff") ein.Add(it.Titel); else aend++;
-            if (it.Verwaltet && DomainPc) ver.Add(it.Titel);
-            if (it.Neustart == "immer") rs = true;
-            int c; perCat.TryGetValue(it.Kat, out c); perCat[it.Kat] = c + 1;
+            if (it.Verwaltet && DomainPc) ver++;
+            if (punkte != null) punkte.Add(new StartPunkt("Optimierung", it.Titel, it.Risiko, it.Neustart));
         }
-        StringBuilder m = new StringBuilder();
-        m.AppendLine(ids.Count + " Einträge der Optimierung werden angewendet:");
-        foreach (string[] k in optCats) { int c; if (perCat.TryGetValue(k[0], out c)) m.AppendLine("·  " + k[1] + ": " + c); }
-        m.AppendLine();
-        m.AppendLine(aend + " Einstellungen der Stufe Ändern (einzeln rücknehmbar).");
-        if (ein.Count > 0)
-        {
-            m.AppendLine(ein.Count + " Eingriffe ohne automatisches Rückgängig:");
-            for (int i = 0; i < ein.Count && i < 12; i++) m.AppendLine("·  " + ein[i]);
-            if (ein.Count > 12) m.AppendLine("·  und " + (ein.Count - 12) + " weitere");
-        }
-        if (ver.Count > 0) m.AppendLine("\r\nDomänen-PC: " + ver.Count + " gewählte Einträge berühren Gruppenrichtlinien und können beim nächsten Abgleich überschrieben werden.");
-        if (rs) m.AppendLine("\r\nEinige Einträge werden erst nach einem Neustart wirksam.");
-        m.AppendLine(chkOptRestore.Checked ? "\r\nVorher wird ein Wiederherstellungspunkt angelegt." : "\r\nEs wird KEIN Wiederherstellungspunkt angelegt.");
-        m.AppendLine("\r\nFortfahren?");
-        if (MessageBox.Show(this, m.ToString(), "Optimierung bestätigen", MessageBoxButtons.YesNo, ein.Count > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Question) != DialogResult.Yes) return null;
+        if (ver > 0 && zusatz != null) zusatz.Add("Domänen-PC: " + ver + " gewählte Einträge der Optimierung berühren Gruppenrichtlinien und können beim nächsten Abgleich überschrieben werden.");
         return " -Optimierungen " + String.Join(",", ids.ToArray()) + (chkOptRestore.Checked ? "" : " -OptOhneWiederherstellungspunkt");
+    }
+
+    // Dialog vor dem Start mit Ablauf, Eingriffen, Neustarts und Wiederherstellungspunkt
+    bool ConfirmStart(string text, List<StartPunkt> punkte)
+    {
+        using (Form f = new Form())
+        {
+            f.Text = "Start bestätigen"; f.FormBorderStyle = FormBorderStyle.FixedDialog; f.MaximizeBox = false; f.MinimizeBox = false; f.ShowInTaskbar = false;
+            f.StartPosition = FormStartPosition.CenterParent; f.Font = new Font("Segoe UI", 9.5f); f.BackColor = UI.Bg; f.AutoSize = true; f.AutoSizeMode = AutoSizeMode.GrowAndShrink; f.Padding = new Padding(UI.S(18));
+            FlowLayoutPanel p = new FlowLayoutPanel(); p.FlowDirection = FlowDirection.TopDown; p.AutoSize = true; p.WrapContents = false; p.Dock = DockStyle.Fill;
+            bool ein = punkte != null && punkte.Exists(delegate(StartPunkt x) { return x.IstEingriff; });
+            Label h = new Label(); h.AutoSize = true; h.Font = new Font("Segoe UI Semibold", 11f); h.Margin = new Padding(0, 0, 0, UI.S(10));
+            h.Text = ein ? "Dieser Lauf verändert das System" : "Bitte vor dem Start prüfen";
+            p.Controls.Add(h);
+            Label l = new Label(); l.AutoSize = true; l.MaximumSize = new Size(UI.S(560), 0); l.Margin = new Padding(0, 0, 0, UI.S(12)); l.Text = text; l.UseMnemonic = false;
+            p.Controls.Add(l);
+            FlowLayoutPanel b = new FlowLayoutPanel(); b.AutoSize = true; b.Margin = new Padding(0, UI.S(4), 0, 0);
+            Button ok = UI.Primary("Starten"); ok.DialogResult = DialogResult.OK; Button ab = UI.Secondary("Abbrechen"); ab.DialogResult = DialogResult.Cancel;
+            b.Controls.Add(ok); b.Controls.Add(ab); p.Controls.Add(b);
+            f.Controls.Add(p); f.AcceptButton = ab; f.CancelButton = ab; f.ActiveControl = ab;
+            UI.ThemeDialog(f);
+            return f.ShowDialog(this) == DialogResult.OK;
+        }
     }
 
     // ------------------------------------------------------------ Seite Sensoren (live)
@@ -7492,7 +7855,7 @@ public partial class DiagGui : Form
     Control BuildSensorPage()
     {
         FlowLayoutPanel f = Page("Sensoren live", "Zeigt Temperatur, Takt, Lüfter, Spannung und Leistung laufend an (Kurven der letzten zehn Minuten). CPU-Werte und Mainboard-Lüfter brauchen den Treiber PawnIO; er wird beim Beenden wieder entfernt.", -1);
-        lblSensTools = Lbl("", 9f, false, UI.Muted); lblSensTools.MaximumSize = new Size(UI.S(880), 0); lblSensTools.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8)); f.Controls.Add(lblSensTools);
+        lblSensTools = Lbl("", 9f, false, UI.Muted); lblSensTools.MaximumSize = new Size(UI.S(UI.Gruppenbreite), 0); lblSensTools.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8)); f.Controls.Add(lblSensTools);
         FlowLayoutPanel b = Row(); b.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
         btnLive = UI.Primary("Live-Ansicht starten"); btnLive.Margin = new Padding(0); btnLive.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3)); btnLive.Font = new Font("Segoe UI Semibold", 9.75f);
         btnLive.Click += delegate { if (liveRunning) StopLive(); else StartLive(); };
@@ -7513,18 +7876,18 @@ public partial class DiagGui : Form
         LoadDeviceTools();
         cmbKeep.SelectedIndexChanged += delegate { SaveDeviceTools(); };
         cmbDriver.SelectedIndexChanged += delegate { SaveDeviceTools(); };
-        lblSensInfo = Lbl("Live-Ansicht nicht gestartet.", 9f, false, UI.Muted); lblSensInfo.MaximumSize = new Size(UI.S(880), 0); lblSensInfo.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(6)); f.Controls.Add(lblSensInfo);
-        chartLive = new SensorChart(); chartLive.Width = UI.S(880); chartLive.Height = UI.S(330); chartLive.WindowSec = 600; chartLive.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
+        lblSensInfo = Lbl("Live-Ansicht nicht gestartet.", 9f, false, UI.Muted); lblSensInfo.MaximumSize = new Size(UI.S(UI.Gruppenbreite), 0); lblSensInfo.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(6)); f.Controls.Add(lblSensInfo);
+        chartLive = new SensorChart(); chartLive.Width = UI.S(UI.Gruppenbreite); chartLive.Height = UI.S(330); chartLive.WindowSec = 600; chartLive.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
         chartLive.Empty = "Noch keine Messwerte. \"Live-Ansicht starten\" öffnet die Sensoren.";
         f.Controls.Add(chartLive);
-        lvSens = new ListView(); lvSens.View = View.Details; lvSens.FullRowSelect = true; lvSens.Width = UI.S(880); lvSens.Height = UI.S(380); lvSens.BorderStyle = BorderStyle.FixedSingle; lvSens.HideSelection = false; lvSens.ShowGroups = true; lvSens.ShowItemToolTips = true; lvSens.Margin = new Padding(UI.S(4), 0, 0, UI.S(4));
+        lvSens = new ListView(); lvSens.View = View.Details; lvSens.FullRowSelect = true; lvSens.Width = UI.S(UI.Gruppenbreite); lvSens.Height = UI.S(380); lvSens.BorderStyle = BorderStyle.FixedSingle; lvSens.HideSelection = false; lvSens.ShowGroups = true; lvSens.ShowItemToolTips = true; lvSens.Margin = new Padding(UI.S(4), 0, 0, UI.S(4));
         EnableDarkListView(lvSens);
         string[] cols = new string[] { "Sensor", "Art", "Aktuell", "Min", "Max", "Quelle" };
-        int[] w = new int[] { UI.S(260), UI.S(120), UI.S(110), UI.S(110), UI.S(110), UI.S(140) };
+        int[] w = new int[] { UI.S(240), UI.S(110), UI.S(100), UI.S(100), UI.S(100), UI.S(120) };
         for (int i = 0; i < cols.Length; i++) lvSens.Columns.Add(cols[i], w[i], i >= 2 && i <= 4 ? HorizontalAlignment.Right : HorizontalAlignment.Left);
         f.Controls.Add(lvSens);
         Label hint = Lbl("\"Aufzeichnung speichern\" legt alle Werte als CSV unter Berichte\\Sensoren ab. Während eines Laufs ist die Live-Ansicht aus; der Lasttest zeigt seine Kurven im Reiter Sensoren.", 8.75f, false, UI.Muted);
-        hint.MaximumSize = new Size(UI.S(880), 0); hint.Margin = new Padding(UI.S(4), UI.S(4), UI.S(4), 0); f.Controls.Add(hint);
+        hint.MaximumSize = new Size(UI.S(UI.Gruppenbreite), 0); hint.Margin = new Padding(UI.S(4), UI.S(4), UI.S(4), 0); f.Controls.Add(hint);
         liveTimer = new Timer(); liveTimer.Interval = 250; liveTimer.Tick += delegate { OnLiveTick(); };
         UpdateSensTools();
         return f;
@@ -7831,53 +8194,90 @@ public partial class DiagGui : Form
         return m;
     }
 
-    int EstimateMinutes()
+    // Geschätzte Minuten je Modul (Index wie nav), ohne Wartezeit auf den SMART-Langtest
+    int ModuleMinutes(int mod)
     {
         int t = 0;
-        if (nav[0].Checked)
+        if (mod == 0)
         {
-            if (rbCrash.Checked) t += 1;
-            else if (rbTest.Checked) t += 2;
-            else
-            {
-                t += 3;
-                int[] add = new int[] { 1, 2, 12, 3, 10, 1, 2, 2 };
-                for (int i = 0; i < diagChk.Length; i++) if (diagChk[i].Checked) t += add[i];
-                // schneller Modus: Updatesuche, Defender und Energieanalyse laufen neben den übrigen Prüfungen
-                if (chkFast != null && chkFast.Checked && chkFast.Enabled) { int par = (diagChk[1].Checked ? 2 : 0) + (diagChk[3].Checked ? 3 : 0) + (diagChk[7].Checked ? 2 : 0); t -= Math.Min(par, Math.Max(0, t - 3)); }
-            }
+            bool[] cur = new bool[diagChk.Length];
+            for (int i = 0; i < diagChk.Length; i++) cur[i] = diagChk[i].Checked;
+            t = DiagMinutes(cur);
+            // schneller Modus: Updatesuche, Defender und Energieanalyse laufen neben den übrigen Prüfungen
+            if (chkFast != null && chkFast.Checked && chkFast.Enabled) { int par = (diagChk[1].Checked ? 2 : 0) + (diagChk[3].Checked ? 3 : 0) + (diagChk[7].Checked ? 2 : 0); t -= Math.Min(par, Math.Max(0, t - 3)); }
         }
-        if (nav[1].Checked)
+        else if (mod == 1)
         {
             bool kurz = cmbBenchDur.SelectedIndex == 1;
             if (benchChk[0].Checked) t += kurz ? 1 : 2;
             if (benchChk[1].Checked) t += 1;
             if (benchChk[2].Checked) t += 2;
-            if (benchChk[3].Checked) t += clbDisks.CheckedItems.Count * (kurz ? 1 : 1);
+            if (benchChk[3].Checked) t += clbDisks.CheckedItems.Count;
             if (benchChk[4].Checked) t += 4;
         }
-        if (nav[2].Checked)
+        else if (mod == 2)
         {
-            int m = 0;
-            if (chkLCpu.Checked) m = Math.Max(m, Minutes(cmbLCpu)); if (chkLRam.Checked) m = Math.Max(m, Minutes(cmbLRam));
-            if (chkLGpu.Checked) m = Math.Max(m, Minutes(cmbLGpu)); if (chkLDisk.Checked) m = Math.Max(m, Minutes(cmbLDisk) + 1);
-            t += m + 1;
+            int m = LoadTotalMinutes(new bool[] { chkLCpu.Checked, chkLRam.Checked, chkLGpu.Checked, chkLDisk.Checked },
+                new int[] { Minutes(cmbLCpu), Minutes(cmbLRam), Minutes(cmbLGpu), Minutes(cmbLDisk) + 1 });
+            t = m + 1;
         }
-        if (nav[3].Checked) for (int i = 0; i < repChk.Length; i++) if (repChk[i].Checked) t += repMinutes[i];
-        if (nav[4].Checked) { int n = 0; foreach (OptItem it in optItems) if (it.Box.Checked) { n++; t += it.Minuten; } t += 1 + n / 40; }
+        else if (mod == 3) { for (int i = 0; i < repChk.Length; i++) if (repChk[i].Checked) t += repMinutes[i]; }
+        else if (mod == 4) { int n = 0; foreach (OptItem it in optItems) if (it.Box.Checked) { n++; t += it.Minuten; } t += 1 + n / 40; }
         return t;
+    }
+
+    int EstimateMinutes()
+    {
+        int t = 0;
+        for (int i = 0; i < 5; i++) if (nav[i].Checked) t += ModuleMinutes(i);
+        return t;
+    }
+
+    // Lasttest: alle gewählten Komponenten laufen gleichzeitig, die Gesamtdauer ist die längste gewählte Dauer
+    public static int LoadTotalMinutes(bool[] on, int[] minutes)
+    {
+        int m = 0;
+        for (int i = 0; on != null && minutes != null && i < on.Length && i < minutes.Length; i++) if (on[i]) m = Math.Max(m, minutes[i]);
+        return m;
+    }
+
+    // Beschriftung des Startknopfs: sagt, was er startet (vorher immer nur "Start", auch auf der Seite Tools)
+    public static string StartButtonText(List<string> modules)
+    {
+        if (modules == null || modules.Count == 0) return "Start";
+        if (modules.Count == 1) return modules[0] + " starten";
+        return modules.Count + " Module starten";
+    }
+
+    // Kurzform für Minuten: "45 Min.", "1 Std. 20 Min."
+    public static string MinText(int min)
+    {
+        min = Math.Max(1, min);
+        if (min < 60) return min + " Min.";
+        return (min / 60) + " Std." + (min % 60 > 0 ? " " + (min % 60) + " Min." : "");
     }
 
     void UpdateSummary()
     {
         UpdateDiagSummary();
-        if (lblSel == null || diagChk == null || benchChk == null || repChk == null || chkLCpu == null || chkOptRestore == null) return;
+        UpdateLoadTotal();
+        if (lblSel == null || btnStart == null || diagChk == null || benchChk == null || repChk == null || chkLCpu == null || chkOptRestore == null) return;
         List<string> m = SelectedModules();
-        if (m.Count == 0) { lblSel.Text = "Kein Modul ausgewählt"; lblSel.ForeColor = UI.Crit; btnStart.Enabled = false; return; }
+        for (int i = 0; i < 5 && i < nav.Count; i++) { string h = nav[i].Checked ? "ca. " + MinText(ModuleMinutes(i)) : ""; if (nav[i].Hint != h) { nav[i].Hint = h; nav[i].Invalidate(); } }
+        SetText(btnStart, StartButtonText(m));
+        if (m.Count == 0)
+        {
+            lblSel.Text = "Kein Modul ausgewählt: in der Seitenleiste mindestens ein Modul anhaken"; lblSel.ForeColor = UI.Crit; btnStart.Enabled = false;
+            Tip(btnStart, "Erst ein Modul in der Seitenleiste anhaken.");
+            return;
+        }
         int min = EstimateMinutes();
+        bool smart = nav[0].Checked && diagChk[4].Checked;
         lblSel.ForeColor = UI.Text;
-        lblSel.Text = String.Join(" + ", m.ToArray()) + (nav[0].Checked && chkFast != null && chkFast.Checked && chkFast.Enabled ? " (schneller Modus)" : "") + "   ·   geschätzt ca. " + Math.Max(1, min) + " Minuten" + (nav[0].Checked && diagChk[4].Checked && !rbCrash.Checked ? " zuzüglich SMART-Langtest (höchstens " + SmartMax() + " Min.)" : "");
+        lblSel.Text = String.Join("  →  ", m.ToArray()) + (nav[0].Checked && chkFast != null && chkFast.Checked && chkFast.Enabled ? " (Diagnose parallel)" : "")
+            + "   ·   ca. " + MinText(min) + (smart ? ", mit SMART-Langtest höchstens " + MinText(min + SmartMax()) : "");
         btnStart.Enabled = true;
+        Tip(btnStart, "Startet " + (m.Count == 1 ? "das Modul " + m[0] : "die Module in dieser Reihenfolge: " + String.Join(", ", m.ToArray())) + ". Geschätzte Dauer ca. " + MinText(min) + (smart ? " zuzüglich Warten auf den SMART-Langtest" : "") + ".");
     }
 
     static string Q(string s) { return "\"" + (s ?? "").TrimEnd('\\') + "\""; }
@@ -7889,11 +8289,12 @@ public partial class DiagGui : Form
         // Live-Ansicht und Lauf greifen auf dieselben Sensoren und denselben Treiber zu
         if (liveRunning && !StopLiveAndWait()) return;
         bool drv = false; runKeep = "";
-        if ((nav[0].Checked && !rbCrash.Checked) || nav[1].Checked || nav[2].Checked)
+        if (nav[0].Checked || nav[1].Checked || nav[2].Checked)
         {
             TryAutoFetchSensorTools();
             drv = cmbDriver == null || cmbDriver.SelectedIndex == 0;
         }
+        List<StartPunkt> punkte = new List<StartPunkt>(); List<string> wp = new List<string>(), zusatz = new List<string>(); bool ohneWp = false;
         StringBuilder a = new StringBuilder();
         a.Append("-NoProfile -ExecutionPolicy Bypass -File \"").Append(script).Append("\" -EventMode");
         a.Append(" -Module ").Append(String.Join(",", mods.ToArray()));
@@ -7902,19 +8303,15 @@ public partial class DiagGui : Form
 
         if (nav[0].Checked)
         {
-            if (rbCrash.Checked) a.Append(" -AnalyzeLastRun");
-            else
-            {
-                string prof = rbVoll.Checked ? "Voll" : rbSchnell.Checked ? "Schnell" : rbTest.Checked ? "Funktionstest" : "Benutzerdefiniert";
-                a.Append(" -DiagProfil ").Append(prof);
-                List<string> o = new List<string>();
-                for (int i = 0; i < diagChk.Length; i++) if (diagChk[i].Checked) o.Add(diagKeys[i]);
-                a.Append(" -DiagOptionen ").Append(o.Count > 0 ? String.Join(",", o.ToArray()) : "Keine");
-                if (chkInstall.Enabled && chkInstall.Checked) a.Append(" -InstallSmartmontools");
-                if (chkMem.Enabled && chkMem.Checked) a.Append(" -ScheduleWindowsMemTest");
-            }
+            string prof = rbVoll.Checked ? "Voll" : rbSchnell.Checked ? "Schnell" : "Benutzerdefiniert";
+            a.Append(" -DiagProfil ").Append(prof);
+            List<string> o = new List<string>();
+            for (int i = 0; i < diagChk.Length; i++) if (diagChk[i].Checked) o.Add(diagKeys[i]);
+            a.Append(" -DiagOptionen ").Append(o.Count > 0 ? String.Join(",", o.ToArray()) : "Keine");
+            if (chkInstall.Enabled && chkInstall.Checked) a.Append(" -InstallSmartmontools");
+            if (chkMem.Enabled && chkMem.Checked) a.Append(" -ScheduleWindowsMemTest");
             if (cmbDays.Enabled) a.Append(" -EventDays ").Append(Convert.ToString(cmbDays.SelectedItem).Split(' ')[0]);
-            if (!rbCrash.Checked && diagChk[4].Checked) a.Append(" -SmartTimeoutMinutes ").Append(SmartMax());
+            if (diagChk[4].Checked) a.Append(" -SmartTimeoutMinutes ").Append(SmartMax());
         }
         if (nav[1].Checked)
         {
@@ -7952,19 +8349,22 @@ public partial class DiagGui : Form
         }
         if (nav[3].Checked)
         {
-            List<string> r = new List<string>(); StringBuilder names = new StringBuilder();
-            for (int i = 0; i < repChk.Length; i++) if (repChk[i].Checked) { r.Add(repKeys[i]); names.AppendLine("·  " + repText[i] + (repRisk[i].Length > 0 ? "  [" + ContractStep.RiskLabel(repRisk[i]) + "]" : "")); }
+            List<string> r = new List<string>();
+            for (int i = 0; i < repChk.Length; i++) if (repChk[i].Checked) { r.Add(repKeys[i]); punkte.Add(new StartPunkt("Wartung", SplitDetail(repText[i])[0], i < repRisk.Length && repRisk[i].Length > 0 ? repRisk[i] : "Eingriff", i < repRestart.Length ? repRestart[i] : "")); }
             if (r.Count == 0) { MessageBox.Show(this, "Im Wartungsmodul ist nichts ausgewählt.", "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Information); ShowPage(3); return; }
-            if (MessageBox.Show(this, "Folgende Reparaturen werden ausgeführt:\r\n\r\n" + names.ToString() + (chkRestorePoint.Checked ? "\r\nVorher wird ein Wiederherstellungspunkt angelegt." : "\r\nEs wird KEIN Wiederherstellungspunkt angelegt.") + "\r\n\r\nFortfahren?",
-                "Wartung bestätigen", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            wp.Add("Wartung|" + (chkRestorePoint.Checked ? "1" : "0")); if (!chkRestorePoint.Checked) ohneWp = true;
             a.Append(" -Wartung ").Append(String.Join(",", r.ToArray()));
             if (!chkRestorePoint.Checked) a.Append(" -OhneWiederherstellungspunkt");
         }
         if (nav[4].Checked)
         {
-            string optArgs = OptStartArgs(); if (optArgs == null) return;
+            string optArgs = OptStartArgs(punkte, zusatz); if (optArgs == null) return;
+            wp.Add("Optimierung|" + (chkOptRestore.Checked ? "1" : "0")); if (!chkOptRestore.Checked) ohneWp = true;
             a.Append(optArgs);
         }
+        if (nav[0].Checked && chkMem.Enabled && chkMem.Checked) punkte.Add(new StartPunkt("Diagnose", "Windows-Speicherdiagnose beim nächsten Neustart", "Aendern", "immer"));
+        // ab v3.64 eine Zusammenfassung vor dem Start, nur bei Eingriffen, Neustarts oder abgewähltem Wiederherstellungspunkt
+        if ((StartUebersicht.Noetig(punkte, ohneWp) || zusatz.Count > 0) && !ConfirmStart(StartUebersicht.Text(mods, "ca. " + MinText(EstimateMinutes()), punkte, wp, zusatz), punkte)) return;
         if (nav[0].Checked && chkFast != null && chkFast.Enabled && chkFast.Checked) a.Append(" -SchnellerModus");
         bool gpuBench = nav[1].Checked && benchChk[2].Checked, gpuLoad = nav[2].Checked && chkLGpu.Checked;
         if (gpuBench || gpuLoad)
@@ -7985,7 +8385,7 @@ public partial class DiagGui : Form
     static string AbortArg(ComboBox c)
     {
         string s = Convert.ToString(c.SelectedItem);
-        if (s.StartsWith("automatisch")) return "auto";
+        if (s.StartsWith("automatisch", StringComparison.OrdinalIgnoreCase)) return "auto";
         if (s == "aus") return "aus";
         return s.Split(' ')[0];
     }
@@ -8087,7 +8487,7 @@ public partial class DiagGui : Form
             }
         }
         catch { }
-        return "Gespeicherte Referenz (noch keine festgelegt, Haken unten setzen)";
+        return "";
     }
 
     // ------------------------------------------------------------ Voreinstellungen (ab v2.65)
@@ -8100,7 +8500,7 @@ public partial class DiagGui : Form
     string presetActive = "";
     string PresetFile { get { return dataDir.Length > 0 ? Path.Combine(dataDir, "Voreinstellungen.json") : ""; } }
     const string PresetFormat = "Minibench-Voreinstellungen/1";
-    static readonly string[] diagProfiles = new string[] { "Voll", "Schnell", "Benutzerdefiniert", "Funktionstest", "Absturzanalyse" };
+    static readonly string[] diagProfiles = new string[] { "Voll", "Schnell", "Benutzerdefiniert" };
 
     Dictionary<string, object> ReadPresetFile()
     {
@@ -8246,6 +8646,15 @@ public partial class DiagGui : Form
         bool b; if (bool.TryParse(Convert.ToString(o), out b)) { v = b; return true; }
         return false;
     }
+    // gleiche Wahl trotz geänderter Beschriftung: gleiche Zahl am Anfang oder alter Text beginnt mit dem neuen
+    public static bool SameChoice(string item, string old)
+    {
+        if (String.IsNullOrEmpty(item) || String.IsNullOrEmpty(old)) return false;
+        if (old.StartsWith(item, StringComparison.OrdinalIgnoreCase)) return true;
+        string a = item.Split(' ')[0], b = old.Split(' ')[0]; int x, y;
+        return int.TryParse(a, out x) && int.TryParse(b, out y) && x == y && item.Length > a.Length && old.Length > b.Length && Char.ToLowerInvariant(item[a.Length + 1]) == Char.ToLowerInvariant(old[b.Length + 1]);
+    }
+
     static string GetS(Dictionary<string, object> d, string k) { object o; return d != null && d.TryGetValue(k, out o) && o != null ? Convert.ToString(o) : null; }
     static void GetC(Dictionary<string, object> d, string k, CheckBox c) { bool v; if (c != null && GetB(d, k, out v)) c.Checked = v; }
     static void GetCb(Dictionary<string, object> d, string k, ComboBox c)
@@ -8253,6 +8662,8 @@ public partial class DiagGui : Form
         string v = GetS(d, k); if (c == null || v == null) return;
         int i = c.Items.IndexOf(v);
         if (i < 0) for (int j = 0; j < c.Items.Count; j++) if (Convert.ToString(c.Items[j]).StartsWith(v, StringComparison.OrdinalIgnoreCase)) { i = j; break; }
+        // Voreinstellungen vor v3.64: längere Texte ("2 Minuten", "automatisch (TjMax, sonst 100 °C)")
+        if (i < 0) for (int j = 0; j < c.Items.Count; j++) if (SameChoice(Convert.ToString(c.Items[j]), v)) { i = j; break; }
         if (i >= 0) c.SelectedIndex = i;
     }
 
@@ -8262,7 +8673,7 @@ public partial class DiagGui : Form
         Dictionary<string, object> d = new Dictionary<string, object>();
         string[] mods = new string[] { "Diagnose", "Benchmark", "Lasttest", "Reparatur", "Optimierung" };
         for (int i = 0; i < mods.Length && i < nav.Count; i++) d["Modul." + mods[i]] = nav[i].Checked;
-        RadioButton[] rbs = new RadioButton[] { rbVoll, rbSchnell, rbCustom, rbTest, rbCrash };
+        RadioButton[] rbs = new RadioButton[] { rbVoll, rbSchnell, rbCustom };
         for (int i = 0; i < rbs.Length; i++) if (rbs[i] != null && rbs[i].Checked) d["Diag.Profil"] = diagProfiles[i];
         for (int i = 0; i < diagKeys.Length && diagChk != null; i++) d["Diag." + diagKeys[i]] = diagChk[i].Checked;
         PutC(d, "Diag.SchnellerModus", chkFast); PutC(d, "Diag.Smartmontools", chkInstall); PutC(d, "Diag.Speicherdiagnose", chkMem);
@@ -8300,10 +8711,17 @@ public partial class DiagGui : Form
         bool v;
         for (int i = 0; i < mods.Length && i < nav.Count; i++) if (GetB(d, "Modul." + mods[i], out v)) nav[i].Checked = v;
         string prof = GetS(d, "Diag.Profil");
-        RadioButton[] rbs = new RadioButton[] { rbVoll, rbSchnell, rbCustom, rbTest, rbCrash };
-        if (prof != null) { int i = Array.IndexOf(diagProfiles, prof); if (i >= 0 && rbs[i] != null) rbs[i].Checked = true; }
-        for (int i = 0; i < diagKeys.Length && diagChk != null; i++) GetC(d, "Diag." + diagKeys[i], diagChk[i]);
-        GetC(d, "Diag.SchnellerModus", chkFast); GetC(d, "Diag.Smartmontools", chkInstall); GetC(d, "Diag.Speicherdiagnose", chkMem);
+        RadioButton[] rbs = new RadioButton[] { rbVoll, rbSchnell, rbCustom };
+        // Voreinstellungen vor v3.64 mit Funktionstest oder Absturzanalyse: Profil Schnell, ohne die dort abgeschalteten
+        // Prüfungen und Optionen zu übernehmen (sonst liefe etwa die Installation von smartmontools unerwartet mit)
+        bool alt = false;
+        if (prof != null) { int i = Array.IndexOf(diagProfiles, prof); if (i < 0) { i = 1; alt = true; } if (rbs[i] != null) rbs[i].Checked = true; }
+        if (!alt)
+        {
+            for (int i = 0; i < diagKeys.Length && diagChk != null; i++) GetC(d, "Diag." + diagKeys[i], diagChk[i]);
+            GetC(d, "Diag.Smartmontools", chkInstall); GetC(d, "Diag.Speicherdiagnose", chkMem);
+        }
+        GetC(d, "Diag.SchnellerModus", chkFast);
         GetCb(d, "Diag.Tage", cmbDays); GetCb(d, "Diag.SmartMax", cmbSmartMax);
         for (int i = 0; i < benchKeys.Length && benchChk != null; i++) GetC(d, "Bench." + benchKeys[i], benchChk[i]);
         GetC(d, "Bench.GpuWahl", chkGpuWahl); GetCb(d, "Bench.Dauer", cmbBenchDur);
@@ -8909,6 +9327,14 @@ public static class UI
     public static Color OkBg { get; set; }
     public static Color Skip { get; set; }
     public static Color SkipBg { get; set; }
+    // ab v3.64: Schrift auf Akzentflächen (Primärknöpfe, angehakte Kästchen); im Dunkelschema dunkel, sonst weiß
+    public static Color OnAccent { get; set; }
+
+    // ab v3.64: Gestaltungsregeln für alle Seiten (Werte in Pixeln bei 96 dpi, immer über S() verwenden)
+    public const int Abstand1 = 4, Abstand2 = 8, Abstand3 = 12, Abstand4 = 16, Abstand5 = 24;
+    public const int Gruppenbreite = 780;      // Breite von Gruppen, Tabellen und Hinweistexten
+    public const int Seitenrand = 24;          // Innenabstand jeder Seite links und oben
+    public const float SchriftTitel = 15f, SchriftAbschnitt = 11.5f, SchriftGruppe = 10f, SchriftText = 9.5f, SchriftHinweis = 9f;
 
     public static float DpiScale = 1.0f;
 
@@ -8953,6 +9379,7 @@ public static class UI
             OkBg = Color.FromArgb(27, 56, 40);         // #1B3828
             Skip = Color.FromArgb(156, 163, 175);     // #9CA3AF
             SkipBg = Color.FromArgb(51, 51, 51);       // #333333
+            OnAccent = Color.FromArgb(18, 19, 20);     // #121314 auf #4CC2FF, etwa 9:1
         }
         else
         {
@@ -8977,6 +9404,7 @@ public static class UI
             OkBg = Color.FromArgb(223, 246, 221);
             Skip = Color.FromArgb(95, 99, 104);
             SkipBg = Color.FromArgb(243, 244, 246);
+            OnAccent = Color.White;                    // auf #0067C0, etwa 5,9:1
         }
     }
 
@@ -9057,10 +9485,79 @@ public static class UI
         else { fg = Skip; bg = SkipBg; }
     }
 
+    // Kontrastverhältnis nach WCAG 2.1 (1 bis 21)
+    public static double ContrastRatio(Color a, Color b)
+    {
+        double la = Luminance(a), lb = Luminance(b);
+        double hi = Math.Max(la, lb), lo = Math.Min(la, lb);
+        return (hi + 0.05) / (lo + 0.05);
+    }
+    static double Luminance(Color c)
+    {
+        double[] v = new double[] { c.R / 255.0, c.G / 255.0, c.B / 255.0 };
+        for (int i = 0; i < 3; i++) v[i] = v[i] <= 0.03928 ? v[i] / 12.92 : Math.Pow((v[i] + 0.055) / 1.055, 2.4);
+        return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+    }
+
+    // Farbpaar eines Etiketts: info, warn, crit, ok, skip
+    public static void BadgeColors(string level, out Color fg, out Color bg)
+    {
+        string l = (level ?? "").ToLowerInvariant();
+        if (l == "warn") { fg = Warn; bg = WarnBg; }
+        else if (l == "crit") { fg = Crit; bg = CritBg; }
+        else if (l == "ok") { fg = Ok; bg = OkBg; }
+        else if (l == "info") { fg = Info; bg = InfoBg; }
+        else { fg = Skip; bg = SkipBg; }
+    }
+
+    // Risikostufe aus Modulvertrag oder Katalog als Etikett: Ändern blau, Eingriff gelb, Zerstörend rot, Lesen grün
+    public static string RiskLevel(string risiko)
+    {
+        string r = (risiko ?? "").ToLowerInvariant();
+        if (r == "aendern" || r == "ändern") return "info";
+        if (r == "eingriff") return "warn";
+        if (r == "zerstoerend" || r == "zerstörend") return "crit";
+        if (r == "lesen") return "ok";
+        return "skip";
+    }
+
+    // Symbol aus der Symbolschrift als kleines Bild (für Knöpfe mit Symbol vor dem Text)
+    public static Bitmap GlyphImage(string glyph, Color color, int size)
+    {
+        Bitmap bmp = new Bitmap(Math.Max(1, size), Math.Max(1, size));
+        // GDI+ statt TextRenderer: TextRenderer (GDI) lässt den Alphakanal auf transparentem Grund bei 0
+        using (Graphics g = Graphics.FromImage(bmp))
+        using (Font f = SymbolFont(size * 0.62f * 0.75f))
+        using (SolidBrush br = new SolidBrush(color))
+        using (StringFormat sf = new StringFormat())
+        {
+            g.Clear(Color.Transparent);
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+            sf.Alignment = StringAlignment.Center; sf.LineAlignment = StringAlignment.Center;
+            g.DrawString(glyph, f, br, new RectangleF(0, 0, size, size), sf);
+        }
+        return bmp;
+    }
+
+    public const string IcoInfo = "";
+    public const string IcoSonne = "";
+    public const string IcoMond = "";
+    public const string IcoAdmin = "";
+    public const string IcoOrdner = "";
+    public const string IcoLaden = "";
+    public const string IcoEntfernen = "";
+    public const string IcoTorte = "";
+    public const string IcoGeraete = "";
+    public const string IcoNetz = "";
+    public const string IcoSpeichern = "";
+    public const string IcoAuf = "";
+    public const string IcoZu = "";
+    public const string IcoWarnung = "";
+
     public static Button Primary(string text)
     {
-        Button b = new Button(); b.Text = text; b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderSize = 0;
-        b.BackColor = Accent; b.ForeColor = Color.White; b.FlatAppearance.MouseOverBackColor = AccentHover; b.FlatAppearance.MouseDownBackColor = AccentActive;
+        Button b = new PrimaryButton(); b.Text = text; b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderSize = 0;
+        b.BackColor = Accent; b.ForeColor = OnAccent; b.FlatAppearance.MouseOverBackColor = AccentHover; b.FlatAppearance.MouseDownBackColor = AccentActive;
         b.Font = new Font("Segoe UI Semibold", 10.5f); b.AutoSize = true; b.Padding = new Padding(S(18), S(6), S(18), S(6)); b.Cursor = Cursors.Hand; b.UseVisualStyleBackColor = false;
         return b;
     }
@@ -9167,6 +9664,91 @@ public static class UI
         {
             ThemeDialogControls(c.Controls);
         }
+    }
+}
+
+// ab v3.64: Primärknopf als eigener Typ, damit der Farbwechsel ihn ohne Farbvergleich erkennt
+public class PrimaryButton : Button { }
+
+// ab v3.64: kleines farbiges Etikett (Risikostufe, Neustart, Werkzeugstatus, Zustand)
+public class Badge : Control
+{
+    string level = "skip";
+    public Badge(string text, string level)
+    {
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
+        BackColor = Color.Transparent;
+        Font = new Font("Segoe UI Semibold", 8.25f);
+        Margin = new Padding(UI.S(6), UI.S(4), 0, 0);
+        this.level = level ?? "skip";
+        Text = text ?? "";
+        FitSize();
+    }
+    public string Level { get { return level; } set { level = value ?? "skip"; Invalidate(); } }
+    protected override void OnTextChanged(EventArgs e) { base.OnTextChanged(e); FitSize(); Invalidate(); }
+    void FitSize()
+    {
+        Size t = TextRenderer.MeasureText(Text.Length > 0 ? Text : " ", Font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding);
+        Size = new Size(t.Width + UI.S(14), Math.Max(UI.S(18), t.Height + UI.S(4)));
+        Visible = Text.Length > 0;
+    }
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        Color fg, bg; UI.BadgeColors(level, out fg, out bg);
+        if (!Enabled) { fg = UI.Muted; bg = UI.SkipBg; }
+        Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+        using (GraphicsPath p = UI.Round(new RectangleF(0, 0, Width - 1, Height - 1), (Height - 1) / 2f))
+        using (SolidBrush b = new SolidBrush(bg)) g.FillPath(b, p);
+        TextRenderer.DrawText(g, Text, Font, ClientRectangle, fg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+    }
+}
+
+// ab v3.64: Kopfzeile einer Aufklappgruppe, ganze Zeile klickbar, Pfeilsymbol und Zähler "2 von 4 gewählt"
+public class GroupHeader : Control
+{
+    string title = "", count = "";
+    bool expanded, hover;
+    public event EventHandler Toggled;
+    public GroupHeader(string title)
+    {
+        this.title = title ?? "";
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
+        TabStop = true; Cursor = Cursors.Hand; BackColor = UI.Panel;
+        Size = new Size(UI.S(UI.Gruppenbreite), UI.S(32));
+        Margin = new Padding(0, UI.S(UI.Abstand2), 0, 0);
+    }
+    public string Title { get { return title; } set { title = value ?? ""; Invalidate(); } }
+    public string CountText { get { return count; } set { if (count == (value ?? "")) return; count = value ?? ""; Invalidate(); } }
+    public bool Expanded { get { return expanded; } set { if (expanded == value) return; expanded = value; Invalidate(); } }
+    void Flip() { Expanded = !Expanded; if (Toggled != null) Toggled(this, EventArgs.Empty); }
+    protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
+    protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
+    protected override void OnGotFocus(EventArgs e) { Invalidate(); base.OnGotFocus(e); }
+    protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
+    protected override void OnMouseClick(MouseEventArgs e) { if (e.Button == MouseButtons.Left) { Focus(); Flip(); } base.OnMouseClick(e); }
+    protected override void OnKeyDown(KeyEventArgs e) { if (e.KeyCode == Keys.Space || e.KeyCode == Keys.Enter) { Flip(); e.Handled = true; } base.OnKeyDown(e); }
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+        Color bg = hover ? (UI.IsDark ? Color.FromArgb(44, 46, 48) : Color.FromArgb(243, 245, 248)) : UI.Panel;
+        using (GraphicsPath p = UI.Round(new RectangleF(0, 0, Width - 1, Height - 1), UI.SF(5)))
+        using (SolidBrush b = new SolidBrush(bg)) g.FillPath(b, p);
+        using (Pen line = new Pen(UI.Line)) g.DrawLine(line, 0, Height - 1, Width, Height - 1);
+        int x = UI.S(6);
+        using (Font fi = UI.SymbolFont(8.5f))
+            TextRenderer.DrawText(g, expanded ? UI.IcoAuf : UI.IcoZu, fi, new Rectangle(x, 0, UI.S(16), Height), UI.Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+        x += UI.S(24);
+        using (Font ft = new Font("Segoe UI Semibold", UI.SchriftGruppe + 0.5f))
+        {
+            Size ts = TextRenderer.MeasureText(g, title, ft);
+            TextRenderer.DrawText(g, title, ft, new Rectangle(x, 0, Math.Max(10, Width - x - UI.S(8)), Height), UI.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            x += ts.Width + UI.S(10);
+        }
+        if (count.Length > 0)
+            using (Font fc = new Font("Segoe UI", UI.SchriftHinweis))
+                TextRenderer.DrawText(g, count, fc, new Rectangle(x, 0, Math.Max(10, Width - x - UI.S(8)), Height), UI.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        if (Focused)
+            using (Pen fp = new Pen(UI.Accent, 1f)) { fp.DashStyle = DashStyle.Dot; g.DrawRectangle(fp, 1, 1, Width - 3, Height - 3); }
     }
 }
 
@@ -9386,6 +9968,10 @@ public class FluentCard : Control
     public string Description { get { return desc; } set { desc = value ?? ""; Invalidate(); } }
     public string Icon { get { return icon; } set { icon = value ?? ""; Invalidate(); } }
     public ToggleSwitch Toggle { get { return toggle; } }
+    // ab v3.64: Zustand als Etikett hinter dem Titel ("Bereit", "Nicht gefunden"), Farbe wie UI.BadgeColors
+    string status = "", statusLevel = "skip";
+    public string StatusText { get { return status; } set { status = value ?? ""; Invalidate(); } }
+    public string StatusLevel { get { return statusLevel; } set { statusLevel = value ?? "skip"; Invalidate(); } }
 
     public Button ActionButton
     {
@@ -9530,6 +10116,21 @@ public class FluentCard : Control
             int titleH = Math.Max(tsz.Height, UI.S(18));
             int startY = String.IsNullOrEmpty(desc) ? (Height - titleH) / 2 : UI.S(12);
             TextRenderer.DrawText(g, title, ft, new Rectangle(curX, startY, textW, titleH), UI.Text, TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+            if (status.Length > 0)
+            {
+                using (Font fs = new Font("Segoe UI Semibold", UI.SF(8.25f)))
+                {
+                    Size ss = TextRenderer.MeasureText(g, status, fs, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding);
+                    int bx = curX + Math.Min(tsz.Width, textW) + UI.S(8), bw = ss.Width + UI.S(14), bh = Math.Max(UI.S(18), ss.Height + UI.S(4));
+                    if (bx + bw < rightBound)
+                    {
+                        Color sfg, sbg; UI.BadgeColors(statusLevel, out sfg, out sbg);
+                        Rectangle br = new Rectangle(bx, startY + (titleH - bh) / 2, bw, bh);
+                        using (GraphicsPath bp = UI.Round(new RectangleF(br.X, br.Y, br.Width - 1, br.Height - 1), (bh - 1) / 2f)) using (SolidBrush sb = new SolidBrush(sbg)) g.FillPath(sb, bp);
+                        TextRenderer.DrawText(g, status, fs, br, sfg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                    }
+                }
+            }
 
             if (!String.IsNullOrEmpty(desc))
             {
@@ -9584,6 +10185,8 @@ class NavItem : Control
 {
     bool sel, hover, chk;
     public string Title, Desc, Icon;
+    // ab v3.64: kurzer Zusatz rechts im Eintrag, etwa die geschätzte Dauer eines angehakten Moduls
+    public string Hint = "";
     public bool HasCheck = true;
     public event EventHandler Picked;
     public event EventHandler CheckedChanged;
@@ -9621,12 +10224,14 @@ class NavItem : Control
     {
         Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
         RectangleF r = new RectangleF(1, 1, Width - 3, Height - 3);
-        Color fill = sel ? UI.AccentSoft : (hover ? (UI.IsDark ? Color.FromArgb(45, 47, 50) : Color.FromArgb(240, 243, 248)) : UI.Panel);
-        Color borderPen = sel ? UI.Accent : (hover ? (UI.IsDark ? Color.FromArgb(80, 82, 85) : Color.FromArgb(209, 213, 219)) : UI.Line);
+        // ab v3.64: angezeigte Seite nur über Akzentbalken und AccentSoft, Überfahren nur leicht aufgehellt ohne Rahmenwechsel,
+        // ausgeführt wird, was angehakt ist (vorher sahen Überfahren und Auswahl fast gleich aus)
+        Color fill = sel ? UI.AccentSoft : (hover ? (UI.IsDark ? Color.FromArgb(40, 41, 43) : Color.FromArgb(244, 246, 249)) : UI.Bg);
+        Color borderPen = sel ? UI.AccentSoft : (hover ? UI.Line : UI.Bg);
         using (GraphicsPath p = UI.Round(r, UI.SF(6)))
         {
             using (SolidBrush b = new SolidBrush(fill)) g.FillPath(b, p);
-            using (Pen pen = new Pen(borderPen, sel ? UI.SF(1.5f) : UI.SF(1f))) g.DrawPath(pen, p);
+            using (Pen pen = new Pen(borderPen, UI.SF(1f))) g.DrawPath(pen, p);
         }
 
         // Bei Auswahl: Links ein 3 px breiter, abgerundeter blauer Akzentbalken
@@ -9649,7 +10254,7 @@ class NavItem : Control
                 Color chkBorder = chk ? UI.Accent : (UI.IsDark ? Color.FromArgb(90, 95, 105) : Color.FromArgb(160, 170, 185));
                 using (Pen bpen = new Pen(chkBorder, UI.SF(1.5f))) g.DrawPath(bpen, bp);
             }
-            if (chk) using (Pen ck = new Pen(Color.White, UI.SF(2.4f))) { ck.StartCap = LineCap.Round; ck.EndCap = LineCap.Round; g.DrawLines(ck, new Point[] { new Point(bx.X + UI.S(5), bx.Y + UI.S(10)), new Point(bx.X + UI.S(9), bx.Y + UI.S(14)), new Point(bx.X + UI.S(15), bx.Y + UI.S(6)) }); }
+            if (chk) using (Pen ck = new Pen(UI.OnAccent, UI.SF(2.4f))) { ck.StartCap = LineCap.Round; ck.EndCap = LineCap.Round; g.DrawLines(ck, new Point[] { new Point(bx.X + UI.S(5), bx.Y + UI.S(10)), new Point(bx.X + UI.S(9), bx.Y + UI.S(14)), new Point(bx.X + UI.S(15), bx.Y + UI.S(6)) }); }
             x = bx.Right + UI.S(10);
         }
 
@@ -9671,7 +10276,18 @@ class NavItem : Control
             int th = Math.Max(tsz.Height, UI.S(18));
             int startY = (Height - th) / 2;
             Color titleColor = sel ? (UI.IsDark ? UI.Accent : UI.AccentDark) : UI.Text;
-            TextRenderer.DrawText(g, Title, ft, new Rectangle(x, startY, Width - x - UI.S(8), th), titleColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            int right = Width - UI.S(10);
+            if (!String.IsNullOrEmpty(Hint))
+                using (Font fh = new Font("Segoe UI", UI.SF(8.5f)))
+                {
+                    Size hs = TextRenderer.MeasureText(g, Hint, fh);
+                    if (right - hs.Width > x + tsz.Width + UI.S(6))
+                    {
+                        TextRenderer.DrawText(g, Hint, fh, new Rectangle(right - hs.Width, 0, hs.Width, Height), UI.Muted, TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                        right -= hs.Width + UI.S(6);
+                    }
+                }
+            TextRenderer.DrawText(g, Title, ft, new Rectangle(x, startY, Math.Max(10, right - x), th), titleColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         }
     }
 }
@@ -10114,6 +10730,7 @@ class OptItem
 {
     public string Id = "", Kat = "", Risiko = "", Neustart = "", Vorlagen = "", Bedingung = "", Titel = "", Tip = "", Zustand = "", ZustandText = "";
     public bool Verwaltet; public int Minuten; public CheckBox Box;
+    public Badge StateBadge;   // ab v3.64: Zustand auf diesem PC als Etikett neben dem Eintrag
 }
 
 // Netzlaufwerk als Spiegel der Nutzerdaten (ab v3.54). Die Oberfläche arbeitet immer im Datenordner auf dem Stick;
@@ -10311,6 +10928,61 @@ public static class NasAblage
         }
     }
 }
+
+// ab v3.64: Zusammenfassung vor dem Start, nur wenn Eingriffe, Neustarts oder ein abgewählter Wiederherstellungspunkt
+// im Spiel sind (ersetzt die getrennten Rückfragen von Wartung und Optimierung)
+public class StartPunkt
+{
+    public string Modul = "", Titel = "", Risiko = "", Neustart = "";
+    public StartPunkt(string modul, string titel, string risiko, string neustart) { Modul = modul ?? ""; Titel = titel ?? ""; Risiko = risiko ?? ""; Neustart = neustart ?? ""; }
+    public bool IstEingriff { get { return Risiko == "Eingriff" || Risiko == "Zerstoerend"; } }
+    public bool BrauchtNeustart { get { return Neustart == "immer" || Neustart == "moeglich"; } }
+}
+
+public static class StartUebersicht
+{
+    public static bool Noetig(List<StartPunkt> punkte, bool ohneWiederherstellung)
+    {
+        if (ohneWiederherstellung) return true;
+        if (punkte == null) return false;
+        foreach (StartPunkt p in punkte) if (p.IstEingriff || p.BrauchtNeustart) return true;
+        return false;
+    }
+
+    // Text des Dialogs; wp: je Modul mit Wiederherstellungspunkt-Haken "Modul|1" oder "Modul|0"
+    public static string Text(List<string> module, string dauer, List<StartPunkt> punkte, List<string> wp, List<string> zusatz)
+    {
+        StringBuilder t = new StringBuilder();
+        t.AppendLine("Ablauf: " + String.Join("  →  ", (module ?? new List<string>()).ToArray()) + (String.IsNullOrEmpty(dauer) ? "" : ", " + dauer));
+        List<StartPunkt> ein = (punkte ?? new List<StartPunkt>()).FindAll(delegate(StartPunkt p) { return p.IstEingriff; });
+        List<StartPunkt> neu = (punkte ?? new List<StartPunkt>()).FindAll(delegate(StartPunkt p) { return p.BrauchtNeustart; });
+        if (ein.Count > 0)
+        {
+            t.AppendLine().AppendLine(ein.Count + (ein.Count == 1 ? " Eingriff" : " Eingriffe") + " ohne automatisches Rückgängig:");
+            for (int i = 0; i < ein.Count && i < 12; i++) t.AppendLine("·  " + ein[i].Titel + " (" + ein[i].Modul + ")");
+            if (ein.Count > 12) t.AppendLine("·  und " + (ein.Count - 12) + " weitere");
+        }
+        if (neu.Count > 0)
+        {
+            t.AppendLine().AppendLine("Neustart nötig oder möglich:");
+            for (int i = 0; i < neu.Count && i < 8; i++) t.AppendLine("·  " + neu[i].Titel + (neu[i].Neustart == "moeglich" ? " (kann nötig sein)" : ""));
+            if (neu.Count > 8) t.AppendLine("·  und " + (neu.Count - 8) + " weitere");
+        }
+        if (wp != null && wp.Count > 0)
+        {
+            t.AppendLine();
+            foreach (string w in wp)
+            {
+                string[] x = w.Split('|');
+                if (x.Length < 2) continue;
+                t.AppendLine(x[0] + ": " + (x[1] == "1" ? "Vorher wird ein Wiederherstellungspunkt angelegt." : "Es wird KEIN Wiederherstellungspunkt angelegt."));
+            }
+        }
+        if (zusatz != null) foreach (string z in zusatz) if (!String.IsNullOrEmpty(z)) t.AppendLine().AppendLine(z);
+        return t.ToString().TrimEnd();
+    }
+}
+
 // Vergleichsdatenbank und Systemvergleich (Teilklasse DiagGui)
 public partial class DiagGui
 {
@@ -10890,7 +11562,7 @@ public partial class DiagGui
     Control BuildVersionPage()
     {
         Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel;
-        FlowLayoutPanel top = Page("Versionen", "Was sich von Version zu Version geändert hat, neueste zuerst. Ausführlich in den Änderungsdateien im Ordner Doku des Projekts (Änderungen_vX.Y.txt).", -1);
+        FlowLayoutPanel top = Page("Info und Versionen", "Leos Minibench " + this.version + " auf " + Environment.MachineName + ", " + OsName() + ". Darunter, was sich von Version zu Version geändert hat, neueste zuerst; ausführlich in den Änderungsdateien im Ordner Doku des Projekts (Änderungen_vX.Y.txt).", -1);
         top.Dock = DockStyle.Top;
         top.AutoSize = true;
         top.Padding = new Padding(0, 0, 0, UI.S(10));
@@ -10916,7 +11588,7 @@ public partial class DiagGui
     Control BuildChangePage()
     {
         Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel;
-        FlowLayoutPanel top = Page("Änderungen", "Alles, was Leos Minibench an einem PC verändert hat, mit Vorher-Wert. Einträge der Stufe Ändern lassen sich auf dem PC, auf dem sie entstanden sind, zurücknehmen. Eingriffe stehen mit dem Weg zurück als Hinweis in der Liste.", -1);
+        FlowLayoutPanel top = Page("Systemänderungen", "Alles, was Leos Minibench an einem PC verändert hat, mit Vorher-Wert. Einträge der Stufe Ändern lassen sich auf dem PC, auf dem sie entstanden sind, zurücknehmen. Eingriffe stehen mit dem Weg zurück als Hinweis in der Liste.", -1);
         top.Dock = DockStyle.Top;
         top.AutoSize = true;
         Label lp = Lbl("Protokoll: " + (changeDir.Length > 0 ? changeDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lp.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8)); top.Controls.Add(lp);
@@ -11020,20 +11692,13 @@ public partial class DiagGui
         MessageBox.Show(this, lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Keine Rückmeldung vom Arbeitsprozess.", "Rückgängig", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
+    // ab v3.64: Seite ohne eigenen Bildlaufbereich (vorher zwei Bildlaufleisten), Werkzeugkarten mit Zustandsetikett und
+    // festen Knopfspalten, Netzlaufwerk als eigener Bereich, Paketauswahl ohne IDs im Text
     Control BuildToolsPage()
     {
-        Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel;
-        FlowLayoutPanel top = Page("Tools", "Portable Werkzeuge und praktische Windows-Schnellstarter für Partitionierung, gründliche Deinstallation, Speicherplatzanalyse und Firmware-Zugriff.", -1);
-        top.Dock = DockStyle.Top; top.AutoSize = true; top.WrapContents = false;
-        top.Padding = new Padding(0, 0, 0, UI.S(10));
+        FlowLayoutPanel f = Page("Tools", "Portable Werkzeuge und Windows-Schnellstarter für gründliche Deinstallation, Partitionierung, Speicherplatzanalyse, Geräte und den Neustart in die Firmware.", -1);
 
-        FlowLayoutPanel body = new FlowLayoutPanel();
-        body.Dock = DockStyle.Fill; body.AutoScroll = true;
-        body.FlowDirection = FlowDirection.TopDown; body.WrapContents = false;
-        body.BackColor = UI.Panel;
-        body.Padding = new Padding(UI.S(4), 0, UI.S(16), UI.S(20));
-
-        FlowLayoutPanel topBar = Row(); topBar.Margin = new Padding(UI.S(4), 0, 0, UI.S(10));
+        FlowLayoutPanel topBar = Row(); topBar.Margin = new Padding(0, UI.S(UI.Abstand1), 0, 0);
         Button btnRefreshTools = UI.Secondary("Neu scannen");
         btnRefreshTools.Margin = new Padding(0);
         Tip(btnRefreshTools, "Prüft erneut auf vorhandene portable Werkzeuge und Systeminstallationen.");
@@ -11045,14 +11710,9 @@ public partial class DiagGui
             try { Directory.CreateDirectory(td); } catch { }
             OpenShell(td);
         };
-        Button btnConnectNas = UI.Secondary("Netzlaufwerk einrichten ...");
-        btnConnectNas.Margin = new Padding(UI.S(8), 0, 0, 0);
-        Tip(btnConnectNas, "Richtet ein Netzlaufwerk als Spiegel der Berichte und der Datenbank ein. Werkzeuge bleiben immer auf dem Stick.");
-        btnConnectNas.Click += delegate { ShowConnectNasDialog(); };
         topBar.Controls.Add(btnRefreshTools);
         topBar.Controls.Add(btnOpenToolsDir);
-        topBar.Controls.Add(btnConnectNas);
-        body.Controls.Add(topBar);
+        f.Controls.Add(topBar);
 
         FlowLayoutPanel pnlCards = new FlowLayoutPanel();
         pnlCards.AutoSize = true; pnlCards.FlowDirection = FlowDirection.TopDown; pnlCards.WrapContents = false;
@@ -11061,140 +11721,47 @@ public partial class DiagGui
         Action populateCards = delegate {
             pnlCards.SuspendLayout();
             pnlCards.Controls.Clear();
+            int cardW = UI.S(UI.Gruppenbreite); int cardH = UI.S(68);
 
             // 1. Portable Werkzeuge
             pnlCards.Controls.Add(Section("Portable Werkzeuge"));
-            Label lToolsDesc = Lbl("Werden portable Versionen im Ordner Minibench-Daten\\Tools abgelegt, nutzt Leos Minibench diese direkt ohne Installation. Alternativ wird eine vorhandene Systeminstallation gestartet.", 9f, false, UI.Muted);
-            lToolsDesc.MaximumSize = new Size(UI.S(740), 0);
-            lToolsDesc.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
-            pnlCards.Controls.Add(lToolsDesc);
+            pnlCards.Controls.Add(Hint("Liegen portable Versionen im Ordner Minibench-Daten\\Tools, nutzt Leos Minibench diese ohne Installation, sonst eine vorhandene Systeminstallation.", 0));
 
-            int cardW = UI.S(720); int cardH = UI.S(68);
-
-            // Revo Uninstaller
-            FluentCard cRevo = new FluentCard("Revo Uninstaller", "Gründliche Deinstallation von Programmen inklusive Registry- und Dateiresten.", UI.IcoTools);
-            cRevo.Width = cardW; cRevo.Height = cardH;
-            string[] revoDirect = new string[] {
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"VS Revo Group\Revo Uninstaller\RevoUnin.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"VS Revo Group\Revo Uninstaller\RevoUnin.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"VS Revo Group\Revo Uninstaller Pro\RevoUninPro.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"VS Revo Group\Revo Uninstaller Pro\RevoUninPro.exe")
-            };
-            string revoPath = FindToolPath("RevoUninstaller", new string[] { "RevoUPort.exe", "RevoUnin.exe", "RevoUninPro.exe", "RevoUninstaller_Portable.exe" }, new string[] { "Revo Uninstaller" }, revoDirect);
-            if (!String.IsNullOrEmpty(revoPath))
-            {
-                cRevo.Description = "Bereit: " + (revoPath.IndexOf("Minibench-Daten", StringComparison.OrdinalIgnoreCase) >= 0 ? "Portabel (" + Path.GetFileName(revoPath) + ")" : "Systeminstallation (" + Path.GetFileName(revoPath) + ")");
-                Button bStart = UI.Primary("Starten (Admin)");
-                Tip(bStart, "Startet Revo Uninstaller mit Administratorrechten (" + revoPath + ").");
-                string rp = revoPath; bStart.Click += delegate { StartAdminProcess(rp, ""); };
-                cRevo.ActionButton = bStart;
-                Button bFolder = UI.Secondary("Ordner");
-                Tip(bFolder, "Öffnet den Speicherort von Revo Uninstaller.");
-                bFolder.Click += delegate { OpenSelect(rp); };
-                cRevo.SecondaryButton = bFolder;
-            }
-            else
-            {
-                cRevo.Description = "Nicht gefunden (erwartet in Minibench-Daten\\Tools\\RevoUninstaller oder auf dem System).";
-                Button bDl = UI.Secondary("Herunterladen");
-                Tip(bDl, "Öffnet die Downloadseite von Revo Uninstaller im Standardbrowser.");
-                bDl.Click += delegate { OpenShell("https://www.revouninstaller.com/revo-uninstaller-free-download/"); };
-                cRevo.ActionButton = bDl;
-                Button bDir = UI.Secondary("Ordner öffnen");
-                Tip(bDir, "Erstellt und öffnet den Ordner Minibench-Daten\\Tools\\RevoUninstaller.");
-                bDir.Click += delegate { string d = Path.Combine(dataDir, "Tools\\RevoUninstaller"); try { Directory.CreateDirectory(d); } catch { } OpenShell(d); };
-                cRevo.SecondaryButton = bDir;
-            }
-            Tip(cRevo, "Revo Uninstaller: Software restlos entfernen.");
-            pnlCards.Controls.Add(cRevo);
-
-            // MiniTool Partition Wizard
-            FluentCard cPart = new FluentCard("MiniTool Partition Wizard", "Laufwerke partitionieren, Dateisysteme konvertieren und Datenträger verwalten.", UI.IcoDisk);
-            cPart.Width = cardW; cPart.Height = cardH;
-            string[] partDirect = new string[] {
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"MiniTool Partition Wizard 12\partitionwizard.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"MiniTool Partition Wizard 12\partitionwizard.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"MiniTool Partition Wizard\partitionwizard.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"MiniTool Partition Wizard\partitionwizard.exe")
-            };
-            string partPath = FindToolPath("PartitionWizard", new string[] { "partitionwizard.exe", "PartitionWizard.exe", "MiniToolPartitionWizard.exe" }, new string[] { "Partition Wizard", "MiniTool Partition Wizard" }, partDirect);
-            if (!String.IsNullOrEmpty(partPath))
-            {
-                cPart.Description = "Bereit: " + (partPath.IndexOf("Minibench-Daten", StringComparison.OrdinalIgnoreCase) >= 0 ? "Portabel (" + Path.GetFileName(partPath) + ")" : "Systeminstallation (" + Path.GetFileName(partPath) + ")");
-                Button bStart = UI.Primary("Starten (Admin)");
-                Tip(bStart, "Startet MiniTool Partition Wizard mit Administratorrechten (" + partPath + ").");
-                string pp = partPath; bStart.Click += delegate { StartAdminProcess(pp, ""); };
-                cPart.ActionButton = bStart;
-                Button bFolder = UI.Secondary("Ordner");
-                Tip(bFolder, "Öffnet den Speicherort von MiniTool Partition Wizard.");
-                bFolder.Click += delegate { OpenSelect(pp); };
-                cPart.SecondaryButton = bFolder;
-            }
-            else
-            {
-                cPart.Description = "Nicht gefunden (erwartet in Minibench-Daten\\Tools\\PartitionWizard oder auf dem System).";
-                Button bDl = UI.Secondary("Herunterladen");
-                Tip(bDl, "Öffnet die Downloadseite von MiniTool Partition Wizard im Standardbrowser.");
-                bDl.Click += delegate { OpenShell("https://www.partitionwizard.com/free-partition-manager.html"); };
-                cPart.ActionButton = bDl;
-                Button bDir = UI.Secondary("Ordner öffnen");
-                Tip(bDir, "Erstellt und öffnet den Ordner Minibench-Daten\\Tools\\PartitionWizard.");
-                bDir.Click += delegate { string d = Path.Combine(dataDir, "Tools\\PartitionWizard"); try { Directory.CreateDirectory(d); } catch { } OpenShell(d); };
-                cPart.SecondaryButton = bDir;
-            }
-            Tip(cPart, "MiniTool Partition Wizard: Leistungsfähige Datenträger- und Partitionsverwaltung.");
-            pnlCards.Controls.Add(cPart);
-
-            // WizTree
-            FluentCard cWiz = new FluentCard("WizTree Portable", "Ultraschneller Festplatten-Speicherplatzanalysator (MFT-Direktleser).", UI.IcoDisk);
-            cWiz.Width = cardW; cWiz.Height = cardH;
-            string[] wizDirect = new string[] {
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"WizTree\WizTree64.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"WizTree\WizTree.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"WizTree\WizTree.exe")
-            };
-            string wizPath = FindToolPath("WizTree", new string[] { "WizTree64.exe", "WizTree.exe" }, new string[] { "WizTree" }, wizDirect);
-            if (!String.IsNullOrEmpty(wizPath))
-            {
-                cWiz.Description = "Bereit: " + (wizPath.IndexOf("Minibench-Daten", StringComparison.OrdinalIgnoreCase) >= 0 ? "Portabel (" + Path.GetFileName(wizPath) + ")" : "Systeminstallation (" + Path.GetFileName(wizPath) + ")");
-                Button bStart = UI.Primary("Starten (Admin)");
-                Tip(bStart, "Startet WizTree mit Administratorrechten (" + wizPath + ").");
-                string wp = wizPath; bStart.Click += delegate { StartAdminProcess(wp, ""); };
-                cWiz.ActionButton = bStart;
-                Button bFolder = UI.Secondary("Ordner");
-                Tip(bFolder, "Öffnet den Speicherort von WizTree.");
-                bFolder.Click += delegate { OpenSelect(wp); };
-                cWiz.SecondaryButton = bFolder;
-            }
-            else
-            {
-                cWiz.Description = "Nicht gefunden (erwartet in Minibench-Daten\\Tools\\WizTree oder auf dem System).";
-                Button bDl = UI.Secondary("Herunterladen");
-                Tip(bDl, "Öffnet die Downloadseite von WizTree im Standardbrowser.");
-                bDl.Click += delegate { OpenShell("https://diskanalyzer.com/download"); };
-                cWiz.ActionButton = bDl;
-                Button bDir = UI.Secondary("Ordner öffnen");
-                Tip(bDir, "Erstellt und öffnet den Ordner Minibench-Daten\\Tools\\WizTree.");
-                bDir.Click += delegate { string d = Path.Combine(dataDir, "Tools\\WizTree"); try { Directory.CreateDirectory(d); } catch { } OpenShell(d); };
-                cWiz.SecondaryButton = bDir;
-            }
-            Tip(cWiz, "WizTree: Speicherfresser blitzschnell aufspüren.");
-            pnlCards.Controls.Add(cWiz);
+            pnlCards.Controls.Add(ToolCard("Revo Uninstaller", "Gründliche Deinstallation von Programmen mit Registry- und Dateiresten.", UI.IcoEntfernen,
+                "RevoUninstaller", new string[] { "RevoUPort.exe", "RevoUnin.exe", "RevoUninPro.exe", "RevoUninstaller_Portable.exe" }, new string[] { "Revo Uninstaller" },
+                new string[] {
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"VS Revo Group\Revo Uninstaller\RevoUnin.exe"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"VS Revo Group\Revo Uninstaller\RevoUnin.exe"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"VS Revo Group\Revo Uninstaller Pro\RevoUninPro.exe"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"VS Revo Group\Revo Uninstaller Pro\RevoUninPro.exe") },
+                "https://www.revouninstaller.com/revo-uninstaller-free-download/", cardW, cardH));
+            pnlCards.Controls.Add(ToolCard("MiniTool Partition Wizard", "Laufwerke partitionieren, Dateisysteme konvertieren und Datenträger verwalten.", UI.IcoDisk,
+                "PartitionWizard", new string[] { "partitionwizard.exe", "PartitionWizard.exe", "MiniToolPartitionWizard.exe" }, new string[] { "Partition Wizard", "MiniTool Partition Wizard" },
+                new string[] {
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"MiniTool Partition Wizard 12\partitionwizard.exe"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"MiniTool Partition Wizard 12\partitionwizard.exe"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"MiniTool Partition Wizard\partitionwizard.exe"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"MiniTool Partition Wizard\partitionwizard.exe") },
+                "https://www.partitionwizard.com/free-partition-manager.html", cardW, cardH));
+            pnlCards.Controls.Add(ToolCard("WizTree", "Schnelle Speicherplatzanalyse direkt aus der MFT des Laufwerks.", UI.IcoTorte,
+                "WizTree", new string[] { "WizTree64.exe", "WizTree.exe" }, new string[] { "WizTree" },
+                new string[] {
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"WizTree\WizTree64.exe"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"WizTree\WizTree.exe"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"WizTree\WizTree.exe") },
+                "https://diskanalyzer.com/download", cardW, cardH));
 
             // 2. Softwarepakete installieren (winget)
-            pnlCards.Controls.Add(Section("Softwarepakete installieren (winget)"));
-            Label lWingetDesc = Lbl("Auswahl populärer Basisprogramme zur automatischen und stillen Installation via Windows-Paket-Manager (winget).", 9f, false, UI.Muted);
-            lWingetDesc.MaximumSize = new Size(UI.S(740), 0);
-            lWingetDesc.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
-            pnlCards.Controls.Add(lWingetDesc);
+            pnlCards.Controls.Add(Section("Softwarepakete installieren"));
+            pnlCards.Controls.Add(Hint("Stille Installation gängiger Programme über den Windows-Paket-Manager (winget). Jede Installation steht danach auf der Seite Systemänderungen und lässt sich dort wieder entfernen.", 0));
 
             Panel pnlWgBox = new Panel();
-            pnlWgBox.Width = cardW;
+            pnlWgBox.MinimumSize = new Size(cardW, 0);
             pnlWgBox.BackColor = UI.Panel;
             pnlWgBox.BorderStyle = BorderStyle.FixedSingle;
             pnlWgBox.Padding = new Padding(UI.S(12));
             pnlWgBox.AutoSize = true;
-            pnlWgBox.Margin = new Padding(UI.S(4), 0, 0, UI.S(12));
+            pnlWgBox.Margin = new Padding(0, 0, 0, UI.S(12));
 
             FlowLayoutPanel pnlWgInner = new FlowLayoutPanel();
             pnlWgInner.Dock = DockStyle.Fill;
@@ -11205,82 +11772,48 @@ public partial class DiagGui
             string wingetPath;
             bool hasWinget = IsWingetAvailable(out wingetPath);
 
-            // Web-Browser
-            Label lCatBrowser = Lbl("Web-Browser", 9.5f, true, UI.Text);
-            lCatBrowser.Margin = new Padding(0, 0, 0, UI.S(4));
-            pnlWgInner.Controls.Add(lCatBrowser);
+            CheckBox chkChrome = Chk("Google Chrome", false); Tip(chkChrome, "Webbrowser Google Chrome, winget-Paket Google.Chrome");
+            CheckBox chkFirefox = Chk("Mozilla Firefox", false); Tip(chkFirefox, "Webbrowser Mozilla Firefox, winget-Paket Mozilla.Firefox");
+            CheckBox chkOpera = Chk("Opera", false); Tip(chkOpera, "Webbrowser Opera, winget-Paket Opera.Opera");
+            CheckBox chkSteam = Chk("Steam", false); Tip(chkSteam, "Spieleplattform Steam, winget-Paket Valve.Steam");
+            CheckBox chkDiscord = Chk("Discord", false); Tip(chkDiscord, "Chat- und Sprachprogramm Discord, winget-Paket Discord.Discord");
+            CheckBox chkNpp = Chk("Notepad++", false); Tip(chkNpp, "Texteditor Notepad++, winget-Paket Notepad++.Notepad++");
+            CheckBox chkOnlyOffice = Chk("ONLYOFFICE Desktop Editors", false); Tip(chkOnlyOffice, "Office-Programme ONLYOFFICE, winget-Paket ONLYOFFICE.DesktopEditors");
+            CheckBox chk7zip = Chk("7-Zip", false); Tip(chk7zip, "Packprogramm 7-Zip, winget-Paket 7zip.7zip");
+            CheckBox chkVlc = Chk("VLC Media Player", false); Tip(chkVlc, "Medienwiedergabe VLC, winget-Paket VideoLAN.VLC");
+            string[] cats = new string[] { "Web-Browser", "Gaming und Chat", "Produktivität und Werkzeuge" };
+            CheckBox[][] rows = new CheckBox[][] { new CheckBox[] { chkChrome, chkFirefox, chkOpera }, new CheckBox[] { chkSteam, chkDiscord }, new CheckBox[] { chkNpp, chkOnlyOffice, chk7zip, chkVlc } };
+            for (int ci = 0; ci < cats.Length; ci++)
+            {
+                Label lc = Lbl(cats[ci], UI.SchriftText, true, UI.Text); lc.Margin = new Padding(0, ci == 0 ? 0 : UI.S(4), 0, UI.S(4)); pnlWgInner.Controls.Add(lc);
+                FlowLayoutPanel r = Row(); r.Margin = new Padding(0, 0, 0, UI.S(8));
+                foreach (CheckBox cb in rows[ci]) { cb.Margin = new Padding(UI.S(4), UI.S(3), UI.S(12), UI.S(3)); r.Controls.Add(cb); }
+                pnlWgInner.Controls.Add(r);
+            }
 
-            FlowLayoutPanel rowBrowser = Row();
-            rowBrowser.Margin = new Padding(0, 0, 0, UI.S(8));
-            CheckBox chkChrome = Chk("Google Chrome (Google.Chrome)", false);
-            Tip(chkChrome, "Google Chrome Webbrowser via winget (Google.Chrome)");
-            CheckBox chkFirefox = Chk("Mozilla Firefox (Mozilla.Firefox)", false);
-            Tip(chkFirefox, "Mozilla Firefox Webbrowser via winget (Mozilla.Firefox)");
-            CheckBox chkOpera = Chk("Opera (Opera.Opera)", false);
-            Tip(chkOpera, "Opera Webbrowser via winget (Opera.Opera)");
-            rowBrowser.Controls.Add(chkChrome);
-            rowBrowser.Controls.Add(chkFirefox);
-            rowBrowser.Controls.Add(chkOpera);
-            pnlWgInner.Controls.Add(rowBrowser);
-
-            // Gaming & Chat
-            Label lCatGaming = Lbl("Gaming & Chat", 9.5f, true, UI.Text);
-            lCatGaming.Margin = new Padding(0, UI.S(4), 0, UI.S(4));
-            pnlWgInner.Controls.Add(lCatGaming);
-
-            FlowLayoutPanel rowGaming = Row();
-            rowGaming.Margin = new Padding(0, 0, 0, UI.S(8));
-            CheckBox chkSteam = Chk("Steam (Valve.Steam)", false);
-            Tip(chkSteam, "Steam Gaming-Plattform via winget (Valve.Steam)");
-            CheckBox chkDiscord = Chk("Discord (Discord.Discord)", false);
-            Tip(chkDiscord, "Discord Chat- und Sprach-Client via winget (Discord.Discord)");
-            rowGaming.Controls.Add(chkSteam);
-            rowGaming.Controls.Add(chkDiscord);
-            pnlWgInner.Controls.Add(rowGaming);
-
-            // Produktivität & Tools
-            Label lCatProd = Lbl("Produktivität & Tools", 9.5f, true, UI.Text);
-            lCatProd.Margin = new Padding(0, UI.S(4), 0, UI.S(4));
-            pnlWgInner.Controls.Add(lCatProd);
-
-            FlowLayoutPanel rowProd = Row();
-            rowProd.Margin = new Padding(0, 0, 0, UI.S(10));
-            CheckBox chkNpp = Chk("Notepad++ (Notepad++.Notepad++)", false);
-            Tip(chkNpp, "Notepad++ Quelltext-Editor via winget (Notepad++.Notepad++)");
-            CheckBox chkOnlyOffice = Chk("ONLYOFFICE Desktop Editors (ONLYOFFICE.DesktopEditors)", false);
-            Tip(chkOnlyOffice, "ONLYOFFICE Office-Suite via winget (ONLYOFFICE.DesktopEditors)");
-            CheckBox chk7zip = Chk("7-Zip (7zip.7zip)", false);
-            Tip(chk7zip, "7-Zip Packprogramm via winget (7zip.7zip)");
-            CheckBox chkVlc = Chk("VLC Media Player (VideoLAN.VLC)", false);
-            Tip(chkVlc, "VLC Media Player via winget (VideoLAN.VLC)");
-            rowProd.Controls.Add(chkNpp);
-            rowProd.Controls.Add(chkOnlyOffice);
-            rowProd.Controls.Add(chk7zip);
-            rowProd.Controls.Add(chkVlc);
-            pnlWgInner.Controls.Add(rowProd);
-
-            // Aktionen & Status
             FlowLayoutPanel rowWgActions = Row();
             rowWgActions.Margin = new Padding(0, UI.S(4), 0, 0);
-
-            LinkLabel lnkWgAll = new LinkLabel(); lnkWgAll.Text = "alle"; lnkWgAll.AutoSize = true;
-            lnkWgAll.Margin = new Padding(0, UI.S(6), UI.S(8), 0); lnkWgAll.LinkColor = UI.Accent;
-            Tip(lnkWgAll, "Alle Softwarepakete auswählen.");
-            LinkLabel lnkWgNone = new LinkLabel(); lnkWgNone.Text = "keine"; lnkWgNone.AutoSize = true;
-            lnkWgNone.Margin = new Padding(0, UI.S(6), UI.S(16), 0); lnkWgNone.LinkColor = UI.Accent;
-            Tip(lnkWgNone, "Alle Softwarepakete abwählen.");
-
             CheckBox[] allWgBoxes = new CheckBox[] { chkChrome, chkFirefox, chkOpera, chkSteam, chkDiscord, chkNpp, chkOnlyOffice, chk7zip, chkVlc };
             string[] allWgIds = new string[] { "Google.Chrome", "Mozilla.Firefox", "Opera.Opera", "Valve.Steam", "Discord.Discord", "Notepad++.Notepad++", "ONLYOFFICE.DesktopEditors", "7zip.7zip", "VideoLAN.VLC" };
             string[] allWgNames = new string[] { "Google Chrome", "Mozilla Firefox", "Opera", "Steam", "Discord", "Notepad++", "ONLYOFFICE Desktop Editors", "7-Zip", "VLC Media Player" };
 
+            Button btnInstallWg = UI.Primary("Ausgewählte installieren");
+            btnInstallWg.Margin = new Padding(0); btnInstallWg.Font = new Font("Segoe UI Semibold", UI.SchriftText); btnInstallWg.Padding = new Padding(UI.S(14), UI.S(3), UI.S(14), UI.S(3));
+            LinkLabel lnkWgAll = new LinkLabel(); lnkWgAll.Text = "alle"; lnkWgAll.AutoSize = true;
+            lnkWgAll.Margin = new Padding(UI.S(16), UI.S(7), UI.S(8), 0); lnkWgAll.LinkColor = UI.Accent;
+            Tip(lnkWgAll, "Alle Softwarepakete auswählen.");
+            LinkLabel lnkWgNone = new LinkLabel(); lnkWgNone.Text = "keine"; lnkWgNone.AutoSize = true;
+            lnkWgNone.Margin = new Padding(0, UI.S(7), UI.S(8), 0); lnkWgNone.LinkColor = UI.Accent;
+            Tip(lnkWgNone, "Alle Softwarepakete abwählen.");
+            Label lblWgStatus = Lbl("", UI.SchriftHinweis, false, UI.Muted);
+            lblWgStatus.Margin = new Padding(UI.S(12), UI.S(7), 0, 0);
+            EventHandler wgCount = delegate {
+                int n = 0; foreach (CheckBox cb in allWgBoxes) if (cb.Checked) n++;
+                SetText(btnInstallWg, n > 0 ? "Ausgewählte installieren (" + n + ")" : "Ausgewählte installieren");
+            };
+            foreach (CheckBox cb in allWgBoxes) cb.CheckedChanged += wgCount;
             lnkWgAll.LinkClicked += delegate { foreach (CheckBox cb in allWgBoxes) cb.Checked = true; };
             lnkWgNone.LinkClicked += delegate { foreach (CheckBox cb in allWgBoxes) cb.Checked = false; };
-
-            Button btnInstallWg = UI.Primary("Ausgewählte Programme installieren");
-            btnInstallWg.Margin = new Padding(0);
-            Label lblWgStatus = Lbl("", 9f, false, UI.Muted);
-            lblWgStatus.Margin = new Padding(UI.S(12), UI.S(6), 0, 0);
 
             if (!hasWinget)
             {
@@ -11291,40 +11824,47 @@ public partial class DiagGui
             }
             else
             {
-                Tip(btnInstallWg, "Installiert die markierten Programme über winget im Hintergrund. Jede Installation steht danach auf der Seite Änderungen und lässt sich dort wieder entfernen; schon vorhandene Programme bleiben unberührt.");
+                Tip(btnInstallWg, "Installiert die markierten Programme über winget im Hintergrund. Jede Installation steht danach auf der Seite Systemänderungen und lässt sich dort wieder entfernen; schon vorhandene Programme bleiben unberührt.");
                 btnInstallWg.Click += delegate {
                     List<int> selIndices = new List<int>();
                     for (int i = 0; i < allWgBoxes.Length; i++) {
                         if (allWgBoxes[i].Checked) selIndices.Add(i);
                     }
                     if (selIndices.Count == 0) {
-                        MessageBox.Show(this, "Bitte wählen Sie mindestens ein Programm zur Installation aus.", "Softwarepakete installieren", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show(this, "Bitte mindestens ein Programm zur Installation auswählen.", "Softwarepakete installieren", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
                     }
                     InstallWingetPackagesAsync(selIndices, allWgIds, allWgNames, lblWgStatus, btnInstallWg, allWgBoxes, lnkWgAll, lnkWgNone);
                 };
             }
 
+            rowWgActions.Controls.Add(btnInstallWg);
             rowWgActions.Controls.Add(lnkWgAll);
             rowWgActions.Controls.Add(lnkWgNone);
-            rowWgActions.Controls.Add(btnInstallWg);
             rowWgActions.Controls.Add(lblWgStatus);
 
             pnlWgInner.Controls.Add(rowWgActions);
             pnlWgBox.Controls.Add(pnlWgInner);
             pnlCards.Controls.Add(pnlWgBox);
 
-            // 3. Schnellstarter & Shortcuts
-            pnlCards.Controls.Add(Section("Schnellstarter & System-Shortcuts"));
-            Label lShortDesc = Lbl("Direkter Aufruf nativer Windows-Verwaltungskonsolen und Neustart in die Firmware.", 9f, false, UI.Muted);
-            lShortDesc.MaximumSize = new Size(UI.S(740), 0);
-            lShortDesc.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
-            pnlCards.Controls.Add(lShortDesc);
+            // 3. Netzlaufwerk (vorher als Knopf zwischen den Werkzeugknöpfen)
+            pnlCards.Controls.Add(Section("Netzlaufwerk"));
+            FluentCard cNas = new FluentCard("Netzlaufwerk als Spiegel", "Berichte und Datenbank zusätzlich auf einem Netzlaufwerk ablegen. Werkzeuge bleiben immer auf dem Stick.", UI.IcoNetz);
+            cNas.Width = cardW; cNas.Height = cardH;
+            Button bNas = UI.Secondary("Einrichten ..."); bNas.MinimumSize = new Size(UI.S(130), 0);
+            Tip(bNas, "Richtet ein Netzlaufwerk als Spiegel der Berichte und der Datenbank ein. Werkzeuge bleiben immer auf dem Stick.");
+            bNas.Click += delegate { ShowConnectNasDialog(); };
+            cNas.ActionButton = bNas;
+            Tip(cNas, "Netzlaufwerk als Spiegel von Berichten und Datenbank.");
+            pnlCards.Controls.Add(cNas);
 
-            // BIOS/UEFI Neustart
-            FluentCard cUefi = new FluentCard("Ins BIOS/UEFI neu starten", "Startet den Computer sofort neu und öffnet automatisch das UEFI/BIOS-Setup (shutdown /r /fw /t 0).", "\uE777");
+            // 4. Schnellstarter
+            pnlCards.Controls.Add(Section("Schnellstarter"));
+            pnlCards.Controls.Add(Hint("Direkter Aufruf der Windows-Verwaltungskonsolen und Neustart in die Firmware.", 0));
+
+            FluentCard cUefi = new FluentCard("Ins BIOS/UEFI neu starten", "Startet den Computer sofort neu und öffnet das UEFI-Setup (shutdown /r /fw /t 0).", "");
             cUefi.Width = cardW; cUefi.Height = cardH;
-            Button bUefi = UI.Secondary("Neu starten");
+            Button bUefi = UI.Secondary("Neu starten"); bUefi.MinimumSize = new Size(UI.S(130), 0);
             Tip(bUefi, "Prüft auf UEFI-Unterstützung und führt nach Bestätigung 'shutdown.exe /r /fw /t 0' aus.");
             bUefi.Click += delegate {
                 if (!IsUefiFirmware())
@@ -11332,7 +11872,7 @@ public partial class DiagGui
                     MessageBox.Show(this, "Dieser Computer verwendet ein klassisches BIOS oder meldet keine Unterstützung für den direkten Neustart in die UEFI-Firmware.", "BIOS/UEFI-Neustart", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
-                if (MessageBox.Show(this, "Möchten Sie den Computer jetzt sofort neu starten und direkt die UEFI/BIOS-Firmware-Einstellungen öffnen?\r\n\r\nBitte sichern Sie vorher alle geöffneten Dokumente und Arbeiten!", "Ins BIOS/UEFI neu starten", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                if (MessageBox.Show(this, "Den Computer jetzt sofort neu starten und die UEFI/BIOS-Einstellungen öffnen?\r\n\r\nVorher alle geöffneten Dokumente und Arbeiten sichern.", "Ins BIOS/UEFI neu starten", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                 {
                     StartAdminProcess("shutdown.exe", "/r /fw /t 0");
                 }
@@ -11341,47 +11881,62 @@ public partial class DiagGui
             Tip(cUefi, "Startet das System neu und leitet direkt in das UEFI-Setup weiter.");
             pnlCards.Controls.Add(cUefi);
 
-            // Datenträgerverwaltung
-            FluentCard cDisk = new FluentCard("Datenträgerverwaltung", "Windows-Konsole zur Partitionierung und Volume-Verwaltung (diskmgmt.msc).", UI.IcoDisk);
-            cDisk.Width = cardW; cDisk.Height = cardH;
-            Button bDisk = UI.Secondary("Öffnen");
-            Tip(bDisk, "Öffnet die Windows-Datenträgerverwaltung (diskmgmt.msc).");
-            bDisk.Click += delegate { StartAdminProcess("diskmgmt.msc", ""); };
-            cDisk.ActionButton = bDisk;
-            Tip(cDisk, "Datenträgerverwaltung: Partitionen anlegen, verkleinern und Buchstaben zuweisen.");
-            pnlCards.Controls.Add(cDisk);
-
-            // Geräte-Manager
-            FluentCard cDev = new FluentCard("Geräte-Manager", "Windows-Geräte-Manager zur Überprüfung von Hardware, Treibern und Ressourcen (devmgmt.msc).", UI.IcoCpu);
-            cDev.Width = cardW; cDev.Height = cardH;
-            Button bDev = UI.Secondary("Öffnen");
-            Tip(bDev, "Öffnet den Windows-Geräte-Manager (devmgmt.msc).");
-            bDev.Click += delegate { StartAdminProcess("devmgmt.msc", ""); };
-            cDev.ActionButton = bDev;
-            Tip(cDev, "Geräte-Manager: Hardwarekomponenten und Treiberstatus untersuchen.");
-            pnlCards.Controls.Add(cDev);
-
-            // Zuverlässigkeitsverlauf
-            FluentCard cRel = new FluentCard("Zuverlässigkeitsverlauf", "Windows-Zuverlässigkeitsüberwachung für Abstürze, Warnungen und Fehler (perfmon /rel).", UI.IcoDiag);
-            cRel.Width = cardW; cRel.Height = cardH;
-            Button bRel = UI.Secondary("Öffnen");
-            Tip(bRel, "Öffnet die Windows-Zuverlässigkeitsüberwachung (perfmon.exe /rel).");
-            bRel.Click += delegate { StartAdminProcess("perfmon.exe", "/rel"); };
-            cRel.ActionButton = bRel;
-            Tip(cRel, "Zuverlässigkeitsverlauf: Stabilitätsindex und Ereignisse im Zeitverlauf einsehen.");
-            pnlCards.Controls.Add(cRel);
+            pnlCards.Controls.Add(LauncherCard("Datenträgerverwaltung", "Partitionen anlegen, verkleinern und Laufwerksbuchstaben zuweisen (diskmgmt.msc).", UI.IcoOrdner, "diskmgmt.msc", "", cardW, cardH));
+            pnlCards.Controls.Add(LauncherCard("Geräte-Manager", "Hardware, Treiber und Ressourcen prüfen (devmgmt.msc).", UI.IcoGeraete, "devmgmt.msc", "", cardW, cardH));
+            pnlCards.Controls.Add(LauncherCard("Zuverlässigkeitsverlauf", "Stabilitätsindex mit Abstürzen, Warnungen und Fehlern im Zeitverlauf (perfmon /rel).", UI.IcoDiag, "perfmon.exe", "/rel", cardW, cardH));
 
             pnlCards.ResumeLayout(true);
         };
 
-        btnRefreshTools.Click += delegate { populateCards(); };
+        btnRefreshTools.Click += delegate { populateCards(); ApplyThemeRecursive(pnlCards); };
         populateCards();
-
-        body.Controls.Add(pnlCards);
-        f.Controls.Add(body);
-        f.Controls.Add(top);
-        top.SendToBack();
+        f.Controls.Add(pnlCards);
         return f;
+    }
+
+    // Karte eines portablen Werkzeugs: Zustand als Etikett, links "Ordner", rechts die Hauptaktion (Starten oder Herunterladen)
+    FluentCard ToolCard(string title, string desc, string icon, string subDir, string[] exeNames, string[] regNames, string[] direct, string downloadUrl, int w, int h)
+    {
+        FluentCard c = new FluentCard(title, desc, icon); c.Width = w; c.Height = h;
+        string path = FindToolPath(subDir, exeNames, regNames, direct);
+        Button bMain, bFolder = UI.Secondary("Ordner");
+        if (!String.IsNullOrEmpty(path))
+        {
+            bool portable = path.IndexOf("Minibench-Daten", StringComparison.OrdinalIgnoreCase) >= 0;
+            c.StatusText = portable ? "Bereit, portabel" : "Bereit, installiert"; c.StatusLevel = "ok";
+            bMain = UI.Primary("Starten");
+            bMain.Image = UI.GlyphImage(UI.IcoAdmin, UI.OnAccent, UI.S(16)); bMain.Tag = UI.IcoAdmin; bMain.ImageAlign = ContentAlignment.MiddleLeft; bMain.TextImageRelation = TextImageRelation.ImageBeforeText;
+            Tip(bMain, "Startet " + title + " mit Administratorrechten (" + path + ").");
+            string p = path; bMain.Click += delegate { StartAdminProcess(p, ""); };
+            Tip(bFolder, "Öffnet den Speicherort von " + title + ".");
+            bFolder.Click += delegate { OpenSelect(p); };
+        }
+        else
+        {
+            c.StatusText = "Nicht gefunden"; c.StatusLevel = "warn";
+            bMain = UI.Primary("Herunterladen");
+            Tip(bMain, "Öffnet die Downloadseite von " + title + " im Standardbrowser. Die portable Version gehört in Minibench-Daten\\Tools\\" + subDir + ".");
+            string u = downloadUrl; bMain.Click += delegate { OpenShell(u); };
+            Tip(bFolder, "Erstellt und öffnet den Ordner Minibench-Daten\\Tools\\" + subDir + " für die portable Version.");
+            string sd = subDir; bFolder.Click += delegate { string d = Path.Combine(dataDir, "Tools\\" + sd); try { Directory.CreateDirectory(d); } catch { } OpenShell(d); };
+        }
+        bMain.Font = new Font("Segoe UI Semibold", UI.SchriftText); bMain.Padding = new Padding(UI.S(10), UI.S(3), UI.S(10), UI.S(3));
+        bMain.MinimumSize = new Size(UI.S(140), 0); bFolder.MinimumSize = new Size(UI.S(90), 0);
+        c.ActionButton = bMain; c.SecondaryButton = bFolder;
+        Tip(c, title + ": " + desc + (String.IsNullOrEmpty(path) ? " Erwartet in Minibench-Daten\\Tools\\" + subDir + " oder als Systeminstallation." : " Gefunden: " + path));
+        return c;
+    }
+
+    // Karte eines Windows-Schnellstarters mit einem Knopf "Öffnen"
+    FluentCard LauncherCard(string title, string desc, string icon, string exe, string args, int w, int h)
+    {
+        FluentCard c = new FluentCard(title, desc, icon); c.Width = w; c.Height = h;
+        Button b = UI.Secondary("Öffnen"); b.MinimumSize = new Size(UI.S(130), 0);
+        Tip(b, "Öffnet " + title + " (" + exe + (args.Length > 0 ? " " + args : "") + ").");
+        string e = exe, a = args; b.Click += delegate { StartAdminProcess(e, a); };
+        c.ActionButton = b;
+        Tip(c, title + ": " + desc);
+        return c;
     }
 
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -11585,7 +12140,7 @@ public partial class DiagGui
         m.AppendLine();
         foreach (int i in selIndices) m.AppendLine("·  " + allWgNames[i] + " (" + allWgIds[i] + ")");
         m.AppendLine();
-        m.AppendLine("Jede Installation steht danach auf der Seite Änderungen und lässt sich dort wieder entfernen. Schon vorhandene Programme bleiben unberührt. Je Programm gilt eine Frist von 20 Minuten.");
+        m.AppendLine("Jede Installation steht danach auf der Seite Systemänderungen und lässt sich dort wieder entfernen. Schon vorhandene Programme bleiben unberührt. Je Programm gilt eine Frist von 20 Minuten.");
         if (MessageBox.Show(this, m.ToString(), "Softwarepakete installieren", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
 
         btnInstallWg.Enabled = false;
@@ -12438,6 +12993,14 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.64", "14.10.2026", "Überarbeitete Oberfläche: klare Navigation, eindeutiger Startknopf, Etiketten für Risikostufen und einheitliches Raster",
+            "Seitenleiste in zwei Gruppen (Ablauf mit Haken, Werkzeuge ohne), angezeigte Seite nur über Akzentbalken, geschätzte Dauer je angehaktem Modul. " +
+            "Kopfzeile flacher mit Symbolknöpfen für Farbschema und Info; die Seite Änderungen heißt Systemänderungen. " +
+            "Fußleiste mit Modulen in Ablaufreihenfolge und Gesamtdauer, Startknopf mit Beschriftung nach Auswahl (etwa Diagnose starten) und ausreichendem Kontrast im Dunkelschema; Voreinstellungen und Ablage links, die Ablage öffnet den Datenordner. " +
+            "Zusammenfassung vor dem Start nur bei Eingriffen, Neustarts oder ohne Wiederherstellungspunkt, statt getrennter Rückfragen von Wartung und Optimierung. " +
+            "Diagnose mit drei Profilen als Segmentschalter (Funktionstest und Nur Absturzanalyse entfallen), Lesende Prüfungen parallel ausführen statt Schneller Modus, Aufklappgruppe Prüfungen. " +
+            "Benchmark mit Detailzeilen, Laufwerksliste mit freiem Platz, Referenz-Zustand als eigene Zeile. Lasttest als Tabelle mit Gesamtdauer, Akkuhinweis und PawnIO-Etikett. " +
+            "Wartung und Optimierung mit Etiketten für Ändern, Eingriff, Neustart und Zustand, Legende oben und Warnung ohne Wiederherstellungspunkt. Tools ohne doppelte Bildlaufleiste, Werkzeugkarten mit Zustand und festen Knopfspalten, Netzlaufwerk als eigener Bereich."),
         new Eintrag("3.63", "13.10.2026", "Geschätzter Gesamtsystemverbrauch, Effizienz-Metriken (Punkte pro Watt) und interaktiver Stromkostenrechner",
             "Geschätzter Gesamtsystemverbrauch: Realistische Modellierung der internen DC-Leistung sowie des AC-Verbrauchs an der Steckdose für Desktop-PCs und Notebooks anhand gemessener CPU-/GPU-Leistungen, Plattformparametern (RAM, Mainboard, Laufwerke, VRM-Verluste) und Netzteil-Wirkungsgraden. " +
             "Effizienz-Metriken: Ausweisung von Punkten pro Watt für Mehrkern-CPU (CPU|MT / Watt), Grafikkarte (GPU / Watt) und Gesamtsystem (Gesamt-Score / Watt) in HTML-Bericht und Vergleichs-Dashboard. " +
