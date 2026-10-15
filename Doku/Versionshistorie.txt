@@ -5,6 +5,20 @@ Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Info-Knopf oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
 
+VERSION 3.71   (15.10.2026)  PRÄZISE STROMVERBRAUCHSSCHÄTZUNG, STARTZEIT-TRANSPARENZ, PROFILKARTEN UND DASHBOARD-KORREKTUREN
+====================================================================================================
+Präzise Stromverbrauchsschätzung: Hardware- und Netzteil-Modellierung mit 230V EU-Effizienzkurven (Unbekannt bis 80 PLUS Titanium)
+über lineare Stützstellen-Interpolation (5 % bis 100 % Last), konfigurierbarer Nennleistung (PsuWattage) und Effizienzklasse (PsuRating)
+in Einstellungen und Startparametern; genaue DC-Berechnung inkl. VRM-Wandlerverlusten, AMD-Radeon-TBP-Zuschlägen, DIMM-, Datenträger-
+und Lüfter-Basisverbräuchen sowie Überlastwarnung (> 85 % unter Volllast).
+Startzeit-Transparenz: Standardmäßig geöffnete Boot-Performance-Sektion mit getrennter Ausweisung von Kernel- und Treiberstart
+(MainPathBootTime, Desktop einsatzbereit) und Hintergrund-Initialisierung (BootPostBootTime, vollständiger Leerlauf) zur Vermeidung von Fehlinterpretationen.
+Berichts-Feinschliff: Nutzungsprofile (Gaming, Büro, Workstation) mit dezentem Akzent-Hintergrund und neutrale Komponentenkarten
+prominent über den Benchmark-Detailtabellen wiederhergestellt; kompakte Facts-Tabelle von redundanten Leistungsschätzungen bereinigt;
+Block für Gesamtsystemverbrauch und Stromkostenrechner direkt über die Benchmark-Sensoren verlegt.
+Dashboard & Dark Mode: Rahmenlinien in Spalte 1 im Dark Mode mittels Inset-Box-Shadow repariert; bunte Emojis im Dashboard und
+Bericht durch dezente, monochrome Unicode-Symbole (▲, ■, ⚙, ⏱, ⚡, ✓, !, ✕) gemäß Projektrichtlinien ersetzt.
+
 VERSION 3.7    (15.10.2026)  SCHNELL BEHEBBARE SYSTEMFEHLER, STARTZEIT-ANALYSE, SENSOREN-HARMONISIERUNG UND MODULARES DASHBOARD
 ====================================================================================================
 Schnell behebbare Konfigurationsfehler: Automatische Erkennung von LAN-Verhandlungsrate gebremst (100 Mbit/s oder Halbduplex an Gigabit/2.5GbE-Adaptern),

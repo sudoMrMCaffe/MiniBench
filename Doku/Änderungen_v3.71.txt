@@ -1,0 +1,78 @@
+﻿LEOS MINIBENCH 3.71: ÄNDERUNGEN
+==============================
+
+Version 3.71 führt ein realistisches Hardware- und Netzteil-Modell mit 230V EU-Effizienzkurven und linearer
+Stützstellen-Interpolation ein, schlüsselt die Startzeit im Bericht transparent in Kernel- und Hintergrund-Phase auf,
+stellt Nutzungsprofile und Komponentenkarten prominent im Benchmark wieder her und behebt Darstellungsfehler im Dashboard
+sowie im Dark Mode.
+
+1. PRÄZISE STROMVERBRAUCHSSCHÄTZUNG (PSU-EFFIZIENZMODELL)
+  230V EU-Effizienz     Ermittlung des Wirkungsgrads über 5 Stützstellen bei 5 %, 10 %, 20 %, 50 % und 100 %
+                        Netzteilauslastung für 7 Zertifizierungsstufen (Unbekannt, 80 PLUS White, Bronze, Silver,
+                        Gold, Platinum, Titanium) via stückweise linearer Interpolation.
+  Konfiguration         Einstellbare Netzteil-Nennleistung (PsuWattage, Standard: 650 W, 0 = nicht angegeben) und
+                        Effizienzklasse (PsuRating, Standard: 80 PLUS Bronze) in den Oberflächen-Einstellungen sowie
+                        über die CLI-Startparameter -PsuWattage und -PsuRating; dauerhafte Speicherung in Einstellungen.json.
+  Detaillierte DC-Last  Physikalische Modellierung der internen DC-Verbrauchswerte:
+                        - CPU: Package-Power zuzüglich 5 % (Idle) bzw. 10 % (Last) Mainboard-VRM-Wandlerverluste.
+                        - GPU: TBP-Direktmessung bei NVIDIA/Intel; bei AMD Radeon ASIC/TGP-Aufschläge von +4 W (Idle)
+                          bzw. +15 % (Last) für VRAM, VRM und Lüfter.
+                        - Mainboard: 10/12/14 W (Desktop) bzw. 4/5/6 W (Notebook).
+                        - RAM: 1,5 W (Idle), 2,5 W (Teillast) und 4,0 W (Last/OC) je physischem DIMM-Modul.
+                        - Datenträger: Typabhängige Werte für NVMe (1,8-2,2 W / 3,0 W / 5,5 W), SATA-SSDs (0,8 W / 1,5 W / 2,5 W)
+                          und 3,5"-Festplatten (4,5 W / 7,5 W).
+                        - Kühlung: 0,6 W (Idle), 1,0 W (Teillast) und 1,5 W (Volllast) je aktivem Mainboard-Lüfter.
+  Szenarien             Ausweisung von vier Szenarien: Leerlauf (Idle), Teillast (Alltag & Büro), Typisches Gaming
+                        und Volllast (kombinierter Stresstest).
+  Auslastungswarnung    Liegt die Netzteilauslastung unter Volllast über 85 %, erzeugt die Diagnose automatisch
+                        einen gelben Warnhinweis (Befund) mit Empfehlung zur Überprüfung der Leistungsreserven.
+  Transparente Ausgabe  Formatierte Textausgabe und HTML-Tooltips schlüsseln interne DC-Leistung, Netzteil-Wirkungsgrad,
+                        Auslastungsgrad sowie Netzteil-Eckdaten vollständig nachvollziehbar auf.
+
+2. TRANSPARENTE SYSTEM-STARTZEIT (BOOT PERFORMANCE)
+  Standardmäßig offen   Die Sektion zur Startzeit-Analyse (<details class="box grp" data-section="system" open>)
+                        ist im HTML-Bericht standardmäßig aufgeklappt.
+  Phasen-Trennung       Eindeutige Differenzierung der beiden Boot-Phasen aus Event 100:
+                        - Desktop sichtbar (MainPathBootTime): Dauer vom Bootloader bis zum Erscheinen von Desktop
+                          bzw. Anmeldebildschirm (gefühlte Startzeit).
+                        - Hintergrund-Initialisierung (BootPostBootTime): Dauer vom Erscheinen des Desktops bis zum
+                          Abschluss der Autostart-Programme und Erreichen der Leerlaufschwelle (CPU unter 80 % für 10 s).
+  Verständliche Texte   Prägnante Gegenüberstellung beider Zeiten im Berichtskopf zur Vermeidung von Fehlinterpretationen
+                        langer Gesamtlaufzeiten.
+
+3. BERICHTS-FEINSCHLIFF & BENCHMARK-PROFILKARTEN
+  Nutzungsprofile       Die drei Bewertungsprofile (Gaming, Büro, Workstation) stehen wieder prominent über den
+                        Benchmark-Detailtabellen, visuell abgehoben mit dezentem Akzent-Hintergrund (var(--accent-soft)).
+  Komponentenkarten     Neutrale Metrik-Kacheln für CPU, GPU, RAM und Datenträger ordnen sich direkt unter den
+                        Nutzungsprofilen ein.
+  System-Bereinigung    Die kompakte Facts-Tabelle im Kopfbereich des Diagnoseberichts wurde von redundanten
+                        Stromverbrauchsschätzungen befreit.
+  Umplatzierung         Der Block für Gesamtsystemverbrauch und den interaktiven Stromkostenkalkulator steht nun unmittelbar
+                        über den Abschnitt „Sensoren während des Benchmarks“ verschoben.
+
+4. DASHBOARD- & DARK-MODE-KORREKTUREN
+  Gitterlinien Spalte 1 In der Matrix-Tabelle im Dark Mode blieben Trennlinien der fixierten ersten Spalte (sticky)
+                        durch Browser-Rendering-Artefakte verborgen; behoben über gezielte Inset-Box-Shadows.
+  Monochrome Symbole    Bunte Mobiltelefon- und Messenger-Emojis wurden gemäß AGENTS.md Regel 6 im gesamten Bericht
+                        und Dashboard durch dezente, monochrome Unicode-Symbole (▲, ■, ⚙, ⏱, ⚡, ✓, !, ✕) ersetzt.
+
+
+GEFUNDEN UND BEHOBEN
+  In der Matrix-Tabelle des Dashboards verschwanden die unteren Rahmenlinien der ersten Spalte im Dark Mode bei horizontalem Scrollen; behoben durch box-shadow: inset 0 -1px 0 var(--card-border).
+  Bunte Emojis (z.B. Raketen, Controller, Aktenkoffer, Feuer) widersprachen den Projekt- und Fluent-Designrichtlinien; durch monochrome Unicode-Symbole ersetzt.
+  Die Startzeit aus Event 100 führte bei Anwendern zu Verwirrung, weil BootDuration auch die nachgelagerte Leerlauf-Wartezeit umfasst; Aufschlüsselung in MainPathBootTime und BootPostBootTime klärt die Diskrepanz auf.
+  AMD Radeon Grafikkarten meldeten unter Last nur TGP/ASIC-Verbrauch ohne VRAM- und VRM-Verluste; durch TBP-Korrekturaufschlag (+15 % unter Last, +4 W im Idle) korrigiert.
+  Netzteilauslastungen über 100 % führten bei Stützstellenarrays potenziell zu Bereichsüberschreitungen; durch Begrenzung und Überlast-Extrapolation abgefangen.
+  Laufwerke ohne Temperaturerfassung im Idle wurden mit Standardwerten behandelt; NVMe-Zuschlag greift nur bei Sensormessung > 45 °C.
+
+GRENZEN
+  Die Netzteilauslastung basiert auf den vom Benutzer hinterlegten Werten für Wattzahl und Effizienzklasse; sind diese unbekannt (0 W / "Unbekannt"), greift das Modell auf konservative Standard-Wirkungsgrade zurück.
+  Nicht alle Mainboards liefern Lüfterdrehzahlen an OpenHardwareMonitor/LHM; sensorlose Lüfter werden standardmäßig über eine 3-Lüfter-Heuristik einbezogen.
+
+UMSTIEG
+  Bestehende Einstellungen und Berichte bleiben voll abwärtskompatibel. Neu erstellte Berichte enthalten automatisch das detaillierte Netzteilmodell und die getrennte Startzeit-Analyse.
+
+QUELLEN
+  80 PLUS Zertifizierungsspezifikationen für 230V EU Internal Power Supplies.
+  Intel Power Delivery Design Guidelines und AMD Socket Power Specifications (VRM-Verlustmodelle).
+  Microsoft-Windows-Diagnostics-Performance/Operational Ereignisdokumentation (Event ID 100).

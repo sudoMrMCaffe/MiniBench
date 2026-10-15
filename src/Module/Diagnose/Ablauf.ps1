@@ -546,13 +546,7 @@ Invoke-Section 'Sensoren (Momentaufnahme)' {
     $script:SensorDb['Leerlauf'] = [ordered]@{ CpuTemp = $lead.CpuTemp; CpuTempQuelle = $lead.CpuTempQ; TjMax = $lead.TjMax; CpuMHz = $lead.CpuMHz; CpuMHzMax = $lead.CpuMHzMax; CpuW = $lead.CpuW
         Gpu = [string]$lead.GpuName; GpuTemp = $lead.GpuTemp; GpuW = $lead.GpuW; IGpu = [string]$lead.IGpuName; IGpuTemp = $lead.IGpuTemp; Luefter = $lead.Fan; DatentraegerTempMax = $lead.DiskTemp; Quelle = (Get-SensorSourceText) }
     if ($null -ne $lead.CpuTemp -and $lead.CpuTempQ -ne 'ACPI') { $script:Facts['CPU-Temperatur (Leerlauf)'] = ('{0:N0} °C{1}' -f $lead.CpuTemp, $(if ($lead.TjMax) { ', TjMax {0:N0} °C' -f $lead.TjMax } else { '' })) }
-    $isNb = if (Get-Command Test-IsNotebookSystem -ErrorAction SilentlyContinue) { Test-IsNotebookSystem } else { $false }
-    $pEstIdle = if (Get-Command Get-EstimatedSystemPower -ErrorAction SilentlyContinue) { Get-EstimatedSystemPower -CpuW $lead.CpuW -GpuW $lead.GpuW -IsNotebook:$isNb } else { $null }
-    if ($pEstIdle -and $pEstIdle.Verfuegbar) {
-        $script:Facts['Geschätzter Gesamtsystemverbrauch (Leerlauf)'] = ('{0} an der Steckdose (intern {1:N0} W)' -f $pEstIdle.Text, $pEstIdle.P_DC)
-    } elseif ($null -ne $lead.CpuW -and [double]$lead.CpuW -le 0) {
-        $script:Facts['Geschätzter Gesamtsystemverbrauch (Leerlauf)'] = 'n/v (kein Leistungssensor)'
-    }
+    # ab v3.71: Stromverbrauch wird im Energie- und Sensorabschnitt ausgewertet, Facts bleibt sauber
     Add-TestResult 'Sensoren' $(if ($show.Count) { 'OK' } else { 'Info' }) ('{0} Werte, {1}{2}' -f $show.Count, ($script:Sens.Quellen -join ', '), $(if ($bad.Count) { ', {0} unplausible Werte verworfen' -f $bad.Count } else { '' }))
 }
 
@@ -979,6 +973,23 @@ Invoke-Section 'Energie' -Skippable {
         else {
             Write-Step 'DxDiag-Bericht wird erstellt ...'
             [void](Invoke-External -File "$env:windir\System32\dxdiag.exe" -Arguments ('/t "{0}"' -f (Join-Path $RawDir 'dxdiag.txt')) -TimeoutSec 240 -Progress 'DxDiag-Bericht' -ExpectedSec 45)
+        }
+    }
+    # ab v3.71: Stromverbrauchsschätzung und Netzteil-Auslastung
+    $pProf = if (Get-Command Get-SystemPowerProfile -ErrorAction SilentlyContinue) { Get-SystemPowerProfile } else { $null }
+    if ($pProf -and ($pProf.Leerlauf.Verfuegbar -or $pProf.Volllast.Verfuegbar)) {
+        Add-Sub 'Geschätzter Stromverbrauch (Netzteil-Modell)'
+        if ($pProf.Leerlauf -and $pProf.Leerlauf.Verfuegbar) {
+            Add-Line ('  Leerlauf (Idle)   : {0}' -f $pProf.Leerlauf.AufschluesselungKurz)
+        }
+        if ($pProf.Teillast -and $pProf.Teillast.Verfuegbar) {
+            Add-Line ('  Teillast (Alltag) : {0}' -f $pProf.Teillast.AufschluesselungKurz)
+        }
+        if ($pProf.Gaming -and $pProf.Gaming.Verfuegbar) {
+            Add-Line ('  Typisches Gaming  : {0}' -f $pProf.Gaming.AufschluesselungKurz)
+        }
+        if ($pProf.Volllast -and $pProf.Volllast.Verfuegbar) {
+            Add-Line ('  Volllast (Peak)   : {0}' -f $pProf.Volllast.AufschluesselungKurz)
         }
     }
 }

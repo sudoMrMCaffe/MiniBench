@@ -1,4 +1,4 @@
-function Get-ReportCss {
+﻿function Get-ReportCss {
     return @'
 :root{--bg:#f5f6f8;--panel:#fff;--text:#1c2330;--muted:#5f6878;--line:#e2e5ea;--code:#f1f3f6;
 --accent:#0067c0;--accent-hover:#005a9e;--accent-soft:#ebf3fb;--accent-border:#bdd7ee;
@@ -128,9 +128,12 @@ i.sw.tj{background:transparent;border-top:2px dotted var(--warn);border-radius:0
 @media (prefers-color-scheme:dark){.chart .line.s2{stroke:#fb923c} .chart .line.s3{stroke:#2dd4bf} .chart .line.s4{stroke:#c4b5fd} i.sw.s2{background:#fb923c} i.sw.s3{background:#2dd4bf} i.sw.s4{background:#c4b5fd} .chart .line.s5{stroke:#facc15} i.sw.s5{background:#facc15}}
 small.okt{color:var(--ok)} small.warnt{color:var(--warn)}
 .ov{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:2px 0 14px}
+.ov.profile-grid{gap:14px;margin:4px 0 18px}
 a.tile,.tile{display:block;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--line);border-radius:10px;padding:11px 14px 12px}
 a.tile:hover,.tile:hover{border-color:var(--muted)}
-.tile.profile{border-top-width:5px}
+.tile.profile{background:var(--accent-soft);border:1px solid var(--accent-border);border-top:5px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,0.04)}
+.tile.profile h4{color:var(--text);font-size:13px;letter-spacing:0;text-transform:none}
+.tile.profile .pword{font-weight:600;font-size:13px;color:var(--accent);margin:2px 0 6px}
 .tile.tok,a.tile.tok{border-top-color:var(--ok)} .tile.twarn,a.tile.twarn{border-top-color:var(--warn)} .tile.tcrit,a.tile.tcrit{border-top-color:var(--crit)} .tile.tinfo,a.tile.tinfo{border-top-color:var(--info)}
 .tile h4{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0;font-size:12.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
 .tile h4 .dot{width:9px;height:9px;border-radius:50%;flex:none}

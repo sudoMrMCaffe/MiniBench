@@ -999,43 +999,78 @@ Describe 'GeschÃ¤tzter Gesamtsystemverbrauch und Effizienz' {
     }
 
     It 'berechnet den realistischen Desktop-Verbrauch (DC und AC an der Steckdose)' {
-        $p = MinibenchTest\Get-EstimatedSystemPower -CpuW 65 -GpuW 140 -RamGb 32 -RamLoadPct 50 -DiskCount 2
+        $p = MinibenchTest\Get-EstimatedSystemPower -CpuW 65 -GpuW 140 -DimmCount 2 -PsuWattage 650 -PsuRating '80 PLUS Bronze'
         $p.Verfuegbar | Should -BeTrue
         $p.IsNotebook | Should -BeFalse
-        $p.P_DC | Should -Be 240.2
-        $p.P_AC | Should -Be 273.0
+        $p.P_DC | Should -Be 240.5
+        $p.P_AC | Should -Be 274.0
         $p.CpuW | Should -Be 65.0
         $p.GpuW | Should -Be 140.0
-        $p.RamW | Should -Be 7.0
-        $p.BoardW | Should -Be 20.0
-        $p.DiskW | Should -Be 3.0
-        $p.VrmW | Should -Be 5.2
-        $p.Wirkungsgrad | Should -Be 0.88
-        $p.Text | Should -Be '~273 W'
-        $p.Aufschluesselung | Should -Match 'Gemessen: CPU 65 W, GPU 140 W \+ Zuschlag: Mainboard 20 W, RAM 7[,.]0 W, Laufwerke 3[,.]0 W, VRM 5[,.]2 W'
+        $p.RamW | Should -Be 8.0
+        $p.BoardW | Should -Be 14.0
+        $p.DiskW | Should -Be 2.5
+        $p.FanW | Should -Be 4.5
+        $p.VrmW | Should -Be 6.5
+        $p.WirkungsgradProzent | Should -Be 87.6
+        $p.Text | Should -Be '~274 W'
+        $p.AufschluesselungKurz | Should -Match 'PSU-Last ~37 % @ ~87[,.]6 % Effizienz \[650 W, 80 PLUS Bronze\]'
     }
 
-    It 'berÃ¼cksichtigt Laufwerks-Volllast auf dem Desktop' {
-        $p = MinibenchTest\Get-EstimatedSystemPower -CpuW 100 -GpuW 0 -RamGb 16 -RamLoadPct 0 -DiskCount 2 -DiskLoad
-        $p.DiskW | Should -Be 10.0
-        $p.RamW | Should -Be 3.0
-        $p.VrmW | Should -Be 8.0
-        $p.BoardW | Should -Be 20.0
-        $p.P_DC | Should -Be 141.0
-        $p.P_AC | Should -Be 160.2
+    It 'berücksichtigt Laufwerks-Volllast auf dem Desktop' {
+        $p = MinibenchTest\Get-EstimatedSystemPower -CpuW 100 -GpuW 0 -DiskCount 2 -DiskLoad -PsuWattage 650 -PsuRating '80 PLUS Bronze'
+        $p.DiskW | Should -Be 8.0
+        $p.RamW | Should -Be 8.0
+        $p.VrmW | Should -Be 10.0
+        $p.BoardW | Should -Be 14.0
+        $p.P_DC | Should -Be 144.5
+        $p.P_AC | Should -Be 167.0
     }
 
     It 'berechnet den kompakten Notebook-Verbrauch' {
         $p = MinibenchTest\Get-EstimatedSystemPower -CpuW 25 -IsNotebook
         $p.Verfuegbar | Should -BeTrue
         $p.IsNotebook | Should -BeTrue
-        $p.P_DC | Should -Be 36.2
-        $p.P_AC | Should -Be 40.2
-        $p.BoardW | Should -Be 7.0
-        $p.RamW | Should -Be 3.0
+        $p.P_DC | Should -Be 41.0
+        $p.P_AC | Should -Be 45.6
+        $p.BoardW | Should -Be 9.0
+        $p.RamW | Should -Be 4.5
         $p.Wirkungsgrad | Should -Be 0.90
-        $p.Text | Should -Be '~40 W'
-        $p.Aufschluesselung | Should -Match 'Display & Plattform 7 W, RAM & SSD 3 W'
+        $p.Text | Should -Be '~46 W'
+        $p.Aufschluesselung | Should -Match 'Display & Plattform 9 W, RAM & SSD 4[,.]5 W'
+    }
+
+    It 'interpoliert Wirkungsgrade nach 230V EU-Effizienzkurven' {
+        # 50 % Last bei 80 PLUS Gold = 92.5 %
+        $eGold = MinibenchTest\Get-PsuEfficiency -P_DC 325 -PsuWattage 650 -PsuRating '80 PLUS Gold'
+        $eGold.EtaPercent | Should -Be 92.5
+        $eGold.LoadPercent | Should -Be 50.0
+
+        # 10 % Last bei 80 PLUS Platinum = 89.5 %
+        $ePlat = MinibenchTest\Get-PsuEfficiency -P_DC 65 -PsuWattage 650 -PsuRating '80 PLUS Platinum'
+        $ePlat.EtaPercent | Should -Be 89.5
+
+        # Stützstellen-Interpolation bei 35 % Last auf 80 PLUS Titanium: zwischen 20 % (94.5 %) und 50 % (96.0 %)
+        $eTi = MinibenchTest\Get-PsuEfficiency -P_DC 350 -PsuWattage 1000 -PsuRating '80 PLUS Titanium'
+        $eTi.EtaPercent | Should -Be 95.2
+    }
+
+    It 'erfasst AMD Radeon TBP-Zuschläge getrennt von NVIDIA und Intel' {
+        # AMD GPU Idle (< 30 W): +4 W Offset
+        $pIdleAmd = MinibenchTest\Get-EstimatedSystemPower -CpuW 15 -GpuW 20 -GpuName 'AMD Radeon RX 6700 XT' -IsIdle
+        $pIdleAmd.GpuW | Should -Be 24.0
+
+        # AMD GPU Last (>= 30 W): +15 % Aufschlag
+        $pLoadAmd = MinibenchTest\Get-EstimatedSystemPower -CpuW 65 -GpuW 200 -GpuName 'AMD Radeon RX 6700 XT' -PsuWattage 650
+        $pLoadAmd.GpuW | Should -Be 230.0
+
+        # NVIDIA GPU Last: TBP direkt ohne Aufschlag
+        $pLoadNvidia = MinibenchTest\Get-EstimatedSystemPower -CpuW 65 -GpuW 200 -GpuName 'NVIDIA GeForce RTX 4070' -PsuWattage 650
+        $pLoadNvidia.GpuW | Should -Be 200.0
+    }
+
+    It 'erzeugt eine Warnung bei mehr als 85 % Netzteilauslastung' {
+        $pHeavy = MinibenchTest\Get-EstimatedSystemPower -CpuW 250 -GpuW 350 -PsuWattage 650 -PsuRating '80 PLUS Bronze' -Stage 'Load'
+        $pHeavy.LoadPercent | Should -BeGreaterThan 85
     }
 
     It 'nutzt im Notebook-Akkubetrieb den realen Entladestrom' {

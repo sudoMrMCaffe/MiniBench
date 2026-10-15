@@ -191,6 +191,10 @@ if ($ModDiag -and -not $AnalyzeLastRun) {
 }
 [void]$head.AppendLine(('  Ausgabe      : {0}' -f $OutputDir))
 if ($script:DataDir) { [void]$head.AppendLine(('  Datenordner  : {0}' -f $script:DataDir)) }
+$pProf = if (Get-Command Get-SystemPowerProfile -ErrorAction SilentlyContinue) { Get-SystemPowerProfile } else { $null }
+if ($pProf -and $pProf.Volllast -and $pProf.Volllast.Verfuegbar) {
+    [void]$head.AppendLine(('  Energie (Peak): {0}' -f $pProf.Volllast.AufschluesselungKurz))
+}
 [void]$head.AppendLine()
 if ($script:Stability) {
     [void]$head.AppendLine(('  ZUVERLÄSSIGKEIT: {0}' -f $script:Stability.Text))

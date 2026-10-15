@@ -390,12 +390,22 @@
       width: 220px;
       min-width: 180px;
       background: var(--neutral-bg);
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      box-shadow: inset 0 -1px 0 var(--card-border), inset -1px 0 0 var(--card-border);
     }
     .matrix-table td.col-feature {
       text-align: left;
       font-weight: 500;
       background: var(--card-bg);
-      border-right: 1px solid var(--card-border);
+      position: sticky;
+      left: 0;
+      box-shadow: inset 0 -1px 0 var(--card-border), inset -1px 0 0 var(--card-border);
+      border-bottom: 1px solid var(--card-border);
+    }
+    [data-theme="dark"] .matrix-table td.col-feature {
+      box-shadow: inset 0 -1px 0 var(--card-border), inset -1px 0 0 var(--card-border);
     }
     .matrix-table th.col-base,
     .matrix-table td.col-base {

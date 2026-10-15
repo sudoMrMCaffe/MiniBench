@@ -2,18 +2,23 @@
 
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
-## Stand: Version 3.7 (15.10.2026)
-Release-Commit "Release v3.7: Schnell behebbare Systemfehler, Startzeit-Analyse, Sensoren-Harmonisierung und modulares Dashboard".
+## Stand: Version 3.71 (15.10.2026)
+Release-Commit "Release v3.71: Präzise Stromverbrauchsschätzung, Startzeit-Transparenz, Profilkarten und Dashboard-Korrekturen".
 Getestet und gebaut unter Windows mit Windows PowerShell 5.1 und Pester 6.2.0.
 
+Inhalt von 3.71 (Einzelheiten in Doku\Änderungen_v3.71.txt):
+1. Präzise Stromverbrauchsschätzung (PSU-Effizienzmodell): Umstellung der DC- und AC-Berechnung auf ein physikalisches Hardware- und Netzteil-Modell mit 230V EU-Effizienzkurven (Unbekannt, 80 PLUS White bis Titanium) und linearer Stützstellen-Interpolation (5 % bis 100 % Netzteilauslastung); einstellbare Nennleistung (PsuWattage, Standard: 650 W, 0 = Fallback) und Effizienzklasse (PsuRating) in Einstellungen und CLI-Parametern mit dauerhafter Speicherung in Einstellungen.json; detaillierte DC-Erfassung inkl. Mainboard-VRM-Verlusten, AMD-Radeon-TBP-Zuschlägen (+4 W / +15 %), DIMM-Arbeitsspeichermodulen, Datenträgertypen (NVMe/SATA/HDD) und Lüftern sowie Warnung bei Netzteil-Überlastung (> 85 % unter Volllast).
+2. System-Startzeit transparent aufgeschlüsselt: Standardmäßig geöffnetes Boot-Performance-Element (<details class="box grp" data-section="system" open>) im HTML-Bericht; saubere Trennung und verständliche Erläuterung der beiden Boot-Phasen aus Event 100 (MainPathBootTime: Desktop/Treiber einsatzbereit vs. BootPostBootTime: Autostart bis vollständiger Leerlauf).
+3. Berichts-Feinschliff & Layout-Optimierung: Nutzungsprofile (Gaming, Büro, Workstation) mit farbigem Akzent-Hintergrund (var(--accent-soft)) und neutrale Komponentenkarten (CPU, GPU, RAM, Laufwerke) prominent über den Benchmark-Detailtabellen wiederhergestellt; Facts-Tabelle von redundanten Leistungsschätzungen bereinigt; Block für Gesamtsystemverbrauch und Stromkostenrechner direkt über den Benchmark-Sensoren platziert.
+4. Dashboard- & Dark-Mode-Korrekturen: Unsichtbare Trennlinien in Spalte 1 der Matrix-Tabelle im Dark Mode via Inset-Box-Shadow repariert; bunte Emojis in Dashboard und Bericht durch dezente monochrome Unicode-Symbole (▲, ■, ⚙, ⏱, ⚡, ✓, !, ✕) ersetzt.
+
+## Vorher: Version 3.7
 Inhalt von 3.7 (Einzelheiten in Doku\Änderungen_v3.7.txt):
 1. Schnell behebbare Konfigurationsfehler: Automatische Erkennung von LAN-Verhandlungsrate gebremst (100 Mbit/s oder Halbduplex an Gigabit/2.5GbE-Adaptern), Monitorkabel an iGPU statt dGPU bei Desktops, Hz-Bremse bei Monitoren >= 75 Hz auf 60 Hz limitiert, inaktivem RAM-Speicherprofil (XMP/EXPO/DOCP) und veraltetem BIOS (> 2 Jahre) mit direkten Hersteller-Supportlinks sowie transparenter Bestätigung der Prüfung im Bericht.
 2. System-Startzeit-Analyse (Boot Performance Breakdown): Aufschlüsselung der Windows-Boot-Phasen aus Event 100 (MainPathBootTime, BootPostBootTime, BootDuration) und UEFI/BIOS-POST-Zeit (FwPOSTTime) mit visueller Wasserfall-/Stack-Kaskade im HTML-Bericht (eingeklappt am Berichtsende); Auswertung von Autostart-Verzögerern (Event 101-110 ab 1,0 s) und robuster Fallback ohne Schätzwerte bei unvollständigen Ereignissen oder deaktiviertem Protokoll.
 3. Harmonisierte Sensoren-Zustandsmaschine: Konsistente 4-Stufen-Statuslogik (Vollständig, Eingeschränkt, Inaktiv, Fehler) im Skript und in der Benutzeroberfläche; automatische Treiberinitialisierung bei Vorliegen von Administratorrechten ohne zusätzliche Rückfragen und garantierte Treiberentladung bei Programmbeendigung.
 4. Benchmark-Vereinfachung & Dashboard: Entfernen redundanter Dropdowns und Checkboxen (Messdauer, Referenz, DB-Speicherung); Benchmark speichert immer in der Vergleichsdatenbank. Beseitigung der Scrollbars in der Vergleichsmatrix mit Wiederholung der Systemnamen am Tabellenende (tfoot), gut sichtbaren Zeilentrennlinien in der Basiskolumne und metrischen Einheiten (°C, %). Stromkostenrechner standardmäßig geöffnet, Details und Zeitbedarf standardmäßig eingeklappt. Redundante Referenz-Spalten und Profilkarten aus dem Einzelbericht entfernt (vollständig durch das interaktive Dashboard abgedeckt).
 5. Modulares Dashboard: Vollständige Zerlegung des Dashboard-Quelltexts in separate semantische Bausteine (dashboard.html, dashboard.css, daten.js, matrix.js, profile.js, diagramme.js) mit robuster Einbettung im Zusammenbau-Skript und Syntaxprüfung via node --check.
-
-## Vorher: Version 3.67
 Inhalt von 3.67 (Einzelheiten in Doku\Änderungen_v3.67.txt):
 1. Multi-System-Sensorverlauf: Achsenbeschriftung Temperatur (°C) durch 75 px Randabstand und linksbündige Ausrichtung vollständig sichtbar; Tooltip mit kompakten Systemnamen (getShortSysName), zweizeiligem Layout und stets vorangestelltem Basissystem (auch ohne Zeitreihe).
 2. Differenzierte Nutzungsprofile: Gewichtung für Gaming (70 % GPU-FPS, 20 % ST, 10 % RAM/SSD; Kerne > 8 neutral), Büro/Desktop (45 % SSD-Reaktionszeit, 35 % ST, 20 % RAM-Latenz; 0 % GPU/MT) und Workstation (45 % MT, 20 % Instruktionen, 20 % RAM-Bandbreite, 15 % Dauertransfer); redundante Stromverbrauchs-Badges im Profilgitter entfernt.
@@ -57,4 +62,4 @@ Inhalt von 3.64 (Einzelheiten in Doku\Änderungen_v3.64.txt):
 Keine offenen Befunde.
 
 ## Letzter Commit
-Release-Commit v3.7
+Release-Commit v3.7 (Commit a053352)

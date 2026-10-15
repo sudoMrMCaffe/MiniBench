@@ -120,7 +120,14 @@ function New-KiExport {
     & $add ('Module                : {0}' -f (Get-ModeLabel))
     & $add ('Ergebnis              : {0} kritisch, {1} Warnungen, {2} Hinweise' -f $NK, $NW, $NI)
     if ($script:Stability) { & $add ('Zuverlässigkeit       : {0}{1}' -f $script:Stability.Text, $(if ($script:Stability.Ursachen.Count) { '; ' + ($script:Stability.Ursachen -join ', ') } else { '' })) }
-    foreach ($k in $script:Facts.Keys) { & $add (('{0,-22}: {1}' -f $k, ([string]$script:Facts[$k] -replace "`r?`n", '; '))) }
+    $pProf = if (Get-Command Get-SystemPowerProfile -ErrorAction SilentlyContinue) { Get-SystemPowerProfile } else { $null }
+    if ($pProf -and $pProf.Volllast -and $pProf.Volllast.Verfuegbar) {
+        & $add ('Stromverbrauch (Peak) : {0}' -f $pProf.Volllast.AufschluesselungKurz)
+    }
+    foreach ($k in $script:Facts.Keys) {
+        if ($k -like 'Geschätzter Gesamtsystemverbrauch*') { continue }
+        & $add (('{0,-22}: {1}' -f $k, ([string]$script:Facts[$k] -replace "`r?`n", '; ')))
+    }
 
     & $head 'BEFUNDE (automatische Bewertung)'
     if ($Sorted.Count) { foreach ($f in $Sorted) { & $add ('[{0}] {1}: {2}' -f $f.Stufe, $f.Bereich, $f.Befund) } } else { & $add 'Keine Auffälligkeiten gefunden.' }

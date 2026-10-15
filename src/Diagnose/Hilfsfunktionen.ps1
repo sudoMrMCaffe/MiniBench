@@ -1,4 +1,4 @@
-# XMP/EXPO-Prüfung: Nenntakt laut Teilenummer gegen den Betriebstakt
+﻿# XMP/EXPO-Prüfung: Nenntakt laut Teilenummer gegen den Betriebstakt
 function Test-RamProfile($Mods, [string]$TypeName) {
     $mods = @($Mods)
     if (-not $mods.Count) { return }
@@ -402,6 +402,8 @@ function Get-SystemBootPerformance {
                 $result.StatusText = 'Verfügbar'
                 $result.KernelSekunden = [math]::Round(([double]$mainPath / 1000.0), 1)
                 $result.DesktopSekunden = [math]::Round(([double]$postBoot / 1000.0), 1)
+                $result.MainPathSekunden = $result.KernelSekunden
+                $result.BootPostBootSekunden = $result.DesktopSekunden
                 $result.OsBootSekunden = [math]::Round(([double]$bootDuration / 1000.0), 1)
                 $result.GesamtSekunden = $result.OsBootSekunden
 

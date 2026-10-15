@@ -3,9 +3,9 @@
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
     const profiles = [
-      { key: 'Gaming', title: 'Gaming', desc: 'GPU- & Single-Thread-Fokus' },
-      { key: 'Desktop', title: 'Büro / Desktop', desc: 'Reaktionszeit & SSD-Leistung' },
-      { key: 'Workstation', title: 'Workstation', desc: 'Mehrkern- & RAM-Durchsatz' }
+      { key: 'Gaming', icon: '▲', title: 'Gaming', desc: 'GPU- & Single-Thread-Fokus' },
+      { key: 'Desktop', icon: '■', title: 'Büro / Desktop', desc: 'Reaktionszeit & SSD-Leistung' },
+      { key: 'Workstation', icon: '⚙', title: 'Workstation', desc: 'Mehrkern- & RAM-Durchsatz' }
     ];
 
     let html = '';
@@ -13,7 +13,7 @@
       const baseScore = baseSystem?.Scores?.[p.key] || 0;
       html += `<div class="profile-card">
         <div class="profile-header">
-          <span>${escapeHtml(p.title)}</span>
+          <span><span style="opacity: 0.7; margin-right: 6px;">${p.icon}</span>${escapeHtml(p.title)}</span>
           <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: normal;">${escapeHtml(p.desc)}</span>
         </div>
         <div class="profile-sys-list">`;

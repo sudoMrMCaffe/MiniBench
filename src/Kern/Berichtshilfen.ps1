@@ -265,17 +265,101 @@ function Test-IsNotebookSystem($Entry = $null) {
     return $false
 }
 
+function Get-PsuEfficiency {
+    param(
+        [double]$P_DC,
+        [int]$PsuWattage = 650,
+        [string]$PsuRating = '80 PLUS Bronze',
+        [string]$LoadStage = 'Load'
+    )
+    $curves = @{
+        'Unbekannt'          = @(78.0, 82.0, 86.0, 88.0, 85.0)
+        '80 PLUS White'      = @(76.0, 80.0, 84.0, 86.0, 83.0)
+        '80 PLUS Bronze'     = @(79.0, 83.0, 86.5, 88.5, 85.5)
+        '80 PLUS Silver'     = @(81.0, 85.0, 88.5, 90.5, 88.0)
+        '80 PLUS Gold'       = @(83.5, 87.5, 90.5, 92.5, 90.0)
+        '80 PLUS Platinum'   = @(85.5, 89.5, 92.5, 94.0, 91.5)
+        '80 PLUS Titanium'   = @(88.0, 91.5, 94.5, 96.0, 93.5)
+    }
+    $ratingKey = $PsuRating
+    if (-not $curves.ContainsKey($ratingKey)) {
+        $found = @($curves.Keys | Where-Object { $_ -like "*$ratingKey*" -or $ratingKey -like "*$_*" })
+        if ($found.Count) { $ratingKey = $found[0] } else { $ratingKey = '80 PLUS Bronze' }
+    }
+    $points = $curves[$ratingKey]
+    $xVals = @(5.0, 10.0, 20.0, 50.0, 100.0)
+
+    if ($PsuWattage -gt 0) {
+        $loadPct = ($P_DC / [double]$PsuWattage) * 100.0
+        $eta = 80.0
+        if ($loadPct -le 0.0) {
+            $eta = 70.0
+        } elseif ($loadPct -lt 5.0) {
+            # Unter 5 % flach abfallend extrapolieren (Min-Cap bei 70 %)
+            $slope = ($points[0] - 70.0) / 5.0
+            $eta = [math]::Max(70.0, 70.0 + $loadPct * $slope)
+        } elseif ($loadPct -le 100.0) {
+            for ($i = 0; $i -lt 4; $i++) {
+                if ($loadPct -ge $xVals[$i] -and $loadPct -le $xVals[$i + 1]) {
+                    $x0 = $xVals[$i]; $x1 = $xVals[$i + 1]
+                    $y0 = $points[$i]; $y1 = $points[$i + 1]
+                    $eta = $y0 + ($loadPct - $x0) * (($y1 - $y0) / ($x1 - $x0))
+                    break
+                }
+            }
+        } else {
+            # Über 100 % leicht abfallend extrapolieren bzw. bei 100 %-Stützwert minus 2 % deckeln
+            $minCap = $points[4] - 2.0
+            $eta = [math]::Max($minCap, $points[4] - ($loadPct - 100.0) * 0.1)
+        }
+        return [pscustomobject]@{
+            EtaPercent   = [math]::Round($eta, 1)
+            EtaFraction  = [math]::Round($eta / 100.0, 4)
+            LoadPercent  = [math]::Round($loadPct, 1)
+            PsuWattage   = $PsuWattage
+            PsuRating    = $ratingKey
+        }
+    } else {
+        # PsuWattage == 0: feste Stützstellen (Idle: 10 %, Teillast: 20 %, Gaming/Volllast: 50 %)
+        $idx = switch ($LoadStage) {
+            'Idle'     { 1 }
+            'Teillast' { 2 }
+            default    { 3 }
+        }
+        $eta = $points[$idx]
+        return [pscustomobject]@{
+            EtaPercent   = [math]::Round($eta, 1)
+            EtaFraction  = [math]::Round($eta / 100.0, 4)
+            LoadPercent  = $null
+            PsuWattage   = 0
+            PsuRating    = $ratingKey
+        }
+    }
+}
+
 function Get-EstimatedSystemPower {
     param(
         $CpuW,
         $GpuW = 0.0,
         [switch]$IsNotebook,
-        [double]$RamGb = 16.0,
-        [double]$RamLoadPct = 10.0,
-        [int]$DiskCount = 1,
+        $GpuName = '',
+        [int]$DimmCount = 0,
+        [switch]$RamOc,
+        $Disks = $null,
+        [int]$DiskCount = 0,
+        [double]$NvmeTemp = 0.0,
         [switch]$DiskLoad,
+        [int]$FanCount = 0,
+        [switch]$IsIdle,
+        [switch]$IsTeillast,
+        $PsuWattage = $null,
+        $PsuRating = $null,
+        [string]$Stage = '',
         [switch]$OnBattery,
-        $BatteryDischargeW = $null
+        $BatteryDischargeW = $null,
+        # Abwärtskompatibilität für ältere Aufrufe
+        [double]$RamGb = 0.0,
+        [double]$RamLoadPct = 0.0
     )
 
     $hasCpu = ($null -ne $CpuW -and "$CpuW" -ne '' -and -not [double]::IsNaN([double]$CpuW) -and [double]$CpuW -gt 0)
@@ -283,27 +367,35 @@ function Get-EstimatedSystemPower {
 
     if (-not $hasCpu -and -not $hasBat) {
         return [pscustomobject]@{
-            Verfuegbar       = $false
-            Text             = 'n/v (kein Leistungssensor)'
-            P_AC             = $null
-            P_DC             = $null
-            CpuW             = $null
-            GpuW             = $null
-            RamW             = $null
-            BoardW           = $null
-            DiskW            = $null
-            VrmW             = $null
-            Wirkungsgrad     = $null
-            IsNotebook       = [bool]$IsNotebook
-            Aufschluesselung = 'Kein Leistungssensor vorhanden (RAPL/LHM erforderlich)'
+            Verfuegbar           = $false
+            Text                 = 'n/v (kein Leistungssensor)'
+            P_AC                 = $null
+            P_DC                 = $null
+            CpuW                 = $null
+            GpuW                 = $null
+            RamW                 = $null
+            BoardW               = $null
+            DiskW                = $null
+            FanW                 = $null
+            VrmW                 = $null
+            Wirkungsgrad         = $null
+            WirkungsgradProzent  = $null
+            LoadPercent          = $null
+            PsuWattage           = $(if ($null -ne $PsuWattage) { [int]$PsuWattage } elseif ($script:PsuWattage -ne $null) { [int]$script:PsuWattage } else { 650 })
+            PsuRating            = $(if ($PsuRating) { [string]$PsuRating } elseif ($script:PsuRating) { [string]$script:PsuRating } else { '80 PLUS Bronze' })
+            IsNotebook           = [bool]$IsNotebook
+            Aufschluesselung     = 'Kein Leistungssensor vorhanden (RAPL/LHM erforderlich)'
+            AufschluesselungKurz = 'n/v (kein Leistungssensor)'
         }
     }
 
     $cW = $(if ($hasCpu) { [double]$CpuW } else { 0.0 })
-    $gW = $(if ($null -ne $GpuW -and "$GpuW" -ne '' -and -not [double]::IsNaN([double]$GpuW) -and [double]$GpuW -gt 0) { [double]$GpuW } else { 0.0 })
-    $rGb = $(if ($RamGb -gt 0) { [double]$RamGb } else { 16.0 })
-    $rLoad = [math]::Max(0.0, [math]::Min(100.0, [double]$RamLoadPct))
-    $dCount = [math]::Max(1, [int]$DiskCount)
+    $gWSensor = $(if ($null -ne $GpuW -and "$GpuW" -ne '' -and -not [double]::IsNaN([double]$GpuW) -and [double]$GpuW -gt 0) { [double]$GpuW } else { 0.0 })
+
+    $pWatt = if ($null -ne $PsuWattage) { [int]$PsuWattage } elseif ($script:PsuWattage -ne $null) { [int]$script:PsuWattage } else { 650 }
+    $pRate = if ($PsuRating) { [string]$PsuRating } elseif ($script:PsuRating) { [string]$script:PsuRating } else { '80 PLUS Bronze' }
+
+    $stageName = if ($Stage) { $Stage } elseif ($IsIdle) { 'Idle' } elseif ($IsTeillast) { 'Teillast' } else { 'Load' }
 
     if ($IsNotebook) {
         if ($hasBat) {
@@ -312,79 +404,187 @@ function Get-EstimatedSystemPower {
             $eta = 1.0
             $aufschluesselung = ('Akkubetrieb: Reale Entladeleistung {0:N1} W laut Akkusensor' -f $pDc)
             return [pscustomobject]@{
-                Verfuegbar       = $true
-                Text             = ('~{0:N0} W' -f [math]::Round($pAc))
-                P_AC             = [math]::Round($pAc, 1)
-                P_DC             = [math]::Round($pDc, 1)
-                CpuW             = [math]::Round($cW, 1)
-                GpuW             = [math]::Round($gW, 1)
-                RamW             = 0.0
-                BoardW           = 0.0
-                DiskW            = 0.0
-                VrmW             = 0.0
-                Wirkungsgrad     = $eta
-                IsNotebook       = $true
-                Aufschluesselung = $aufschluesselung
+                Verfuegbar           = $true
+                Text                 = ('~{0:N0} W' -f [math]::Round($pAc))
+                P_AC                 = [math]::Round($pAc, 1)
+                P_DC                 = [math]::Round($pDc, 1)
+                CpuW                 = [math]::Round($cW, 1)
+                GpuW                 = [math]::Round($gWSensor, 1)
+                RamW                 = 0.0
+                BoardW               = 0.0
+                DiskW                = 0.0
+                FanW                 = 0.0
+                VrmW                 = 0.0
+                Wirkungsgrad         = $eta
+                WirkungsgradProzent  = 100.0
+                LoadPercent          = $null
+                PsuWattage           = 0
+                PsuRating            = 'Akku'
+                IsNotebook           = $true
+                Aufschluesselung     = $aufschluesselung
+                AufschluesselungKurz = ('~{0:N0} W (Akkubetrieb)' -f [math]::Round($pAc))
             }
         }
 
         # Notebook Netzbetrieb
-        $vrm = [math]::Round(0.05 * $cW, 1)
-        $boardDisplay = 7.0 # Display ~4 W + Plattform/WLAN ~3 W
-        $ramSsd = 3.0       # LPDDR/DDR-SO-DIMM und NVMe
-        $pDc = $cW + $gW + $vrm + $boardDisplay + $ramSsd
-        $eta = 0.90         # Ladenetzteil Wirkungsgrad ~90 %
-        $pAc = $pDc / $eta
+        $vrmPct = if ($stageName -eq 'Idle') { 0.05 } else { 0.10 }
+        $vrm = [math]::Round($cW * $vrmPct, 1)
 
-        $aufschluesselung = ('Gemessen: CPU {0:N0} W{1} + Zuschlag: Display & Plattform {2:N0} W, RAM & SSD {3:N0} W, VRM {4:N1} W = DC {5:N0} W / ~{6:N0} W an der Steckdose (Wirkungsgrad {7:N0} %)' -f `
-            $cW, $(if ($gW -gt 0) { ', GPU {0:N0} W' -f $gW } else { '' }), $boardDisplay, $ramSsd, $vrm, $pDc, $pAc, ($eta * 100))
+        $gW = $gWSensor
+        if ($gWSensor -gt 0 -and $GpuName -match '(?i)AMD|Radeon' -and $GpuName -notmatch '(?i)Graphics\s*$') {
+            $gW = if ($gWSensor -lt 30.0) { $gWSensor + 4.0 } else { [math]::Round($gWSensor * 1.15, 1) }
+        }
+
+        $boardDisplay = switch ($stageName) {
+            'Idle'     { 7.0 }
+            'Teillast' { 8.0 }
+            default    { 9.0 }
+        }
+        $ramSsd = switch ($stageName) {
+            'Idle'     { 2.5 }
+            'Teillast' { 3.5 }
+            default    { 4.5 }
+        }
+        $pDc = [math]::Round($cW + $gW + $vrm + $boardDisplay + $ramSsd, 1)
+        $eta = 0.90
+        $pAc = [math]::Round($pDc / $eta, 1)
+
+        $shortInfo = ('~{0:N0} W an der Steckdose (intern ~{1:N0} W | ~90 % Effizienz [OEM Netzteil])' -f [math]::Round($pAc), [math]::Round($pDc))
+        $aufschluesselung = ('Gemessen: CPU {0:N0} W{1} + Zuschlag: Display & Plattform {2:N0} W, RAM & SSD {3:N1} W, VRM {4:N1} W = DC {5:N0} W / ~{6:N0} W an der Steckdose (Wirkungsgrad 90 %)' -f `
+            $cW, $(if ($gW -gt 0) { ', GPU {0:N0} W' -f $gW } else { '' }), $boardDisplay, $ramSsd, $vrm, [math]::Round($pDc), [math]::Round($pAc))
 
         return [pscustomobject]@{
-            Verfuegbar       = $true
-            Text             = ('~{0:N0} W' -f [math]::Round($pAc))
-            P_AC             = [math]::Round($pAc, 1)
-            P_DC             = [math]::Round($pDc, 1)
-            CpuW             = [math]::Round($cW, 1)
-            GpuW             = [math]::Round($gW, 1)
-            RamW             = $ramSsd
-            BoardW           = $boardDisplay
-            DiskW            = 0.0
-            VrmW             = $vrm
-            Wirkungsgrad     = $eta
-            IsNotebook       = $true
-            Aufschluesselung = $aufschluesselung
+            Verfuegbar           = $true
+            Text                 = ('~{0:N0} W' -f [math]::Round($pAc))
+            P_AC                 = [double]$pAc
+            P_DC                 = [double]$pDc
+            CpuW                 = [math]::Round($cW, 1)
+            GpuW                 = [math]::Round($gW, 1)
+            RamW                 = $ramSsd
+            BoardW               = $boardDisplay
+            DiskW                = 0.0
+            FanW                 = 0.0
+            VrmW                 = $vrm
+            Wirkungsgrad         = $eta
+            WirkungsgradProzent  = 90.0
+            LoadPercent          = $null
+            PsuWattage           = 0
+            PsuRating            = 'OEM Netzteil'
+            IsNotebook           = $true
+            Aufschluesselung     = $aufschluesselung
+            AufschluesselungKurz = $shortInfo
         }
     } else {
         # Desktop
-        $vrm = [math]::Round(0.08 * $cW, 1)
-        # RAM: Basis 1.5 W + (RAM-GB / 16) * (1.5 W + Auslastung% * 2.5 W)
-        $ramW = [math]::Round(1.5 + ($rGb / 16.0) * (1.5 + ($rLoad / 100.0) * 2.5), 1)
-        # Mainboard: Chipsatz 15 W + Lüfter/RGB 5 W = 20 W
-        $boardW = 20.0
-        # Laufwerke: 1.5 W je SSD Leerlauf, +3.5 W unter Last
-        $diskW = [math]::Round($dCount * $(if ($DiskLoad) { 5.0 } else { 1.5 }), 1)
+        # 1. CPU VRM: Idle 5 %, sonst 10 %
+        $vrmPct = if ($stageName -eq 'Idle') { 0.05 } else { 0.10 }
+        $vrm = [math]::Round($cW * $vrmPct, 1)
 
-        $pDc = $cW + $gW + $ramW + $boardW + $diskW + $vrm
-        $eta = 0.88 # 80-PLUS Standard ~88 %
-        $pAc = $pDc / $eta
+        # 2. GPU: AMD Radeon Offset bzw. 15% Aufschlag
+        $gW = $gWSensor
+        $isAmdGpu = ($gWSensor -gt 0) -and ($GpuName -match '(?i)AMD|Radeon') -and ($GpuName -notmatch '(?i)Graphics\s*$')
+        if ($isAmdGpu) {
+            $gW = if ($gWSensor -lt 30.0) { $gWSensor + 4.0 } else { [math]::Round($gWSensor * 1.15, 1) }
+        }
 
-        $aufschluesselung = ('Gemessen: CPU {0:N0} W{1} + Zuschlag: Mainboard {2:N0} W, RAM {3:N1} W, Laufwerke {4:N1} W, VRM {5:N1} W = DC {6:N0} W / ~{7:N0} W an der Steckdose (Wirkungsgrad {8:N0} %)' -f `
-            $cW, $(if ($gW -gt 0) { ', GPU {0:N0} W' -f $gW } else { '' }), $boardW, $ramW, $diskW, $vrm, $pDc, $pAc, ($eta * 100))
+        # 3. Mainboard-Basisverbrauch: 10 W (Idle), 12 W (Teillast), 14 W (Volllast)
+        $boardW = switch ($stageName) {
+            'Idle'     { 10.0 }
+            'Teillast' { 12.0 }
+            default    { 14.0 }
+        }
+
+        # 4. RAM: Zähle DIMMs (Fallback: 2 Module)
+        $dCount = if ($DimmCount -gt 0) { $DimmCount } elseif ($RamGb -ge 32.0) { 2 } else { 2 }
+        $ramPerMod = switch ($stageName) {
+            'Idle'     { 1.5 }
+            'Teillast' { 2.5 }
+            default    { if ($RamOc) { 4.0 } else { 4.0 } }
+        }
+        $ramW = [math]::Round($dCount * $ramPerMod, 1)
+
+        # 5. Datenträger (NVMe, SATA SSD, HDD)
+        $nvmeC = 0; $sataC = 0; $hddC = 0
+        if ($Disks -and @($Disks).Count -gt 0) {
+            foreach ($d in @($Disks)) {
+                $dStr = "$d"
+                if ($dStr -match '(?i)NVMe') { $nvmeC++ }
+                elseif ($dStr -match '(?i)HDD|Festplatte|ST\d{3,}|WD\d{3,}') { $hddC++ }
+                else { $sataC++ }
+            }
+        } elseif ($DiskCount -gt 0) {
+            $nvmeC = 1
+            if ($DiskCount -gt 1) { $sataC = $DiskCount - 1 }
+        } else {
+            $nvmeC = 1
+        }
+
+        $nvmeIdle = if ($NvmeTemp -gt 45.0) { 2.2 } else { 1.8 }
+        $nvmeW = switch ($stageName) {
+            'Idle'     { $nvmeIdle }
+            'Teillast' { 3.0 }
+            default    { if ($DiskLoad) { 5.5 } else { 2.5 } }
+        }
+        $sataW = switch ($stageName) {
+            'Idle'     { 0.8 }
+            'Teillast' { 1.5 }
+            default    { 2.5 }
+        }
+        $hddW = switch ($stageName) {
+            'Idle'     { 4.5 }
+            default    { 7.5 }
+        }
+        $diskW = [math]::Round(($nvmeC * $nvmeW) + ($sataC * $sataW) + ($hddC * $hddW), 1)
+
+        # 6. Kühlung / Lüfter
+        $fCount = if ($FanCount -gt 0) { $FanCount } else { 3 }
+        $fanPerFan = switch ($stageName) {
+            'Idle'     { 0.6 }
+            'Teillast' { 1.0 }
+            default    { 1.5 }
+        }
+        $fanW = [math]::Round($fCount * $fanPerFan, 1)
+
+        $pDc = [math]::Round($cW + $gW + $vrm + $boardW + $ramW + $diskW + $fanW, 1)
+
+        $effData = Get-PsuEfficiency -P_DC $pDc -PsuWattage $pWatt -PsuRating $pRate -LoadStage $stageName
+        $eta = $effData.EtaFraction
+        $etaPct = $effData.EtaPercent
+        $loadPct = $effData.LoadPercent
+        $pAc = [math]::Round($pDc / $eta)
+
+        $shortInfo = if ($pWatt -gt 0 -and $null -ne $loadPct) {
+            ('~{0:N0} W an der Steckdose (intern ~{1:N0} W | PSU-Last ~{2:N0} % @ ~{3:N1} % Effizienz [{4} W, {5}])' -f `
+                $pAc, $pDc, [math]::Round($loadPct), $etaPct, $pWatt, $effData.PsuRating)
+        } else {
+            ('~{0:N0} W an der Steckdose (intern ~{1:N0} W | ~{2:N1} % Effizienz [{3}])' -f `
+                $pAc, $pDc, $etaPct, $effData.PsuRating)
+        }
+
+        $aufschluesselung = ('Gemessen: CPU {0:N0} W{1} + Wandler/VRM {2:N1} W, Mainboard {3:N0} W, RAM {4:N1} W ({5} DIMMs), Datenträger {6:N1} W, Lüfter {7:N1} W ({8} Lüfter) = intern ~{9:N0} W | {10}' -f `
+            $cW, $(if ($gWSensor -gt 0) { ', GPU {0:N0} W{1}' -f $gWSensor, $(if ($isAmdGpu) { ' (+AMD-TBP)' } else { '' }) } else { '' }), `
+            $vrm, $boardW, $ramW, $dCount, $diskW, $fanW, $fCount, $pDc, $shortInfo)
 
         return [pscustomobject]@{
-            Verfuegbar       = $true
-            Text             = ('~{0:N0} W' -f [math]::Round($pAc))
-            P_AC             = [math]::Round($pAc, 1)
-            P_DC             = [math]::Round($pDc, 1)
-            CpuW             = [math]::Round($cW, 1)
-            GpuW             = [math]::Round($gW, 1)
-            RamW             = $ramW
-            BoardW           = $boardW
-            DiskW            = $diskW
-            VrmW             = $vrm
-            Wirkungsgrad     = $eta
-            IsNotebook       = $false
-            Aufschluesselung = $aufschluesselung
+            Verfuegbar           = $true
+            Text                 = ('~{0:N0} W' -f $pAc)
+            P_AC                 = [double]$pAc
+            P_DC                 = [double]$pDc
+            CpuW                 = [math]::Round($cW, 1)
+            GpuW                 = [math]::Round($gW, 1)
+            RamW                 = $ramW
+            BoardW               = $boardW
+            DiskW                = $diskW
+            FanW                 = $fanW
+            VrmW                 = $vrm
+            Wirkungsgrad         = $eta
+            WirkungsgradProzent  = $etaPct
+            LoadPercent          = $loadPct
+            PsuWattage           = $pWatt
+            PsuRating            = $effData.PsuRating
+            IsNotebook           = $false
+            Aufschluesselung     = $aufschluesselung
+            AufschluesselungKurz = $shortInfo
         }
     }
 }
@@ -396,23 +596,53 @@ function Get-SystemPowerProfile($Entry = $null) {
         if (Get-Command 'Test-IsNotebookSystem' -ErrorAction SilentlyContinue) { [bool](& 'Test-IsNotebookSystem') } else { $false }
     })
 
-    # RAM-Größe in GB
+    # Netzteil-Konfiguration
+    $psuWatt = if ($Entry -and $Entry.Netzteil -and $Entry.Netzteil.Wattage) { [int]$Entry.Netzteil.Wattage }
+               elseif ($Entry -and $Entry.PsuWattage) { [int]$Entry.PsuWattage }
+               elseif ($script:PsuWattage -ne $null) { [int]$script:PsuWattage }
+               else { 650 }
+    $psuRate = if ($Entry -and $Entry.Netzteil -and $Entry.Netzteil.Rating) { [string]$Entry.Netzteil.Rating }
+               elseif ($Entry -and $Entry.PsuRating) { [string]$Entry.PsuRating }
+               elseif ($script:PsuRating) { [string]$script:PsuRating }
+               else { '80 PLUS Bronze' }
+
+    # RAM-Größe und DIMMs
     $ramGb = 16.0
+    $dimmCount = 2
+    $ramOc = $false
     $ramStr = $(if ($Entry -and $Entry.Hardware -and $Entry.Hardware.RAM) { [string]$Entry.Hardware.RAM }
                 elseif ($script:Facts -and $script:Facts['Arbeitsspeicher']) { [string]$script:Facts['Arbeitsspeicher'] }
                 else { '' })
     if ($ramStr -match '(\d+)\s*GB') { $ramGb = [double]$matches[1] }
+    if ($ramStr -match '(\d+)x') { $dimmCount = [int]$matches[1] }
+    elseif (Get-Command Get-CimCached -ErrorAction SilentlyContinue) {
+        $mems = @(Get-CimCached Win32_PhysicalMemory -ErrorAction SilentlyContinue)
+        if ($mems.Count) { $dimmCount = $mems.Count }
+    }
+    if ($ramStr -match 'DDR5|EXPO|XMP|6000|5600|6400') { $ramOc = $true }
 
-    # Laufwerksanzahl
-    $disks = $(if ($Entry -and $Entry.Laufwerke) { @($Entry.Laufwerke).Count }
-               elseif ($script:BenchDisks) { @($script:BenchDisks).Count }
-               else { 1 })
-    $diskCount = [math]::Max(1, [int]$disks)
+    # Laufwerke
+    $disksList = @()
+    if ($Entry -and $Entry.Laufwerke) {
+        $disksList = @($Entry.Laufwerke)
+    } elseif ($script:BenchDisks) {
+        $disksList = @($script:BenchDisks | ForEach-Object { "$($_.Klasse) $($_.Laufwerk)" })
+    }
+    $diskCount = [math]::Max(1, $disksList.Count)
 
-    # Dedizierte GPU vorhanden?
+    # Lüfter
+    $fanCount = 0
+    if ($script:SensorDb -and $script:SensorDb['Leerlauf'] -and $script:SensorDb['Leerlauf'].Luefter) {
+        if ([double]$script:SensorDb['Leerlauf'].Luefter -gt 0) { $fanCount = 3 }
+    }
+    if ($fanCount -le 0 -and -not $isNb) { $fanCount = 3 }
+
+    # GPU
+    $gpuName = ''
     $hasDgpu = $false
     if ($Entry) {
         $gpuStr = $(if ($Entry.Hardware -and $Entry.Hardware.GPU) { [string]$Entry.Hardware.GPU } else { '' })
+        $gpuName = $gpuStr
         if ($gpuStr -and (Get-Command 'Get-GpuKind' -ErrorAction SilentlyContinue)) {
             $hasDgpu = ((& 'Get-GpuKind' $gpuStr) -eq 'dGPU')
         } elseif ($gpuStr) {
@@ -421,7 +651,11 @@ function Get-SystemPowerProfile($Entry = $null) {
     } else {
         if (Get-Command 'Get-GpuAdapters' -ErrorAction SilentlyContinue) {
             $gAdapters = @(& 'Get-GpuAdapters')
-            $hasDgpu = [bool](@($gAdapters | Where-Object { $_.Art -eq 'dGPU' }).Count)
+            $dg = @($gAdapters | Where-Object { $_.Art -eq 'dGPU' }) | Select-Object -First 1
+            if ($dg) { $hasDgpu = $true; $gpuName = $dg.Name }
+        }
+        if (-not $gpuName -and $script:Facts -and $script:Facts['Grafikkarte']) {
+            $gpuName = [string]$script:Facts['Grafikkarte']
         }
     }
 
@@ -465,7 +699,6 @@ function Get-SystemPowerProfile($Entry = $null) {
         }
     }
 
-    # Nur dGPU-Leistung werten; iGPU ist bereits im CPU-Package enthalten
     if (-not $hasDgpu) { $gpuWIdle = 0.0; $gpuWMax = 0.0 }
     elseif ($null -eq $gpuWIdle -and $hasDgpu) { $gpuWIdle = $(if ($isNb) { 5.0 } else { 12.0 }) }
 
@@ -473,19 +706,17 @@ function Get-SystemPowerProfile($Entry = $null) {
         $cpuWIdle = $(if ($isNb) { [math]::Min(10.0, [math]::Max(4.0, [math]::Round($cpuWMax * 0.15, 1))) } else { [math]::Min(25.0, [math]::Max(12.0, [math]::Round($cpuWMax * 0.18, 1))) })
     }
 
-    # Teillast abschätzen (Alltagsbetrieb / Büro / Video)
+    # Teillast (Alltag & Büro): CPU_Idle + 20 W, GPU_Idle + 15 W + Teillast-Restsystem
     $cpuWPart = $null; $gpuWPart = $null
-    if ($null -ne $cpuWIdle -and $null -ne $cpuWMax) {
-        $cpuWPart = [math]::Round($cpuWIdle + ($cpuWMax - $cpuWIdle) * 0.35, 1)
+    if ($null -ne $cpuWIdle) {
+        $cpuWPart = [math]::Round($cpuWIdle + 20.0, 1)
     } elseif ($null -ne $cpuWMax) {
         $cpuWPart = [math]::Round($cpuWMax * 0.40, 1)
-    } elseif ($null -ne $cpuWIdle) {
-        $cpuWPart = [math]::Round($cpuWIdle * 1.8, 1)
     }
 
     if ($hasDgpu) {
-        if ($null -ne $gpuWIdle -and $null -ne $gpuWMax) {
-            $gpuWPart = [math]::Round($gpuWIdle + ($gpuWMax - $gpuWIdle) * 0.20, 1)
+        if ($null -ne $gpuWIdle) {
+            $gpuWPart = [math]::Round($gpuWIdle + 15.0, 1)
         } elseif ($null -ne $gpuWMax) {
             $gpuWPart = [math]::Round($gpuWMax * 0.25, 1)
         }
@@ -493,9 +724,23 @@ function Get-SystemPowerProfile($Entry = $null) {
         $gpuWPart = 0.0
     }
 
-    $pIdle = Get-EstimatedSystemPower -CpuW $cpuWIdle -GpuW $gpuWIdle -IsNotebook:$isNb -RamGb $ramGb -RamLoadPct 10.0 -DiskCount $diskCount
-    $pPart = Get-EstimatedSystemPower -CpuW $cpuWPart -GpuW $gpuWPart -IsNotebook:$isNb -RamGb $ramGb -RamLoadPct 40.0 -DiskCount $diskCount
-    $pLoad = Get-EstimatedSystemPower -CpuW $cpuWMax  -GpuW $gpuWMax  -IsNotebook:$isNb -RamGb $ramGb -RamLoadPct 90.0 -DiskCount $diskCount -DiskLoad
+    # Gaming: CPU-Schnitt während Grafik-Benchmark (Fallback: min(CPU_Max * 0.75, 65 W)) + maximale GPU-Last
+    $cpuWGaming = $null
+    if ($null -ne $cpuWMax -and $cpuWMax -gt 0) {
+        $cpuWGaming = [math]::Min($cpuWMax * 0.75, 65.0)
+    }
+
+    $pIdle = Get-EstimatedSystemPower -CpuW $cpuWIdle -GpuW $gpuWIdle -IsNotebook:$isNb -GpuName $gpuName -DimmCount $dimmCount -RamOc:$ramOc -Disks $disksList -DiskCount $diskCount -FanCount $fanCount -IsIdle -Stage 'Idle' -PsuWattage $psuWatt -PsuRating $psuRate
+    $pPart = Get-EstimatedSystemPower -CpuW $cpuWPart -GpuW $gpuWPart -IsNotebook:$isNb -GpuName $gpuName -DimmCount $dimmCount -RamOc:$ramOc -Disks $disksList -DiskCount $diskCount -FanCount $fanCount -IsTeillast -Stage 'Teillast' -PsuWattage $psuWatt -PsuRating $psuRate
+    $pGaming = Get-EstimatedSystemPower -CpuW $cpuWGaming -GpuW $gpuWMax -IsNotebook:$isNb -GpuName $gpuName -DimmCount $dimmCount -RamOc:$ramOc -Disks $disksList -DiskCount $diskCount -FanCount $fanCount -Stage 'Gaming' -PsuWattage $psuWatt -PsuRating $psuRate
+    $pLoad = Get-EstimatedSystemPower -CpuW $cpuWMax  -GpuW $gpuWMax  -IsNotebook:$isNb -GpuName $gpuName -DimmCount $dimmCount -RamOc:$ramOc -Disks $disksList -DiskCount $diskCount -DiskLoad -FanCount $fanCount -Stage 'Load' -PsuWattage $psuWatt -PsuRating $psuRate
+
+    # Befund / Warnung bei Überlastung (> 85 %)
+    if (-not $Entry -and $pLoad.Verfuegbar -and $pLoad.PsuWattage -gt 0 -and $null -ne $pLoad.LoadPercent -and $pLoad.LoadPercent -gt 85) {
+        if (Get-Command Add-Finding -ErrorAction SilentlyContinue) {
+            Add-Finding 'WARNUNG' 'Energie' ('Netzteil unter Volllast zu {0:N0} % ausgelastet ({1:N0} W von {2:N0} W Nennleistung). Wenig Puffer für Lastspitzen und Transienten.' -f $pLoad.LoadPercent, $pLoad.P_DC, $pLoad.PsuWattage)
+        }
+    }
 
     # Effizienz-Indizes ermitteln
     $eff = [ordered]@{
@@ -526,7 +771,6 @@ function Get-SystemPowerProfile($Entry = $null) {
             if ($null -ne $wRpkt -and [double]$wRpkt -gt 0) { $gpuPoints = [double]$wRpkt }
 
             if ($overallScore -le 0 -or $overallScore -gt 500) {
-                # Relative Referenzwerte: CPU MT ~28000, GPU ~100 FPS / Rendertest, RAM ~50 GB/s
                 $wSum = 0.0; $logSum = 0.0
                 $cPct = if ($cpuMtScore -gt 0) { ($cpuMtScore / 28000.0) * 100.0 } else { 0.0 }
                 $gPct = if ($null -ne $gpuFps -and $gpuFps -gt 0) { ($gpuFps / 100.0) * 100.0 } elseif ($null -ne $gpuPoints -and $gpuPoints -gt 0) { ($gpuPoints / 10000.0) * 100.0 } elseif ($Entry.Werte['GPU|VMB']) { ([double]$Entry.Werte['GPU|VMB'] / 300.0) * 100.0 } else { 0.0 }
@@ -575,8 +819,12 @@ function Get-SystemPowerProfile($Entry = $null) {
         IsNotebook  = $isNb
         Leerlauf    = $pIdle
         Teillast    = $pPart
+        Gaming      = $pGaming
         Volllast    = $pLoad
         Effizienz   = [pscustomobject]$eff
+        PsuWattage  = $psuWatt
+        PsuRating   = $psuRate
     }
 }
+
 #endregion

@@ -100,6 +100,10 @@ param(
     [string]$NeuerName = '',
     # Referenzen (ab v3.6): Median aller Systeme, Notebooks und Desktops aktualisieren (Hilfsmodus der Oberfläche)
     [switch]$MedianAktualisieren,
+    # Netzteil-Effizienz (ab v3.71): Nennleistung in Watt (0 = unbekannt) und 80-PLUS-Klasse für EU-230V-Wirkungsgradkurve
+    [int]$PsuWattage = 650,
+    [ValidateSet('Unbekannt', '80 PLUS White', '80 PLUS Bronze', '80 PLUS Silver', '80 PLUS Gold', '80 PLUS Platinum', '80 PLUS Titanium')]
+    [string]$PsuRating = '80 PLUS Bronze',
     # Allgemein
     [switch]$KiOhneAnonymisierung,
     # Hilfswerkzeuge (PawnIO, smartmontools per winget) nach dem Lauf: entfernen oder auf diesem PC behalten; leer = gespeicherte Wahl
