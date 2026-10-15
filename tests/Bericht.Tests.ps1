@@ -689,3 +689,46 @@ Describe 'Interaktives Dashboard' {
         }
     }
 }
+
+Describe 'System-Startzeit im Bericht (v3.7)' {
+    BeforeAll {
+        Import-MinibenchTestModule -Functions 'New-BootPerformanceHtml', 'ConvertTo-HtmlText'
+    }
+    It 'rendert Kaskade mit Balken und Prozenten, wenn Startzeit verfügbar ist' {
+        $mockBoot = [pscustomobject]@{
+            Verfuegbar           = $true
+            SystemGesamtSekunden = 25.0
+            OsBootSekunden       = 20.0
+            BiosSekunden         = 5.0
+            KernelSekunden       = 12.0
+            DesktopSekunden      = 8.0
+            StatusText           = ''
+            Verzoegerer          = @(
+                [pscustomobject]@{ Name = 'UpdateTask.exe'; DauerSekunden = 2.4; Typ = 'Anwendung' }
+            )
+        }
+        $html = MinibenchTest\New-BootPerformanceHtml $mockBoot
+        $html | Should -Match 'class="boot-bar"'
+        $html | Should -Match 'boot-bios'
+        $html | Should -Match 'boot-kernel'
+        $html | Should -Match 'boot-post'
+        $html | Should -Match 'UpdateTask\.exe'
+        $html | Should -Match '2,4 s'
+    }
+    It 'rendert sauberen Hinweistext, wenn Protokoll deaktiviert oder leer ist' {
+        $mockBoot = [pscustomobject]@{
+            Verfuegbar           = $false
+            StatusText           = 'Nicht verfügbar (Diagnostics-Performance-Protokoll deaktiviert)'
+            SystemGesamtSekunden = 0
+            OsBootSekunden       = 0
+            BiosSekunden         = $null
+            KernelSekunden       = 0
+            DesktopSekunden      = 0
+            Verzoegerer          = @()
+        }
+        $html = MinibenchTest\New-BootPerformanceHtml $mockBoot
+        $html | Should -Match 'Nicht verfügbar \(Diagnostics-Performance-Protokoll deaktiviert\)'
+        $html | Should -Not -Match 'class="boot-bar"'
+    }
+}
+

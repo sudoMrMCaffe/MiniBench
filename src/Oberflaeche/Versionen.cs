@@ -1,4 +1,4 @@
-﻿// Versionshistorie (ab v2.7): Seite Versionen der Oberfläche und Doku\Versionshistorie.txt.
+// Versionshistorie (ab v2.7): Seite Versionen der Oberfläche und Doku\Versionshistorie.txt.
 // Jede neue Version bekommt hier oben einen Eintrag (ein Test prüft, dass es einen für $ScriptVersion gibt).
 // Einzelheiten stehen in Doku\Änderungen_vX.Y.txt. Für 1.0 bis 2.1 gibt es keine Änderungsdateien mehr; die Einträge
 // nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
@@ -11,6 +11,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.7", "15.10.2026", "Schnell behebbare Systemfehler, Startzeit-Analyse, Sensoren-Harmonisierung und modulares Dashboard",
+            "Schnell behebbare Konfigurationsfehler: Automatische Erkennung von LAN-Verhandlungsrate gebremst (100 Mbit/s oder Halbduplex an Gigabit/2.5GbE-Adaptern), Monitorkabel an iGPU statt dGPU bei Desktops, Hz-Bremse bei Monitoren >= 75 Hz auf 60 Hz limitiert, inaktivem RAM-Speicherprofil (XMP/EXPO/DOCP) und veraltetem BIOS (> 2 Jahre) mit direkten Hersteller-Supportlinks. " +
+            "Startzeit-Analyse: Aufschlüsselung der Boot Performance aus Event 100 (Kernel-Initialisierung, Desktop/PostBoot) und BIOS-POST-Dauer mit visueller Wasserfall-/Stack-Kaskade im Bericht sowie Erfassung von Autostart-Verzögerern (Event 101-110 ab 1,0 s); sauberer Fallback ohne Schätzwerte bei deaktiviertem Protokoll. " +
+            "Sensoren-Harmonisierung: Vereinheitlichte 4-Stufen-Zustandsmaschine (Vollständig, Eingeschränkt, Inaktiv, Fehler) für Treiber und Monitoring; automatische Treiberinitialisierung bei Vorliegen von Administratorrechten ohne störende Rückfragen und garantierte restlose Treiberbereinigung beim Beenden. " +
+            "Benchmark-Vergleichsmatrix: Beseitigung verschachtelter Scroll-Container (.matrix-scroll-wrapper), fixierte Tabellenköpfe und Merkmalsspalten, physikalisch korrekte Delta-Einheiten (Kelvin für Temperaturen, Prozentpunkte für Anteile, Standard-Prozente für absolute Scores) und vergrößerter linker Diagramm-Randabstand (85 px). " +
+            "Modulares Dashboard: Vollständige Trennung des Dashboard-Quelltexts in dedizierte Template-, Stylesheet- und JavaScript-Dateien (dashboard.html, dashboard.css, daten.js, matrix.js, profile.js, diagramme.js) mit build-zeitiger Einbettung."),
         new Eintrag("3.67", "14.10.2026", "Multi-System-Sensorverlauf, differenzierte Nutzungsprofile und kalibrierte Moduldauern",
             "Multi-System-Sensorverlauf: Achsenbeschriftung Temperatur (°C) vollständig sichtbar durch vergrößertes linkes Padding (75 px) und linksbündige Ausrichtung; Tooltip mit kompakten Systemnamen (getShortSysName), zweizeiligem Layout und stets vorangestelltem Basissystem (auch ohne Zeitreihe). " +
             "Differenzierte Nutzungsprofile: Gewichtung für Gaming (70 % GPU-FPS, 20 % ST, 10 % RAM/SSD; Kerne > 8 neutral), Büro/Desktop (45 % SSD-Reaktionszeit, 35 % ST, 20 % RAM-Latenz; 0 % GPU/MT) und Workstation (45 % MT, 20 % Instruktionen, 20 % RAM-Bandbreite, 15 % Dauertransfer); redundante Stromverbrauchs-Badges im Profilgitter entfernt. " +

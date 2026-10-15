@@ -1,0 +1,169 @@
+﻿<!DOCTYPE html>
+<html lang="de" {{THEME}}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{TITEL}}</title>
+  <style>
+{{CSS}}
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">⚡</div>
+      <div class="brand-titles">
+        <h1>Leos Minibench <span class="badge-ver">v3.67</span></h1>
+        <p>Interaktives Benchmark- & Diagnose-Dashboard (Multi-System-Vergleich)</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="theme-switch-container">
+        <span>Dark Mode</span>
+        <button id="themeToggle" class="toggle-switch" role="switch" aria-checked="false" title="Zwischen Hell- und Dunkelmodus umschalten">
+          <div class="toggle-thumb"></div>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MULTI-SYSTEM SELECTOR -->
+  <section class="selector-card">
+    <div class="selector-top">
+      <div class="selector-base-wrap">
+        <div class="selector-label">⚓ Basis- / Referenzsystem (100 % Bezugspunkt)</div>
+        <div class="select-wrapper">
+          <select id="baseSelect"></select>
+          <span class="select-arrow">▼</span>
+        </div>
+      </div>
+      <div>
+        <span id="comparedCountBadge" class="badge-count">1 System</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="multi-select-header">
+        <div class="selector-label">🔍 Vergleichssysteme auswählen (N &ge; 1 zusätzliche Systeme):</div>
+        <div class="multi-actions">
+          <button id="btnSelectAll" class="btn-chip" type="button">Alle auswählen</button>
+          <button id="btnSelectNone" class="btn-chip" type="button">Keine</button>
+          <button id="btnSelectDbOnly" class="btn-chip" type="button">Nur Datenbank</button>
+          <button id="btnSelectRefOnly" class="btn-chip" type="button">Nur Referenzen</button>
+        </div>
+      </div>
+      <div id="compareChips" class="compare-checkbox-grid"></div>
+    </div>
+  </section>
+
+  <!-- HARDWARE-SPEZIFIKATIONEN IM DIREKTVERGLEICH -->
+  <section class="dash-card">
+    <div class="card-head">
+      <div>
+        <h2>🖥️ Hardware-Spezifikationen im Direktvergleich</h2>
+        <p>Vollständige Gegenüberstellung aller verglichenen Systeme nebeneinander.</p>
+      </div>
+    </div>
+    <div class="matrix-scroll-wrapper">
+      <table id="specsTable" class="matrix-table">
+        <!-- Generiert durch JavaScript -->
+      </table>
+    </div>
+  </section>
+
+  <!-- NUTZUNGSPROFILE IM MULTI-SYSTEM-VERGLEICH -->
+  <section class="dash-card">
+    <div class="card-head">
+      <div>
+        <h2>🎮 Nutzungsprofile &amp; Gesamtbewertung</h2>
+        <p>Scores und prozentuales Delta relativ zum gewählten Basissystem.</p>
+      </div>
+    </div>
+    <div id="profilesGrid" class="profiles-grid">
+      <!-- Generiert durch JavaScript -->
+    </div>
+  </section>
+
+  <!-- VOLLSTÄNDIGE BENCHMARK-MATRIX -->
+  <section class="dash-card">
+    <div class="card-head">
+      <div>
+        <h2>📊 Vollständige Benchmark-Matrix</h2>
+        <p>Gegenüberstellung aller vorliegenden Messwerte mit Bestwert-Hervorhebung (👑) und Abweichung zum Basissystem.</p>
+      </div>
+    </div>
+    <div class="matrix-scroll-wrapper">
+      <table id="matrixTable" class="matrix-table">
+        <!-- Generiert durch JavaScript -->
+      </table>
+    </div>
+  </section>
+
+  <!-- INTERAKTIVER SYSTEMVERGLEICH-CHART -->
+  <section class="dash-card">
+    <div class="card-head">
+      <div>
+        <h2>Lasttest-Telemetrie &amp; Multi-System-Sensorverlauf</h2>
+        <p>Sensorverlauf über die Belastungsdauer mit Farbcodierung je System.</p>
+      </div>
+      <div class="chart-controls">
+        <button id="btnModeCpu" class="chart-btn active" type="button">CPU</button>
+        <button id="btnModeGpu" class="chart-btn" type="button">GPU</button>
+        <button id="btnModeWatt" class="chart-btn" type="button">Leistung (W)</button>
+      </div>
+    </div>
+
+    <!-- CANVAS TELEMETRY CHART -->
+    <div class="chart-container" id="chartWrapper">
+      <canvas id="telemetryCanvas"></canvas>
+      <div id="chartTooltip" class="chart-tooltip"></div>
+    </div>
+
+    <div id="chartLegend" class="chart-legend">
+      <!-- Generiert durch JavaScript -->
+    </div>
+  </section>
+
+  <!-- BEFUNDE-VERGLEICH -->
+  <section class="dash-card">
+    <div class="card-head">
+      <div>
+        <h2>Befunde der Systeme im Vergleich</h2>
+        <p>Synoptische Gegenüberstellung aller Diagnose-Befunde (Kritisch, Warnungen, Hinweise).</p>
+      </div>
+    </div>
+    <div id="findingsGrid" class="findings-grid">
+      <!-- Generiert durch JavaScript -->
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    Leos Minibench v3.67 &middot; Multi-System Benchmark- &amp; Diagnose-Dashboard &middot; 100 % Offline &middot; UTF-8
+  </footer>
+
+</div>
+
+
+<script>
+/* __DASHBOARD_DATA__ */
+window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
+
+(function() {
+  'use strict';
+
+{{JS}}
+
+  // DOM READY
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>

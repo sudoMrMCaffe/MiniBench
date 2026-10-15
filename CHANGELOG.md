@@ -2,6 +2,14 @@
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
 
+## v3.7 (15.10.2026)
+
+* **Schnell behebbare Konfigurationsfehler:** Automatische Erkennung typischer Einbremser: LAN-Verhandlungsrate gebremst auf 100 Mbit/s oder Halbduplex an Gigabit/2.5GbE-Adaptern, Monitor am Mainboard (iGPU) angeschlossen trotz aktiver dedizierter Grafikkarte, Hz-Bremse bei Monitoren >= 75 Hz auf 60 Hz limitiert, inaktives Speicherprofil (XMP/EXPO/DOCP) unter potentiellem Nenntakt und veraltetes BIOS (> 24 Monate) mit direkten Hersteller-Supportlinks.
+* **System-Startzeit-Analyse (Boot Performance Breakdown):** Aufschlüsselung der Windows-Boot-Phasen aus Event 100 (`MainPathBootTime`, `BootPostBootTime`, `BootDuration`) und der UEFI/BIOS-POST-Zeit (`FwPOSTTime`) mit visueller Wasserfall-/Stack-Kaskade im HTML-Bericht; Auswertung von Autostart-Verzögerern (Event 101-110 ab 1,0 s) und sauberer Fallback ohne Schätzwerte bei inaktivem Protokoll.
+* **Harmonisierte Sensoren-Zustandsmaschine:** Konsistente 4-Stufen-Statuslogik (`Vollständig`, `Eingeschränkt`, `Inaktiv`, `Fehler`) im Skript und in der Benutzeroberfläche; automatische Treiberinitialisierung bei Vorliegen von Administratorrechten ohne zusätzliche Rückfragen und garantierte Treiberentladung bei Programmbeendigung.
+* **Benchmark-Vergleichsmatrix & Diagramme:** Ein einziger horizontaler Bildlaufbereich (`.matrix-scroll-wrapper`), zuverlässig fixierte Spalten- und Zeilenköpfe (`position: sticky`), physikalisch korrekte Einheiten für Deltas (Kelvin `K` bei Temperaturen, Prozentpunkte `%p` bei relativen Anteilen, Standard-Prozente `%` bei absoluten Messwerten) und 85 px linker Randabstand im Multi-System-Diagramm.
+* **Modulares Dashboard:** Vollständige Zerlegung des Dashboard-Quelltexts in separate semantische Bausteine (`dashboard.html`, `dashboard.css`, `daten.js`, `matrix.js`, `profile.js`, `diagramme.js`) mit robuster Einbettung im Zusammenbau-Skript und Syntaxprüfung via `node --check` (falls Node.js verfügbar).
+
 ## v3.67 (14.10.2026)
 
 * **Multi-System-Sensorverlauf:** Achsenbeschriftung `Temperatur (°C)` durch vergrößertes linkes Padding (75 px) und linksbündige Ausrichtung vollständig sichtbar; Tooltip mit kompakten Systemnamen (`getShortSysName`), zweizeiligem Layout ohne Einheitenumbrüche und stets vorangestelltem Basissystem (auch bei Systemen ohne Zeitreihe).

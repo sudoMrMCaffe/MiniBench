@@ -1,4 +1,4 @@
-﻿# Fügt die Quelltextteile aus src\ zu einer einzigen LeosMinibench.ps1 zusammen.
+# Fügt die Quelltextteile aus src\ zu einer einzigen LeosMinibench.ps1 zusammen.
 # Verwendet von Bauen.cmd, Testen.cmd und den Pester-Tests. Läuft unter Windows PowerShell 5.1 und PowerShell 7.
 #
 #   . .\src\Zusammenbau.ps1
@@ -48,6 +48,57 @@ function Update-EmbeddedReferences([string]$SrcDir) {
     }
 }
 
+function Build-DashboardHtmlTemplate([string]$SrcDir, [System.Collections.Generic.List[string]]$Fehler, [System.Collections.Generic.HashSet[string]]$Used) {
+    $dashDir = Join-Path $SrcDir 'Bericht\Dashboard'
+    if (-not (Test-Path -LiteralPath $dashDir)) { return '' }
+
+    $reqFiles = @('dashboard.html', 'dashboard.css', 'daten.js', 'profile.js', 'matrix.js', 'diagramme.js')
+    foreach ($rf in $reqFiles) {
+        $rfp = Join-Path $dashDir $rf
+        if (-not (Test-Path -LiteralPath $rfp)) {
+            $Fehler.Add(('Dashboard-Baustein fehlt: Bericht\Dashboard\{0}' -f $rf))
+            return ''
+        }
+        if ($Used) { [void]$Used.Add((Resolve-Path -LiteralPath $rfp).Path) }
+    }
+
+    $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+    if ($nodeCmd) {
+        foreach ($jf in @('daten.js', 'profile.js', 'matrix.js', 'diagramme.js')) {
+            $jp = Join-Path $dashDir $jf
+            try {
+                $nodeOut = & $nodeCmd.Source --check $jp 2>&1
+                if ($LASTEXITCODE -ne 0) {
+                    $Fehler.Add(('JS-Syntaxfehler in Bericht\Dashboard\{0}: {1}' -f $jf, ($nodeOut -join ' ')))
+                }
+            } catch {
+                $Fehler.Add(('Fehler bei node --check für {0}: {1}' -f $jf, $_.Exception.Message))
+            }
+        }
+    }
+
+    $rawHtml = [IO.File]::ReadAllText((Join-Path $dashDir 'dashboard.html'), [Text.Encoding]::UTF8).TrimStart([char]0xFEFF)
+    $rawCss  = [IO.File]::ReadAllText((Join-Path $dashDir 'dashboard.css'), [Text.Encoding]::UTF8).TrimStart([char]0xFEFF)
+    $rawDaten = [IO.File]::ReadAllText((Join-Path $dashDir 'daten.js'), [Text.Encoding]::UTF8).TrimStart([char]0xFEFF)
+    $rawProf = [IO.File]::ReadAllText((Join-Path $dashDir 'profile.js'), [Text.Encoding]::UTF8).TrimStart([char]0xFEFF)
+    $rawMat  = [IO.File]::ReadAllText((Join-Path $dashDir 'matrix.js'), [Text.Encoding]::UTF8).TrimStart([char]0xFEFF)
+    $rawDiag = [IO.File]::ReadAllText((Join-Path $dashDir 'diagramme.js'), [Text.Encoding]::UTF8).TrimStart([char]0xFEFF)
+
+    $jsCombined = @($rawDaten, $rawProf, $rawMat, $rawDiag) -join "`r`n`r`n"
+    $html = $rawHtml.Replace('{{TITEL}}', 'Leos Minibench - Benchmark &amp; Diagnose Dashboard')
+    $html = $html.Replace('{{THEME}}', 'data-theme="light"')
+    $html = $html.Replace('{{CSS}}', $rawCss)
+    $html = $html.Replace('{{JS}}', $jsCombined)
+
+    $lines = $html -split "`r?`n"
+    for ($idx = 0; $idx -lt $lines.Length; $idx++) {
+        if ($lines[$idx] -match "^\s*['""]@") {
+            $lines[$idx] = ' ' + $lines[$idx]
+        }
+    }
+    return ($lines -join "`r`n")
+}
+
 function Invoke-MinibenchBuild {
     param(
         [Parameter(Mandatory = $true)][string]$SrcDir,
@@ -75,6 +126,21 @@ function Invoke-MinibenchBuild {
         $lines = Read-SrcLines $p
         for ($i = 0; $i -lt $lines.Count; $i++) {
             $ln = $lines[$i]
+            if ($ln -match '^\s*#>> EINBINDEN_DASHBOARD_TEMPLATE\s*$') {
+                $dashTemplate = Build-DashboardHtmlTemplate $SrcDir $fehler $used
+                $out.Add("    return @'")
+                $map.Add([pscustomobject]@{ Datei = $rel; Zeile = $i + 1 })
+                foreach ($dLine in ($dashTemplate -split "`r?`n")) {
+                    $out.Add($dLine)
+                    $map.Add([pscustomobject]@{ Datei = 'Bericht\Dashboard\dashboard.html'; Zeile = 1 })
+                }
+                $out.Add("'@")
+                $map.Add([pscustomobject]@{ Datei = $rel; Zeile = $i + 1 })
+                while ($i + 1 -lt $lines.Count -and $lines[$i + 1] -notmatch '^\}') {
+                    $i++
+                }
+                continue
+            }
             if ($ln -match '^\s*#>> EINBINDEN\s+(.+?)\s*$') {
                 $incRel = $Matches[1]
                 $ip = ConvertTo-SrcPath $SrcDir $incRel

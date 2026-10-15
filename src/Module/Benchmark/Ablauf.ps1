@@ -1,4 +1,4 @@
-﻿# =====================================================================================
+# =====================================================================================
 #                 SYSTEMÜBERSICHT (nur Benchmark oder Lasttest ohne Diagnose)
 # =====================================================================================
 if (($ModBench -or $ModLast) -and -not $ModDiag) {
@@ -55,7 +55,11 @@ $script:BenchInit = $false
 function Initialize-Bench {
     if ($script:BenchInit) { return }
     $script:BenchInit = $true
-    $script:BenchMs = $(if ($BenchmarkKurz) { 2000 } else { 5000 })
+    if ($BenchmarkKurz) {
+        Write-Log '-BenchmarkKurz ist veraltet; es wird der Standard-Benchmark ausgeführt'
+        Add-Line '  Hinweis: -BenchmarkKurz ist veraltet; es wird der Standard-Benchmark ausgeführt.'
+    }
+    $script:BenchMs = 5000
     # PS 5.1 gibt ein JSON-Array als EIN Objekt aus, daher erst zuweisen, dann in ein Array wandeln
     # frühere Läufe dieses Geräts aus der Vergleichsdatenbank (gleiche Messdauer) für den Verlauf, auch nach Umbenennung oder Neuinstallation
     $devId = (Get-DeviceIdentity).Id

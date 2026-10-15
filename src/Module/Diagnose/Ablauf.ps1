@@ -1,4 +1,4 @@
-﻿# =====================================================================================
+# =====================================================================================
 #                                     DIAGNOSE
 # =====================================================================================
 if ($ModDiag -and -not $AnalyzeLastRun) {
@@ -52,6 +52,13 @@ Invoke-Section 'System und Betriebssystem' {
     $script:Facts['BIOS/UEFI']      = ('{0} vom {1:dd.MM.yyyy}' -f $bios.SMBIOSBIOSVersion, $bios.ReleaseDate)
     $script:Facts['Laufzeit']       = ('{0} seit dem letzten Start' -f (Format-Uptime $up))
     $script:Facts['Mainboard']      = ('{0} {1}' -f $bb.Manufacturer, $bb.Product).Trim()
+    $bootPerf = Get-SystemBootPerformance
+    $script:BootPerformance = $bootPerf
+    if ($bootPerf.Verfuegbar) {
+        $script:Facts['Systemstart (gesamt)'] = ('{0:N1} s (BIOS: {1}, Kernel: {2:N1} s, Desktop: {3:N1} s)' -f $bootPerf.SystemGesamtSekunden, $(if ($bootPerf.BiosSekunden) { '{0:N1} s' -f $bootPerf.BiosSekunden } else { 'n/v' }), $bootPerf.KernelSekunden, $bootPerf.DesktopSekunden)
+    } else {
+        $script:Facts['Systemstart'] = $bootPerf.StatusText
+    }
     if ($ii.Erstinstallation) {
         $script:Facts['Windows installiert'] = ('{0:dd.MM.yyyy} (vor {1}){2}' -f $ii.Erstinstallation, (Format-Age $ii.AlterTage -Dativ), $(if ($ii.Upgrades.Count) { ', seitdem {0} Funktionsupdate(s), zuletzt {1:dd.MM.yyyy}' -f $ii.Upgrades.Count, $ii.AktuellSeit } else { ', seitdem kein Funktionsupdate' }))
     }
@@ -61,7 +68,27 @@ Invoke-Section 'System und Betriebssystem' {
 
     if ($up.TotalDays -gt 14) { Add-Finding INFO 'System' ('Seit {0} Tagen kein Neustart. Ein Neustart vor der Fehlersuche ist sinnvoll.' -f [int]$up.TotalDays) }
     if ($fw -eq 1) { Add-Finding WARNUNG 'Firmware' 'System startet im Legacy-BIOS-Modus, Windows 11 erwartet UEFI.' }
-    if ($bios.ReleaseDate -and $bios.ReleaseDate -lt (Get-Date).AddYears(-3)) { Add-Finding INFO 'Firmware' ('BIOS/UEFI ist älter als 3 Jahre ({0:dd.MM.yyyy}). Update beim Hersteller prüfen.' -f $bios.ReleaseDate) }
+    if ($bios.ReleaseDate -and $bios.ReleaseDate -lt (Get-Date).AddMonths(-24)) {
+        $vendor = $(if ($bb.Manufacturer -and $bb.Manufacturer -notmatch 'To be filled|Default') { $bb.Manufacturer } elseif ($cs.Manufacturer) { $cs.Manufacturer } else { $bios.Manufacturer })
+        $url = Get-BiosVendorSupportUrl $vendor
+        Add-Finding WARNUNG 'Firmware' ('BIOS/UEFI ist älter als 2 Jahre ({0:dd.MM.yyyy}). Ein Update beim Hersteller wird empfohlen: {1}' -f $bios.ReleaseDate, $url)
+    }
+
+    Add-Sub 'System-Startzeit'
+    if ($bootPerf.Verfuegbar) {
+        Add-Line ('  Gesamte Startzeit     : {0:N1} s (Betriebssystem: {1:N1} s, Kernel: {2:N1} s, Desktop: {3:N1} s)' -f $bootPerf.SystemGesamtSekunden, $bootPerf.OsBootSekunden, $bootPerf.KernelSekunden, $bootPerf.DesktopSekunden)
+        if ($bootPerf.BiosSekunden) {
+            Add-Line ('  BIOS/Firmware-Start   : {0:N1} s' -f $bootPerf.BiosSekunden)
+        }
+        if (@($bootPerf.Verzoegerer).Count) {
+            Add-Line ('  Autostart-Verzögerer  : {0} Anwendung(en) >= 1,0 s' -f @($bootPerf.Verzoegerer).Count)
+            foreach ($vz in @($bootPerf.Verzoegerer)) {
+                Add-Line ('    {0}: {1:N1} s ({2})' -f $vz.Name, $vz.DauerSekunden, $vz.Typ)
+            }
+        }
+    } else {
+        Add-Line ('  {0}' -f $bootPerf.StatusText)
+    }
 
     Add-Sub 'Windows-Installation'
     if ($ii.Erstinstallation) {
@@ -233,7 +260,6 @@ Invoke-Section 'Arbeitsspeicher' {
     if ($usedPct -gt 90) { Add-Finding WARNUNG 'RAM' ('Arbeitsspeicher zu {0:N0} % belegt.' -f $usedPct) }
     if (@($mods.Speed | Select-Object -Unique).Count -gt 1) { Add-Finding WARNUNG 'RAM' 'Module mit unterschiedlichen Nenntakten verbaut.' }
     if (@($mods.PartNumber | Select-Object -Unique).Count -gt 1) { Add-Finding INFO 'RAM' 'Gemischte RAM-Module (unterschiedliche Teilenummern).' }
-    if ($mods | Where-Object { $_.ConfiguredClockSpeed -and $_.Speed -and $_.ConfiguredClockSpeed -lt $_.Speed }) { Add-Finding INFO 'RAM' 'RAM läuft unter Nenntakt (XMP/EXPO-Profil evtl. nicht aktiv oder vom Board begrenzt).' }
     if ($mods.Count -eq 1 -and $arr.MemoryDevices -ge 2) { Add-Finding INFO 'RAM' 'Nur ein Modul verbaut, vermutlich Single-Channel-Betrieb (geringere Speicherbandbreite).' }
     if ($total -lt 8GB) { Add-Finding WARNUNG 'RAM' ('Nur {0} RAM verbaut, für Windows 11 knapp.' -f (Format-Size $total)) }
     foreach ($m in $mods) { Add-Private ([string]$m.SerialNumber) 'SERIENNR' }
@@ -285,6 +311,13 @@ Invoke-Section 'Grafik und Monitore' {
         $sn = (& $dec $_.SerialNumberID); Add-Private $sn 'SERIENNR'
         [pscustomobject]@{ Hersteller = (& $dec $_.ManufacturerName); Modell = (& $dec $_.UserFriendlyName); Seriennummer = $sn; Baujahr = $_.YearOfManufacture; Aktiv = $_.Active }
     } | Out-Report
+    $dispDiag = Get-DisplayDiagnostics
+    if ($dispDiag.WrongPortDetected) {
+        Add-Finding WARNUNG 'Grafik' $dispDiag.WrongPortMessage
+    }
+    if ($dispDiag.HzBremseDetected) {
+        Add-Finding WARNUNG 'Grafik' $dispDiag.HzBremseMessage
+    }
 }
 
 Invoke-Section 'Datenträger und Volumes' {
@@ -508,8 +541,22 @@ Invoke-Section 'Sensoren (Momentaufnahme)' {
 }
 
 Invoke-Section 'Netzwerkkonfiguration' {
-    Get-NetAdapter -ErrorAction SilentlyContinue | Sort-Object Status, Name | Select-Object Name, InterfaceDescription, Status, LinkSpeed, MacAddress, DriverVersion,
+    $netAdapters = @(Get-NetAdapter -ErrorAction SilentlyContinue)
+    $netAdapters | Sort-Object Status, Name | Select-Object Name, InterfaceDescription, Status, LinkSpeed, MacAddress, DriverVersion,
         @{n = 'Treiberdatum'; e = { $_.DriverDate } } | Out-Report
+    foreach ($na in $netAdapters) {
+        if ($na.Status -ne 'Up') { continue }
+        $desc = [string]$na.InterfaceDescription
+        if ($desc -match 'Wireless|Wi-Fi|Bluetooth|Virtual|TAP|Hyper-V|VPN|Loopback|Tailscale|ZeroTier') { continue }
+        $isGbeCapable = ($desc -match 'Gigabit|GbE|2\.5G|2500|5G|10G|I211|I219|I225|I226|RTL8111|RTL8125|Killer E')
+        $is100M = ($na.LinkSpeed -match '100 M(bps|bit/s)?$')
+        $isHalf = ($na.DuplexMode -eq 'Half' -or ($null -ne $na.FullDuplex -and -not $na.FullDuplex))
+        if ($isGbeCapable -and ($is100M -or $isHalf)) {
+            $speedStr = [string]$na.LinkSpeed
+            $halfStr = if ($isHalf) { ' (Halbduplex)' } else { '' }
+            Add-Finding WARNUNG 'Netzwerk' ('LAN-Verhandlungsrate gebremst: Adapter "{0}" ({1}) läuft mit nur {2}{3}. Ein Gigabit- oder 2.5GbE-fähiger Adapter synchronisiert meist wegen eines defekten 4-adrigen Patchkabels oder Port-Fehlers auf 100 Mbit/s.' -f $na.Name, $desc, $speedStr, $halfStr)
+        }
+    }
     Add-Sub 'IP-Konfiguration aktiver Adapter'
     Get-NetIPConfiguration -ErrorAction SilentlyContinue | Where-Object { $_.NetAdapter.Status -eq 'Up' } | ForEach-Object {
         [pscustomobject][ordered]@{

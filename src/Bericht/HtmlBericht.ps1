@@ -1,4 +1,4 @@
-﻿function Get-TelemetryTip {
+function Get-TelemetryTip {
     param($Sample)
     $t = [int]$Sample.T
     $mm = [int][math]::Floor($t / 60); $ss = [int]($t % 60)
@@ -399,6 +399,56 @@ function recalcPowerCost(){
     return $sb.ToString()
 }
 
+function New-BootPerformanceHtml {
+    param($BootPerf)
+    if (-not $BootPerf) { return '' }
+    $sb = New-Object System.Text.StringBuilder
+    [void]$sb.Append('<section class="box" data-section="system"><h2>System-Startzeit</h2>')
+    if (-not $BootPerf.Verfuegbar) {
+        $msg = if ($BootPerf.StatusText) { $BootPerf.StatusText } else { 'Nicht verfügbar (Diagnostics-Performance-Protokoll deaktiviert)' }
+        [void]$sb.Append(('<p class="empty">{0}</p>' -f (ConvertTo-HtmlText $msg)))
+        [void]$sb.Append('</section>')
+        return $sb.ToString()
+    }
+    $biosSec = if ($BootPerf.BiosSekunden) { [double]$BootPerf.BiosSekunden } else { 0.0 }
+    $kernSec = [double]$BootPerf.KernelSekunden
+    $postSec = [double]$BootPerf.DesktopSekunden
+    $totSec  = [double]$BootPerf.SystemGesamtSekunden
+    if ($totSec -le 0) { $totSec = $biosSec + $kernSec + $postSec }
+    if ($totSec -le 0) { $totSec = 1.0 }
+
+    $pBios = [math]::Round(($biosSec / $totSec) * 100.0, 1)
+    $pKern = [math]::Round(($kernSec / $totSec) * 100.0, 1)
+    $pPost = [math]::Max(0.0, [math]::Round(100.0 - $pBios - $pKern, 1))
+
+    [void]$sb.Append(('<p class="note">Gesamte Startzeit: <b>{0:N1} s</b> (Ereignis 100 aus dem Windows-Diagnoseprotokoll)</p>' -f $BootPerf.SystemGesamtSekunden))
+    [void]$sb.Append('<div class="boot-bar-container"><div class="boot-bar">')
+    if ($biosSec -gt 0) {
+        [void]$sb.Append(('<div class="boot-seg boot-bios" style="width:{0}%" title="BIOS / Firmware: {1:N1} s ({0} %)">BIOS {1:N1} s</div>' -f $pBios, $biosSec))
+    }
+    [void]$sb.Append(('<div class="boot-seg boot-kernel" style="width:{0}%" title="Kernel &amp; Treiber: {1:N1} s ({0} %)">Kernel {1:N1} s</div>' -f $pKern, $kernSec))
+    [void]$sb.Append(('<div class="boot-seg boot-post" style="width:{0}%" title="Desktop &amp; Autostart: {1:N1} s ({0} %)">Desktop {1:N1} s</div>' -f $pPost, $postSec))
+    [void]$sb.Append('</div></div>')
+
+    [void]$sb.Append('<div class="boot-legend">')
+    [void]$sb.Append(('<div class="boot-leg-item"><i class="boot-dot boot-bios"></i><b>BIOS / Firmware:</b> {0}</div>' -f $(if ($biosSec -gt 0) { '{0:N1} s' -f $biosSec } else { 'n/v' })))
+    [void]$sb.Append(('<div class="boot-leg-item"><i class="boot-dot boot-kernel"></i><b>Kernel &amp; Treiber:</b> {0:N1} s</div>' -f $kernSec))
+    [void]$sb.Append(('<div class="boot-leg-item"><i class="boot-dot boot-post"></i><b>Desktop &amp; Autostart:</b> {0:N1} s</div>' -f $postSec))
+    [void]$sb.Append(('<div class="boot-leg-item"><i class="boot-dot" style="background:var(--text)"></i><b>Betriebssystem gesamt:</b> {0:N1} s</div>' -f $BootPerf.OsBootSekunden))
+    [void]$sb.Append('</div>')
+
+    if (@($BootPerf.Verzoegerer).Count -gt 0) {
+        [void]$sb.Append('<h3 style="margin-top:16px">Autostart-Verzögerer (&ge; 1,0 s)</h3>')
+        [void]$sb.Append('<div class="tw"><table><thead><tr><th>Anwendung / Komponente</th><th class="r">Verzögerung</th><th>Art / Ereignis</th></tr></thead><tbody>')
+        foreach ($v in @($BootPerf.Verzoegerer)) {
+            [void]$sb.Append(('<tr><td><code>{0}</code></td><td class="num r"><b>{1:N1} s</b></td><td>{2}</td></tr>' -f (ConvertTo-HtmlText $v.Name), $v.DauerSekunden, (ConvertTo-HtmlText $v.Typ)))
+        }
+        [void]$sb.Append('</tbody></table></div>')
+    }
+    [void]$sb.Append('</section>')
+    return $sb.ToString()
+}
+
 function New-HtmlReport {
     param([string]$Path, $Sorted, [int]$NK, [int]$NW, [int]$NI, [datetime]$Start, [datetime]$End)
     $cls = @{ KRITISCH = 'crit'; WARNUNG = 'warn'; INFO = 'info'; OK = 'ok'; FEHLER = 'crit'; 'ÜBERSPRUNGEN' = 'skip'; REPARIERT = 'ok'; NEUSTART = 'info' }
@@ -509,6 +559,7 @@ function New-HtmlReport {
     }
     [void]$sb.Append(('<section class="cards" data-section="system">{0}{1}{2}{3}{4}{5}{6}</section>' -f $befCard, $benchCard, $mtCard, $fpsCard, $ssdCard, $effCard, $stCard))
     if ($script:Stability -and $script:Stability.Erklaerung) { [void]$sb.Append(('<section class="box stab {0}" data-section="system"><h2>Zuverlässigkeit {1:N1} von 10</h2><p>{2}</p></section>' -f $script:Stability.Klasse, $script:Stability.Index, (ConvertTo-HtmlText $script:Stability.Erklaerung))) }
+    if ($script:BootPerformance) { [void]$sb.Append((New-BootPerformanceHtml $script:BootPerformance)) }
 
     if ($script:Facts.Count) {
         [void]$sb.Append('<section class="box" data-section="hardware"><h2>System</h2><dl>')

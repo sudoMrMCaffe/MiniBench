@@ -1,4 +1,4 @@
-﻿#region ---------- Sensoren: LibreHardwareMonitor, PawnIO und Ersatzquellen ----------
+#region ---------- Sensoren: LibreHardwareMonitor, PawnIO und Ersatzquellen ----------
 # Temperatur, Takt, Lüfter, Spannung und Leistung kommen bevorzugt aus LibreHardwareMonitorLib (portabel unter
 # Minibench-Daten\Tools\LibreHardwareMonitor). Ab 0.9.5 liest die Bibliothek CPU-Werte und Mainboard-Chips nur über den
 # Treiber PawnIO. Der Treiber wird nie ungefragt installiert: nur mit -SensorTreiber (Rückfrage in der Oberfläche),
@@ -284,7 +284,7 @@ function Open-SensorSession([switch]$Treiber, [switch]$OhneDatentraeger) {
             $s.Treiber = ('PawnIO {0} (von Leos Minibench behalten, wird am Ende entfernt)' -f $pw.Version); $s.TreiberOk = $true
         }
         elseif ($pw.Installiert) { $s.Treiber = ('PawnIO {0} ({1})' -f $pw.Version, $(if (Test-KeptTool 'PawnIO') { 'auf Wunsch behalten' } else { 'bereits vorhanden' })); $s.TreiberOk = $true }
-        elseif ($Treiber) {
+        elseif ($Treiber -or $isAdmin) {
             $r = Install-PawnIoTemporary
             $s.Treiber = $r.Text; $s.TreiberOk = $r.Ok
             if (-not $r.Ok) { $s.Hinweise.Add($r.Text) }
@@ -302,7 +302,27 @@ function Open-SensorSession([switch]$Treiber, [switch]$OhneDatentraeger) {
     if (-not $s.Lhm -and ('DiagGpuKmt' -as [type])) { $q += 'Windows-Grafiktreiber' }
     $q += 'ACPI'
     $s.Quellen = $q
+    $st = Get-SensorGlobalState $s
+    Send-GuiEvent 'SENSSTAT' $st.State $st.Text
     return $s
+}
+
+function Get-SensorGlobalState($Session = $null) {
+    if (-not $Session) { $Session = $script:Sens }
+    if (-not $Session) {
+        return [pscustomobject]@{ State = 'Inaktiv'; Text = 'Inaktiv: Sensorüberwachung nicht gestartet oder keine kompatible Hardware gefunden' }
+    }
+    if ($Session.LhmFehler -or ($Session.TreiberOk -eq $false -and $Session.Treiber -like '*fehlgeschlagen*')) {
+        $err = $(if ($Session.LhmFehler) { $Session.LhmFehler } else { $Session.Treiber })
+        return [pscustomobject]@{ State = 'Fehler'; Text = ('Fehler: Treiberabsturz oder Zugriffsverweigerung ({0})' -f $err) }
+    }
+    if ($Session.Lhm -and ($Session.TreiberOk -or (Get-PawnIoState).Installiert)) {
+        return [pscustomobject]@{ State = 'Vollstaendig'; Text = 'Vollständig (Ring-0-Treiber aktiv): PawnIO / WinRing0 geladen, Live-Taktraten, Package-Power und Hotspot-Temperaturen verfügbar' }
+    }
+    if ($Session.Lhm -or @($Session.Quellen).Count -gt 0) {
+        return [pscustomobject]@{ State = 'Eingeschraenkt'; Text = 'Eingeschränkt (Standard-WMI / OS-Performance-Counter): Basis-Takte und Standard-Temperaturen vorhanden, keine direkte VRM/Power-Telemetrie' }
+    }
+    return [pscustomobject]@{ State = 'Inaktiv'; Text = 'Inaktiv: Sensorüberwachung explizit deaktiviert oder keine kompatible Hardware gefunden' }
 }
 
 # Behalten statt entfernen (Wahl je Gerät): Markierung weg, Eintrag in Geraete.json und Hinweis im Änderungsprotokoll

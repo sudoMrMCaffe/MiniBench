@@ -1,18 +1,23 @@
-﻿# XMP/EXPO-Prüfung: Nenntakt laut Teilenummer gegen den Betriebstakt
+# XMP/EXPO-Prüfung: Nenntakt laut Teilenummer gegen den Betriebstakt
 function Test-RamProfile($Mods, [string]$TypeName) {
     $mods = @($Mods)
     if (-not $mods.Count) { return }
-    $rated = @($mods | ForEach-Object { Get-RamRatedSpeed ([string]$_.PartNumber) } | Where-Object { $_ })
+    $rated = @($mods | ForEach-Object {
+        $rs = Get-RamRatedSpeed ([string]$_.PartNumber)
+        if (-not $rs -and $_.Speed -and [int]$_.Speed -gt 0) { $rs = [int]$_.Speed }
+        $rs
+    } | Where-Object { $_ })
     $cfg = [int](($mods | Where-Object { $_.ConfiguredClockSpeed } | Measure-Object ConfiguredClockSpeed -Minimum).Minimum)
     if ($rated.Count -ne $mods.Count -or $cfg -le 0) { return }
     $rMin = [int](($rated | Measure-Object -Minimum).Minimum)
     $parts = (@($mods | ForEach-Object { ([string]$_.PartNumber).Trim() }) | Select-Object -Unique) -join ', '
+    if (-not $parts) { $parts = 'RAM' }
     if ($rMin -gt $cfg * 1.05) {
         $gain = ($rMin / $cfg - 1) * 100
-        Add-Line ('  Nenntakt laut Teilenummer: {0} MT/s, Betriebstakt: {1} MT/s. Das XMP/EXPO-Profil ist vermutlich nicht aktiv.' -f $rMin, $cfg)
-        Add-Finding $(if ($gain -ge 20) { 'WARNUNG' } else { 'INFO' }) 'RAM' ('Die RAM-Module ({0}) sind für {1}-{2} ausgelegt, laufen aber nur mit {3} MT/s. Im BIOS das XMP-, EXPO- oder DOCP-Profil aktivieren (rund {4:N0} % mehr Speichertakt) und danach die Stabilität mit RAM- und Lasttest prüfen.' -f $parts, $(if ($TypeName) { $TypeName } else { 'RAM' }), $rMin, $cfg, $gain)
+        Add-Line ('  Nenntakt: {0} MT/s, Betriebstakt: {1} MT/s. Das XMP/EXPO-Profil ist vermutlich nicht aktiv.' -f $rMin, $cfg)
+        Add-Finding WARNUNG 'RAM' ('XMP/EXPO/DOCP inaktiv: Die RAM-Module ({0}) sind für {1}-{2} ausgelegt, laufen aber nur mit {3} MT/s. Im BIOS das XMP-, EXPO- oder DOCP-Profil aktivieren (rund {4:N0} % mehr Speichertakt) und danach die Stabilität mit RAM- und Lasttest prüfen.' -f $parts, $(if ($TypeName) { $TypeName } else { 'RAM' }), $rMin, $cfg, $gain)
     } elseif ($rMin -le $cfg + 50) {
-        Add-Line ('  Nenntakt laut Teilenummer: {0} MT/s, das Speicherprofil (XMP/EXPO) ist aktiv.' -f $rMin)
+        Add-Line ('  Nenntakt: {0} MT/s, das Speicherprofil (XMP/EXPO) ist aktiv.' -f $rMin)
         $script:RamProfileActive = $true
     }
 }
@@ -337,4 +342,280 @@ function Get-DriveSpace([string]$Letter) {
 function Get-DiskStressBytes([double]$FreeBytes) {
     return [long][math]::Max([double]256MB, [math]::Min([double]4GB, [double]$FreeBytes * 0.1))
 }
+
+# =====================================================================================
+#                      System-Startzeit und Schnell behebbar
+# =====================================================================================
+
+function Get-SystemBootPerformance {
+    [CmdletBinding()]
+    param()
+
+    $result = [ordered]@{
+        Verfuegbar            = $false
+        StatusText            = 'Nicht verfügbar (Diagnostics-Performance-Protokoll deaktiviert)'
+        BiosSekunden          = $null
+        KernelSekunden        = $null
+        DesktopSekunden       = $null
+        OsBootSekunden        = $null
+        GesamtSekunden        = $null
+        SystemGesamtSekunden  = $null
+        Verzoegerer           = @()
+    }
+
+    # 1. BIOS/UEFI POST-Zeit aus Registry
+    try {
+        $p = Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' -Name 'FwPOSTTime' -ErrorAction SilentlyContinue
+        if ($p -and $p.FwPOSTTime -and [int64]$p.FwPOSTTime -gt 0) {
+            $result.BiosSekunden = [math]::Round(([double]$p.FwPOSTTime / 1000.0), 1)
+        }
+    } catch { }
+
+    # 2. Event-Log Microsoft-Windows-Diagnostics-Performance/Operational ID 100
+    try {
+        $ev = Get-WinEvent -FilterHashtable @{ LogName = 'Microsoft-Windows-Diagnostics-Performance/Operational'; Id = 100 } -MaxEvents 1 -ErrorAction Stop
+        if ($ev) {
+            [xml]$xml = $ev.ToXml()
+            $dataMap = @{}
+            if ($xml.Event.EventData.Data) {
+                foreach ($d in $xml.Event.EventData.Data) {
+                    if ($d.Name) { $dataMap[$d.Name] = $d.'#text' }
+                }
+            }
+
+            $bootDuration = 0
+            $mainPath = 0
+            $postBoot = 0
+
+            if ($dataMap.ContainsKey('BootDuration')) { [int64]::TryParse($dataMap['BootDuration'], [ref]$bootDuration) | Out-Null }
+            if ($dataMap.ContainsKey('MainPathBootTime')) { [int64]::TryParse($dataMap['MainPathBootTime'], [ref]$mainPath) | Out-Null }
+            if ($dataMap.ContainsKey('BootPostBootTime')) { [int64]::TryParse($dataMap['BootPostBootTime'], [ref]$postBoot) | Out-Null }
+
+            if ($bootDuration -gt 0 -or $mainPath -gt 0) {
+                $result.Verfuegbar = $true
+                $result.StatusText = 'Verfügbar'
+                $result.KernelSekunden = [math]::Round(([double]$mainPath / 1000.0), 1)
+                $result.DesktopSekunden = [math]::Round(([double]$postBoot / 1000.0), 1)
+                $result.OsBootSekunden = [math]::Round(([double]$bootDuration / 1000.0), 1)
+                $result.GesamtSekunden = $result.OsBootSekunden
+
+                if ($result.BiosSekunden) {
+                    $result.SystemGesamtSekunden = [math]::Round(($result.BiosSekunden + $result.GesamtSekunden), 1)
+                } else {
+                    $result.SystemGesamtSekunden = $result.GesamtSekunden
+                }
+            }
+        }
+    } catch {
+        # Fallback falls Protokoll deaktiviert oder leer
+    }
+
+    # 3. Autostart-Verzögerer (Event IDs 101 bis 110)
+    if ($result.Verfuegbar) {
+        try {
+            $delayEvents = @(Get-WinEvent -FilterHashtable @{ LogName = 'Microsoft-Windows-Diagnostics-Performance/Operational'; Id = 101..110 } -MaxEvents 30 -ErrorAction SilentlyContinue)
+            $delayList = [System.Collections.Generic.List[object]]::new()
+            foreach ($dev in $delayEvents) {
+                try {
+                    [xml]$dxml = $dev.ToXml()
+                    $dMap = @{}
+                    if ($dxml.Event.EventData.Data) {
+                        foreach ($d in $dxml.Event.EventData.Data) {
+                            if ($d.Name) { $dMap[$d.Name] = $d.'#text' }
+                        }
+                    }
+                    $rawName = $(if ($dMap['ImageName']) { $dMap['ImageName'] } elseif ($dMap['Path']) { $dMap['Path'] } elseif ($dMap['Name']) { $dMap['Name'] } elseif ($dMap['FriendlyName']) { $dMap['FriendlyName'] } elseif ($dMap['Description']) { $dMap['Description'] } else { 'Unbekannt' })
+                    $name = $(if ($rawName -and $rawName -ne 'Unbekannt') { Split-Path $rawName -Leaf } else { 'Unbekannt' })
+                    $totalMs = 0
+                    if ($dMap.ContainsKey('TotalTime')) { [int64]::TryParse($dMap['TotalTime'], [ref]$totalMs) | Out-Null }
+                    elseif ($dMap.ContainsKey('DegradationTime')) { [int64]::TryParse($dMap['DegradationTime'], [ref]$totalMs) | Out-Null }
+
+                    if ($totalMs -ge 1000) {
+                        $delayList.Add([pscustomobject]@{
+                            Name          = $name
+                            DauerSekunden = [math]::Round(([double]$totalMs / 1000.0), 1)
+                            EreignisId    = $dev.Id
+                        })
+                    }
+                } catch { }
+            }
+            $result.Verzoegerer = @($delayList | Sort-Object DauerSekunden -Descending | Select-Object -First 5)
+        } catch { }
+    }
+
+    return [pscustomobject]$result
+}
+
+function Get-BiosVendorSupportUrl([string]$Vendor) {
+    $v = ("$Vendor").Trim()
+    if ($v -match 'ASUS|ASUSTeK') { return 'https://www.asus.com/support/' }
+    if ($v -match 'Gigabyte') { return 'https://www.gigabyte.com/Support' }
+    if ($v -match 'MSI|Micro-Star') { return 'https://de.msi.com/support' }
+    if ($v -match 'ASRock') { return 'https://www.asrock.com/support/' }
+    if ($v -match 'Dell') { return 'https://www.dell.com/support/home/' }
+    if ($v -match 'HP|Hewlett-Packard') { return 'https://support.hp.com/' }
+    if ($v -match 'Lenovo') { return 'https://pcsupport.lenovo.com/' }
+    return 'https://www.google.com/search?q=' + [uri]::EscapeDataString(($v + ' BIOS Update'))
+}
+
+if (-not ('DiagDisplay' -as [type])) {
+    $diagDisplayCode = @'
+using System;
+using System.Runtime.InteropServices;
+
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+public struct DISPLAY_DEVICE {
+    public int cb;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+    public string DeviceName;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+    public string DeviceString;
+    public int StateFlags;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+    public string DeviceID;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+    public string DeviceKey;
+}
+
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+public struct DEVMODE {
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+    public string dmDeviceName;
+    public short dmSpecVersion;
+    public short dmDriverVersion;
+    public short dmSize;
+    public short dmDriverExtra;
+    public int dmFields;
+    public int dmPositionX;
+    public int dmPositionY;
+    public int dmDisplayOrientation;
+    public int dmDisplayFixedOutput;
+    public short dmColor;
+    public short dmDuplex;
+    public short dmYResolution;
+    public short dmTTOption;
+    public short dmCollate;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+    public string dmFormName;
+    public short dmLogPixels;
+    public int dmBitsPerPel;
+    public int dmPelsWidth;
+    public int dmPelsHeight;
+    public int dmDisplayFlags;
+    public int dmDisplayFrequency;
+    public int dmICMMethod;
+    public int dmICMIntent;
+    public int dmMediaType;
+    public int dmDitherType;
+    public int dmReserved1;
+    public int dmReserved2;
+    public int dmPanningWidth;
+    public int dmPanningHeight;
+}
+
+public static class DiagDisplay {
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    public static extern bool EnumDisplayDevices(string lpDevice, uint iDevNum, ref DISPLAY_DEVICE lpDisplayDevice, uint dwFlags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    public static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
+}
+'@
+    try { Add-Type -TypeDefinition $diagDisplayCode -Language CSharp -ErrorAction SilentlyContinue } catch { }
+}
+
+function Get-DisplayDiagnostics {
+    $res = [ordered]@{
+        WrongPortDetected = $false
+        WrongPortMessage  = ''
+        HzBremseDetected  = $false
+        HzBremseMessage   = ''
+        Devices           = @()
+    }
+
+    if (-not ('DiagDisplay' -as [type])) { return [pscustomobject]$res }
+
+    try {
+        $devList = [System.Collections.Generic.List[object]]::new()
+        $devIndex = [uint32]0
+        $d = New-Object DISPLAY_DEVICE
+        $d.cb = [System.Runtime.InteropServices.Marshal]::SizeOf($d)
+
+        while ([DiagDisplay]::EnumDisplayDevices($null, $devIndex, [ref]$d, 0)) {
+            $isAttached = ($d.StateFlags -band 0x1) -ne 0
+            $isPrimary  = ($d.StateFlags -band 0x4) -ne 0
+
+            if ($isAttached) {
+                $dm = New-Object DEVMODE
+                $dm.dmSize = [System.Runtime.InteropServices.Marshal]::SizeOf($dm)
+                $curHz = 0; $curW = 0; $curH = 0
+                if ([DiagDisplay]::EnumDisplaySettings($d.DeviceName, -1, [ref]$dm)) {
+                    $curHz = $dm.dmDisplayFrequency
+                    $curW  = $dm.dmPelsWidth
+                    $curH  = $dm.dmPelsHeight
+                }
+
+                $maxHz = $curHz
+                $modeIdx = 0
+                $mMode = New-Object DEVMODE
+                $mMode.dmSize = [System.Runtime.InteropServices.Marshal]::SizeOf($mMode)
+                while ([DiagDisplay]::EnumDisplaySettings($d.DeviceName, $modeIdx, [ref]$mMode)) {
+                    if ($mMode.dmPelsWidth -eq $curW -and $mMode.dmPelsHeight -eq $curH) {
+                        if ($mMode.dmDisplayFrequency -gt $maxHz) {
+                            $maxHz = $mMode.dmDisplayFrequency
+                        }
+                    }
+                    $modeIdx++
+                    if ($modeIdx -gt 256) { break }
+                }
+
+                $devList.Add([pscustomobject]@{
+                    DeviceName   = $d.DeviceName
+                    DeviceString = $d.DeviceString
+                    IsPrimary    = $isPrimary
+                    CurrentHz    = $curHz
+                    MaxHz        = $maxHz
+                    Width        = $curW
+                    Height       = $curH
+                })
+            }
+            $devIndex++
+            if ($devIndex -gt 16) { break }
+        }
+        $res.Devices = @($devList)
+
+        # 1. Hz-Bremse Prüfung (Monitor unterstützt >= 75 Hz, läuft aber auf 60 Hz)
+        foreach ($dev in $devList) {
+            if ($dev.MaxHz -ge 75 -and $dev.CurrentHz -le 60 -and $dev.Width -gt 0) {
+                $res.HzBremseDetected = $true
+                $res.HzBremseMessage = ('Bildwiederholfrequenz auf 60 Hz begrenzt: Der Bildschirm "{0}" unterstützt bei {1}x{2} bis zu {3} Hz, ist jedoch auf nur {4} Hz eingestellt. Die Frequenz kann in den Windows-Anzeigeeinstellungen auf {3} Hz erhöht werden.' -f `
+                    $dev.DeviceString, $dev.Width, $dev.Height, $dev.MaxHz, $dev.CurrentHz)
+                break
+            }
+        }
+
+        # 2. Monitor am falschen Anschluss (iGPU statt dGPU)
+        if (-not $script:IsLaptop) {
+            $gpus = @(Get-GpuAdapters)
+            $hasDgpu = [bool](@($gpus | Where-Object { $_.Art -eq 'dGPU' }).Count)
+            $hasIgpu = [bool](@($gpus | Where-Object { $_.Art -eq 'iGPU' }).Count)
+
+            if ($hasDgpu -and $hasIgpu) {
+                $primaryDev = @($devList | Where-Object { $_.IsPrimary }) | Select-Object -First 1
+                if ($primaryDev) {
+                    $isPrimaryOnIgpu = ($primaryDev.DeviceString -match 'Intel\(R\).*(HD|UHD|Iris)|AMD Radeon\(TM\) Graphics|Prozessorgrafik')
+                    if ($isPrimaryOnIgpu) {
+                        $dgpuObj = @($gpus | Where-Object { $_.Art -eq 'dGPU' }) | Select-Object -First 1
+                        $res.WrongPortDetected = $true
+                        $res.WrongPortMessage = ('Monitor am Mainboard (iGPU) angeschlossen: Der Hauptbildschirm läuft über die integrierte Grafikeinheit "{0}", obwohl eine dedizierte Hochleistungs-Grafikkarte ({1}) verbaut ist. Das Monitorkabel sollte direkt an die Grafikkarte angeschlossen werden.' -f `
+                            $primaryDev.DeviceString, $(if ($dgpuObj) { $dgpuObj.Name } else { 'dedizierte Grafikkarte' }))
+                    }
+                }
+            }
+        }
+    } catch { }
+
+    return [pscustomobject]$res
+}
+
 

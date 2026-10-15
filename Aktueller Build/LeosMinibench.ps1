@@ -238,9 +238,9 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Export
 }
 #endregion
 
-$ScriptVersion = '3.67'
+$ScriptVersion = '3.7'
 $AppName       = 'Leos Minibench'
-# Eingebettete Referenzprofile für Leos Minibench (v3.0)
+# Eingebettete Referenzprofile fÃ¼r Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
     'Desktop_GTX1070.json' = @'
 {
@@ -5698,9 +5698,8 @@ public partial class DiagGui : Form
     CheckBox[] benchChk;
     CheckedListBox clbDisks, clbCompare;
     List<string> diskNums = new List<string>();
-    ComboBox cmbBenchDur, cmbRef;
+    ComboBox cmbBenchDur;
     CheckBox chkDbSave, chkRefSave;
-    Button btnUpdateMed;
     List<DbEntry> refItems = new List<DbEntry>(), cmpItems = new List<DbEntry>();
     // Lasttest
     CheckBox chkLCpu, chkLRam, chkLGpu, chkLDisk;
@@ -6127,7 +6126,7 @@ public partial class DiagGui : Form
             ApplyDiagProfile();
             // ab v3.64: Warnfelder und gedämpfte Beschriftungen tragen eigene Farben
             foreach (Label w in new Label[] { lblAkku, lblRestoreWarn }) if (w != null) { w.ForeColor = UI.Warn; w.BackColor = UI.WarnBg; }
-            UpdateLoadEnabled(); UpdateRefState(); ThemeLog();
+            UpdateLoadEnabled(); ThemeLog();
             if (barAll != null && !done) barAll.Fill = UI.Accent;
             if (barSub != null) barSub.Fill = UI.AccentActive;
         }
@@ -6526,8 +6525,6 @@ public partial class DiagGui : Form
         Tip(cmbGpuShow, "Fenster: Vorschau des Rendertests. Vollbild: erste Grafikeinheit im Vollbild. Ohne Anzeige: misst unsichtbar (Esc entfällt).");
         Tip(chkGpuWahl, "Bei Notebooks mit zwei Grafikeinheiten misst WinSAT nur die Einheit, die den Desktop ausgibt. Mit diesem Haken wird WinSAT kurz auf die Grafikkarte gestellt und gleich wieder zurück (steht im Änderungsprotokoll).");
         Tip(cmbBenchDur, "Normal: 5 Sekunden je Messung, stabile Werte. Kurz: 2 Sekunden, etwa halbe Dauer; Kurzläufe werden nur mit Kurzläufen verglichen.");
-        Tip(cmbRef, "Bezug für die Prozentwerte (100 %): die gespeicherte Referenz (Referenz.json, gesetzt mit dem Haken unten), der Median aller Systeme der Datenbank oder ein einzelner gespeicherter Lauf.");
-        Tip(btnUpdateMed, "Berechnet den Median aller Systeme, der Notebooks und der Desktop-PCs neu und aktualisiert die Referenzdateien.");
         Tip(chkDbSave, "Legt die Werte dieses Laufs als Eintrag in Minibench-Daten\\Datenbank ab (Verlauf auf diesem PC, Vergleiche, Rang).");
         Tip(chkRefSave, "Speichert die Werte dieses Laufs als Referenz.json im Datenordner. Alle PCs, die mit diesem Datenordner messen, werden dann in Prozent dieses Systems angegeben.");
         // Lasttest
@@ -6945,7 +6942,6 @@ public partial class DiagGui : Form
         "Rendertest je Grafikeinheit (Bilder/s, 1-%-Low, Punktzahl), Speicherdurchsatz, Desktop-Komposition, PCIe",
         "sequentiell und 4K-Zufallszugriff, Auswahl unten",
         "Leistungsbewertung von Windows, 2 bis 5 Min." };
-    Label lblRefState;
 
     Control BuildBenchPage()
     {
@@ -6983,24 +6979,9 @@ public partial class DiagGui : Form
         chkGpuWahl = Chk("Bei Hybridgrafik WinSAT zusätzlich auf der Grafikkarte messen", false);
         Control gw = Opt2(chkGpuWahl, "kurze Umstellung der Grafikeinheit für WinSAT, gleich danach zurück", RiskBadge("Aendern")); gw.Margin = new Padding(0, UI.S(UI.Abstand2), 0, 0); f.Controls.Add(gw);
 
-        f.Controls.Add(Section("Messdauer und Referenz"));
+        f.Controls.Add(Section("Messdauer"));
         FlowLayoutPanel r1 = Row(); r1.Controls.Add(RowLabel("Messdauer", 170));
         cmbBenchDur = Combo(260, new string[] { "Normal (stabile Werte)", "Kurz (etwa halbe Dauer)" }, 0); cmbBenchDur.SelectedIndexChanged += delegate { UpdateSummary(); }; r1.Controls.Add(cmbBenchDur); f.Controls.Add(r1);
-        FlowLayoutPanel r2 = Row(); r2.Controls.Add(RowLabel("Referenz (100 %)", 170));
-        cmbRef = Combo(360, new string[0], 0); r2.Controls.Add(cmbRef);
-        btnUpdateMed = UI.Secondary("Median aktualisieren");
-        btnUpdateMed.Click += delegate {
-            if (running) return;
-            List<string> lines;
-            string res = RunHelperPumped("-MedianAktualisieren", out lines, 60);
-            FillRefLists();
-            string msg = lines.Count > 0 ? String.Join("\r\n", lines.ToArray()) : "Keine Rückmeldung vom Arbeitsprozess.";
-            MessageBox.Show(this, msg, "Median-Referenz", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        };
-        r2.Controls.Add(btnUpdateMed);
-        f.Controls.Add(r2);
-        lblRefState = Hint("", 180); f.Controls.Add(lblRefState);
-        cmbRef.SelectedIndexChanged += delegate { UpdateRefState(); };
         clbCompare = new CheckedListBox(); clbCompare.BackColor = UI.Panel; clbCompare.ForeColor = UI.Text;
         f.Controls.Add(Section("Speichern"));
         chkDbSave = Chk("Ergebnis in der Vergleichsdatenbank speichern", dbDir.Length > 0); chkDbSave.Enabled = dbDir.Length > 0; f.Controls.Add(chkDbSave);
@@ -7034,55 +7015,26 @@ public partial class DiagGui : Form
         return gb >= 1024 ? (gb / 1024).ToString("0.0", CultureInfo.GetCultureInfo("de-DE")) + " TB" : gb.ToString("0", CultureInfo.GetCultureInfo("de-DE")) + " GB";
     }
 
-    void UpdateRefState()
-    {
-        if (lblRefState == null || cmbRef == null) return;
-        int i = cmbRef.SelectedIndex;
-        string t; bool warn = false;
-        if (i == 0)
-        {
-            string st = SavedRefText();
-            warn = st.Length == 0;
-            t = warn ? "Noch keine Referenz gespeichert: unter Speichern den Haken \"Dieses System als Referenz festlegen\" setzen." : st;
-        }
-        else if (i >= 1 && i <= 3) t = "Median aus den Systemen der Vergleichsdatenbank (" + db.FindAll(delegate(DbEntry e) { return e.HasBench; }).Count + " mit Benchmark).";
-        else t = "Einzelner gespeicherter Lauf als Bezug.";
-        SetText(lblRefState, t);
-        lblRefState.ForeColor = warn ? UI.Warn : UI.Muted;
-    }
-
     void FillRefLists()
     {
-        if (cmbRef == null) return;
-        int prevSpecial = -1;
-        string prevRef = "";
-        if (cmbRef.SelectedIndex >= 0 && cmbRef.SelectedIndex <= 3) prevSpecial = cmbRef.SelectedIndex;
-        else if (cmbRef.SelectedIndex >= 4 && cmbRef.SelectedIndex - 4 < refItems.Count) prevRef = refItems[cmbRef.SelectedIndex - 4].Path;
         HashSet<string> prevCmp = new HashSet<string>();
-        for (int i = 0; i < clbCompare.Items.Count; i++) if (clbCompare.GetItemChecked(i) && i < cmpItems.Count) prevCmp.Add(cmpItems[i].Path);
-        cmbRef.Items.Clear(); refItems.Clear(); clbCompare.Items.Clear(); cmpItems.Clear();
-        cmbRef.Items.Add("Gespeicherte Referenz");
-        cmbRef.Items.Add("Median aller Systeme");
-        cmbRef.Items.Add("Median der Notebooks");
-        cmbRef.Items.Add("Median der Desktop-PCs");
-        int sel = 0;
+        if (clbCompare != null)
+        {
+            for (int i = 0; i < clbCompare.Items.Count; i++) if (clbCompare.GetItemChecked(i) && i < cmpItems.Count) prevCmp.Add(cmpItems[i].Path);
+            clbCompare.Items.Clear(); cmpItems.Clear();
+        }
         foreach (DbEntry e in db)
         {
             if (!e.HasBench) continue;
-            refItems.Add(e); cmbRef.Items.Add(e.Label);
-            cmpItems.Add(e); clbCompare.Items.Add(e.Label, prevCmp.Contains(e.Path));
+            refItems.Add(e);
+            if (clbCompare != null) { cmpItems.Add(e); clbCompare.Items.Add(e.Label, prevCmp.Contains(e.Path)); }
         }
-        if (prevSpecial >= 0 && prevSpecial < cmbRef.Items.Count) sel = prevSpecial;
-        else if (prevRef.Length > 0)
+        if (clbCompare != null)
         {
-            int idx = refItems.FindIndex(delegate(DbEntry x) { return String.Equals(x.Path, prevRef, StringComparison.OrdinalIgnoreCase); });
-            if (idx >= 0) sel = idx + 4;
+            if (clbCompare.Items.Count == 0) { clbCompare.Items.Add("(noch keine Systeme mit Benchmark in der Datenbank)"); clbCompare.Enabled = false; }
+            else clbCompare.Enabled = true;
+            clbCompare.Height = Math.Max(UI.S(48), Math.Min(8, clbCompare.Items.Count) * UI.S(21) + UI.S(6));
         }
-        if (sel >= 0 && sel < cmbRef.Items.Count) sel = cmbRef.SelectedIndex = sel;
-        if (clbCompare.Items.Count == 0) { clbCompare.Items.Add("(noch keine Systeme mit Benchmark in der Datenbank)"); clbCompare.Enabled = false; }
-        else clbCompare.Enabled = true;
-        clbCompare.Height = Math.Max(UI.S(48), Math.Min(8, clbCompare.Items.Count) * UI.S(21) + UI.S(6));
-        UpdateRefState();
     }
 
     // ab v3.64 Lasttest als Tabelle: Komponente, Dauer, Einstellungen; Hinweise stehen bei ihrem Feld statt am Seitenende
@@ -7907,28 +7859,61 @@ public partial class DiagGui : Form
         return k.Length > 0 ? " -WerkzeugeBehalten " + k : "";
     }
 
-    void UpdateSensStatusBadge()
+    void UpdateSensStatusBadge(string stateOverride = null, string tooltipOverride = null)
     {
         if (badgeSensStatus == null) return;
-        string pv = PawnIoVersion();
-        bool drvActive = (cmbDriver == null || cmbDriver.SelectedIndex == 0);
-        if (LhmPresent && (pv.Length > 0 || (PawnSetupPresent && drvActive)))
+        if (!String.IsNullOrEmpty(stateOverride))
         {
-            badgeSensStatus.Text = "● LHM + PawnIO aktiv";
-            badgeSensStatus.Level = "ok";
-            Tip(badgeSensStatus, "Vollständige Sensordaten aktiv: LibreHardwareMonitor und PawnIO-Treiber erfassen CPU, GPU und Mainboard.");
+            SetSensorBadgeState(stateOverride, tooltipOverride);
+            return;
         }
-        else if (LhmPresent)
+
+        string pv = PawnIoVersion();
+        bool drvDisabled = (cmbDriver != null && cmbDriver.SelectedIndex == 1);
+        if (drvDisabled)
         {
-            badgeSensStatus.Text = "● LHM aktiv";
-            badgeSensStatus.Level = "info";
-            Tip(badgeSensStatus, "LibreHardwareMonitor aktiv: Sensordaten ohne PawnIO-Treiber (eingeschränkte Mainboard-Sensoren).");
+            SetSensorBadgeState("Inaktiv", "Inaktiv: Sensorüberwachung bzw. Sensortreiber explizit deaktiviert.");
+        }
+        else if (LhmPresent && (pv.Length > 0 || PawnSetupPresent))
+        {
+            SetSensorBadgeState("Vollstaendig", "Vollständig (Ring-0-Treiber aktiv): PawnIO / WinRing0 geladen, Live-Taktraten, Package-Power und Hotspot-Temperaturen verfügbar.");
         }
         else
         {
-            badgeSensStatus.Text = "○ Windows-Fallback";
-            badgeSensStatus.Level = "warn";
-            Tip(badgeSensStatus, "Kein LibreHardwareMonitor gefunden: Sensordaten über Windows-Leistungszähler, ACPI und Grafiktreiber.");
+            SetSensorBadgeState("Eingeschraenkt", "Eingeschränkt (Standard-WMI / Leistungszähler): Basis-Takte und Standard-Temperaturen vorhanden, keine direkte VRM/Power-Telemetrie.");
+        }
+    }
+
+    void SetSensorBadgeState(string state, string tooltip)
+    {
+        if (badgeSensStatus == null) return;
+        switch (state)
+        {
+            case "Vollstaendig":
+                badgeSensStatus.Text = "● Vollständig";
+                badgeSensStatus.Level = "ok";
+                Tip(badgeSensStatus, !String.IsNullOrEmpty(tooltip) ? tooltip : "Vollständig (Ring-0-Treiber aktiv): PawnIO / WinRing0 geladen, Live-Taktraten, Package-Power und Hotspot-Temperaturen verfügbar.");
+                break;
+            case "Eingeschraenkt":
+                badgeSensStatus.Text = "● Eingeschränkt";
+                badgeSensStatus.Level = "warn";
+                Tip(badgeSensStatus, !String.IsNullOrEmpty(tooltip) ? tooltip : "Eingeschränkt (Standard-WMI / Leistungszähler): Basis-Takte und Standard-Temperaturen vorhanden, keine direkte VRM/Power-Telemetrie.");
+                break;
+            case "Inaktiv":
+                badgeSensStatus.Text = "○ Inaktiv";
+                badgeSensStatus.Level = "skip";
+                Tip(badgeSensStatus, !String.IsNullOrEmpty(tooltip) ? tooltip : "Inaktiv: Sensorüberwachung explizit deaktiviert oder keine kompatible Hardware gefunden.");
+                break;
+            case "Fehler":
+                badgeSensStatus.Text = "● Fehler";
+                badgeSensStatus.Level = "crit";
+                Tip(badgeSensStatus, !String.IsNullOrEmpty(tooltip) ? tooltip : "Fehler: Treiberabsturz oder Zugriffsverweigerung (Details im Protokoll).");
+                break;
+            default:
+                badgeSensStatus.Text = state;
+                badgeSensStatus.Level = "skip";
+                Tip(badgeSensStatus, tooltip ?? "");
+                break;
         }
     }
 
@@ -8242,6 +8227,7 @@ public partial class DiagGui : Form
                 }
             case "SENSLEAD": chartLive.Add(p); break;
             case "SENSINFO": lblSensInfo.Text = Get(p, 1); break;
+            case "SENSSTAT": UpdateSensStatusBadge(Get(p, 1), Get(p, 2)); break;
             case "SENSEND": lblSensInfo.Text = "Beendet. " + Get(p, 1); break;
             case "LOG": { string t = p.Length > 2 ? String.Join("|", p, 2, p.Length - 2).Trim() : ""; if (t.Length > 0) lblSensInfo.Text = t; break; }
         }
@@ -8422,10 +8408,6 @@ public partial class DiagGui : Form
             }
             if (cmbBenchDur.SelectedIndex == 1) a.Append(" -BenchmarkKurz");
             if (benchChk[2].Checked && chkGpuWahl != null && chkGpuWahl.Checked) a.Append(" -BenchGpuWahl");
-            if (cmbRef.SelectedIndex == 1) a.Append(" -ReferenzDatei *median");
-            else if (cmbRef.SelectedIndex == 2) a.Append(" -ReferenzDatei *median:notebook");
-            else if (cmbRef.SelectedIndex == 3) a.Append(" -ReferenzDatei *median:desktop");
-            else if (cmbRef.SelectedIndex >= 4 && cmbRef.SelectedIndex - 4 < refItems.Count) a.Append(" -ReferenzDatei ").Append(Q(refItems[cmbRef.SelectedIndex - 4].Path));
             List<string> cmp = new List<string>();
             if (clbCompare.Enabled) for (int i = 0; i < clbCompare.Items.Count && i < cmpItems.Count; i++) if (clbCompare.GetItemChecked(i)) cmp.Add(cmpItems[i].Path);
             if (cmp.Count > 0) a.Append(" -VergleichDateien ").Append(Q(String.Join(";", cmp.ToArray())));
@@ -8774,14 +8756,6 @@ public partial class DiagGui : Form
         PutCb(d, "Diag.Tage", cmbDays); PutCb(d, "Diag.SmartMax", cmbSmartMax);
         for (int i = 0; i < benchKeys.Length && benchChk != null; i++) d["Bench." + benchKeys[i]] = benchChk[i].Checked;
         PutC(d, "Bench.GpuWahl", chkGpuWahl); PutCb(d, "Bench.Dauer", cmbBenchDur); PutC(d, "Bench.Datenbank", chkDbSave);
-        if (cmbRef != null)
-        {
-            if (cmbRef.SelectedIndex == 1) d["Bench.Referenz"] = "Median";
-            else if (cmbRef.SelectedIndex == 2) d["Bench.Referenz"] = "Median:Notebook";
-            else if (cmbRef.SelectedIndex == 3) d["Bench.Referenz"] = "Median:Desktop";
-            else if (cmbRef.SelectedIndex >= 4 && cmbRef.SelectedIndex - 4 < refItems.Count) d["Bench.Referenz"] = "Datei:" + refItems[cmbRef.SelectedIndex - 4].Path;
-            else d["Bench.Referenz"] = "Gespeichert";
-        }
         PutCb(d, "Gpu.Aufloesung", cmbGpuRes); PutCb(d, "Gpu.Anzeige", cmbGpuShow); d["Gpu.Auswahl"] = GpuChoiceValue(cmbGpuSel);
         PutC(d, "Last.CPU", chkLCpu); PutCb(d, "Last.CPUDauer", cmbLCpu);
         PutC(d, "Last.RAM", chkLRam); PutCb(d, "Last.RAMDauer", cmbLRam); PutCb(d, "Last.RAMAnteil", cmbLRamPct);
@@ -8820,19 +8794,6 @@ public partial class DiagGui : Form
         for (int i = 0; i < benchKeys.Length && benchChk != null; i++) GetC(d, "Bench." + benchKeys[i], benchChk[i]);
         GetC(d, "Bench.GpuWahl", chkGpuWahl); GetCb(d, "Bench.Dauer", cmbBenchDur);
         if (chkDbSave != null && chkDbSave.Enabled) GetC(d, "Bench.Datenbank", chkDbSave);
-        if (cmbRef != null)
-        {
-            string r = GetS(d, "Bench.Referenz");
-            int ri = 0;
-            if (r == "Median" || r == "*median") ri = 1;
-            else if (r == "Median:Notebook" || r == "*median:notebook") ri = 2;
-            else if (r == "Median:Desktop" || r == "*median:desktop") ri = 3;
-            else if (r != null && r.StartsWith("Datei:")) {
-                int k = refItems.FindIndex(delegate(DbEntry x) { return String.Equals(x.Path, r.Substring(6), StringComparison.OrdinalIgnoreCase); });
-                ri = k >= 0 ? k + 4 : 0;
-            }
-            if (ri >= 0 && ri < cmbRef.Items.Count) cmbRef.SelectedIndex = ri;
-        }
         if (chkRefSave != null) chkRefSave.Checked = false;
         GetCb(d, "Gpu.Aufloesung", cmbGpuRes); GetCb(d, "Gpu.Anzeige", cmbGpuShow);
         string gs = GetS(d, "Gpu.Auswahl"); if (gs != null) SetGpuChoice(gs);
@@ -9214,6 +9175,7 @@ public partial class DiagGui : Form
             case "STOP": btnStopWait.Visible = Get(p, 1) == "1"; btnStopWait.Enabled = true; break;
             case "ORDNER": runOutDir = Get(p, 1); runWorkDir = Get(p, 2); break;
             case "SENSLIM": chartRun.SetLimits(p); break;
+            case "SENSSTAT": UpdateSensStatusBadge(Get(p, 1), Get(p, 2)); break;
             case "SENSLEAD":
                 {
                     bool firstLead = chartRun.Count == 0;
@@ -9399,7 +9361,7 @@ public partial class DiagGui : Form
     {
         // Live-Ansicht sauber beenden, damit ein vorübergehend installierter Treiber entfernt wird
         if (liveRunning) StopLiveAndWait();
-        if (!running) return;
+        if (!running) { CleanupDriver(); return; }
         if (MessageBox.Show(this, "Der Lauf ist noch aktiv. Abbrechen und schließen?", "Leos Minibench", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) { e.Cancel = true; return; }
         cancelled = true; KillTree();
         try { if (proc != null) proc.WaitForExit(10000); } catch { }
@@ -11188,7 +11150,7 @@ public partial class DiagGui
     int dbSortCol = -1;
     bool dbSortAsc = true;
     Button btnRename;
-    Button btnCompare, btnDashboard, btnDelete, btnOpenReport, btnExport;
+    Button btnCompare, btnDashboard, btnDelete, btnOpenReport, btnExport, btnSetRef;
 
     void OnDbColumnClick(object sender, ColumnClickEventArgs e)
     {
@@ -11308,6 +11270,10 @@ public partial class DiagGui
         };
         btnOpenReport.Enabled = false;
         Tip(btnOpenReport, "Öffnet den vollständigen HTML-Diagnosebericht des ausgewählten Systems.");
+        btnSetRef = UI.Secondary("Als Referenz ..."); btnSetRef.Margin = new Padding(UI.S(8), 0, 0, 0);
+        btnSetRef.Click += delegate { ShowSetRefMenu(); };
+        btnSetRef.Enabled = false;
+        Tip(btnSetRef, "Legt das ausgewählte System als dauerhafte Vergleichsreferenz (Referenz.json) fest oder öffnet das Dashboard mit diesem System als Basis.");
         btnRename = UI.Secondary("Name ändern ..."); btnRename.Margin = new Padding(UI.S(8), 0, 0, 0);
         btnRename.Click += delegate { RenameSelectedEntry(); };
         btnRename.Enabled = false;
@@ -11318,7 +11284,7 @@ public partial class DiagGui
         Tip(btnExport, "Exportiert den ausgewählten Lauf als eigenständiges .minibench-Austauschpaket mit Datenbankeintrag und Bericht.");
         btnDelete = UI.Secondary("Entfernen"); btnDelete.Margin = new Padding(UI.S(8), 0, 0, 0); btnDelete.Click += delegate { DeleteSelected(); };
         Tip(btnDelete, "Verschiebt die angehakten Läufe samt Berichtsordner nach Minibench-Daten\\Archiv\\Entfernt. Beim nächsten Abgleich verschwinden sie auch vom Netzlaufwerk.");
-        b.Controls.Add(btnDashboard); b.Controls.Add(btnOpenReport); b.Controls.Add(btnRename); b.Controls.Add(btnExport); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
+        b.Controls.Add(btnDashboard); b.Controls.Add(btnOpenReport); b.Controls.Add(btnSetRef); b.Controls.Add(btnRename); b.Controls.Add(btnExport); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
         lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
         lblDbClean.Margin = new Padding(UI.S(4), UI.S(8), UI.S(4), 0); bottom.Controls.Add(lblDbClean);
         bottom.Resize += delegate { lblDbClean.MaximumSize = new Size(Math.Max(UI.S(200), bottom.ClientSize.Width - UI.S(10)), 0); };
@@ -11341,6 +11307,8 @@ public partial class DiagGui
 
         ContextMenu cm = new ContextMenu();
         MenuItem miDashboard = new MenuItem("Im Dashboard vergleichen", delegate { OpenDashboard(); });
+        MenuItem miSetRef = new MenuItem("Als Referenz festlegen (persistent)", delegate { SetSelectedAsReference(); });
+        MenuItem miDashboardBase = new MenuItem("Als Basis im Dashboard öffnen (temporär)", delegate { OpenDashboardWithBase(); });
         MenuItem miSep1 = new MenuItem("-");
         MenuItem miRename = new MenuItem("Name ändern ...", delegate { RenameSelectedEntry(); });
         MenuItem miOpen = new MenuItem("Bericht öffnen", delegate { if (lvDb.SelectedItems.Count > 0) OpenEntry((DbEntry)lvDb.SelectedItems[0].Tag); });
@@ -11348,6 +11316,8 @@ public partial class DiagGui
         MenuItem miSep2 = new MenuItem("-");
         MenuItem miDelete = new MenuItem("Aus Datenbank entfernen", delegate { DeleteSelected(); });
         cm.MenuItems.Add(miDashboard);
+        cm.MenuItems.Add(miSetRef);
+        cm.MenuItems.Add(miDashboardBase);
         cm.MenuItems.Add(miSep1);
         cm.MenuItems.Add(miRename);
         cm.MenuItems.Add(miOpen);
@@ -11358,6 +11328,8 @@ public partial class DiagGui
             int selN = lvDb.SelectedItems.Count;
             int chkN = CheckedEntries().Count;
             miDashboard.Enabled = chkN >= 1 || selN >= 1;
+            miSetRef.Enabled = selN == 1 || (selN == 0 && chkN == 1);
+            miDashboardBase.Enabled = selN == 1 || (selN == 0 && chkN == 1);
             miRename.Enabled = selN == 1 || (selN == 0 && chkN == 1);
             miOpen.Enabled = selN == 1;
             miExport.Enabled = selN == 1 || (selN == 0 && chkN == 1);
@@ -11438,6 +11410,85 @@ public partial class DiagGui
         {
             int selCount = (lvDb != null ? lvDb.SelectedItems.Count : 0);
             btnExport.Enabled = (selCount == 1 || (selCount == 0 && n == 1));
+        }
+        if (btnSetRef != null)
+        {
+            int selCount = (lvDb != null ? lvDb.SelectedItems.Count : 0);
+            btnSetRef.Enabled = (selCount == 1 || (selCount == 0 && n == 1));
+        }
+    }
+
+    void ShowSetRefMenu()
+    {
+        ContextMenu m = new ContextMenu();
+        m.MenuItems.Add("Als Referenz festlegen (persistent)", delegate { SetSelectedAsReference(); });
+        m.MenuItems.Add("Als Basis im Dashboard öffnen (temporär)", delegate { OpenDashboardWithBase(); });
+        m.Show(btnSetRef, new Point(0, btnSetRef.Height));
+    }
+
+    void SetSelectedAsReference()
+    {
+        DbEntry target = null;
+        if (lvDb != null && lvDb.SelectedItems.Count > 0) target = (DbEntry)lvDb.SelectedItems[0].Tag;
+        else if (lvDb != null && lvDb.CheckedItems.Count == 1) target = (DbEntry)lvDb.CheckedItems[0].Tag;
+        if (target == null || !target.HasBench)
+        {
+            MessageBox.Show(this, "Bitte wählen Sie ein System mit Benchmark-Werten aus.", "Referenz festlegen", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        string msg = String.Format("Möchten Sie das System \"{0}\" ({1})\r\nals dauerhafte Vergleichsreferenz (100 %) festlegen?\r\n\r\nDie Werte werden in Minibench-Daten\\Referenz.json gespeichert.", target.DisplayName, target.Datum);
+        if (MessageBox.Show(this, msg, "Referenz festlegen", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+        try
+        {
+            if (String.IsNullOrEmpty(dataDir) || !Directory.Exists(dataDir))
+            {
+                MessageBox.Show(this, "Der Datenordner ist nicht verfügbar.", "Referenz festlegen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            string dest = Path.Combine(dataDir, "Referenz.json");
+            if (File.Exists(target.Path))
+            {
+                string raw = File.ReadAllText(target.Path, Encoding.UTF8);
+                File.WriteAllText(dest, raw, new UTF8Encoding(false));
+                MessageBox.Show(this, "Das System \"" + target.DisplayName + "\" wurde als Referenz gespeichert.", "Referenz festgelegt", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ReloadDb();
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, "Fehler beim Speichern der Referenz: " + ex.Message, "Referenz festlegen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    void OpenDashboardWithBase()
+    {
+        DbEntry target = null;
+        if (lvDb != null && lvDb.SelectedItems.Count > 0) target = (DbEntry)lvDb.SelectedItems[0].Tag;
+        else if (lvDb != null && lvDb.CheckedItems.Count == 1) target = (DbEntry)lvDb.CheckedItems[0].Tag;
+        if (target == null) return;
+
+        List<DbEntry> sel = CheckedEntries();
+        List<string> paths = new List<string>();
+        paths.Add(target.Path);
+        foreach (DbEntry e in sel)
+        {
+            if (e.Path != target.Path && !paths.Contains(e.Path)) paths.Add(e.Path);
+        }
+
+        Cursor = Cursors.WaitCursor;
+        List<string> lines = new List<string>(); string res = "";
+        string args = "-Dashboard -DashboardSysteme \"" + String.Join(";", paths.ToArray()) + "\"";
+        try { res = RunHelper(args, out lines); }
+        catch (Exception ex) { lines.Add("Dashboard-Aufruf fehlgeschlagen: " + ex.Message); }
+        Cursor = Cursors.Default;
+        if (res.Length > 0 && File.Exists(res)) OpenShell(res);
+        else
+        {
+            string dashPath = System.IO.Path.Combine(dataDir, "Berichte\\Dashboard.html");
+            if (File.Exists(dashPath)) OpenShell(dashPath);
+            else MessageBox.Show(this, "Das Dashboard konnte nicht geöffnet werden.\r\n\r\n" + String.Join("\r\n", lines.ToArray()), "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 
@@ -13129,6 +13180,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.7", "15.10.2026", "Schnell behebbare Systemfehler, Startzeit-Analyse, Sensoren-Harmonisierung und modulares Dashboard",
+            "Schnell behebbare Konfigurationsfehler: Automatische Erkennung von LAN-Verhandlungsrate gebremst (100 Mbit/s oder Halbduplex an Gigabit/2.5GbE-Adaptern), Monitorkabel an iGPU statt dGPU bei Desktops, Hz-Bremse bei Monitoren >= 75 Hz auf 60 Hz limitiert, inaktivem RAM-Speicherprofil (XMP/EXPO/DOCP) und veraltetem BIOS (> 2 Jahre) mit direkten Hersteller-Supportlinks. " +
+            "Startzeit-Analyse: Aufschlüsselung der Boot Performance aus Event 100 (Kernel-Initialisierung, Desktop/PostBoot) und BIOS-POST-Dauer mit visueller Wasserfall-/Stack-Kaskade im Bericht sowie Erfassung von Autostart-Verzögerern (Event 101-110 ab 1,0 s); sauberer Fallback ohne Schätzwerte bei deaktiviertem Protokoll. " +
+            "Sensoren-Harmonisierung: Vereinheitlichte 4-Stufen-Zustandsmaschine (Vollständig, Eingeschränkt, Inaktiv, Fehler) für Treiber und Monitoring; automatische Treiberinitialisierung bei Vorliegen von Administratorrechten ohne störende Rückfragen und garantierte restlose Treiberbereinigung beim Beenden. " +
+            "Benchmark-Vergleichsmatrix: Beseitigung verschachtelter Scroll-Container (.matrix-scroll-wrapper), fixierte Tabellenköpfe und Merkmalsspalten, physikalisch korrekte Delta-Einheiten (Kelvin für Temperaturen, Prozentpunkte für Anteile, Standard-Prozente für absolute Scores) und vergrößerter linker Diagramm-Randabstand (85 px). " +
+            "Modulares Dashboard: Vollständige Trennung des Dashboard-Quelltexts in dedizierte Template-, Stylesheet- und JavaScript-Dateien (dashboard.html, dashboard.css, daten.js, matrix.js, profile.js, diagramme.js) mit build-zeitiger Einbettung."),
         new Eintrag("3.67", "14.10.2026", "Multi-System-Sensorverlauf, differenzierte Nutzungsprofile und kalibrierte Moduldauern",
             "Multi-System-Sensorverlauf: Achsenbeschriftung Temperatur (°C) vollständig sichtbar durch vergrößertes linkes Padding (75 px) und linksbündige Ausrichtung; Tooltip mit kompakten Systemnamen (getShortSysName), zweizeiligem Layout und stets vorangestelltem Basissystem (auch ohne Zeitreihe). " +
             "Differenzierte Nutzungsprofile: Gewichtung für Gaming (70 % GPU-FPS, 20 % ST, 10 % RAM/SSD; Kerne > 8 neutral), Büro/Desktop (45 % SSD-Reaktionszeit, 35 % ST, 20 % RAM-Latenz; 0 % GPU/MT) und Workstation (45 % MT, 20 % Instruktionen, 20 % RAM-Bandbreite, 15 % Dauertransfer); redundante Stromverbrauchs-Badges im Profilgitter entfernt. " +
@@ -15481,7 +15538,16 @@ i.sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:
 .calc-field input{font:inherit;font-size:13.5px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--text)}
 .calc-res{display:flex;flex-direction:column;justify-content:center;padding:10px 14px;background:var(--panel);border-radius:8px;border:1px solid var(--line)}
 .calc-res b{font-size:20px;color:var(--accent,#0067c0);line-height:1.2}
-.calc-res span{font-size:12px;color:var(--muted);margin-top:2px}
+.boot-bar-container{margin:12px 0 10px;background:var(--code);border-radius:8px;padding:3px;border:1px solid var(--line)}
+.boot-bar{display:flex;height:24px;border-radius:6px;overflow:hidden;font-size:11px;font-weight:650;color:#fff;line-height:24px;text-align:center}
+.boot-seg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 6px;transition:opacity .15s}
+.boot-seg:hover{opacity:.85}
+.boot-bios{background:#8b5cf6}
+.boot-kernel{background:#2563eb}
+.boot-post{background:#f59e0b}
+.boot-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin-top:8px}
+.boot-leg-item{display:inline-flex;align-items:center;gap:6px}
+.boot-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
 @media print{body{background:#fff}button{display:none}.box{break-inside:avoid}}
 '@
 }
@@ -16756,7 +16822,7 @@ function Export-BenchDashboardData {
     }
 
     $aggData = [ordered]@{
-        Version        = $(if ($script:ScriptVersion) { $script:ScriptVersion } else { '3.67' })
+        Version        = $(if ($script:ScriptVersion) { $script:ScriptVersion } else { '3.7' })
         Generated      = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
         PreselectedIds = @($preselectedIds)
         Systems        = @($systems)
@@ -16783,7 +16849,7 @@ function Get-BenchDashboardHtmlTemplate {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Leos Minibench - Benchmark & Diagnose Dashboard</title>
+  <title>Leos Minibench - Benchmark &amp; Diagnose Dashboard</title>
   <style>
     :root {
       --bg: #F5F6F8;
@@ -17145,7 +17211,7 @@ function Get-BenchDashboardHtmlTemplate {
     }
 
     /* MATRIX TABLES */
-    .table-scroll {
+    .matrix-scroll-wrapper, .table-scroll {
       width: 100%;
       max-height: 75vh;
       overflow: auto;
@@ -17173,7 +17239,7 @@ function Get-BenchDashboardHtmlTemplate {
       letter-spacing: 0.03em;
       position: sticky;
       top: 0;
-      z-index: 5;
+      z-index: 10;
     }
     .matrix-table th.col-feature {
       text-align: left;
@@ -17182,7 +17248,7 @@ function Get-BenchDashboardHtmlTemplate {
       position: sticky;
       top: 0;
       left: 0;
-      z-index: 10;
+      z-index: 20;
       background: var(--neutral-bg);
     }
     .matrix-table td.col-feature {
@@ -17191,7 +17257,7 @@ function Get-BenchDashboardHtmlTemplate {
       background: var(--card-bg);
       position: sticky;
       left: 0;
-      z-index: 2;
+      z-index: 11;
       border-right: 1px solid var(--card-border);
     }
     .matrix-table th.col-base,
@@ -17445,10 +17511,10 @@ function Get-BenchDashboardHtmlTemplate {
       padding: 24px 0 12px 0;
       border-top: 1px solid var(--card-border);
     }
+
   </style>
 </head>
 <body>
-
 <div class="container">
 
   <!-- HEADER -->
@@ -17507,7 +17573,7 @@ function Get-BenchDashboardHtmlTemplate {
         <p>Vollständige Gegenüberstellung aller verglichenen Systeme nebeneinander.</p>
       </div>
     </div>
-    <div class="table-scroll">
+    <div class="matrix-scroll-wrapper">
       <table id="specsTable" class="matrix-table">
         <!-- Generiert durch JavaScript -->
       </table>
@@ -17535,7 +17601,7 @@ function Get-BenchDashboardHtmlTemplate {
         <p>Gegenüberstellung aller vorliegenden Messwerte mit Bestwert-Hervorhebung (👑) und Abweichung zum Basissystem.</p>
       </div>
     </div>
-    <div class="table-scroll">
+    <div class="matrix-scroll-wrapper">
       <table id="matrixTable" class="matrix-table">
         <!-- Generiert durch JavaScript -->
       </table>
@@ -17586,6 +17652,7 @@ function Get-BenchDashboardHtmlTemplate {
   </footer>
 
 </div>
+
 
 <script>
 /* __DASHBOARD_DATA__ */
@@ -17797,21 +17864,62 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     return Number(n).toLocaleString('de-DE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   }
 
-  function calcDelta(currVal, refVal, lowerIsBetter = false) {
-    if (!currVal || !refVal || currVal <= 0 || refVal <= 0) return null;
+  function calcDelta(currVal, refVal, lowerIsBetter = false, unit = '') {
+    if (currVal === null || currVal === undefined || isNaN(currVal) ||
+        refVal === null || refVal === undefined || isNaN(refVal) ||
+        currVal <= 0 || refVal <= 0) {
+      return null;
+    }
+
+    if (unit === '°C') {
+      const diff = currVal - refVal;
+      const sign = diff > 0 ? '+' : '';
+      const text = sign + diff.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' K';
+      let cls = 'neutral';
+      if (diff <= -1.0) cls = 'ok';
+      else if (diff >= 2.0) cls = 'crit';
+      return { text: text, cls: cls, value: diff, type: 'K' };
+    }
+
+    if (unit === '%') {
+      const diff = currVal - refVal;
+      const sign = diff > 0 ? '+' : '';
+      const text = sign + diff.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %p';
+      let cls = 'neutral';
+      if (lowerIsBetter) {
+        if (diff <= -1.0) cls = 'ok';
+        else if (diff >= 2.0) cls = 'crit';
+      } else {
+        if (diff >= 1.0) cls = 'ok';
+        else if (diff <= -2.0) cls = 'crit';
+      }
+      return { text: text, cls: cls, value: diff, type: '%p' };
+    }
+
+    // Standard relative percentage delta
     let pct = 0;
     if (lowerIsBetter) {
       pct = ((refVal - currVal) / refVal) * 100.0;
     } else {
       pct = ((currVal - refVal) / refVal) * 100.0;
     }
-    return pct;
+    const sign = pct > 0 ? '+' : '';
+    const text = sign + pct.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
+    let cls = 'neutral';
+    if (pct >= 2.0) cls = 'ok';
+    else if (pct <= -5.0) cls = 'crit';
+    return { text: text, cls: cls, value: pct, type: '%' };
   }
 
-  function renderPill(pct, lowerIsBetter = false) {
-    if (pct === null || isNaN(pct)) return '<span class="pill neutral">n/v</span>';
+  function renderPill(delta, lowerIsBetter = false) {
+    if (!delta) return '<span class="pill neutral">n/v</span>';
+    if (typeof delta === 'object' && delta.text) {
+      return `<span class="pill ${delta.cls}">${delta.text}</span>`;
+    }
+    const pct = Number(delta);
+    if (isNaN(pct)) return '<span class="pill neutral">n/v</span>';
     const sign = pct > 0 ? '+' : '';
-    const txt = sign + pct.toFixed(1) + ' %';
+    const txt = sign + pct.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
     let cls = 'neutral';
     if (pct >= 2.0) cls = 'ok';
     else if (pct <= -5.0) cls = 'crit';
@@ -18124,7 +18232,8 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     specsTable.innerHTML = html;
   }
 
-  // 2. NUTZUNGSPROFILE GRID
+
+
   function renderProfilesGrid() {
     if (!profilesGrid) return;
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -18207,7 +18316,8 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     profilesGrid.innerHTML = html;
   }
 
-  // 3. VOLLSTÄNDIGE BENCHMARK-MATRIX
+
+
   function renderMatrixTable() {
     if (!matrixTable) return;
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -18321,7 +18431,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
         vals.forEach((v, idx) => {
           const isBase = (idx === 0);
           const isBest = (bestVal !== null && v === bestVal);
-          const delta = (isBase || v <= 0 || baseVal <= 0) ? null : calcDelta(v, baseVal, m.lower);
+          const delta = (isBase || v <= 0 || baseVal <= 0) ? null : calcDelta(v, baseVal, m.lower, m.unit);
 
           html += `<td class="sys-val ${isBase ? 'col-base' : ''} ${isBest ? 'is-best' : ''}" style="${isBase ? 'background: var(--accent-subtle);' : ''}">
             <span class="val-main">${fmtNum(v, m.dec)}</span>
@@ -18339,7 +18449,8 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     matrixTable.innerHTML = html;
   }
 
-  // 4. BEFUNDE-VERGLEICH
+
+
   function renderFindingsGrid() {
     if (!findingsGrid) return;
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -18453,7 +18564,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       return;
     }
 
-    const padding = { top: 32, right: 65, bottom: 40, left: 75 };
+    const padding = { top: 32, right: 65, bottom: 40, left: 85 };
     const chartW = width - padding.left - padding.right;
     const chartH = height - padding.top - padding.bottom;
 
@@ -18871,6 +18982,9 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
   }
 
   // DOM READY
+
+
+  // DOM READY
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
@@ -18880,6 +18994,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
 </script>
 </body>
 </html>
+
 '@
 }
 
@@ -18902,8 +19017,8 @@ function New-BenchDashboardHtml {
     $json = $data | ConvertTo-Json -Depth 10 -Compress
     $json = $json -replace '</', '<\/'
     $template = Get-BenchDashboardHtmlTemplate
-    $curVer = if ($script:ScriptVersion) { $script:ScriptVersion } else { '3.67' }
-    $html = $template.Replace('v3.67', ('v' + $curVer))
+    $curVer = if ($script:ScriptVersion) { $script:ScriptVersion } else { '3.7' }
+    $html = $template.Replace('v3.7', ('v' + $curVer))
 
     # Daten einbetten
     $html = $html.Replace('window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;', ('window.MINIBENCH_DASHBOARD_DATA = ' + $json + ';'))
@@ -19367,6 +19482,56 @@ function recalcPowerCost(){
     return $sb.ToString()
 }
 
+function New-BootPerformanceHtml {
+    param($BootPerf)
+    if (-not $BootPerf) { return '' }
+    $sb = New-Object System.Text.StringBuilder
+    [void]$sb.Append('<section class="box" data-section="system"><h2>System-Startzeit</h2>')
+    if (-not $BootPerf.Verfuegbar) {
+        $msg = if ($BootPerf.StatusText) { $BootPerf.StatusText } else { 'Nicht verfügbar (Diagnostics-Performance-Protokoll deaktiviert)' }
+        [void]$sb.Append(('<p class="empty">{0}</p>' -f (ConvertTo-HtmlText $msg)))
+        [void]$sb.Append('</section>')
+        return $sb.ToString()
+    }
+    $biosSec = if ($BootPerf.BiosSekunden) { [double]$BootPerf.BiosSekunden } else { 0.0 }
+    $kernSec = [double]$BootPerf.KernelSekunden
+    $postSec = [double]$BootPerf.DesktopSekunden
+    $totSec  = [double]$BootPerf.SystemGesamtSekunden
+    if ($totSec -le 0) { $totSec = $biosSec + $kernSec + $postSec }
+    if ($totSec -le 0) { $totSec = 1.0 }
+
+    $pBios = [math]::Round(($biosSec / $totSec) * 100.0, 1)
+    $pKern = [math]::Round(($kernSec / $totSec) * 100.0, 1)
+    $pPost = [math]::Max(0.0, [math]::Round(100.0 - $pBios - $pKern, 1))
+
+    [void]$sb.Append(('<p class="note">Gesamte Startzeit: <b>{0:N1} s</b> (Ereignis 100 aus dem Windows-Diagnoseprotokoll)</p>' -f $BootPerf.SystemGesamtSekunden))
+    [void]$sb.Append('<div class="boot-bar-container"><div class="boot-bar">')
+    if ($biosSec -gt 0) {
+        [void]$sb.Append(('<div class="boot-seg boot-bios" style="width:{0}%" title="BIOS / Firmware: {1:N1} s ({0} %)">BIOS {1:N1} s</div>' -f $pBios, $biosSec))
+    }
+    [void]$sb.Append(('<div class="boot-seg boot-kernel" style="width:{0}%" title="Kernel &amp; Treiber: {1:N1} s ({0} %)">Kernel {1:N1} s</div>' -f $pKern, $kernSec))
+    [void]$sb.Append(('<div class="boot-seg boot-post" style="width:{0}%" title="Desktop &amp; Autostart: {1:N1} s ({0} %)">Desktop {1:N1} s</div>' -f $pPost, $postSec))
+    [void]$sb.Append('</div></div>')
+
+    [void]$sb.Append('<div class="boot-legend">')
+    [void]$sb.Append(('<div class="boot-leg-item"><i class="boot-dot boot-bios"></i><b>BIOS / Firmware:</b> {0}</div>' -f $(if ($biosSec -gt 0) { '{0:N1} s' -f $biosSec } else { 'n/v' })))
+    [void]$sb.Append(('<div class="boot-leg-item"><i class="boot-dot boot-kernel"></i><b>Kernel &amp; Treiber:</b> {0:N1} s</div>' -f $kernSec))
+    [void]$sb.Append(('<div class="boot-leg-item"><i class="boot-dot boot-post"></i><b>Desktop &amp; Autostart:</b> {0:N1} s</div>' -f $postSec))
+    [void]$sb.Append(('<div class="boot-leg-item"><i class="boot-dot" style="background:var(--text)"></i><b>Betriebssystem gesamt:</b> {0:N1} s</div>' -f $BootPerf.OsBootSekunden))
+    [void]$sb.Append('</div>')
+
+    if (@($BootPerf.Verzoegerer).Count -gt 0) {
+        [void]$sb.Append('<h3 style="margin-top:16px">Autostart-Verzögerer (&ge; 1,0 s)</h3>')
+        [void]$sb.Append('<div class="tw"><table><thead><tr><th>Anwendung / Komponente</th><th class="r">Verzögerung</th><th>Art / Ereignis</th></tr></thead><tbody>')
+        foreach ($v in @($BootPerf.Verzoegerer)) {
+            [void]$sb.Append(('<tr><td><code>{0}</code></td><td class="num r"><b>{1:N1} s</b></td><td>{2}</td></tr>' -f (ConvertTo-HtmlText $v.Name), $v.DauerSekunden, (ConvertTo-HtmlText $v.Typ)))
+        }
+        [void]$sb.Append('</tbody></table></div>')
+    }
+    [void]$sb.Append('</section>')
+    return $sb.ToString()
+}
+
 function New-HtmlReport {
     param([string]$Path, $Sorted, [int]$NK, [int]$NW, [int]$NI, [datetime]$Start, [datetime]$End)
     $cls = @{ KRITISCH = 'crit'; WARNUNG = 'warn'; INFO = 'info'; OK = 'ok'; FEHLER = 'crit'; 'ÜBERSPRUNGEN' = 'skip'; REPARIERT = 'ok'; NEUSTART = 'info' }
@@ -19477,6 +19642,7 @@ function New-HtmlReport {
     }
     [void]$sb.Append(('<section class="cards" data-section="system">{0}{1}{2}{3}{4}{5}{6}</section>' -f $befCard, $benchCard, $mtCard, $fpsCard, $ssdCard, $effCard, $stCard))
     if ($script:Stability -and $script:Stability.Erklaerung) { [void]$sb.Append(('<section class="box stab {0}" data-section="system"><h2>Zuverlässigkeit {1:N1} von 10</h2><p>{2}</p></section>' -f $script:Stability.Klasse, $script:Stability.Index, (ConvertTo-HtmlText $script:Stability.Erklaerung))) }
+    if ($script:BootPerformance) { [void]$sb.Append((New-BootPerformanceHtml $script:BootPerformance)) }
 
     if ($script:Facts.Count) {
         [void]$sb.Append('<section class="box" data-section="hardware"><h2>System</h2><dl>')
@@ -23390,17 +23556,22 @@ function Import-LegacyFolder([string]$Root) {
 function Test-RamProfile($Mods, [string]$TypeName) {
     $mods = @($Mods)
     if (-not $mods.Count) { return }
-    $rated = @($mods | ForEach-Object { Get-RamRatedSpeed ([string]$_.PartNumber) } | Where-Object { $_ })
+    $rated = @($mods | ForEach-Object {
+        $rs = Get-RamRatedSpeed ([string]$_.PartNumber)
+        if (-not $rs -and $_.Speed -and [int]$_.Speed -gt 0) { $rs = [int]$_.Speed }
+        $rs
+    } | Where-Object { $_ })
     $cfg = [int](($mods | Where-Object { $_.ConfiguredClockSpeed } | Measure-Object ConfiguredClockSpeed -Minimum).Minimum)
     if ($rated.Count -ne $mods.Count -or $cfg -le 0) { return }
     $rMin = [int](($rated | Measure-Object -Minimum).Minimum)
     $parts = (@($mods | ForEach-Object { ([string]$_.PartNumber).Trim() }) | Select-Object -Unique) -join ', '
+    if (-not $parts) { $parts = 'RAM' }
     if ($rMin -gt $cfg * 1.05) {
         $gain = ($rMin / $cfg - 1) * 100
-        Add-Line ('  Nenntakt laut Teilenummer: {0} MT/s, Betriebstakt: {1} MT/s. Das XMP/EXPO-Profil ist vermutlich nicht aktiv.' -f $rMin, $cfg)
-        Add-Finding $(if ($gain -ge 20) { 'WARNUNG' } else { 'INFO' }) 'RAM' ('Die RAM-Module ({0}) sind für {1}-{2} ausgelegt, laufen aber nur mit {3} MT/s. Im BIOS das XMP-, EXPO- oder DOCP-Profil aktivieren (rund {4:N0} % mehr Speichertakt) und danach die Stabilität mit RAM- und Lasttest prüfen.' -f $parts, $(if ($TypeName) { $TypeName } else { 'RAM' }), $rMin, $cfg, $gain)
+        Add-Line ('  Nenntakt: {0} MT/s, Betriebstakt: {1} MT/s. Das XMP/EXPO-Profil ist vermutlich nicht aktiv.' -f $rMin, $cfg)
+        Add-Finding WARNUNG 'RAM' ('XMP/EXPO/DOCP inaktiv: Die RAM-Module ({0}) sind für {1}-{2} ausgelegt, laufen aber nur mit {3} MT/s. Im BIOS das XMP-, EXPO- oder DOCP-Profil aktivieren (rund {4:N0} % mehr Speichertakt) und danach die Stabilität mit RAM- und Lasttest prüfen.' -f $parts, $(if ($TypeName) { $TypeName } else { 'RAM' }), $rMin, $cfg, $gain)
     } elseif ($rMin -le $cfg + 50) {
-        Add-Line ('  Nenntakt laut Teilenummer: {0} MT/s, das Speicherprofil (XMP/EXPO) ist aktiv.' -f $rMin)
+        Add-Line ('  Nenntakt: {0} MT/s, das Speicherprofil (XMP/EXPO) ist aktiv.' -f $rMin)
         $script:RamProfileActive = $true
     }
 }
@@ -23725,6 +23896,282 @@ function Get-DriveSpace([string]$Letter) {
 function Get-DiskStressBytes([double]$FreeBytes) {
     return [long][math]::Max([double]256MB, [math]::Min([double]4GB, [double]$FreeBytes * 0.1))
 }
+
+# =====================================================================================
+#                      System-Startzeit und Schnell behebbar
+# =====================================================================================
+
+function Get-SystemBootPerformance {
+    [CmdletBinding()]
+    param()
+
+    $result = [ordered]@{
+        Verfuegbar            = $false
+        StatusText            = 'Nicht verfügbar (Diagnostics-Performance-Protokoll deaktiviert)'
+        BiosSekunden          = $null
+        KernelSekunden        = $null
+        DesktopSekunden       = $null
+        OsBootSekunden        = $null
+        GesamtSekunden        = $null
+        SystemGesamtSekunden  = $null
+        Verzoegerer           = @()
+    }
+
+    # 1. BIOS/UEFI POST-Zeit aus Registry
+    try {
+        $p = Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' -Name 'FwPOSTTime' -ErrorAction SilentlyContinue
+        if ($p -and $p.FwPOSTTime -and [int64]$p.FwPOSTTime -gt 0) {
+            $result.BiosSekunden = [math]::Round(([double]$p.FwPOSTTime / 1000.0), 1)
+        }
+    } catch { }
+
+    # 2. Event-Log Microsoft-Windows-Diagnostics-Performance/Operational ID 100
+    try {
+        $ev = Get-WinEvent -FilterHashtable @{ LogName = 'Microsoft-Windows-Diagnostics-Performance/Operational'; Id = 100 } -MaxEvents 1 -ErrorAction Stop
+        if ($ev) {
+            [xml]$xml = $ev.ToXml()
+            $dataMap = @{}
+            if ($xml.Event.EventData.Data) {
+                foreach ($d in $xml.Event.EventData.Data) {
+                    if ($d.Name) { $dataMap[$d.Name] = $d.'#text' }
+                }
+            }
+
+            $bootDuration = 0
+            $mainPath = 0
+            $postBoot = 0
+
+            if ($dataMap.ContainsKey('BootDuration')) { [int64]::TryParse($dataMap['BootDuration'], [ref]$bootDuration) | Out-Null }
+            if ($dataMap.ContainsKey('MainPathBootTime')) { [int64]::TryParse($dataMap['MainPathBootTime'], [ref]$mainPath) | Out-Null }
+            if ($dataMap.ContainsKey('BootPostBootTime')) { [int64]::TryParse($dataMap['BootPostBootTime'], [ref]$postBoot) | Out-Null }
+
+            if ($bootDuration -gt 0 -or $mainPath -gt 0) {
+                $result.Verfuegbar = $true
+                $result.StatusText = 'Verfügbar'
+                $result.KernelSekunden = [math]::Round(([double]$mainPath / 1000.0), 1)
+                $result.DesktopSekunden = [math]::Round(([double]$postBoot / 1000.0), 1)
+                $result.OsBootSekunden = [math]::Round(([double]$bootDuration / 1000.0), 1)
+                $result.GesamtSekunden = $result.OsBootSekunden
+
+                if ($result.BiosSekunden) {
+                    $result.SystemGesamtSekunden = [math]::Round(($result.BiosSekunden + $result.GesamtSekunden), 1)
+                } else {
+                    $result.SystemGesamtSekunden = $result.GesamtSekunden
+                }
+            }
+        }
+    } catch {
+        # Fallback falls Protokoll deaktiviert oder leer
+    }
+
+    # 3. Autostart-Verzögerer (Event IDs 101 bis 110)
+    if ($result.Verfuegbar) {
+        try {
+            $delayEvents = @(Get-WinEvent -FilterHashtable @{ LogName = 'Microsoft-Windows-Diagnostics-Performance/Operational'; Id = 101..110 } -MaxEvents 30 -ErrorAction SilentlyContinue)
+            $delayList = [System.Collections.Generic.List[object]]::new()
+            foreach ($dev in $delayEvents) {
+                try {
+                    [xml]$dxml = $dev.ToXml()
+                    $dMap = @{}
+                    if ($dxml.Event.EventData.Data) {
+                        foreach ($d in $dxml.Event.EventData.Data) {
+                            if ($d.Name) { $dMap[$d.Name] = $d.'#text' }
+                        }
+                    }
+                    $rawName = $(if ($dMap['ImageName']) { $dMap['ImageName'] } elseif ($dMap['Path']) { $dMap['Path'] } elseif ($dMap['Name']) { $dMap['Name'] } elseif ($dMap['FriendlyName']) { $dMap['FriendlyName'] } elseif ($dMap['Description']) { $dMap['Description'] } else { 'Unbekannt' })
+                    $name = $(if ($rawName -and $rawName -ne 'Unbekannt') { Split-Path $rawName -Leaf } else { 'Unbekannt' })
+                    $totalMs = 0
+                    if ($dMap.ContainsKey('TotalTime')) { [int64]::TryParse($dMap['TotalTime'], [ref]$totalMs) | Out-Null }
+                    elseif ($dMap.ContainsKey('DegradationTime')) { [int64]::TryParse($dMap['DegradationTime'], [ref]$totalMs) | Out-Null }
+
+                    if ($totalMs -ge 1000) {
+                        $delayList.Add([pscustomobject]@{
+                            Name          = $name
+                            DauerSekunden = [math]::Round(([double]$totalMs / 1000.0), 1)
+                            EreignisId    = $dev.Id
+                        })
+                    }
+                } catch { }
+            }
+            $result.Verzoegerer = @($delayList | Sort-Object DauerSekunden -Descending | Select-Object -First 5)
+        } catch { }
+    }
+
+    return [pscustomobject]$result
+}
+
+function Get-BiosVendorSupportUrl([string]$Vendor) {
+    $v = ("$Vendor").Trim()
+    if ($v -match 'ASUS|ASUSTeK') { return 'https://www.asus.com/support/' }
+    if ($v -match 'Gigabyte') { return 'https://www.gigabyte.com/Support' }
+    if ($v -match 'MSI|Micro-Star') { return 'https://de.msi.com/support' }
+    if ($v -match 'ASRock') { return 'https://www.asrock.com/support/' }
+    if ($v -match 'Dell') { return 'https://www.dell.com/support/home/' }
+    if ($v -match 'HP|Hewlett-Packard') { return 'https://support.hp.com/' }
+    if ($v -match 'Lenovo') { return 'https://pcsupport.lenovo.com/' }
+    return 'https://www.google.com/search?q=' + [uri]::EscapeDataString(($v + ' BIOS Update'))
+}
+
+if (-not ('DiagDisplay' -as [type])) {
+    $diagDisplayCode = @'
+using System;
+using System.Runtime.InteropServices;
+
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+public struct DISPLAY_DEVICE {
+    public int cb;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+    public string DeviceName;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+    public string DeviceString;
+    public int StateFlags;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+    public string DeviceID;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+    public string DeviceKey;
+}
+
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+public struct DEVMODE {
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+    public string dmDeviceName;
+    public short dmSpecVersion;
+    public short dmDriverVersion;
+    public short dmSize;
+    public short dmDriverExtra;
+    public int dmFields;
+    public int dmPositionX;
+    public int dmPositionY;
+    public int dmDisplayOrientation;
+    public int dmDisplayFixedOutput;
+    public short dmColor;
+    public short dmDuplex;
+    public short dmYResolution;
+    public short dmTTOption;
+    public short dmCollate;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+    public string dmFormName;
+    public short dmLogPixels;
+    public int dmBitsPerPel;
+    public int dmPelsWidth;
+    public int dmPelsHeight;
+    public int dmDisplayFlags;
+    public int dmDisplayFrequency;
+    public int dmICMMethod;
+    public int dmICMIntent;
+    public int dmMediaType;
+    public int dmDitherType;
+    public int dmReserved1;
+    public int dmReserved2;
+    public int dmPanningWidth;
+    public int dmPanningHeight;
+}
+
+public static class DiagDisplay {
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    public static extern bool EnumDisplayDevices(string lpDevice, uint iDevNum, ref DISPLAY_DEVICE lpDisplayDevice, uint dwFlags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    public static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
+}
+'@
+    try { Add-Type -TypeDefinition $diagDisplayCode -Language CSharp -ErrorAction SilentlyContinue } catch { }
+}
+
+function Get-DisplayDiagnostics {
+    $res = [ordered]@{
+        WrongPortDetected = $false
+        WrongPortMessage  = ''
+        HzBremseDetected  = $false
+        HzBremseMessage   = ''
+        Devices           = @()
+    }
+
+    if (-not ('DiagDisplay' -as [type])) { return [pscustomobject]$res }
+
+    try {
+        $devList = [System.Collections.Generic.List[object]]::new()
+        $devIndex = [uint32]0
+        $d = New-Object DISPLAY_DEVICE
+        $d.cb = [System.Runtime.InteropServices.Marshal]::SizeOf($d)
+
+        while ([DiagDisplay]::EnumDisplayDevices($null, $devIndex, [ref]$d, 0)) {
+            $isAttached = ($d.StateFlags -band 0x1) -ne 0
+            $isPrimary  = ($d.StateFlags -band 0x4) -ne 0
+
+            if ($isAttached) {
+                $dm = New-Object DEVMODE
+                $dm.dmSize = [System.Runtime.InteropServices.Marshal]::SizeOf($dm)
+                $curHz = 0; $curW = 0; $curH = 0
+                if ([DiagDisplay]::EnumDisplaySettings($d.DeviceName, -1, [ref]$dm)) {
+                    $curHz = $dm.dmDisplayFrequency
+                    $curW  = $dm.dmPelsWidth
+                    $curH  = $dm.dmPelsHeight
+                }
+
+                $maxHz = $curHz
+                $modeIdx = 0
+                $mMode = New-Object DEVMODE
+                $mMode.dmSize = [System.Runtime.InteropServices.Marshal]::SizeOf($mMode)
+                while ([DiagDisplay]::EnumDisplaySettings($d.DeviceName, $modeIdx, [ref]$mMode)) {
+                    if ($mMode.dmPelsWidth -eq $curW -and $mMode.dmPelsHeight -eq $curH) {
+                        if ($mMode.dmDisplayFrequency -gt $maxHz) {
+                            $maxHz = $mMode.dmDisplayFrequency
+                        }
+                    }
+                    $modeIdx++
+                    if ($modeIdx -gt 256) { break }
+                }
+
+                $devList.Add([pscustomobject]@{
+                    DeviceName   = $d.DeviceName
+                    DeviceString = $d.DeviceString
+                    IsPrimary    = $isPrimary
+                    CurrentHz    = $curHz
+                    MaxHz        = $maxHz
+                    Width        = $curW
+                    Height       = $curH
+                })
+            }
+            $devIndex++
+            if ($devIndex -gt 16) { break }
+        }
+        $res.Devices = @($devList)
+
+        # 1. Hz-Bremse Prüfung (Monitor unterstützt >= 75 Hz, läuft aber auf 60 Hz)
+        foreach ($dev in $devList) {
+            if ($dev.MaxHz -ge 75 -and $dev.CurrentHz -le 60 -and $dev.Width -gt 0) {
+                $res.HzBremseDetected = $true
+                $res.HzBremseMessage = ('Bildwiederholfrequenz auf 60 Hz begrenzt: Der Bildschirm "{0}" unterstützt bei {1}x{2} bis zu {3} Hz, ist jedoch auf nur {4} Hz eingestellt. Die Frequenz kann in den Windows-Anzeigeeinstellungen auf {3} Hz erhöht werden.' -f `
+                    $dev.DeviceString, $dev.Width, $dev.Height, $dev.MaxHz, $dev.CurrentHz)
+                break
+            }
+        }
+
+        # 2. Monitor am falschen Anschluss (iGPU statt dGPU)
+        if (-not $script:IsLaptop) {
+            $gpus = @(Get-GpuAdapters)
+            $hasDgpu = [bool](@($gpus | Where-Object { $_.Art -eq 'dGPU' }).Count)
+            $hasIgpu = [bool](@($gpus | Where-Object { $_.Art -eq 'iGPU' }).Count)
+
+            if ($hasDgpu -and $hasIgpu) {
+                $primaryDev = @($devList | Where-Object { $_.IsPrimary }) | Select-Object -First 1
+                if ($primaryDev) {
+                    $isPrimaryOnIgpu = ($primaryDev.DeviceString -match 'Intel\(R\).*(HD|UHD|Iris)|AMD Radeon\(TM\) Graphics|Prozessorgrafik')
+                    if ($isPrimaryOnIgpu) {
+                        $dgpuObj = @($gpus | Where-Object { $_.Art -eq 'dGPU' }) | Select-Object -First 1
+                        $res.WrongPortDetected = $true
+                        $res.WrongPortMessage = ('Monitor am Mainboard (iGPU) angeschlossen: Der Hauptbildschirm läuft über die integrierte Grafikeinheit "{0}", obwohl eine dedizierte Hochleistungs-Grafikkarte ({1}) verbaut ist. Das Monitorkabel sollte direkt an die Grafikkarte angeschlossen werden.' -f `
+                            $primaryDev.DeviceString, $(if ($dgpuObj) { $dgpuObj.Name } else { 'dedizierte Grafikkarte' }))
+                    }
+                }
+            }
+        }
+    } catch { }
+
+    return [pscustomobject]$res
+}
+
 
 #region ---------- Vorbereitung: smartmontools ----------
 $script:SmartLicense = 'GPL-2.0-or-later'
@@ -24698,7 +25145,7 @@ function Open-SensorSession([switch]$Treiber, [switch]$OhneDatentraeger) {
             $s.Treiber = ('PawnIO {0} (von Leos Minibench behalten, wird am Ende entfernt)' -f $pw.Version); $s.TreiberOk = $true
         }
         elseif ($pw.Installiert) { $s.Treiber = ('PawnIO {0} ({1})' -f $pw.Version, $(if (Test-KeptTool 'PawnIO') { 'auf Wunsch behalten' } else { 'bereits vorhanden' })); $s.TreiberOk = $true }
-        elseif ($Treiber) {
+        elseif ($Treiber -or $isAdmin) {
             $r = Install-PawnIoTemporary
             $s.Treiber = $r.Text; $s.TreiberOk = $r.Ok
             if (-not $r.Ok) { $s.Hinweise.Add($r.Text) }
@@ -24716,7 +25163,27 @@ function Open-SensorSession([switch]$Treiber, [switch]$OhneDatentraeger) {
     if (-not $s.Lhm -and ('DiagGpuKmt' -as [type])) { $q += 'Windows-Grafiktreiber' }
     $q += 'ACPI'
     $s.Quellen = $q
+    $st = Get-SensorGlobalState $s
+    Send-GuiEvent 'SENSSTAT' $st.State $st.Text
     return $s
+}
+
+function Get-SensorGlobalState($Session = $null) {
+    if (-not $Session) { $Session = $script:Sens }
+    if (-not $Session) {
+        return [pscustomobject]@{ State = 'Inaktiv'; Text = 'Inaktiv: Sensorüberwachung nicht gestartet oder keine kompatible Hardware gefunden' }
+    }
+    if ($Session.LhmFehler -or ($Session.TreiberOk -eq $false -and $Session.Treiber -like '*fehlgeschlagen*')) {
+        $err = $(if ($Session.LhmFehler) { $Session.LhmFehler } else { $Session.Treiber })
+        return [pscustomobject]@{ State = 'Fehler'; Text = ('Fehler: Treiberabsturz oder Zugriffsverweigerung ({0})' -f $err) }
+    }
+    if ($Session.Lhm -and ($Session.TreiberOk -or (Get-PawnIoState).Installiert)) {
+        return [pscustomobject]@{ State = 'Vollstaendig'; Text = 'Vollständig (Ring-0-Treiber aktiv): PawnIO / WinRing0 geladen, Live-Taktraten, Package-Power und Hotspot-Temperaturen verfügbar' }
+    }
+    if ($Session.Lhm -or @($Session.Quellen).Count -gt 0) {
+        return [pscustomobject]@{ State = 'Eingeschraenkt'; Text = 'Eingeschränkt (Standard-WMI / OS-Performance-Counter): Basis-Takte und Standard-Temperaturen vorhanden, keine direkte VRM/Power-Telemetrie' }
+    }
+    return [pscustomobject]@{ State = 'Inaktiv'; Text = 'Inaktiv: Sensorüberwachung explizit deaktiviert oder keine kompatible Hardware gefunden' }
 }
 
 # Behalten statt entfernen (Wahl je Gerät): Markierung weg, Eintrag in Geraete.json und Hinweis im Änderungsprotokoll
@@ -26305,6 +26772,13 @@ Invoke-Section 'System und Betriebssystem' {
     $script:Facts['BIOS/UEFI']      = ('{0} vom {1:dd.MM.yyyy}' -f $bios.SMBIOSBIOSVersion, $bios.ReleaseDate)
     $script:Facts['Laufzeit']       = ('{0} seit dem letzten Start' -f (Format-Uptime $up))
     $script:Facts['Mainboard']      = ('{0} {1}' -f $bb.Manufacturer, $bb.Product).Trim()
+    $bootPerf = Get-SystemBootPerformance
+    $script:BootPerformance = $bootPerf
+    if ($bootPerf.Verfuegbar) {
+        $script:Facts['Systemstart (gesamt)'] = ('{0:N1} s (BIOS: {1}, Kernel: {2:N1} s, Desktop: {3:N1} s)' -f $bootPerf.SystemGesamtSekunden, $(if ($bootPerf.BiosSekunden) { '{0:N1} s' -f $bootPerf.BiosSekunden } else { 'n/v' }), $bootPerf.KernelSekunden, $bootPerf.DesktopSekunden)
+    } else {
+        $script:Facts['Systemstart'] = $bootPerf.StatusText
+    }
     if ($ii.Erstinstallation) {
         $script:Facts['Windows installiert'] = ('{0:dd.MM.yyyy} (vor {1}){2}' -f $ii.Erstinstallation, (Format-Age $ii.AlterTage -Dativ), $(if ($ii.Upgrades.Count) { ', seitdem {0} Funktionsupdate(s), zuletzt {1:dd.MM.yyyy}' -f $ii.Upgrades.Count, $ii.AktuellSeit } else { ', seitdem kein Funktionsupdate' }))
     }
@@ -26314,7 +26788,27 @@ Invoke-Section 'System und Betriebssystem' {
 
     if ($up.TotalDays -gt 14) { Add-Finding INFO 'System' ('Seit {0} Tagen kein Neustart. Ein Neustart vor der Fehlersuche ist sinnvoll.' -f [int]$up.TotalDays) }
     if ($fw -eq 1) { Add-Finding WARNUNG 'Firmware' 'System startet im Legacy-BIOS-Modus, Windows 11 erwartet UEFI.' }
-    if ($bios.ReleaseDate -and $bios.ReleaseDate -lt (Get-Date).AddYears(-3)) { Add-Finding INFO 'Firmware' ('BIOS/UEFI ist älter als 3 Jahre ({0:dd.MM.yyyy}). Update beim Hersteller prüfen.' -f $bios.ReleaseDate) }
+    if ($bios.ReleaseDate -and $bios.ReleaseDate -lt (Get-Date).AddMonths(-24)) {
+        $vendor = $(if ($bb.Manufacturer -and $bb.Manufacturer -notmatch 'To be filled|Default') { $bb.Manufacturer } elseif ($cs.Manufacturer) { $cs.Manufacturer } else { $bios.Manufacturer })
+        $url = Get-BiosVendorSupportUrl $vendor
+        Add-Finding WARNUNG 'Firmware' ('BIOS/UEFI ist älter als 2 Jahre ({0:dd.MM.yyyy}). Ein Update beim Hersteller wird empfohlen: {1}' -f $bios.ReleaseDate, $url)
+    }
+
+    Add-Sub 'System-Startzeit'
+    if ($bootPerf.Verfuegbar) {
+        Add-Line ('  Gesamte Startzeit     : {0:N1} s (Betriebssystem: {1:N1} s, Kernel: {2:N1} s, Desktop: {3:N1} s)' -f $bootPerf.SystemGesamtSekunden, $bootPerf.OsBootSekunden, $bootPerf.KernelSekunden, $bootPerf.DesktopSekunden)
+        if ($bootPerf.BiosSekunden) {
+            Add-Line ('  BIOS/Firmware-Start   : {0:N1} s' -f $bootPerf.BiosSekunden)
+        }
+        if (@($bootPerf.Verzoegerer).Count) {
+            Add-Line ('  Autostart-Verzögerer  : {0} Anwendung(en) >= 1,0 s' -f @($bootPerf.Verzoegerer).Count)
+            foreach ($vz in @($bootPerf.Verzoegerer)) {
+                Add-Line ('    {0}: {1:N1} s ({2})' -f $vz.Name, $vz.DauerSekunden, $vz.Typ)
+            }
+        }
+    } else {
+        Add-Line ('  {0}' -f $bootPerf.StatusText)
+    }
 
     Add-Sub 'Windows-Installation'
     if ($ii.Erstinstallation) {
@@ -26486,7 +26980,6 @@ Invoke-Section 'Arbeitsspeicher' {
     if ($usedPct -gt 90) { Add-Finding WARNUNG 'RAM' ('Arbeitsspeicher zu {0:N0} % belegt.' -f $usedPct) }
     if (@($mods.Speed | Select-Object -Unique).Count -gt 1) { Add-Finding WARNUNG 'RAM' 'Module mit unterschiedlichen Nenntakten verbaut.' }
     if (@($mods.PartNumber | Select-Object -Unique).Count -gt 1) { Add-Finding INFO 'RAM' 'Gemischte RAM-Module (unterschiedliche Teilenummern).' }
-    if ($mods | Where-Object { $_.ConfiguredClockSpeed -and $_.Speed -and $_.ConfiguredClockSpeed -lt $_.Speed }) { Add-Finding INFO 'RAM' 'RAM läuft unter Nenntakt (XMP/EXPO-Profil evtl. nicht aktiv oder vom Board begrenzt).' }
     if ($mods.Count -eq 1 -and $arr.MemoryDevices -ge 2) { Add-Finding INFO 'RAM' 'Nur ein Modul verbaut, vermutlich Single-Channel-Betrieb (geringere Speicherbandbreite).' }
     if ($total -lt 8GB) { Add-Finding WARNUNG 'RAM' ('Nur {0} RAM verbaut, für Windows 11 knapp.' -f (Format-Size $total)) }
     foreach ($m in $mods) { Add-Private ([string]$m.SerialNumber) 'SERIENNR' }
@@ -26538,6 +27031,13 @@ Invoke-Section 'Grafik und Monitore' {
         $sn = (& $dec $_.SerialNumberID); Add-Private $sn 'SERIENNR'
         [pscustomobject]@{ Hersteller = (& $dec $_.ManufacturerName); Modell = (& $dec $_.UserFriendlyName); Seriennummer = $sn; Baujahr = $_.YearOfManufacture; Aktiv = $_.Active }
     } | Out-Report
+    $dispDiag = Get-DisplayDiagnostics
+    if ($dispDiag.WrongPortDetected) {
+        Add-Finding WARNUNG 'Grafik' $dispDiag.WrongPortMessage
+    }
+    if ($dispDiag.HzBremseDetected) {
+        Add-Finding WARNUNG 'Grafik' $dispDiag.HzBremseMessage
+    }
 }
 
 Invoke-Section 'Datenträger und Volumes' {
@@ -26761,8 +27261,22 @@ Invoke-Section 'Sensoren (Momentaufnahme)' {
 }
 
 Invoke-Section 'Netzwerkkonfiguration' {
-    Get-NetAdapter -ErrorAction SilentlyContinue | Sort-Object Status, Name | Select-Object Name, InterfaceDescription, Status, LinkSpeed, MacAddress, DriverVersion,
+    $netAdapters = @(Get-NetAdapter -ErrorAction SilentlyContinue)
+    $netAdapters | Sort-Object Status, Name | Select-Object Name, InterfaceDescription, Status, LinkSpeed, MacAddress, DriverVersion,
         @{n = 'Treiberdatum'; e = { $_.DriverDate } } | Out-Report
+    foreach ($na in $netAdapters) {
+        if ($na.Status -ne 'Up') { continue }
+        $desc = [string]$na.InterfaceDescription
+        if ($desc -match 'Wireless|Wi-Fi|Bluetooth|Virtual|TAP|Hyper-V|VPN|Loopback|Tailscale|ZeroTier') { continue }
+        $isGbeCapable = ($desc -match 'Gigabit|GbE|2\.5G|2500|5G|10G|I211|I219|I225|I226|RTL8111|RTL8125|Killer E')
+        $is100M = ($na.LinkSpeed -match '100 M(bps|bit/s)?$')
+        $isHalf = ($na.DuplexMode -eq 'Half' -or ($null -ne $na.FullDuplex -and -not $na.FullDuplex))
+        if ($isGbeCapable -and ($is100M -or $isHalf)) {
+            $speedStr = [string]$na.LinkSpeed
+            $halfStr = if ($isHalf) { ' (Halbduplex)' } else { '' }
+            Add-Finding WARNUNG 'Netzwerk' ('LAN-Verhandlungsrate gebremst: Adapter "{0}" ({1}) läuft mit nur {2}{3}. Ein Gigabit- oder 2.5GbE-fähiger Adapter synchronisiert meist wegen eines defekten 4-adrigen Patchkabels oder Port-Fehlers auf 100 Mbit/s.' -f $na.Name, $desc, $speedStr, $halfStr)
+        }
+    }
     Add-Sub 'IP-Konfiguration aktiver Adapter'
     Get-NetIPConfiguration -ErrorAction SilentlyContinue | Where-Object { $_.NetAdapter.Status -eq 'Up' } | ForEach-Object {
         [pscustomobject][ordered]@{
@@ -27485,7 +27999,11 @@ $script:BenchInit = $false
 function Initialize-Bench {
     if ($script:BenchInit) { return }
     $script:BenchInit = $true
-    $script:BenchMs = $(if ($BenchmarkKurz) { 2000 } else { 5000 })
+    if ($BenchmarkKurz) {
+        Write-Log '-BenchmarkKurz ist veraltet; es wird der Standard-Benchmark ausgeführt'
+        Add-Line '  Hinweis: -BenchmarkKurz ist veraltet; es wird der Standard-Benchmark ausgeführt.'
+    }
+    $script:BenchMs = 5000
     # PS 5.1 gibt ein JSON-Array als EIN Objekt aus, daher erst zuweisen, dann in ein Array wandeln
     # frühere Läufe dieses Geräts aus der Vergleichsdatenbank (gleiche Messdauer) für den Verlauf, auch nach Umbenennung oder Neuinstallation
     $devId = (Get-DeviceIdentity).Id

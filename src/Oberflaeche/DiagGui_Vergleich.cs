@@ -1,4 +1,4 @@
-﻿// Vergleichsdatenbank und Systemvergleich (Teilklasse DiagGui)
+// Vergleichsdatenbank und Systemvergleich (Teilklasse DiagGui)
 public partial class DiagGui
 {
     class DbItemComparer : System.Collections.IComparer
@@ -66,7 +66,7 @@ public partial class DiagGui
     int dbSortCol = -1;
     bool dbSortAsc = true;
     Button btnRename;
-    Button btnCompare, btnDashboard, btnDelete, btnOpenReport, btnExport;
+    Button btnCompare, btnDashboard, btnDelete, btnOpenReport, btnExport, btnSetRef;
 
     void OnDbColumnClick(object sender, ColumnClickEventArgs e)
     {
@@ -186,6 +186,10 @@ public partial class DiagGui
         };
         btnOpenReport.Enabled = false;
         Tip(btnOpenReport, "Öffnet den vollständigen HTML-Diagnosebericht des ausgewählten Systems.");
+        btnSetRef = UI.Secondary("Als Referenz ..."); btnSetRef.Margin = new Padding(UI.S(8), 0, 0, 0);
+        btnSetRef.Click += delegate { ShowSetRefMenu(); };
+        btnSetRef.Enabled = false;
+        Tip(btnSetRef, "Legt das ausgewählte System als dauerhafte Vergleichsreferenz (Referenz.json) fest oder öffnet das Dashboard mit diesem System als Basis.");
         btnRename = UI.Secondary("Name ändern ..."); btnRename.Margin = new Padding(UI.S(8), 0, 0, 0);
         btnRename.Click += delegate { RenameSelectedEntry(); };
         btnRename.Enabled = false;
@@ -196,7 +200,7 @@ public partial class DiagGui
         Tip(btnExport, "Exportiert den ausgewählten Lauf als eigenständiges .minibench-Austauschpaket mit Datenbankeintrag und Bericht.");
         btnDelete = UI.Secondary("Entfernen"); btnDelete.Margin = new Padding(UI.S(8), 0, 0, 0); btnDelete.Click += delegate { DeleteSelected(); };
         Tip(btnDelete, "Verschiebt die angehakten Läufe samt Berichtsordner nach Minibench-Daten\\Archiv\\Entfernt. Beim nächsten Abgleich verschwinden sie auch vom Netzlaufwerk.");
-        b.Controls.Add(btnDashboard); b.Controls.Add(btnOpenReport); b.Controls.Add(btnRename); b.Controls.Add(btnExport); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
+        b.Controls.Add(btnDashboard); b.Controls.Add(btnOpenReport); b.Controls.Add(btnSetRef); b.Controls.Add(btnRename); b.Controls.Add(btnExport); b.Controls.Add(btnDelete); bottom.Controls.Add(b);
         lblDbClean = Lbl(DatenpflegeInfo.Length > 0 ? DatenpflegeInfo : "Lasttests vor v2.67 (nicht vergleichbar), abgebrochene und kurze Läufe verschiebt die Datenpflege beim Start nach Minibench-Daten\\Archiv.", 8.75f, false, UI.Muted);
         lblDbClean.Margin = new Padding(UI.S(4), UI.S(8), UI.S(4), 0); bottom.Controls.Add(lblDbClean);
         bottom.Resize += delegate { lblDbClean.MaximumSize = new Size(Math.Max(UI.S(200), bottom.ClientSize.Width - UI.S(10)), 0); };
@@ -219,6 +223,8 @@ public partial class DiagGui
 
         ContextMenu cm = new ContextMenu();
         MenuItem miDashboard = new MenuItem("Im Dashboard vergleichen", delegate { OpenDashboard(); });
+        MenuItem miSetRef = new MenuItem("Als Referenz festlegen (persistent)", delegate { SetSelectedAsReference(); });
+        MenuItem miDashboardBase = new MenuItem("Als Basis im Dashboard öffnen (temporär)", delegate { OpenDashboardWithBase(); });
         MenuItem miSep1 = new MenuItem("-");
         MenuItem miRename = new MenuItem("Name ändern ...", delegate { RenameSelectedEntry(); });
         MenuItem miOpen = new MenuItem("Bericht öffnen", delegate { if (lvDb.SelectedItems.Count > 0) OpenEntry((DbEntry)lvDb.SelectedItems[0].Tag); });
@@ -226,6 +232,8 @@ public partial class DiagGui
         MenuItem miSep2 = new MenuItem("-");
         MenuItem miDelete = new MenuItem("Aus Datenbank entfernen", delegate { DeleteSelected(); });
         cm.MenuItems.Add(miDashboard);
+        cm.MenuItems.Add(miSetRef);
+        cm.MenuItems.Add(miDashboardBase);
         cm.MenuItems.Add(miSep1);
         cm.MenuItems.Add(miRename);
         cm.MenuItems.Add(miOpen);
@@ -236,6 +244,8 @@ public partial class DiagGui
             int selN = lvDb.SelectedItems.Count;
             int chkN = CheckedEntries().Count;
             miDashboard.Enabled = chkN >= 1 || selN >= 1;
+            miSetRef.Enabled = selN == 1 || (selN == 0 && chkN == 1);
+            miDashboardBase.Enabled = selN == 1 || (selN == 0 && chkN == 1);
             miRename.Enabled = selN == 1 || (selN == 0 && chkN == 1);
             miOpen.Enabled = selN == 1;
             miExport.Enabled = selN == 1 || (selN == 0 && chkN == 1);
@@ -316,6 +326,85 @@ public partial class DiagGui
         {
             int selCount = (lvDb != null ? lvDb.SelectedItems.Count : 0);
             btnExport.Enabled = (selCount == 1 || (selCount == 0 && n == 1));
+        }
+        if (btnSetRef != null)
+        {
+            int selCount = (lvDb != null ? lvDb.SelectedItems.Count : 0);
+            btnSetRef.Enabled = (selCount == 1 || (selCount == 0 && n == 1));
+        }
+    }
+
+    void ShowSetRefMenu()
+    {
+        ContextMenu m = new ContextMenu();
+        m.MenuItems.Add("Als Referenz festlegen (persistent)", delegate { SetSelectedAsReference(); });
+        m.MenuItems.Add("Als Basis im Dashboard öffnen (temporär)", delegate { OpenDashboardWithBase(); });
+        m.Show(btnSetRef, new Point(0, btnSetRef.Height));
+    }
+
+    void SetSelectedAsReference()
+    {
+        DbEntry target = null;
+        if (lvDb != null && lvDb.SelectedItems.Count > 0) target = (DbEntry)lvDb.SelectedItems[0].Tag;
+        else if (lvDb != null && lvDb.CheckedItems.Count == 1) target = (DbEntry)lvDb.CheckedItems[0].Tag;
+        if (target == null || !target.HasBench)
+        {
+            MessageBox.Show(this, "Bitte wählen Sie ein System mit Benchmark-Werten aus.", "Referenz festlegen", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        string msg = String.Format("Möchten Sie das System \"{0}\" ({1})\r\nals dauerhafte Vergleichsreferenz (100 %) festlegen?\r\n\r\nDie Werte werden in Minibench-Daten\\Referenz.json gespeichert.", target.DisplayName, target.Datum);
+        if (MessageBox.Show(this, msg, "Referenz festlegen", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+        try
+        {
+            if (String.IsNullOrEmpty(dataDir) || !Directory.Exists(dataDir))
+            {
+                MessageBox.Show(this, "Der Datenordner ist nicht verfügbar.", "Referenz festlegen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            string dest = Path.Combine(dataDir, "Referenz.json");
+            if (File.Exists(target.Path))
+            {
+                string raw = File.ReadAllText(target.Path, Encoding.UTF8);
+                File.WriteAllText(dest, raw, new UTF8Encoding(false));
+                MessageBox.Show(this, "Das System \"" + target.DisplayName + "\" wurde als Referenz gespeichert.", "Referenz festgelegt", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ReloadDb();
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, "Fehler beim Speichern der Referenz: " + ex.Message, "Referenz festlegen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    void OpenDashboardWithBase()
+    {
+        DbEntry target = null;
+        if (lvDb != null && lvDb.SelectedItems.Count > 0) target = (DbEntry)lvDb.SelectedItems[0].Tag;
+        else if (lvDb != null && lvDb.CheckedItems.Count == 1) target = (DbEntry)lvDb.CheckedItems[0].Tag;
+        if (target == null) return;
+
+        List<DbEntry> sel = CheckedEntries();
+        List<string> paths = new List<string>();
+        paths.Add(target.Path);
+        foreach (DbEntry e in sel)
+        {
+            if (e.Path != target.Path && !paths.Contains(e.Path)) paths.Add(e.Path);
+        }
+
+        Cursor = Cursors.WaitCursor;
+        List<string> lines = new List<string>(); string res = "";
+        string args = "-Dashboard -DashboardSysteme \"" + String.Join(";", paths.ToArray()) + "\"";
+        try { res = RunHelper(args, out lines); }
+        catch (Exception ex) { lines.Add("Dashboard-Aufruf fehlgeschlagen: " + ex.Message); }
+        Cursor = Cursors.Default;
+        if (res.Length > 0 && File.Exists(res)) OpenShell(res);
+        else
+        {
+            string dashPath = System.IO.Path.Combine(dataDir, "Berichte\\Dashboard.html");
+            if (File.Exists(dashPath)) OpenShell(dashPath);
+            else MessageBox.Show(this, "Das Dashboard konnte nicht geöffnet werden.\r\n\r\n" + String.Join("\r\n", lines.ToArray()), "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 

@@ -1,4 +1,4 @@
-﻿# Eingebettete Referenzprofile für Leos Minibench (v3.0)
+﻿# Eingebettete Referenzprofile fÃ¼r Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
     'Desktop_GTX1070.json' = @'
 {

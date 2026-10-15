@@ -1,4 +1,4 @@
-﻿function Get-ReportCss {
+function Get-ReportCss {
     return @'
 :root{--bg:#f5f6f8;--panel:#fff;--text:#1c2330;--muted:#5f6878;--line:#e2e5ea;--code:#f1f3f6;
 --accent:#0067c0;--accent-hover:#005a9e;--accent-soft:#ebf3fb;--accent-border:#bdd7ee;
@@ -208,7 +208,16 @@ i.sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:
 .calc-field input{font:inherit;font-size:13.5px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--text)}
 .calc-res{display:flex;flex-direction:column;justify-content:center;padding:10px 14px;background:var(--panel);border-radius:8px;border:1px solid var(--line)}
 .calc-res b{font-size:20px;color:var(--accent,#0067c0);line-height:1.2}
-.calc-res span{font-size:12px;color:var(--muted);margin-top:2px}
+.boot-bar-container{margin:12px 0 10px;background:var(--code);border-radius:8px;padding:3px;border:1px solid var(--line)}
+.boot-bar{display:flex;height:24px;border-radius:6px;overflow:hidden;font-size:11px;font-weight:650;color:#fff;line-height:24px;text-align:center}
+.boot-seg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 6px;transition:opacity .15s}
+.boot-seg:hover{opacity:.85}
+.boot-bios{background:#8b5cf6}
+.boot-kernel{background:#2563eb}
+.boot-post{background:#f59e0b}
+.boot-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin-top:8px}
+.boot-leg-item{display:inline-flex;align-items:center;gap:6px}
+.boot-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
 @media print{body{background:#fff}button{display:none}.box{break-inside:avoid}}
 '@
 }

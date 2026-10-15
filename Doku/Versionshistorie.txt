@@ -5,6 +5,19 @@ Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Info-Knopf oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
 
+VERSION 3.7    (15.10.2026)  SCHNELL BEHEBBARE SYSTEMFEHLER, STARTZEIT-ANALYSE, SENSOREN-HARMONISIERUNG UND MODULARES DASHBOARD
+====================================================================================================
+Schnell behebbare Konfigurationsfehler: Automatische Erkennung von LAN-Verhandlungsrate gebremst (100 Mbit/s oder Halbduplex an Gigabit/2.5GbE-Adaptern),
+Monitorkabel an iGPU statt dGPU bei Desktops, Hz-Bremse bei Monitoren >= 75 Hz auf 60 Hz limitiert, inaktivem RAM-Speicherprofil (XMP/EXPO/DOCP)
+und veraltetem BIOS (> 2 Jahre) mit direkten Hersteller-Supportlinks.
+Startzeit-Analyse: Aufschlüsselung der Boot Performance aus Event 100 (Kernel-Initialisierung, Desktop/PostBoot) und BIOS-POST-Dauer mit visueller
+Wasserfall-/Stack-Kaskade im Bericht sowie Erfassung von Autostart-Verzögerern (Event 101-110 ab 1,0 s); sauberer Fallback ohne Schätzwerte bei deaktiviertem Protokoll.
+Sensoren-Harmonisierung: Vereinheitlichte 4-Stufen-Zustandsmaschine (Vollständig, Eingeschränkt, Inaktiv, Fehler) für Treiber und Monitoring;
+automatische Treiberinitialisierung bei Vorliegen von Administratorrechten ohne störende Rückfragen und garantierte restlose Treiberbereinigung beim Beenden.
+Benchmark-Vergleichsmatrix: Beseitigung verschachtelter Scroll-Container (.matrix-scroll-wrapper), fixierte Tabellenköpfe und Merkmalsspalten,
+physikalisch korrekte Delta-Einheiten (Kelvin für Temperaturen, Prozentpunkte für Anteile, Standard-Prozente für absolute Scores) und vergrößerter linker Diagramm-Randabstand (85 px).
+Modulares Dashboard: Vollständige Trennung des Dashboard-Quelltexts in dedizierte Template-, Stylesheet- und JavaScript-Dateien (dashboard.html, dashboard.css, daten.js, matrix.js, profile.js, diagramme.js) mit build-zeitiger Einbettung.
+
 VERSION 3.67   (14.10.2026)  MULTI-SYSTEM-SENSORVERLAUF, DIFFERENZIERTE NUTZUNGSPROFILE UND KALIBRIERTE MODULDAUERN
 ====================================================================================================
 Sensorverlauf im Dashboard: Y-Achsenbeschriftung für Temperatur (°C) durch 75 px Randabstand und linksbündige Platzierung
