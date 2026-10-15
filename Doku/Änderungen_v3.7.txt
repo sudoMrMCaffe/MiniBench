@@ -3,7 +3,7 @@
 
 Version 3.7 spürt häufige Hardware- und Konfigurationsfehler automatisch auf ("Schnell behebbar"), schlüsselt die
 System-Startzeit transparent im Bericht auf, harmonisiert die Sensorüberwachung auf eine einheitliche 4-Stufen-Zustandsmaschine,
-korrigiert Einheiten und Tabellenlayouts in der Vergleichsmatrix und modularisiert den gewachsenen Dashboard-Quelltext.
+vereinfacht die Benchmark-Oberfläche, optimiert das Tabellenlayout im Dashboard und modularisiert den gewachsenen Dashboard-Quelltext.
 
 1. SCHNELL BEHEBBARE KONFIGURATIONSFEHLER
   LAN-Verhandlungsrate  Erkennung von Gigabit- und 2.5GbE-Netzwerkadaptern, die mit lediglich 100 Mbit/s (Fast Ethernet)
@@ -17,6 +17,8 @@ korrigiert Einheiten und Tabellenlayouts in der Vergleichsmatrix und modularisie
                         oder WMI-Nennfrequenz im Abgleich zum tatsächlichen Betriebstakt (ConfiguredClockSpeed).
   Veraltetes BIOS       Warnung bei Mainboard-Firmware, die älter als 24 Monate ist, ergänzt um direkte Links zu den
                         Support- und Downloadseiten der Hersteller (ASUS, Gigabyte, MSI, ASRock, Dell, HP, Lenovo).
+  Transparenz           Alle 5 Konfigurationsprüfungen werden im Diagnosebericht mit konkreten Messwerten gelistet;
+                        bei optimaler Konfiguration erscheint eine bestätigende Testzeile in der Übersicht.
 
 2. SYSTEM-STARTZEIT-ANALYSE (BOOT PERFORMANCE)
   Event-Log             Auswertung von Ereignis 100 im Protokoll Microsoft-Windows-Diagnostics-Performance/Operational:
@@ -24,11 +26,11 @@ korrigiert Einheiten und Tabellenlayouts in der Vergleichsmatrix und modularisie
                         (BootPostBootTime) bis zur System-Ruhephase.
   UEFI/BIOS-POST        Auslesen der Firmware-Initialisierungsdauer (FwPOSTTime) aus der Windows-Registrierung.
   Kaskadendarstellung   Visueller Stack-Balken mit Prozentanteilen und genauen Sekunden im HTML-Bericht:
-                        BIOS/Firmware -> Kernel & Treiber -> Desktop & Autostart.
+                        BIOS/Firmware -> Kernel & Treiber -> Desktop & Autostart. Als aufklappbare Sektion am Berichtsende.
   Autostart-Verzögerer  Erfassung von Anwendungen und Diensten aus den Ereignissen 101 bis 110, die den Systemstart
                         um mehr als 1,0 Sekunde verzögert haben.
-  Keine Schätzwerte     Ist das Protokoll deaktiviert oder enthält es keine Daten, wird dies sachlich als "Nicht verfügbar"
-                        ausgegeben; es werden keine synthetischen Zeiten erfunden.
+  Robuster Fallback     Ist BootDuration im Event 100 unvollständig oder 0, wird die Gesamtdauer aus Kernel- und Desktop-
+                        Phase addiert. Bei deaktiviertem Protokoll sachliche Ausgabe als "Nicht verfügbar" ohne Schätzwerte.
 
 3. SENSOREN-HARMONISIERUNG & STATUSMASCHINE
   Vier Zustände         Harmonisierung aller Sensoranzeigen auf vier globale Zustände: Vollständig (Ring-0-Treiber aktiv),
@@ -38,21 +40,24 @@ korrigiert Einheiten und Tabellenlayouts in der Vergleichsmatrix und modularisie
   Rückstandskontrolle   Beim Schließen der Anwendung werden temporär geladene Treiberdienste zuverlässig entladen,
                         sodass keine Treiberreste auf dem System verbleiben.
 
-4. BENCHMARK-VERGLEICHSMATRIX & DIAGRAMME
-  Scroll-Container      Verschachtelte Scrollbereiche wurden aufgelöst; die Matrix besitzt nun einen einzigen horizontalen
-                        Bildlaufbereich (.matrix-scroll-wrapper).
-  Sticky-Headers        Fixierte Kopfzeilen (Systemnamen oben) und Merkmalsspalten (Metriknamen links) bleiben beim Scrollen
-                        in beide Richtungen sauber ausgerichtet.
-  Physikalische Deltas  Temperaturunterschiede werden korrekt in Kelvin (K) ausgewiesen, relative Anteile und Auslastungen
-                        in Prozentpunkten (%p), absolute Leistungs- und Durchsatzwerte wie gewohnt in Prozent (%).
-  Diagramm-Padding      Linker Innenabstand im Multi-System-Sensorverlauf auf 85 px vergrößert, sodass mehrstellige
-                        Temperatur- und Wattwerte ohne Randanschnitt dargestellt werden.
+4. BENCHMARK-VERGLEICHSMATRIX & BERICHTE
+  Vollseiten-Matrix     Vertikaler Scrollbalken in der Matrix entfernt; die Tabelle expandiert über die volle Länge mit
+                        einem einzigen horizontalen Scrollbereich (.matrix-scroll-wrapper).
+  Tabellenende-Kopf     Am Ende der Matrix-Tabelle werden die Systemnamen nochmals wiederholt (tfoot), sodass beim
+                        Durchmustern langer Messwertreihen nicht nach oben gescrollt werden muss.
+  Sichtbare Trennlinien Zeilenbegrenzungen in der Referenzspalte (col-base) sind nun durchgehend und deutlich sichtbar.
+  Metrische Einheiten   Temperaturunterschiede werden einheitlich in Grad Celsius (°C) ausgewiesen, relative Anteile
+                        in Prozent (%), absolute Punktzahlen und Raten wie gewohnt in Prozent.
+  Diagramm-Padding      Linker Innenabstand im Multi-System-Sensorverlauf auf 60 px zurückgestellt, um Platz zu sparen.
+  Bericht-Details       Stromkostenrechner standardmäßig ausgeklappt, Rohdaten-Details und Zeitbedarf standardmäßig eingeklappt.
+                        Redundante Referenz-Spalten und Profilkarten aus dem Einzelbericht entfernt (abgedeckt durch Dashboard).
 
-5. BENCHMARK-ABLAUF & REFERENZ-LOGIK
+5. BENCHMARK-ABLAUF & OBERFLÄCHE
+  Vereinfachte Maske    Messdauer-Dropdown und Referenzauswahl aus der Startmaske entfernt.
+  Datenbank-Standard    Die Checkbox zur Datenbankspeicherung entfällt; Benchmark-Ergebnisse werden stets in der
+                        Vergleichsdatenbank archiviert.
   Veralteter Parameter  -BenchmarkKurz ist als veraltet markiert; bei Übergabe wird eine informative Meldung protokolliert
                         und der reguläre Standard-Benchmark ausgeführt.
-  Entkopplung           Das redundante Referenz-Dropdown wurde aus der Benchmark-Startmaske entfernt. Die Auswahl und
-                        Zuweisung persistenter oder temporärer Referenzen erfolgt nun sauber über die Vergleichsdatenbank.
 
 6. MODULARES DASHBOARD
   Dateistruktur         Get-BenchDashboardHtmlTemplate wurde modularisiert und in separate Quelltextdateien unter
@@ -65,9 +70,10 @@ korrigiert Einheiten und Tabellenlayouts in der Vergleichsmatrix und modularisie
 GEFUNDEN UND BEHOBEN
   In Get-BiosVendorSupportUrl wurde der PowerShell-7-Operator ?? verwendet, der unter Windows PowerShell 5.1 zu Syntaxfehlern führte.
   Bei Monitoren an Notebooks mit Hybridgrafik (NVIDIA Optimus / AMD Enduro) wurde fälschlich ein falscher Anschluss gemeldet; die Prüfung ist nun auf Desktops beschränkt.
-  Die Header- und Merkmalsspalten in der Matrix-Tabelle verschoben sich beim diagonalen Scrollen; durch die einheitliche Wrapper-Klasse und z-index-Hierarchie bleiben sie fixiert.
-  Temperaturdeltas wurden zuvor als prozentualer Anstieg angegeben, was physikalisch irreführend war.
-  Die Startmaske des Benchmarks bot ein redundantes Referenz-Dropdown an, das mit gespeicherten Referenzdateien kollidieren konnte.
+  Auf Systemen mit optimaler Konfiguration schwieg die Diagnose zu den 5 Schnell-behebbar-Prüfungen; nun transparente Bestätigung über eigene Diagnosetest-Zeile.
+  BootDuration in Event 100 war auf manchen Systemen 0 ms, wodurch die Kaskadenbalken überliefen; korrigiert durch Summenbildung aus Kernel- und Desktop-Dauer.
+  In der Basiskolumne der Matrix waren die Zeilenlinien durch den Akzent-Hintergrund überdeckt; behoben durch border-bottom mit Priorität.
+  Diagramm-Padding im Multi-System-Sensorverlauf auf 60 px kalibriert, um ungenutzten Weißraum zu vermeiden.
 
 GRENZEN
   Die Startzeit-Analyse setzt das Windows-Protokoll Diagnostics-Performance/Operational voraus; auf stark bereinigten Systemen oder virtuellen Maschinen ohne aktiviertes Protokoll wird die Analyse als nicht verfügbar ausgewiesen.

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -116,8 +116,6 @@ public partial class DiagGui : Form
     CheckBox[] benchChk;
     CheckedListBox clbDisks, clbCompare;
     List<string> diskNums = new List<string>();
-    ComboBox cmbBenchDur;
-    CheckBox chkDbSave, chkRefSave;
     List<DbEntry> refItems = new List<DbEntry>(), cmpItems = new List<DbEntry>();
     // Lasttest
     CheckBox chkLCpu, chkLRam, chkLGpu, chkLDisk;
@@ -942,9 +940,6 @@ public partial class DiagGui : Form
         Tip(cmbGpuRes, "Auflösung des Rendertests. Bilder/s sind nur bei gleicher Auflösung vergleichbar, die Punktzahl auch über Auflösungen.");
         Tip(cmbGpuShow, "Fenster: Vorschau des Rendertests. Vollbild: erste Grafikeinheit im Vollbild. Ohne Anzeige: misst unsichtbar (Esc entfällt).");
         Tip(chkGpuWahl, "Bei Notebooks mit zwei Grafikeinheiten misst WinSAT nur die Einheit, die den Desktop ausgibt. Mit diesem Haken wird WinSAT kurz auf die Grafikkarte gestellt und gleich wieder zurück (steht im Änderungsprotokoll).");
-        Tip(cmbBenchDur, "Normal: 5 Sekunden je Messung, stabile Werte. Kurz: 2 Sekunden, etwa halbe Dauer; Kurzläufe werden nur mit Kurzläufen verglichen.");
-        Tip(chkDbSave, "Legt die Werte dieses Laufs als Eintrag in Minibench-Daten\\Datenbank ab (Verlauf auf diesem PC, Vergleiche, Rang).");
-        Tip(chkRefSave, "Speichert die Werte dieses Laufs als Referenz.json im Datenordner. Alle PCs, die mit diesem Datenordner messen, werden dann in Prozent dieses Systems angegeben.");
         // Lasttest
         Tip(chkLCpu, "Alle logischen Prozessoren rechnen mit Ergebnisprüfung; Rechenfehler deuten auf Instabilität (Übertaktung, Spannung, Kühlung, Netzteil). Läuft in einem eigenen Prozess ohne Unterbrechungen. Mit Sensoren gibt es Takt- und Temperaturverlauf und den Drosselnachweis. Ersetzt ab v2.7 den CPU-Stabilitätstest der Diagnose.");
         Tip(chkLRam, "Mustertest über einen Teil des freien Arbeitsspeichers mit Bitfehlerprüfung. Neben der CPU-Last läuft er mit niedriger Priorität auf einem Viertel der Threads.");
@@ -1397,13 +1392,7 @@ public partial class DiagGui : Form
         chkGpuWahl = Chk("Bei Hybridgrafik WinSAT zusätzlich auf der Grafikkarte messen", false);
         Control gw = Opt2(chkGpuWahl, "kurze Umstellung der Grafikeinheit für WinSAT, gleich danach zurück", RiskBadge("Aendern")); gw.Margin = new Padding(0, UI.S(UI.Abstand2), 0, 0); f.Controls.Add(gw);
 
-        f.Controls.Add(Section("Messdauer"));
-        FlowLayoutPanel r1 = Row(); r1.Controls.Add(RowLabel("Messdauer", 170));
-        cmbBenchDur = Combo(260, new string[] { "Normal (stabile Werte)", "Kurz (etwa halbe Dauer)" }, 0); cmbBenchDur.SelectedIndexChanged += delegate { UpdateSummary(); }; r1.Controls.Add(cmbBenchDur); f.Controls.Add(r1);
         clbCompare = new CheckedListBox(); clbCompare.BackColor = UI.Panel; clbCompare.ForeColor = UI.Text;
-        f.Controls.Add(Section("Speichern"));
-        chkDbSave = Chk("Ergebnis in der Vergleichsdatenbank speichern", dbDir.Length > 0); chkDbSave.Enabled = dbDir.Length > 0; f.Controls.Add(chkDbSave);
-        chkRefSave = Chk("Dieses System als Referenz (100 %) festlegen", false); f.Controls.Add(chkRefSave);
         FillRefLists();
         return f;
     }
@@ -2704,7 +2693,7 @@ public partial class DiagGui : Form
         }
         else if (mod == 1)
         {
-            bool kurz = cmbBenchDur.SelectedIndex == 1;
+            bool kurz = false;
             if (benchChk[0].Checked) t += kurz ? 1 : 2;
             if (benchChk[1].Checked) t += 1;
             if (benchChk[2].Checked) t += 2;
@@ -2824,13 +2813,10 @@ public partial class DiagGui : Form
                 if (dn.Count == 0) { MessageBox.Show(this, "Für den Laufwerks-Benchmark ist kein Laufwerk ausgewählt.", "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Information); ShowPage(1); return; }
                 a.Append(" -BenchLaufwerke ").Append(String.Join(",", dn.ToArray()));
             }
-            if (cmbBenchDur.SelectedIndex == 1) a.Append(" -BenchmarkKurz");
             if (benchChk[2].Checked && chkGpuWahl != null && chkGpuWahl.Checked) a.Append(" -BenchGpuWahl");
             List<string> cmp = new List<string>();
             if (clbCompare.Enabled) for (int i = 0; i < clbCompare.Items.Count && i < cmpItems.Count; i++) if (clbCompare.GetItemChecked(i)) cmp.Add(cmpItems[i].Path);
             if (cmp.Count > 0) a.Append(" -VergleichDateien ").Append(Q(String.Join(";", cmp.ToArray())));
-            if (!chkDbSave.Checked) a.Append(" -KeineDatenbank");
-            if (chkRefSave.Checked) a.Append(" -ReferenzSpeichern");
         }
         if (nav[2].Checked)
         {
@@ -3173,7 +3159,7 @@ public partial class DiagGui : Form
         PutC(d, "Diag.SchnellerModus", chkFast); PutC(d, "Diag.Smartmontools", chkInstall); PutC(d, "Diag.Speicherdiagnose", chkMem);
         PutCb(d, "Diag.Tage", cmbDays); PutCb(d, "Diag.SmartMax", cmbSmartMax);
         for (int i = 0; i < benchKeys.Length && benchChk != null; i++) d["Bench." + benchKeys[i]] = benchChk[i].Checked;
-        PutC(d, "Bench.GpuWahl", chkGpuWahl); PutCb(d, "Bench.Dauer", cmbBenchDur); PutC(d, "Bench.Datenbank", chkDbSave);
+        PutC(d, "Bench.GpuWahl", chkGpuWahl);
         PutCb(d, "Gpu.Aufloesung", cmbGpuRes); PutCb(d, "Gpu.Anzeige", cmbGpuShow); d["Gpu.Auswahl"] = GpuChoiceValue(cmbGpuSel);
         PutC(d, "Last.CPU", chkLCpu); PutCb(d, "Last.CPUDauer", cmbLCpu);
         PutC(d, "Last.RAM", chkLRam); PutCb(d, "Last.RAMDauer", cmbLRam); PutCb(d, "Last.RAMAnteil", cmbLRamPct);
@@ -3210,9 +3196,7 @@ public partial class DiagGui : Form
         GetC(d, "Diag.SchnellerModus", chkFast);
         GetCb(d, "Diag.Tage", cmbDays); GetCb(d, "Diag.SmartMax", cmbSmartMax);
         for (int i = 0; i < benchKeys.Length && benchChk != null; i++) GetC(d, "Bench." + benchKeys[i], benchChk[i]);
-        GetC(d, "Bench.GpuWahl", chkGpuWahl); GetCb(d, "Bench.Dauer", cmbBenchDur);
-        if (chkDbSave != null && chkDbSave.Enabled) GetC(d, "Bench.Datenbank", chkDbSave);
-        if (chkRefSave != null) chkRefSave.Checked = false;
+        GetC(d, "Bench.GpuWahl", chkGpuWahl);
         GetCb(d, "Gpu.Aufloesung", cmbGpuRes); GetCb(d, "Gpu.Anzeige", cmbGpuShow);
         string gs = GetS(d, "Gpu.Auswahl"); if (gs != null) SetGpuChoice(gs);
         GetC(d, "Last.CPU", chkLCpu); GetCb(d, "Last.CPUDauer", cmbLCpu);

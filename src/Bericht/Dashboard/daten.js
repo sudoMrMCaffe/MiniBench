@@ -1,4 +1,4 @@
-  let data = window.MINIBENCH_DASHBOARD_DATA;
+﻿  let data = window.MINIBENCH_DASHBOARD_DATA;
   let baseSystem = null;
   let comparedSystems = [];
   let selectedCompareIds = new Set();
@@ -211,17 +211,17 @@
     if (unit === '°C') {
       const diff = currVal - refVal;
       const sign = diff > 0 ? '+' : '';
-      const text = sign + diff.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' K';
+      const text = sign + diff.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' °C';
       let cls = 'neutral';
       if (diff <= -1.0) cls = 'ok';
       else if (diff >= 2.0) cls = 'crit';
-      return { text: text, cls: cls, value: diff, type: 'K' };
+      return { text: text, cls: cls, value: diff, type: '°C' };
     }
 
     if (unit === '%') {
       const diff = currVal - refVal;
       const sign = diff > 0 ? '+' : '';
-      const text = sign + diff.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %p';
+      const text = sign + diff.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
       let cls = 'neutral';
       if (lowerIsBetter) {
         if (diff <= -1.0) cls = 'ok';
@@ -230,7 +230,7 @@
         if (diff >= 1.0) cls = 'ok';
         else if (diff <= -2.0) cls = 'crit';
       }
-      return { text: text, cls: cls, value: diff, type: '%p' };
+      return { text: text, cls: cls, value: diff, type: '%' };
     }
 
     // Standard relative percentage delta
@@ -415,7 +415,7 @@
       data.References.forEach(r => {
         const opt = document.createElement('option');
         opt.value = String(r.Id);
-        opt.textContent = '⭐ ' + r.DisplayName;
+        opt.textContent = r.DisplayName;
         refGroup.appendChild(opt);
       });
     }
@@ -455,7 +455,7 @@
       dot.style.background = isChecked ? getSysColor(colorIdx, isDark) : 'var(--text-subtle)';
 
       const txt = document.createElement('span');
-      txt.textContent = (sys.IsReference ? '⭐ ' : '') + sys.DisplayName + (sys.Datum ? ' (' + sys.Datum.split(' ')[0] + ')' : '');
+      txt.textContent = sys.DisplayName + (sys.Datum ? ' (' + sys.Datum.split(' ')[0] + ')' : '');
 
       label.appendChild(chk);
       label.appendChild(dot);

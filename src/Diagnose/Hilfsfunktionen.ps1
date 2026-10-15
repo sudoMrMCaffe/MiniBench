@@ -392,6 +392,12 @@ function Get-SystemBootPerformance {
             if ($dataMap.ContainsKey('BootPostBootTime')) { [int64]::TryParse($dataMap['BootPostBootTime'], [ref]$postBoot) | Out-Null }
 
             if ($bootDuration -gt 0 -or $mainPath -gt 0) {
+                if ($bootDuration -le 0 -and ($mainPath -gt 0 -or $postBoot -gt 0)) {
+                    $bootDuration = $mainPath + $postBoot
+                }
+                if ($mainPath -le 0 -and $bootDuration -gt 0) {
+                    $mainPath = [math]::Max(0, $bootDuration - $postBoot)
+                }
                 $result.Verfuegbar = $true
                 $result.StatusText = 'Verfügbar'
                 $result.KernelSekunden = [math]::Round(([double]$mainPath / 1000.0), 1)
@@ -399,7 +405,7 @@ function Get-SystemBootPerformance {
                 $result.OsBootSekunden = [math]::Round(([double]$bootDuration / 1000.0), 1)
                 $result.GesamtSekunden = $result.OsBootSekunden
 
-                if ($result.BiosSekunden) {
+                if ($result.BiosSekunden -and [double]$result.BiosSekunden -gt 0) {
                     $result.SystemGesamtSekunden = [math]::Round(($result.BiosSekunden + $result.GesamtSekunden), 1)
                 } else {
                     $result.SystemGesamtSekunden = $result.GesamtSekunden

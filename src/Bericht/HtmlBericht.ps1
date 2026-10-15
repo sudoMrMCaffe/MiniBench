@@ -1,4 +1,4 @@
-function Get-TelemetryTip {
+﻿function Get-TelemetryTip {
     param($Sample)
     $t = [int]$Sample.T
     $mm = [int][math]::Floor($t / 60); $ss = [int]($t % 60)
@@ -367,7 +367,7 @@ function New-PowerEfficiencyHtml($Profile) {
     if ($pTeilNum -gt 0 -or $pVollNum -gt 0) {
         $initKwh = [math]::Round((4 * $pTeilNum + 2 * $pVollNum) * 365 / 1000.0, 1)
         $initCost = [math]::Round($initKwh * 0.35, 2)
-        [void]$sb.Append('<details style="margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:10px 16px;"><summary style="font-weight:650;color:var(--accent);">💰 Jährliche Stromkosten-Schätzung (Verbrauchskalkulator)</summary>')
+        [void]$sb.Append('<details open style="margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:10px 16px;"><summary style="font-weight:650;color:var(--accent);">Jährliche Stromkosten-Schätzung (Verbrauchskalkulator)</summary>')
         $calcTpl = @'
 <div class="calc-grid">
 <input type="hidden" id="calcPTeil" value="{0}">
@@ -403,25 +403,26 @@ function New-BootPerformanceHtml {
     param($BootPerf)
     if (-not $BootPerf) { return '' }
     $sb = New-Object System.Text.StringBuilder
-    [void]$sb.Append('<section class="box" data-section="system"><h2>System-Startzeit</h2>')
+    $secText = if ($BootPerf.SystemGesamtSekunden) { '{0:N1} s' -f $BootPerf.SystemGesamtSekunden } else { '' }
+    [void]$sb.Append('<details class="box grp" data-section="system"><summary style="cursor:pointer;font-size:1.15em;font-weight:600;"><span class="gname">System-Startzeit</span>' + $(if ($secText) { '<span class="gsub">' + $secText + '</span>' } else { '' }) + '</summary>')
     if (-not $BootPerf.Verfuegbar) {
         $msg = if ($BootPerf.StatusText) { $BootPerf.StatusText } else { 'Nicht verfügbar (Diagnostics-Performance-Protokoll deaktiviert)' }
-        [void]$sb.Append(('<p class="empty">{0}</p>' -f (ConvertTo-HtmlText $msg)))
-        [void]$sb.Append('</section>')
+        [void]$sb.Append(('<p class="empty" style="margin:12px 0;">{0}</p>' -f (ConvertTo-HtmlText $msg)))
+        [void]$sb.Append('</details>')
         return $sb.ToString()
     }
-    $biosSec = if ($BootPerf.BiosSekunden) { [double]$BootPerf.BiosSekunden } else { 0.0 }
-    $kernSec = [double]$BootPerf.KernelSekunden
-    $postSec = [double]$BootPerf.DesktopSekunden
-    $totSec  = [double]$BootPerf.SystemGesamtSekunden
-    if ($totSec -le 0) { $totSec = $biosSec + $kernSec + $postSec }
-    if ($totSec -le 0) { $totSec = 1.0 }
+    $biosSec = if ($BootPerf.BiosSekunden -and [double]$BootPerf.BiosSekunden -gt 0) { [double]$BootPerf.BiosSekunden } else { 0.0 }
+    $kernSec = if ($BootPerf.KernelSekunden) { [double]$BootPerf.KernelSekunden } else { 0.0 }
+    $postSec = if ($BootPerf.DesktopSekunden) { [double]$BootPerf.DesktopSekunden } else { 0.0 }
+    $totSec  = $biosSec + $kernSec + $postSec
+    if ($totSec -le 0) { $totSec = if ($BootPerf.SystemGesamtSekunden) { [double]$BootPerf.SystemGesamtSekunden } else { 1.0 } }
 
-    $pBios = [math]::Round(($biosSec / $totSec) * 100.0, 1)
-    $pKern = [math]::Round(($kernSec / $totSec) * 100.0, 1)
+    $pBios = if ($totSec -gt 0) { [math]::Round(($biosSec / $totSec) * 100.0, 1) } else { 0.0 }
+    $pKern = if ($totSec -gt 0) { [math]::Round(($kernSec / $totSec) * 100.0, 1) } else { 0.0 }
     $pPost = [math]::Max(0.0, [math]::Round(100.0 - $pBios - $pKern, 1))
 
-    [void]$sb.Append(('<p class="note">Gesamte Startzeit: <b>{0:N1} s</b> (Ereignis 100 aus dem Windows-Diagnoseprotokoll)</p>' -f $BootPerf.SystemGesamtSekunden))
+    $biosNote = $(if ($biosSec -gt 0) { ' (davon BIOS/POST: {0:N1} s, Windows: {1:N1} s)' -f $biosSec, $BootPerf.OsBootSekunden } else { ' (Ereignis 100 aus dem Windows-Diagnoseprotokoll)' })
+    [void]$sb.Append(('<p class="note" style="margin:10px 0;">Gesamte Startzeit bis System-Bereitschaft: <b>{0:N1} s</b>{1}</p>' -f $totSec, $biosNote))
     [void]$sb.Append('<div class="boot-bar-container"><div class="boot-bar">')
     if ($biosSec -gt 0) {
         [void]$sb.Append(('<div class="boot-seg boot-bios" style="width:{0}%" title="BIOS / Firmware: {1:N1} s ({0} %)">BIOS {1:N1} s</div>' -f $pBios, $biosSec))
@@ -431,7 +432,9 @@ function New-BootPerformanceHtml {
     [void]$sb.Append('</div></div>')
 
     [void]$sb.Append('<div class="boot-legend">')
-    [void]$sb.Append(('<div class="boot-leg-item"><i class="boot-dot boot-bios"></i><b>BIOS / Firmware:</b> {0}</div>' -f $(if ($biosSec -gt 0) { '{0:N1} s' -f $biosSec } else { 'n/v' })))
+    if ($biosSec -gt 0) {
+        [void]$sb.Append(('<div class="boot-leg-item"><i class="boot-dot boot-bios"></i><b>BIOS / Firmware:</b> {0:N1} s</div>' -f $biosSec))
+    }
     [void]$sb.Append(('<div class="boot-leg-item"><i class="boot-dot boot-kernel"></i><b>Kernel &amp; Treiber:</b> {0:N1} s</div>' -f $kernSec))
     [void]$sb.Append(('<div class="boot-leg-item"><i class="boot-dot boot-post"></i><b>Desktop &amp; Autostart:</b> {0:N1} s</div>' -f $postSec))
     [void]$sb.Append(('<div class="boot-leg-item"><i class="boot-dot" style="background:var(--text)"></i><b>Betriebssystem gesamt:</b> {0:N1} s</div>' -f $BootPerf.OsBootSekunden))
@@ -445,7 +448,7 @@ function New-BootPerformanceHtml {
         }
         [void]$sb.Append('</tbody></table></div>')
     }
-    [void]$sb.Append('</section>')
+    [void]$sb.Append('</details>')
     return $sb.ToString()
 }
 
@@ -559,7 +562,6 @@ function New-HtmlReport {
     }
     [void]$sb.Append(('<section class="cards" data-section="system">{0}{1}{2}{3}{4}{5}{6}</section>' -f $befCard, $benchCard, $mtCard, $fpsCard, $ssdCard, $effCard, $stCard))
     if ($script:Stability -and $script:Stability.Erklaerung) { [void]$sb.Append(('<section class="box stab {0}" data-section="system"><h2>Zuverlässigkeit {1:N1} von 10</h2><p>{2}</p></section>' -f $script:Stability.Klasse, $script:Stability.Index, (ConvertTo-HtmlText $script:Stability.Erklaerung))) }
-    if ($script:BootPerformance) { [void]$sb.Append((New-BootPerformanceHtml $script:BootPerformance)) }
 
     if ($script:Facts.Count) {
         [void]$sb.Append('<section class="box" data-section="hardware"><h2>System</h2><dl>')
@@ -610,21 +612,14 @@ function New-HtmlReport {
         $refNote = $(if ($script:RefSavedNow -and -not (Test-HasReference)) { ' Dieser Lauf wurde als Referenz gespeichert; ab dem nächsten Lauf ist dieser PC 100 %.' }
             elseif ($script:RefSavedNow) { ' Referenz 100 % = {0}{1}; dieser Lauf wurde als neue Referenz gespeichert und gilt ab dem nächsten Lauf.' -f $script:Ref.Name, $refDat } elseif (Test-HasReference) { ' Referenz 100 % = {0}{1}, Laufwerke im Vergleich zur gleichen Klasse.' -f $script:Ref.Name, $refDat } else { ' Keine Referenz festgelegt (Haken "Dieses System als Referenz festlegen" im Benchmark).' })
         [void]$sb.Append('<section class="box" data-section="benchmark"><div class="bar"><h2>Leistung (Benchmark)</h2><button onclick="var d=this.closest(''section'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
-        [void]$sb.Append((New-ProfileCards))
-        [void]$sb.Append((New-BenchOverview))
-        [void]$sb.Append(('<p class="note">Kacheln: Ergebnis je Bereich in Prozent der Referenz (Strich = 100 %).{0} Im Gesamtbild werden Prozessor und Grafik höher gewichtet; bei der Grafik zählt die gemessene FPS-Renderleistung dreifach gegenüber Durchsatzwerten. Index 100 in den Tabellen entspricht dem typischen Wert der Hardwareklasse. Vergleich bezieht sich auf frühere Läufe auf diesem PC, grün besser, orange mindestens 10 % schlechter.</p>' -f (ConvertTo-HtmlText $refNote)))
-        if (@($script:BenchRefRows).Count) {
-            [void]$sb.Append(('<details class="grp"><summary><span class="gname">Referenzwerte</span><span class="gsub">{0}</span></summary><div class="tw"><table><thead><tr><th>Messgröße</th><th class="r">Referenz</th><th>Herkunft</th></tr></thead><tbody>' -f (ConvertTo-HtmlText $script:Ref.Name)))
-            foreach ($r in @($script:BenchRefRows)) { [void]$sb.Append(('<tr><td>{0}</td><td class="num r">{1}</td><td>{2}</td></tr>' -f (ConvertTo-HtmlText $r.'Messgröße'), (ConvertTo-HtmlText $r.Referenz), (ConvertTo-HtmlText $r.Herkunft))) }
-            [void]$sb.Append('</tbody></table></div></details>')
-        }
+        [void]$sb.Append(('<p class="note">Index 100 in den Tabellen entspricht dem typischen Wert der Hardwareklasse.{0} Vergleich bezieht sich auf frühere Läufe auf diesem PC, grün besser, orange mindestens 10 % schlechter. Für den Systemvergleich das Dashboard nutzen.</p>' -f $refNote))
         foreach ($gk in $script:BenchGroupOrder) {
             $g = Get-BenchGroup $gk
             if (-not $g.Anzahl) { continue }
             $gc = $bcls[$g.Status]; if (-not $gc) { $gc = 'info' }
             $open = $(if ((Get-StatusRank $g.Status) -ge 2 -or $gk -eq 'WinSAT') { ' open' } else { '' })
-            [void]$sb.Append(('<details class="grp" id="bg-{6}"{0}><summary><span class="gname">{1}</span>{3}<span class="badge {4}">{5}</span></summary>' -f $open,
-                (ConvertTo-HtmlText $g.Name), '', $(if ($g.Referenz) { '<span class="gref" title="im Vergleich zur Referenz">Referenz <b>' + $g.Referenz + '</b></span>' } else { '' }), $gc, (ConvertTo-HtmlText $g.Status), $gk))
+            [void]$sb.Append(('<details class="grp" id="bg-{4}"{0}><summary><span class="gname">{1}</span><span class="badge {2}">{3}</span></summary>' -f $open,
+                (ConvertTo-HtmlText $g.Name), $gc, (ConvertTo-HtmlText $g.Status), $gk))
             if ($gk -ne 'WinSAT') {
                 $compName = $(if ($script:BenchHead.ContainsKey($gk) -and $script:BenchHead[$gk]) { [string]$script:BenchHead[$gk] } elseif ($g.Kopf) { $g.Kopf } else { $g.Name })
                 $word = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { Get-BenchRatingWord $g.RefPct } else { '' }
@@ -637,22 +632,22 @@ function New-HtmlReport {
                 [void]$sb.Append((New-WinsatSvg $g.Items $script:WinsatTotal))
                 [void]$sb.Append('<p class="note tight">Windows-Leistungsbewertung auf einer Skala von 1,0 bis 9,9. Die gestrichelte Linie zeigt den Gesamtwert, er entspricht dem niedrigsten Teilwert. Die Spielegrafik-Bewertung ist seit Windows 10 fest auf 9,9 gesetzt und fehlt deshalb.</p>')
             } elseif ($gk -eq 'Laufwerke') {
-                [void]$sb.Append('<div class="tw"><table class="disks"><thead><tr><th>Laufwerk</th><th>Klasse</th><th class="r">Lesen<br><small>MB/s</small></th><th class="r">Schreiben<br><small>MB/s</small></th><th class="r">4K QD1<br><small>IOPS</small></th><th class="r">4K 8 Thr.<br><small>IOPS</small></th><th class="r">4K schr.<br><small>IOPS</small></th><th>Index</th><th>Referenz</th><th>Ergebnis</th></tr></thead><tbody>')
+                [void]$sb.Append('<div class="tw"><table class="disks"><thead><tr><th>Laufwerk</th><th>Klasse</th><th class="r">Lesen<br><small>MB/s</small></th><th class="r">Schreiben<br><small>MB/s</small></th><th class="r">4K QD1<br><small>IOPS</small></th><th class="r">4K 8 Thr.<br><small>IOPS</small></th><th class="r">4K schr.<br><small>IOPS</small></th><th>Index</th><th>Ergebnis</th></tr></thead><tbody>')
                 foreach ($d in $g.Disks) {
                     $c = $bcls[$d.Status]; if (-not $c) { $c = 'info' }
                     $n = { param($v) if ([double]$v -gt 0) { '{0:N0}' -f [double]$v } else { '' } }
-                    [void]$sb.Append(('<tr title="{0}"><td>{1}</td><td class="muted">{2}</td><td class="num r">{3}</td><td class="num r">{4}</td><td class="num r">{5}</td><td class="num r">{6}</td><td class="num r">{7}</td><td class="idx">{8}</td><td class="num nw">{9}</td><td><span class="badge {10}">{11}</span></td></tr>' -f
+                    [void]$sb.Append(('<tr title="{0}"><td>{1}</td><td class="muted">{2}</td><td class="num r">{3}</td><td class="num r">{4}</td><td class="num r">{5}</td><td class="num r">{6}</td><td class="num r">{7}</td><td class="idx">{8}</td><td><span class="badge {9}">{10}</span></td></tr>' -f
                         (ConvertTo-HtmlText (($d.Hinweis, $d.Vergleich | Where-Object { $_ }) -join '; ')), (ConvertTo-HtmlText $d.Laufwerk), (ConvertTo-HtmlText $d.Klasse),
-                        (& $n $d.SR), (& $n $d.SW), (& $n $d.R1), (& $n $d.R8), (& $n $d.W1), (& $idxHtml $d.Index $d.Status -Small), ((Get-RefBar $d.RefPct 'info' -Small) + (ConvertTo-HtmlText $d.Referenz)), $c, (ConvertTo-HtmlText $d.Status)))
+                        (& $n $d.SR), (& $n $d.SW), (& $n $d.R1), (& $n $d.R8), (& $n $d.W1), (& $idxHtml $d.Index $d.Status -Small), $c, (ConvertTo-HtmlText $d.Status)))
                 }
                 [void]$sb.Append('</tbody></table></div><p class="note tight">Lesen und Schreiben sequentiell mit 1 MiB-Blöcken, 4K-Werte in Zugriffen pro Sekunde, jeweils ohne Windows-Cache. Details beim Überfahren einer Zeile.</p>')
             } else {
-                [void]$sb.Append('<div class="tw"><table><thead><tr><th>Messung</th><th class="r">Wert</th><th>Index</th><th>Referenz</th><th>Vergleich</th><th>Ergebnis</th></tr></thead><tbody>')
+                [void]$sb.Append('<div class="tw"><table><thead><tr><th>Messung</th><th class="r">Wert</th><th>Index</th><th>Vergleich</th><th>Ergebnis</th></tr></thead><tbody>')
                 foreach ($b in $g.Items) {
                     $c = $bcls[[string]$b.Status]; if (-not $c) { $c = 'info' }
-                    [void]$sb.Append(('<tr><td>{0}{1}</td><td class="num r">{2}</td><td class="idx">{3}</td><td class="num nw">{4}</td><td class="nw">{5}</td><td><span class="badge {6}">{7}</span></td></tr>' -f
+                    [void]$sb.Append(('<tr><td>{0}{1}</td><td class="num r">{2}</td><td class="idx">{3}</td><td class="nw">{4}</td><td><span class="badge {5}">{6}</span></td></tr>' -f
                         (ConvertTo-HtmlText $b.Messung), $(if ($b.Hinweis) { '<small class="hint">' + (ConvertTo-HtmlText $b.Hinweis) + '</small>' } else { '' }), (ConvertTo-HtmlText $b.Anzeige),
-                        (& $idxHtml $b.Index $b.Status), ((Get-RefBar $b.RefPct 'info' -Small) + (ConvertTo-HtmlText $b.Referenz)), (Get-DeltaHtml $b.Vergleich), $c, (ConvertTo-HtmlText $b.Status)))
+                        (& $idxHtml $b.Index $b.Status), (Get-DeltaHtml $b.Vergleich), $c, (ConvertTo-HtmlText $b.Status)))
                 }
                 [void]$sb.Append('</tbody></table></div>')
                 if ($gk -eq 'GPU') { [void]$sb.Append((New-RenderChartsHtml)) }
@@ -709,36 +704,6 @@ function New-HtmlReport {
             foreach ($p in $script:LoadParts) { $c = $cls[[string]$p.Ergebnis]; if (-not $c) { $c = 'info' }; [void]$sb.Append(('<tr><td>{0}</td><td class="nw">{1}</td><td><span class="badge {2}">{3}</span></td><td>{4}</td></tr>' -f (ConvertTo-HtmlText $p.Komponente), $p.Dauer, $c, (ConvertTo-HtmlText $p.Ergebnis), (ConvertTo-HtmlText $p.Details))) }
             [void]$sb.Append('</tbody></table>')
         }
-        $refLt = if ($script:Ref -and $script:Ref.Lasttest) { $script:Ref.Lasttest } else { $null }
-        if ($refLt -and $script:SensorDb['Last']) {
-            $lastDb = $script:SensorDb['Last']
-            [void]$sb.Append('<h3>Lasttest-Vergleich mit Referenz (' + (ConvertTo-HtmlText $script:Ref.Name) + ')</h3>')
-            [void]$sb.Append('<table><thead><tr><th>Messgröße</th><th>Dieser PC</th><th>Referenz</th><th>Abweichung</th><th>Status</th></tr></thead><tbody>')
-            if ($null -ne $lastDb.CpuTempMax -and $refLt.CpuTempMax) {
-                $diff = [double]$lastDb.CpuTempMax - [double]$refLt.CpuTempMax
-                $diffStr = $(if ($diff -gt 0) { '+{0:N0} K' -f $diff } elseif ($diff -lt 0) { '{0:N0} K' -f $diff } else { '±0 K' })
-                $stCls = $(if ($diff -le 3) { 'ok' } elseif ($diff -le 10) { 'warn' } else { 'err' })
-                $stTxt = $(if ($diff -le 0) { 'Kühler' } elseif ($diff -le 5) { 'Normal' } else { 'Wärmer' })
-                [void]$sb.Append(('<tr><td>CPU-Höchsttemperatur</td><td class="nw">{0:N0} °C</td><td class="nw">{1:N0} °C</td><td class="nw">{2}</td><td><span class="badge {3}">{4}</span></td></tr>' -f $lastDb.CpuTempMax, $refLt.CpuTempMax, $diffStr, $stCls, $stTxt))
-            }
-            if ($null -ne $lastDb.GpuTempMax -and $refLt.GpuTempMax) {
-                $diff = [double]$lastDb.GpuTempMax - [double]$refLt.GpuTempMax
-                $diffStr = $(if ($diff -gt 0) { '+{0:N0} K' -f $diff } elseif ($diff -lt 0) { '{0:N0} K' -f $diff } else { '±0 K' })
-                $stCls = $(if ($diff -le 3) { 'ok' } elseif ($diff -le 8) { 'warn' } else { 'err' })
-                $stTxt = $(if ($diff -le 0) { 'Kühler' } elseif ($diff -le 5) { 'Normal' } else { 'Wärmer' })
-                [void]$sb.Append(('<tr><td>GPU-Höchsttemperatur</td><td class="nw">{0:N0} °C</td><td class="nw">{1:N0} °C</td><td class="nw">{2}</td><td><span class="badge {3}">{4}</span></td></tr>' -f $lastDb.GpuTempMax, $refLt.GpuTempMax, $diffStr, $stCls, $stTxt))
-            }
-            if ($null -ne $lastDb.CpuWMax -and $refLt.CpuWMax) {
-                $diff = [double]$lastDb.CpuWMax - [double]$refLt.CpuWMax
-                $diffStr = $(if ($diff -gt 0) { '+{0:N0} W' -f $diff } elseif ($diff -lt 0) { '{0:N0} W' -f $diff } else { '±0 W' })
-                [void]$sb.Append(('<tr><td>CPU-Spitzenleistung</td><td class="nw">{0:N0} W</td><td class="nw">{1:N0} W</td><td class="nw">{2}</td><td><span class="badge info">Gemessen</span></td></tr>' -f $lastDb.CpuWMax, $refLt.CpuWMax, $diffStr))
-            }
-            $drosselIst = $(if ($lastDb.Drosselung) { [string]$lastDb.Drosselung } else { 'keine' })
-            $drosselRef = $(if ($refLt.Drosselung) { [string]$refLt.Drosselung } else { 'keine' })
-            $drosselCls = $(if ($drosselIst -eq 'keine') { 'ok' } elseif ($drosselIst -in @('Leistungsgrenze', 'Herstellergrenze')) { 'info' } else { 'warn' })
-            [void]$sb.Append(('<tr><td>Drosselungsverhalten</td><td class="nw">{0}</td><td class="nw">{1}</td><td class="nw">-</td><td><span class="badge {2}">{0}</span></td></tr>' -f (ConvertTo-HtmlText $drosselIst), (ConvertTo-HtmlText $drosselRef), $drosselCls))
-            [void]$sb.Append('</tbody></table>')
-        }
         [void]$sb.Append((New-LoadChartsHtml))
         if ($pProfile) { [void]$sb.Append((New-PowerEfficiencyHtml -Profile $pProfile)) }
         if (@($script:LoadSeries | Where-Object { $_.DiskMBs -gt 0 }).Count -gt 1) {
@@ -750,23 +715,26 @@ function New-HtmlReport {
     # ab v2.8: Modul Optimierung, Kennzahlen vorher und nachher und die Einträge je Kategorie
     if (@($script:OptLog).Count) { [void]$sb.Append((New-OptHtml)) }
 
+    # ab v3.7: System-Startzeit (Boot Performance Breakdown)
+    if ($script:BootPerformance) { [void]$sb.Append((New-BootPerformanceHtml $script:BootPerformance)) }
+
     $text = $script:Report.ToString()
     $ms = [regex]::Matches($text, '(?m)^={100}\r?\n  (.+?)\r?\n={100}\r?$')
     if ($ms.Count) {
-        [void]$sb.Append('<section class="box" data-section="system"><div class="bar"><h2>Details</h2><button onclick="var d=this.closest(''section'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
+        [void]$sb.Append('<details class="box grp" data-section="system"><summary style="cursor:pointer;font-size:1.15em;font-weight:600;"><span class="gname">Details</span></summary><div style="margin-top:12px"><div class="bar"><h2>Rohdaten-Abschnitte</h2><button onclick="var d=this.closest(''details'').querySelectorAll(''details''),o=!d[0].open;for(var i=0;i<d.length;i++)d[i].open=o">Alle auf- oder zuklappen</button></div>')
         for ($i = 0; $i -lt $ms.Count; $i++) {
             $bs = $ms[$i].Index + $ms[$i].Length
             $be = $(if ($i + 1 -lt $ms.Count) { $ms[$i + 1].Index } else { $text.Length })
             $body = $text.Substring($bs, $be - $bs).Trim("`r", "`n")
             [void]$sb.Append(('<details><summary>{0}</summary><pre>{1}</pre></details>' -f (ConvertTo-HtmlText $ms[$i].Groups[1].Value.Trim()), (ConvertTo-HtmlText $body)))
         }
-        [void]$sb.Append('</section>')
+        [void]$sb.Append('</div></details>')
     }
 
     if ($script:Timings.Count) {
-        [void]$sb.Append('<section class="box" data-section="system"><h2>Zeitbedarf</h2><table><thead><tr><th>Abschnitt</th><th>Dauer</th></tr></thead><tbody>')
+        [void]$sb.Append('<details class="box grp" data-section="system"><summary style="cursor:pointer;font-size:1.15em;font-weight:600;"><span class="gname">Zeitbedarf</span></summary><div style="margin-top:12px"><table><thead><tr><th>Abschnitt</th><th>Dauer</th></tr></thead><tbody>')
         foreach ($t in $script:Timings) { [void]$sb.Append(('<tr><td>{0}</td><td>{1}</td></tr>' -f (ConvertTo-HtmlText $t.Abschnitt), $t.Dauer)) }
-        [void]$sb.Append('</tbody></table></section>')
+        [void]$sb.Append('</tbody></table></div></details>')
     }
     [void]$sb.Append((Get-ReportJs))
     [void]$sb.Append(('<footer>Ausgabeordner: {0} &middot; Protokolle und Rohdaten liegen in Anhang.zip. Für eine erweiterte Auswertung die Datei {1} in ein KI-Modell hochladen: Sie enthält Auftrag, Bericht und Rohdaten.{2}</footer></main></body></html>' -f (ConvertTo-HtmlText $OutputDir), (ConvertTo-HtmlText $kiLeaf), $(if ($script:DbSaved) { ' &middot; Datenbankeintrag: ' + (ConvertTo-HtmlText $script:DbSaved) } else { '' })))

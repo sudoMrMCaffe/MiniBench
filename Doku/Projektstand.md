@@ -1,18 +1,17 @@
-# Leos Minibench: Projektstand
+﻿# Leos Minibench: Projektstand
 
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
 ## Stand: Version 3.7 (15.10.2026)
 Release-Commit "Release v3.7: Schnell behebbare Systemfehler, Startzeit-Analyse, Sensoren-Harmonisierung und modulares Dashboard".
-Getestet und gebaut unter Windows mit Windows PowerShell 5.1 und Pester 6.2.0 (833 bestanden, 0 fehlgeschlagen, 99 übersprungen).
+Getestet und gebaut unter Windows mit Windows PowerShell 5.1 und Pester 6.2.0.
 
 Inhalt von 3.7 (Einzelheiten in Doku\Änderungen_v3.7.txt):
-1. Schnell behebbare Konfigurationsfehler: Automatische Erkennung von LAN-Verhandlungsrate gebremst (100 Mbit/s oder Halbduplex an Gigabit/2.5GbE-Adaptern), Monitorkabel an iGPU statt dGPU bei Desktops, Hz-Bremse bei Monitoren >= 75 Hz auf 60 Hz limitiert, inaktivem RAM-Speicherprofil (XMP/EXPO/DOCP) und veraltetem BIOS (> 2 Jahre) mit direkten Hersteller-Supportlinks.
-2. System-Startzeit-Analyse (Boot Performance Breakdown): Aufschlüsselung der Windows-Boot-Phasen aus Event 100 (MainPathBootTime, BootPostBootTime, BootDuration) und UEFI/BIOS-POST-Zeit (FwPOSTTime) mit visueller Wasserfall-/Stack-Kaskade im HTML-Bericht; Auswertung von Autostart-Verzögerern (Event 101-110 ab 1,0 s) und sauberer Fallback ohne Schätzwerte bei inaktivem Protokoll.
+1. Schnell behebbare Konfigurationsfehler: Automatische Erkennung von LAN-Verhandlungsrate gebremst (100 Mbit/s oder Halbduplex an Gigabit/2.5GbE-Adaptern), Monitorkabel an iGPU statt dGPU bei Desktops, Hz-Bremse bei Monitoren >= 75 Hz auf 60 Hz limitiert, inaktivem RAM-Speicherprofil (XMP/EXPO/DOCP) und veraltetem BIOS (> 2 Jahre) mit direkten Hersteller-Supportlinks sowie transparenter Bestätigung der Prüfung im Bericht.
+2. System-Startzeit-Analyse (Boot Performance Breakdown): Aufschlüsselung der Windows-Boot-Phasen aus Event 100 (MainPathBootTime, BootPostBootTime, BootDuration) und UEFI/BIOS-POST-Zeit (FwPOSTTime) mit visueller Wasserfall-/Stack-Kaskade im HTML-Bericht (eingeklappt am Berichtsende); Auswertung von Autostart-Verzögerern (Event 101-110 ab 1,0 s) und robuster Fallback ohne Schätzwerte bei unvollständigen Ereignissen oder deaktiviertem Protokoll.
 3. Harmonisierte Sensoren-Zustandsmaschine: Konsistente 4-Stufen-Statuslogik (Vollständig, Eingeschränkt, Inaktiv, Fehler) im Skript und in der Benutzeroberfläche; automatische Treiberinitialisierung bei Vorliegen von Administratorrechten ohne zusätzliche Rückfragen und garantierte Treiberentladung bei Programmbeendigung.
-4. Benchmark-Vergleichsmatrix & Diagramme: Ein einziger horizontaler Bildlaufbereich (.matrix-scroll-wrapper), zuverlässig fixierte Spalten- und Zeilenköpfe (position: sticky), physikalisch korrekte Einheiten für Deltas (Kelvin K bei Temperaturen, Prozentpunkte %p bei relativen Anteilen, Standard-Prozente % bei absoluten Messwerten) und 85 px linker Randabstand im Multi-System-Diagramm.
-5. Benchmark-Ablauf & Referenz-Logik: Deprecation von -BenchmarkKurz (führt Standard-Benchmark mit Log-Hinweis aus); Entkopplung der Referenzauswahl aus der Benchmark-Startmaske zugunsten der Vergleichsdatenbank (persistent oder temporär als Dashboard-Basis).
-6. Modulares Dashboard: Vollständige Zerlegung des Dashboard-Quelltexts in separate semantische Bausteine (dashboard.html, dashboard.css, daten.js, matrix.js, profile.js, diagramme.js) mit robuster Einbettung im Zusammenbau-Skript und Syntaxprüfung via node --check.
+4. Benchmark-Vereinfachung & Dashboard: Entfernen redundanter Dropdowns und Checkboxen (Messdauer, Referenz, DB-Speicherung); Benchmark speichert immer in der Vergleichsdatenbank. Beseitigung der Scrollbars in der Vergleichsmatrix mit Wiederholung der Systemnamen am Tabellenende (tfoot), gut sichtbaren Zeilentrennlinien in der Basiskolumne und metrischen Einheiten (°C, %). Stromkostenrechner standardmäßig geöffnet, Details und Zeitbedarf standardmäßig eingeklappt. Redundante Referenz-Spalten und Profilkarten aus dem Einzelbericht entfernt (vollständig durch das interaktive Dashboard abgedeckt).
+5. Modulares Dashboard: Vollständige Zerlegung des Dashboard-Quelltexts in separate semantische Bausteine (dashboard.html, dashboard.css, daten.js, matrix.js, profile.js, diagramme.js) mit robuster Einbettung im Zusammenbau-Skript und Syntaxprüfung via node --check.
 
 ## Vorher: Version 3.67
 Inhalt von 3.67 (Einzelheiten in Doku\Änderungen_v3.67.txt):
@@ -56,21 +55,6 @@ Inhalt von 3.64 (Einzelheiten in Doku\Änderungen_v3.64.txt):
 
 ## Offene Befunde
 Keine offenen Befunde.
-Die Windows-Prüfung auf ULB-PC10039 ist abgeschlossen; aktualisierte Bildschirmfotos liegen in Doku\Screenshots\ vor.
-Die KPI-Kopfzeile im Diagnosebericht ist einzeilig ohne Zeilenumbruch.
 
-## Fallstricke
-1. Pester 6.2 auf ULB-PC10039: Attrappen mit -ParameterFilter brauchen eine Vorgabe-Attrappe ohne Filter.
-2. Windows PowerShell 5.1: Einzelnes Objekt ohne .Count, daher Ergebnisse von Listenfunktionen immer mit $x = @(...) einsammeln.
-3. Dialoge und Formulare: Jeder Dialog muss UI.ThemeDialog aufrufen, um Darstellungsprobleme im dunklen Farbschema zu vermeiden.
-4. Zahlenformate in Tests: Trennzeichen kulturabhängig ([.,]) prüfen.
-5. BOM-Prüfung: Textdateien (außer .cmd) immer mit UTF-8 BOM speichern, da Windows PowerShell 5.1 sonst ANSI annimmt.
-6. Oberfläche ab 3.64: Seiten ohne Dock bekommen ihre Position in BuildSetup (Seitenrand); neue Seiten nicht mit Location 0,0
-   anlegen. Primärknöpfe immer über UI.Primary (Typ PrimaryButton), Schriftfarbe UI.OnAccent, nie Color.White.
-
-## Testgeräte
-TORRENT: Ryzen 5 7600X, Radeon RX 6800, B650 Gaming X AX, PawnIO 2.2.0.0, 5 Laufwerke (3 NVMe, 2 SATA).
-ULB-PC10039: Dell Precision 5480, i9-13900H, Iris Xe und RTX 3000 Ada Laptop (Hybridgrafik), Domänen-PC, BitLocker,
-WD SN820 4 TB, unter CPU-Last bis 100 °C (Firmware-Drosselung).
-DESKTOP-2KDA9KP: Dell Latitude 5300, i5-8365U, UHD 620.
-DESKTOP-F9HRMRR: Ryzen 5 5600, RX 570, B450, RAM mit 2133 MT/s.
+## Letzter Commit
+Release-Commit v3.7

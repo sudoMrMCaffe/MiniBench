@@ -111,7 +111,7 @@
       return;
     }
 
-    const padding = { top: 32, right: 65, bottom: 40, left: 85 };
+    const padding = { top: 32, right: 65, bottom: 40, left: 60 };
     const chartW = width - padding.left - padding.right;
     const chartH = height - padding.top - padding.bottom;
 

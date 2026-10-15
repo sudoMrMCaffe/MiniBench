@@ -1,4 +1,4 @@
-# =====================================================================================
+﻿# =====================================================================================
 #                                     DIAGNOSE
 # =====================================================================================
 if ($ModDiag -and -not $AnalyzeLastRun) {
@@ -55,7 +55,8 @@ Invoke-Section 'System und Betriebssystem' {
     $bootPerf = Get-SystemBootPerformance
     $script:BootPerformance = $bootPerf
     if ($bootPerf.Verfuegbar) {
-        $script:Facts['Systemstart (gesamt)'] = ('{0:N1} s (BIOS: {1}, Kernel: {2:N1} s, Desktop: {3:N1} s)' -f $bootPerf.SystemGesamtSekunden, $(if ($bootPerf.BiosSekunden) { '{0:N1} s' -f $bootPerf.BiosSekunden } else { 'n/v' }), $bootPerf.KernelSekunden, $bootPerf.DesktopSekunden)
+        $biosPart = $(if ($bootPerf.BiosSekunden -and [double]$bootPerf.BiosSekunden -gt 0) { ', BIOS: {0:N1} s' -f $bootPerf.BiosSekunden } else { '' })
+        $script:Facts['Systemstart'] = ('{0:N1} s (Windows: {1:N1} s, Kernel: {2:N1} s, Desktop: {3:N1} s{4})' -f $bootPerf.SystemGesamtSekunden, $bootPerf.OsBootSekunden, $bootPerf.KernelSekunden, $bootPerf.DesktopSekunden, $biosPart)
     } else {
         $script:Facts['Systemstart'] = $bootPerf.StatusText
     }
@@ -68,16 +69,20 @@ Invoke-Section 'System und Betriebssystem' {
 
     if ($up.TotalDays -gt 14) { Add-Finding INFO 'System' ('Seit {0} Tagen kein Neustart. Ein Neustart vor der Fehlersuche ist sinnvoll.' -f [int]$up.TotalDays) }
     if ($fw -eq 1) { Add-Finding WARNUNG 'Firmware' 'System startet im Legacy-BIOS-Modus, Windows 11 erwartet UEFI.' }
-    if ($bios.ReleaseDate -and $bios.ReleaseDate -lt (Get-Date).AddMonths(-24)) {
+    $biosOld = ($bios.ReleaseDate -and $bios.ReleaseDate -lt (Get-Date).AddMonths(-24))
+    if ($biosOld) {
         $vendor = $(if ($bb.Manufacturer -and $bb.Manufacturer -notmatch 'To be filled|Default') { $bb.Manufacturer } elseif ($cs.Manufacturer) { $cs.Manufacturer } else { $bios.Manufacturer })
         $url = Get-BiosVendorSupportUrl $vendor
         Add-Finding WARNUNG 'Firmware' ('BIOS/UEFI ist älter als 2 Jahre ({0:dd.MM.yyyy}). Ein Update beim Hersteller wird empfohlen: {1}' -f $bios.ReleaseDate, $url)
+    } elseif ($bios.ReleaseDate) {
+        Add-Line ('  BIOS/UEFI-Alter       : {0:dd.MM.yyyy} (aktuell)' -f $bios.ReleaseDate)
     }
 
     Add-Sub 'System-Startzeit'
     if ($bootPerf.Verfuegbar) {
-        Add-Line ('  Gesamte Startzeit     : {0:N1} s (Betriebssystem: {1:N1} s, Kernel: {2:N1} s, Desktop: {3:N1} s)' -f $bootPerf.SystemGesamtSekunden, $bootPerf.OsBootSekunden, $bootPerf.KernelSekunden, $bootPerf.DesktopSekunden)
-        if ($bootPerf.BiosSekunden) {
+        $biosPart = $(if ($bootPerf.BiosSekunden -and [double]$bootPerf.BiosSekunden -gt 0) { ', BIOS: {0:N1} s' -f $bootPerf.BiosSekunden } else { '' })
+        Add-Line ('  Gesamte Startzeit     : {0:N1} s bis Bereitschaft (Windows: {1:N1} s, Kernel: {2:N1} s, Desktop: {3:N1} s{4})' -f $bootPerf.SystemGesamtSekunden, $bootPerf.OsBootSekunden, $bootPerf.KernelSekunden, $bootPerf.DesktopSekunden, $biosPart)
+        if ($bootPerf.BiosSekunden -and [double]$bootPerf.BiosSekunden -gt 0) {
             Add-Line ('  BIOS/Firmware-Start   : {0:N1} s' -f $bootPerf.BiosSekunden)
         }
         if (@($bootPerf.Verzoegerer).Count) {
@@ -312,11 +317,22 @@ Invoke-Section 'Grafik und Monitore' {
         [pscustomobject]@{ Hersteller = (& $dec $_.ManufacturerName); Modell = (& $dec $_.UserFriendlyName); Seriennummer = $sn; Baujahr = $_.YearOfManufacture; Aktiv = $_.Active }
     } | Out-Report
     $dispDiag = Get-DisplayDiagnostics
-    if ($dispDiag.WrongPortDetected) {
+    if ($dispDiag -and $dispDiag.WrongPortDetected) {
         Add-Finding WARNUNG 'Grafik' $dispDiag.WrongPortMessage
+    } elseif (-not $script:IsLaptop -and $gMain -and $gMain.Art -eq 'dGPU') {
+        Add-Line ('  Monitor-Anschluss     : Dedizierte Grafikkarte ({0}, optimal)' -f $gMain.Name)
     }
-    if ($dispDiag.HzBremseDetected) {
+    if ($dispDiag -and $dispDiag.HzBremseDetected) {
         Add-Finding WARNUNG 'Grafik' $dispDiag.HzBremseMessage
+    } elseif ($dispDiag -and $dispDiag.Devices) {
+        $devList = @($dispDiag.Devices)
+        if ($devList.Count -gt 0) {
+            $pDev = @($devList | Where-Object { $_ -and $_.IsPrimary }) | Select-Object -First 1
+            if (-not $pDev) { $pDev = $devList[0] }
+            if ($pDev -and $pDev.CurrentHz -gt 0) {
+                Add-Line ('  Bildwiederholrate     : {0} Hz (optimal eingestellt)' -f $pDev.CurrentHz)
+            }
+        }
     }
 }
 
@@ -555,6 +571,8 @@ Invoke-Section 'Netzwerkkonfiguration' {
             $speedStr = [string]$na.LinkSpeed
             $halfStr = if ($isHalf) { ' (Halbduplex)' } else { '' }
             Add-Finding WARNUNG 'Netzwerk' ('LAN-Verhandlungsrate gebremst: Adapter "{0}" ({1}) läuft mit nur {2}{3}. Ein Gigabit- oder 2.5GbE-fähiger Adapter synchronisiert meist wegen eines defekten 4-adrigen Patchkabels oder Port-Fehlers auf 100 Mbit/s.' -f $na.Name, $desc, $speedStr, $halfStr)
+        } elseif ($isGbeCapable -and $na.LinkSpeed) {
+            Add-Line ('  LAN-Verbindung        : {0} ({1}) - {2} (optimal)' -f $na.Name, $desc, $na.LinkSpeed)
         }
     }
     Add-Sub 'IP-Konfiguration aktiver Adapter'
@@ -1043,6 +1061,15 @@ if ($script:SmartTests | Where-Object Status -eq 'läuft') {
     }
 }
 
+    $quickFixIssues = @($script:Findings | Where-Object {
+        ($_.Bereich -eq 'RAM' -and $_.Befund -match 'XMP/EXPO/DOCP inaktiv') -or
+        ($_.Bereich -eq 'Grafik' -and ($_.Befund -match 'Monitor am Mainboard|Bildwiederholfrequenz auf 60 Hz begrenzt')) -or
+        ($_.Bereich -eq 'Netzwerk' -and $_.Befund -match 'LAN-Verhandlungsrate gebremst') -or
+        ($_.Bereich -eq 'Firmware' -and $_.Befund -match 'BIOS/UEFI ist älter als 2 Jahre')
+    })
+    $qfStatus = if ($quickFixIssues.Count) { 'Warnung' } else { 'OK' }
+    $qfDetail = if ($quickFixIssues.Count) { ('{0} auffällige Einstellung(en) gefunden' -f $quickFixIssues.Count) } else { 'RAM-Profil, Monitoranschluss, Bildwiederholrate, LAN-Rate und BIOS geprüft: keine Fehler' }
+    Add-TestResult 'Konfigurationsprüfung (Schnell behebbar)' $qfStatus $qfDetail
 }   # Ende: Diagnose
 
 

@@ -1,8 +1,8 @@
-  function renderMatrixTable() {
+﻿  function renderMatrixTable() {
     if (!matrixTable) return;
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
-    let html = '<thead><tr><th class="col-feature">Messgröße</th>';
+    let headCells = '<th class="col-feature">Messgröße</th>';
     comparedSystems.forEach((s, idx) => {
       const color = getSysColor(idx, isDark);
       const isBase = (idx === 0);
@@ -14,7 +14,7 @@
       const repBtn = repUrl
         ? `<a href="${repUrl}" target="_blank" title="Diagnosebericht öffnen" style="font-size:0.75rem; color:var(--accent); text-decoration:none; margin-left:4px;">Bericht</a>`
         : '';
-      html += `<th class="${isBase ? 'col-base' : ''}" style="text-align: right; ${isBase ? 'background: var(--accent-subtle);' : ''}">
+      headCells += `<th class="${isBase ? 'col-base' : ''}" style="text-align: right; ${isBase ? 'background: var(--accent-subtle);' : ''}">
         <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
           <span class="sys-dot" style="background: ${color};"></span>
           ${nameLink}
@@ -23,7 +23,7 @@
         </div>
       </th>`;
     });
-    html += '</tr></thead><tbody>';
+    let html = `<thead><tr>${headCells}</tr></thead><tbody>`;
 
     const categories = [
       {
@@ -116,7 +116,7 @@
           html += `<td class="sys-val ${isBase ? 'col-base' : ''} ${isBest ? 'is-best' : ''}" style="${isBase ? 'background: var(--accent-subtle);' : ''}">
             <span class="val-main">${fmtNum(v, m.dec)}</span>
             <span class="val-sub">${m.unit}</span>
-            ${isBest ? '<span class="badge-best" title="Bestwert aller Systeme">👑 Bestwert</span>' : ''}
+            ${isBest ? '<span class="badge-best" title="Bestwert aller Systeme">Bestwert</span>' : ''}
             ${!isBase && delta !== null ? renderPill(delta, m.lower) : ''}
           </td>`;
         });
@@ -125,7 +125,7 @@
       });
     });
 
-    html += '</tbody>';
+    html += '</tbody><tfoot><tr>' + headCells + '</tr></tfoot>';
     matrixTable.innerHTML = html;
   }
 

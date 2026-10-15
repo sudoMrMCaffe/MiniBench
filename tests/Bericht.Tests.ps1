@@ -147,13 +147,11 @@ Describe 'HTML-Bericht: Aufbau, Navigation, Befundfilter und Benchmark' {
         $ohne = New-TestBericht
         $ohne | Should -Not -Match 'Zuverlässigkeit'
     }
-    It 'Benchmark: Gruppen als Tabelle mit Messung, Wert, Index, Referenz, Vergleich und Ergebnis' {
-        $script:Html | Should -Match '<th>Messung</th><th class="r">Wert</th><th>Index</th><th>Referenz</th><th>Vergleich</th><th>Ergebnis</th>'
+    It 'Benchmark: Gruppen als Tabelle mit Messung, Wert, Index, Vergleich und Ergebnis' {
+        $script:Html | Should -Match '<th>Messung</th><th class="r">Wert</th><th>Index</th><th>Vergleich</th><th>Ergebnis</th>'
         $script:Html | Should -Match '<div class="comp-title">AMD Ryzen 5 7600X</div>'
         $script:Html | Should -Match '<b>101 %</b> &middot; <span class="pword">Sehr gut</span>'
         foreach ($g in 'CPU', 'RAM', 'GPU', 'Laufwerke') { $script:Html | Should -Match ('<details class="grp" id="bg-{0}"' -f $g) }
-        $script:Html | Should -Match 'Gesamtleistung \(Referenz\)'
-        $script:Html | Should -Match 'class="ov profile-grid"'
         $script:Html | Should -Match '<div id="rendertest-attrappe"></div>'
     }
     It 'ohne Benchmark kein Benchmark-Abschnitt' {

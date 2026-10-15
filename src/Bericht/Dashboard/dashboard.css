@@ -360,8 +360,8 @@
     /* MATRIX TABLES */
     .matrix-scroll-wrapper, .table-scroll {
       width: 100%;
-      max-height: 75vh;
-      overflow: auto;
+      overflow-x: auto;
+      overflow-y: visible;
       border: 1px solid var(--card-border);
       border-radius: 8px;
     }
@@ -384,32 +384,33 @@
       font-size: 0.8rem;
       text-transform: uppercase;
       letter-spacing: 0.03em;
-      position: sticky;
-      top: 0;
-      z-index: 10;
     }
     .matrix-table th.col-feature {
       text-align: left;
       width: 220px;
       min-width: 180px;
-      position: sticky;
-      top: 0;
-      left: 0;
-      z-index: 20;
       background: var(--neutral-bg);
     }
     .matrix-table td.col-feature {
       text-align: left;
       font-weight: 500;
       background: var(--card-bg);
-      position: sticky;
-      left: 0;
-      z-index: 11;
       border-right: 1px solid var(--card-border);
     }
     .matrix-table th.col-base,
     .matrix-table td.col-base {
       background: var(--accent-subtle) !important;
+      border-bottom: 1px solid var(--card-border) !important;
+    }
+    .matrix-table tfoot th {
+      background: var(--neutral-bg);
+      border-top: 2px solid var(--card-border);
+      border-bottom: none;
+    }
+    .matrix-table tfoot th.col-base {
+      background: var(--accent-subtle) !important;
+      border-top: 2px solid var(--card-border);
+      border-bottom: none !important;
     }
     .matrix-table tr.category-header td {
       background: var(--accent-soft);
