@@ -6,7 +6,7 @@ if (-not $EventMode -and -not $ImportOrdner -and -not $Vergleich -and -not $Ruec
     try {
         $hwPs = [powershell]::Create()
         [void]$hwPs.AddScript({
-            $res = [ordered]@{ Disks = @(); Uuid = ''; Bv = ''; Bp = ''; Bs = ''; Bios = ''; Gpus = @(); Domain = $false }
+            $res = [ordered]@{ Disks = @(); Uuid = ''; Bv = ''; Bp = ''; Bs = ''; Bios = ''; Gpus = @(); Domain = $false; Cpu = ''; Cores = 0; Threads = 0; Ram = ''; Board = ''; IsLaptop = $false }
             try {
                 $res.Disks = @(foreach ($pd in @(Get-PhysicalDisk -ErrorAction Stop | Sort-Object { [int]$_.DeviceId })) {
                     $num = [int]$pd.DeviceId
@@ -15,12 +15,37 @@ if (-not $EventMode -and -not $ImportOrdner -and -not $Vergleich -and -not $Ruec
                 })
             } catch { }
             try { $res.Uuid = [string](Get-CimInstance Win32_ComputerSystemProduct -ErrorAction Stop).UUID } catch { }
-            try { $bb = Get-CimInstance Win32_BaseBoard -ErrorAction Stop | Select-Object -First 1; $res.Bv = [string]$bb.Manufacturer; $res.Bp = [string]$bb.Product; $res.Bs = [string]$bb.SerialNumber } catch { }
+            try { $bb = Get-CimInstance Win32_BaseBoard -ErrorAction Stop | Select-Object -First 1; $res.Bv = [string]$bb.Manufacturer; $res.Bp = [string]$bb.Product; $res.Bs = [string]$bb.SerialNumber; $res.Board = [string]$bb.Product } catch { }
             try { $res.Bios = [string](Get-CimInstance Win32_BIOS -ErrorAction Stop).SerialNumber } catch { }
             # Grafikeinheiten für die Auswahl im Benchmark und im Lasttest (ab v2.65)
             try { $res.Gpus = @(Get-CimInstance Win32_VideoController -ErrorAction Stop | ForEach-Object { ([string]$_.Name).Trim() } | Where-Object { $_ }) } catch { }
             # Domänenmitgliedschaft für die Vorlagen der Optimierung (ab v2.8)
             try { $res.Domain = [bool](Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).PartOfDomain } catch { }
+            try {
+                $cpu = Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($cpu) {
+                    $res.Cpu = [string]$cpu.Name
+                    $res.Cores = [int]$cpu.NumberOfCores
+                    $res.Threads = [int]$cpu.NumberOfLogicalProcessors
+                }
+            } catch { }
+            try {
+                $mems = @(Get-CimInstance Win32_PhysicalMemory -ErrorAction SilentlyContinue)
+                $typeMap = @{ 20='DDR'; 21='DDR2'; 24='DDR3'; 26='DDR4'; 27='LPDDR'; 28='LPDDR2'; 29='LPDDR3'; 30='LPDDR4'; 34='DDR5'; 35='LPDDR5' }
+                $totalCap = 0; $spd = 0; $mType = ''
+                foreach ($m in $mems) {
+                    $totalCap += [double]$m.Capacity
+                    if (-not $spd) { $spd = if ($m.ConfiguredClockSpeed) { [int]$m.ConfiguredClockSpeed } else { [int]$m.Speed } }
+                    if (-not $mType -and $typeMap.ContainsKey([int]$m.SMBIOSMemoryType)) { $mType = $typeMap[[int]$m.SMBIOSMemoryType] }
+                }
+                if ($totalCap -gt 0) {
+                    $res.Ram = ('{0} GB {1}{2}' -f [math]::Round($totalCap / 1GB), $(if ($mType) { $mType } else { 'RAM' }), $(if ($spd -gt 0) { '-' + $spd } else { '' }))
+                }
+            } catch { }
+            try {
+                $chassis = @(Get-CimInstance Win32_SystemEnclosure -ErrorAction SilentlyContinue | ForEach-Object { $_.ChassisTypes } | ForEach-Object { $_ })
+                $res.IsLaptop = [bool]($chassis | Where-Object { $_ -in 8, 9, 10, 11, 12, 14, 30, 31, 32 })
+            } catch { }
             [pscustomobject]$res
         })
         $hwHandle = $hwPs.BeginInvoke()
@@ -70,6 +95,16 @@ if (-not $EventMode -and -not $ImportOrdner -and -not $Vergleich -and -not $Ruec
         $devId = ''; try { $devId = [string](Get-DeviceIdentity).Id } catch { }
         try { [DiagGui]::GpuNames = [string[]]@($(if ($hw) { $hw.Gpus })) } catch { }
         try { [DiagGui]::OptKatalog = [string[]](Get-OptGuiLines); [DiagGui]::DomainPc = [bool]($hw -and $hw.Domain) } catch { }
+        try {
+            if ($hw) {
+                [DiagGui]::HwCpu = [string]$hw.Cpu
+                [DiagGui]::HwCores = [int]$hw.Cores
+                [DiagGui]::HwThreads = [int]$hw.Threads
+                [DiagGui]::HwRam = [string]$hw.Ram
+                [DiagGui]::HwBoard = [string]$hw.Board
+                [DiagGui]::HwIsLaptop = [bool]$hw.IsLaptop
+            }
+        } catch { }
         Write-StartPhase 'Fenster wird aufgebaut'
         [DiagGui]::Run((Get-Process -Id $PID).Path, $PSCommandPath, $script:CpDir, $script:DataDir, $ScriptVersion, $diskList.ToArray(), [string[]](Get-ContractGuiLines), $devId)
         exit 0

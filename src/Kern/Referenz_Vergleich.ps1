@@ -7,8 +7,8 @@ $script:RefNone = @{ Name = ''; Datum = ''; Quelle = ''; Werte = @{}; Herkunft =
 $script:Ref = $script:RefNone
 $script:RefSavedNow = $false   # ab v2.8: in diesem Lauf als Referenz gespeichert
 $script:BenchDisks = [System.Collections.Generic.List[object]]::new()
-$script:BenchGroupOrder = @('CPU', 'RAM', 'GPU', 'Laufwerke', 'WinSAT')
-$script:BenchGroupNames = @{ 'CPU' = 'Prozessor'; 'RAM' = 'Arbeitsspeicher'; 'GPU' = 'Grafik'; 'Laufwerke' = 'Laufwerke'; 'WinSAT' = 'WinSAT-Bewertung' }
+$script:BenchGroupOrder = @('CPU', 'RAM', 'GPU', 'Laufwerke')
+$script:BenchGroupNames = @{ 'CPU' = 'Prozessor'; 'RAM' = 'Arbeitsspeicher'; 'GPU' = 'Grafik'; 'Laufwerke' = 'Laufwerke' }
 $script:BenchHead = @{}
 $script:WinsatTotal = 0.0
 $script:BenchShort = @{}
@@ -82,7 +82,14 @@ function Test-LowerBetterKey([string]$Key) { return ($Key -match '\|(Latenz|STUT
 function Get-SavedReference([string]$Path = '') {
     $cands = @()
     if ($Path) { $cands += $Path }
-    if ($script:DataDir) { $cands += (Join-Path $script:DataDir 'Referenz.json'), (Join-Path $script:DataDir 'PC-Diagnose-Referenz.json') }
+    $isNb = if (Get-Command 'Test-IsNotebookSystem' -ErrorAction SilentlyContinue) { [bool](Test-IsNotebookSystem) } else { [bool]$script:IsLaptop }
+    $preferredRef = if ($isNb) { 'Referenz_Notebook.json' } else { 'Referenz_Desktop.json' }
+    $altRef = if ($isNb) { 'Referenz_Desktop.json' } else { 'Referenz_Notebook.json' }
+    $preferredEmbedded = if ($isNb) { 'Notebook_Standard.json' } else { 'Desktop_Mittelklasse.json' }
+    if ($script:DataDir) {
+        if (-not $Path) { $cands += (Join-Path $script:DataDir $preferredRef) }
+        $cands += (Join-Path $script:DataDir 'Referenz.json'), (Join-Path $script:DataDir $altRef), (Join-Path $script:DataDir 'PC-Diagnose-Referenz.json')
+    }
     foreach ($f in $cands) {
         if (-not $f -or -not (Test-Path -LiteralPath $f)) { continue }
         $j = Read-JsonFile $f
@@ -93,11 +100,11 @@ function Get-SavedReference([string]$Path = '') {
         if ($j.Herkunft) { foreach ($p in $j.Herkunft.PSObject.Properties) { $h[$p.Name] = [string]$p.Value } }
         return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = $f; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId; Lasttest = $j.Lasttest }
     }
-    # Ab v3.0: Standard-Referenzprofil Desktop_Mittelklasse.json laden, wenn noch keine Referenz definiert ist
+    # Standard-Referenzprofil laden, wenn noch keine Referenz definiert ist
     if (-not $Path) {
         $defCands = @()
-        if ($script:DbDir) { $defCands += (Join-Path $script:DbDir 'Desktop_Mittelklasse.json') }
-        if ($script:DataDir) { $defCands += (Join-Path (Join-Path $script:DataDir 'Datenbank') 'Desktop_Mittelklasse.json') }
+        if ($script:DbDir) { $defCands += (Join-Path $script:DbDir $preferredEmbedded), (Join-Path $script:DbDir 'Desktop_Mittelklasse.json') }
+        if ($script:DataDir) { $defCands += (Join-Path (Join-Path $script:DataDir 'Datenbank') $preferredEmbedded), (Join-Path (Join-Path $script:DataDir 'Datenbank') 'Desktop_Mittelklasse.json') }
         foreach ($df in $defCands) {
             if (-not $df -or -not (Test-Path -LiteralPath $df)) { continue }
             $j = Read-JsonFile $df
@@ -108,18 +115,21 @@ function Get-SavedReference([string]$Path = '') {
             if ($j.Herkunft) { foreach ($p in $j.Herkunft.PSObject.Properties) { $h[$p.Name] = [string]$p.Value } }
             return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = $df; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId; Lasttest = $j.Lasttest }
         }
-        if ($script:EmbeddedReferences -and $script:EmbeddedReferences.ContainsKey('Desktop_Mittelklasse.json')) {
-            try {
-                $j = $script:EmbeddedReferences['Desktop_Mittelklasse.json'] | ConvertFrom-Json
-                if ($j) {
-                    $w = ConvertTo-ValueTable $j.Werte
-                    if ($w.Count) {
-                        $h = @{}
-                        if ($j.Herkunft) { foreach ($p in $j.Herkunft.PSObject.Properties) { $h[$p.Name] = [string]$p.Value } }
-                        return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = 'Eingebettet (Desktop_Mittelklasse.json)'; Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId; Lasttest = $j.Lasttest }
+        if ($script:EmbeddedReferences) {
+            $embKey = if ($script:EmbeddedReferences.ContainsKey($preferredEmbedded)) { $preferredEmbedded } elseif ($script:EmbeddedReferences.ContainsKey('Desktop_Mittelklasse.json')) { 'Desktop_Mittelklasse.json' } else { $null }
+            if ($embKey) {
+                try {
+                    $j = $script:EmbeddedReferences[$embKey] | ConvertFrom-Json
+                    if ($j) {
+                        $w = ConvertTo-ValueTable $j.Werte
+                        if ($w.Count) {
+                            $h = @{}
+                            if ($j.Herkunft) { foreach ($p in $j.Herkunft.PSObject.Properties) { $h[$p.Name] = [string]$p.Value } }
+                            return @{ Name = [string]$j.Name; Datum = [string]$j.Datum; Werte = $w; Herkunft = $h; Quelle = ('Eingebettet ({0})' -f $embKey); Computer = [string]$j.Computer; GeraetId = [string]$j.GeraetId; Lasttest = $j.Lasttest }
+                        }
                     }
-                }
-            } catch { }
+                } catch { }
+            }
         }
     }
     return $null
@@ -256,6 +266,7 @@ function Update-BenchReferenceMedians([string]$DataDir = $script:DataDir) {
 
 function Import-BenchReference {
     $script:Ref = $script:RefNone
+    $isNb = if (Get-Command 'Test-IsNotebookSystem' -ErrorAction SilentlyContinue) { [bool](Test-IsNotebookSystem) } else { [bool]$script:IsLaptop }
     $medType = $null
     if ($ReferenzDatei -match '^\*median(?::(notebook|desktop|all))?$') {
         $medType = $(if ($Matches[1]) { $Matches[1].ToLower() } else { 'all' })

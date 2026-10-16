@@ -796,21 +796,16 @@ function New-HtmlReport {
             $g = Get-BenchGroup $gk
             if (-not $g.Anzahl) { continue }
             $gc = $bcls[$g.Status]; if (-not $gc) { $gc = 'info' }
-            $open = $(if ((Get-StatusRank $g.Status) -ge 2 -or $gk -eq 'WinSAT') { ' open' } else { '' })
+            $open = $(if ((Get-StatusRank $g.Status) -ge 2) { ' open' } else { '' })
             [void]$sb.Append(('<details class="grp" id="bg-{4}"{0}><summary><span class="gname">{1}</span><span class="badge {2}">{3}</span></summary>' -f $open,
                 (ConvertTo-HtmlText $g.Name), $gc, (ConvertTo-HtmlText $g.Status), $gk))
-            if ($gk -ne 'WinSAT') {
-                $compName = $(if ($script:BenchHead.ContainsKey($gk) -and $script:BenchHead[$gk]) { [string]$script:BenchHead[$gk] } elseif ($g.Kopf) { $g.Kopf } else { $g.Name })
-                $word = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { Get-BenchRatingWord $g.RefPct } else { '' }
-                $scorePart = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { ('<b>{0} %</b> &middot; <span class="pword">{1}</span>' -f $g.RefPct, (ConvertTo-HtmlText $word)) } else { '' }
-                $bar = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { ('<div class="gh-bar">{0}</div>' -f (Get-RefBar $g.RefPct $gc)) } else { '' }
-                [void]$sb.Append(('<div class="grp-head"><div><div class="comp-title">{0}</div>{1}</div><div class="comp-score">{2}</div></div>' -f
-                    (ConvertTo-HtmlText $compName), $bar, $scorePart))
-            }
-            if ($gk -eq 'WinSAT') {
-                [void]$sb.Append((New-WinsatSvg $g.Items $script:WinsatTotal))
-                [void]$sb.Append('<p class="note tight">Windows-Leistungsbewertung auf einer Skala von 1,0 bis 9,9. Die gestrichelte Linie zeigt den Gesamtwert, er entspricht dem niedrigsten Teilwert. Die Spielegrafik-Bewertung ist seit Windows 10 fest auf 9,9 gesetzt und fehlt deshalb.</p>')
-            } elseif ($gk -eq 'Laufwerke') {
+            $compName = $(if ($script:BenchHead.ContainsKey($gk) -and $script:BenchHead[$gk]) { [string]$script:BenchHead[$gk] } elseif ($g.Kopf) { $g.Kopf } else { $g.Name })
+            $word = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { Get-BenchRatingWord $g.RefPct } else { '' }
+            $scorePart = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { ('<b>{0} %</b> &middot; <span class="pword">{1}</span>' -f $g.RefPct, (ConvertTo-HtmlText $word)) } else { '' }
+            $bar = if ($null -ne $g.RefPct -and [double]$g.RefPct -gt 0) { ('<div class="gh-bar">{0}</div>' -f (Get-RefBar $g.RefPct $gc)) } else { '' }
+            [void]$sb.Append(('<div class="grp-head"><div><div class="comp-title">{0}</div>{1}</div><div class="comp-score">{2}</div></div>' -f
+                (ConvertTo-HtmlText $compName), $bar, $scorePart))
+            if ($gk -eq 'Laufwerke') {
                 [void]$sb.Append('<div class="tw"><table class="disks"><thead><tr><th>Laufwerk</th><th>Klasse</th><th class="r">Lesen<br><small>MB/s</small></th><th class="r">Schreiben<br><small>MB/s</small></th><th class="r">4K QD1<br><small>IOPS</small></th><th class="r">4K 8 Thr.<br><small>IOPS</small></th><th class="r">4K schr.<br><small>IOPS</small></th><th>Index</th><th>Ergebnis</th></tr></thead><tbody>')
                 foreach ($d in $g.Disks) {
                     $c = $bcls[$d.Status]; if (-not $c) { $c = 'info' }

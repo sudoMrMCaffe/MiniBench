@@ -1,4 +1,4 @@
-# =====================================================================================
+﻿# =====================================================================================
 #                 SYSTEMÜBERSICHT (nur Benchmark oder Lasttest ohne Diagnose)
 # =====================================================================================
 if (($ModBench -or $ModLast) -and -not $ModDiag) {
@@ -338,23 +338,7 @@ if ($script:BenchSel['GPU']) {
             if ($m1.Vmb) { $meas.Add($m1) }
             $dAd = @($adapters | Where-Object { $_.Art -eq 'dGPU' }) | Select-Object -First 1
             if ($m1.Vmb -and $dAd -and $m1.Einheit -and $m1.Einheit.Art -ne 'dGPU') {
-                if ($BenchGpuWahl) {
-                    $prefPath = 'HKCU:\Software\Microsoft\DirectX\UserGpuPreferences'
-                    $exe = "$env:windir\System32\winsat.exe"
-                    $rec = $null
-                    if (-not $script:ChangeLog) { Start-ChangeLog }
-                    if (-not $script:ChangeFile) { Add-Line '  Grafikkarte für WinSAT nicht umgestellt: kein Datenordner für das Änderungsprotokoll.' }
-                    else { try {
-                        $rec = Set-RegistryValueLogged -Path $prefPath -Name $exe -Value 'GpuPreference=2;' -Type 'String' -Modul 'Benchmark' -Schritt 'GpuWahl' -Titel 'WinSAT vorübergehend auf die Grafikkarte gelegt (Hybridgrafik)'
-                        $script:GpuPrefChanged = $true
-                        $m2 = & $runDwm 'winsat-dwm-grafikkarte.xml' ', Grafikkarte'
-                        if ($m2.Vmb -and $m2.Einheit -and $m2.Einheit.Art -eq 'dGPU') { $meas.Add($m2) }
-                        else { Add-Line ('  WinSAT erreicht hier nur die Prozessorgrafik, auch mit Vorrang für {0}. Die Grafikkarte misst der Rendertest.' -f $dAd.Name) }
-                    } catch { Add-Line ('  Grafikkarte für WinSAT nicht umstellbar: {0}' -f $_.Exception.Message) }
-                    finally { if ($rec) { $u = Undo-ChangeNow $rec; if ($u) { Add-Line '  Grafikwahl für WinSAT wieder zurückgesetzt.' } } } }
-                } else {
-                    Add-Line ('  WinSAT misst nur die Einheit, die den Desktop ausgibt (hier die Prozessorgrafik {0}). Die Grafikkarte {1} misst der Rendertest.' -f $m1.Einheit.Name, $dAd.Name)
-                }
+                Add-Line ('  WinSAT misst nur die Einheit, die den Desktop ausgibt (hier die Prozessorgrafik {0}). Die Grafikkarte {1} misst der Rendertest.' -f $m1.Einheit.Name, $dAd.Name)
             }
             if ($meas.Count) {
                 # Referenz und Datenbankwert: die Grafikkarte, wenn sie gemessen wurde, sonst die gemessene Einheit
@@ -579,55 +563,13 @@ if ($script:BenchSel['Disk']) {
     }
 }
 
-if ($script:BenchSel['WinSAT']) {
-    Invoke-Section 'Benchmark: WinSAT-Leistungsbewertung' {
-        Initialize-Bench
-        Set-BenchSensorPart 'WinSAT'
-        Set-BenchPausePart 'WinSAT'
-        Write-Step 'winsat formal läuft (ca. 2 bis 5 Minuten) ...'
-        $t0 = Get-Date
-        $r = Invoke-External -File "$env:windir\System32\winsat.exe" -Arguments 'formal -restart clean' -TimeoutSec 1200 -Progress 'WinSAT Leistungsbewertung' -ExpectedSec 240
-        $r.Output | Out-File (Join-Path $RawDir 'winsat.txt') -Encoding UTF8
-        if ($r.ExitCode -ne 0) { Add-Line ('  WinSAT Rückgabecode {0} (auf Akku, per Remotedesktop oder in VMs oft nicht möglich).' -f $r.ExitCode) }
-        $xmlFile = Get-ChildItem "$env:windir\Performance\WinSAT\DataStore\*Formal.Assessment*.xml" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-        $fresh = [bool]($xmlFile -and $xmlFile.LastWriteTime -ge $t0.AddMinutes(-1))
-        $ws = Get-CimInstance Win32_WinSAT -ErrorAction SilentlyContinue
-        if ($ws -and $fresh) {
-            $ws | Select-Object @{n = 'CPU'; e = { $_.CPUScore } }, @{n = 'RAM'; e = { $_.MemoryScore } }, @{n = 'Datenträger'; e = { $_.DiskScore } },
-                @{n = 'Grafik'; e = { $_.GraphicsScore } }, @{n = 'Spielegrafik'; e = { $_.D3DScore } }, @{n = 'Gesamt'; e = { $_.WinSPRLevel } } | Out-Report
-            Add-Line '  Hinweis: Die Spielegrafik-Bewertung ist seit Windows 10 fest auf 9,9 gesetzt und ohne Aussagekraft.'
-            foreach ($p in @(@('CPU', 'Prozessor', $ws.CPUScore), @('RAM', 'Arbeitsspeicher', $ws.MemoryScore), @('DISK', 'Systemlaufwerk', $ws.DiskScore), @('GFX', 'Grafik (Desktop)', $ws.GraphicsScore))) {
-                $sv = [double]$p[2]
-                if ($sv -gt 0) { Add-BenchResult -Gruppe 'WinSAT' -Komponente 'WinSAT' -Messung $p[1] -Wert $sv -Einheit 'von 9,9' -Anzeige ('{0:N1} von 9,9' -f $sv) -Index ([int][math]::Round($sv / 9.9 * 100)) -Status $(if ($sv -lt 4) { 'Info' } else { 'OK' }) -Key ('WINSAT|' + $p[0]) }
-            }
-            $script:WinsatTotal = [double]$ws.WinSPRLevel
-            $script:BenchHead['WinSAT'] = 'Gesamt {0:N1} (niedrigster Teilwert)' -f [double]$ws.WinSPRLevel
-            Send-BenchGroup 'WinSAT'
-            Add-TestResult 'Leistungsbewertung (WinSAT)' 'OK' ('CPU {0}, RAM {1}, Datenträger {2}, Grafik {3}' -f $ws.CPUScore, $ws.MemoryScore, $ws.DiskScore, $ws.GraphicsScore)
-        } else { Add-TestResult 'Leistungsbewertung (WinSAT)' 'Info' ('keine neue Bewertung (Rückgabecode {0})' -f $r.ExitCode) }
-        if ($xmlFile -and $fresh) {
-            try {
-                [xml]$x = Get-Content $xmlFile.FullName -Raw
-                Add-Sub 'Messwerte'
-                $x.SelectNodes('//Metrics//*[not(*)]') | ForEach-Object {
-                    $u = $_.GetAttribute('units')
-                    [pscustomobject]@{ Bereich = $_.ParentNode.Name; Messung = $_.Name; Wert = $_.InnerText; Einheit = $u }
-                } | Where-Object { $_.Wert -and $_.Bereich -ne 'GamingMetrics' } | Sort-Object Bereich, Messung, Wert -Unique | Select-Object -First 50 | Out-Report
-            } catch { }
-        }
-    }
-}
-
-
 Invoke-Section 'Benchmark: Auswertung und Vergleich' {
     Set-BenchPausePart ''
     $script:BenchPause = $null
     $pg = Stop-PauseWatch -Raw
     if ($pg) {
         $pm = Get-BenchPauseMeasured $script:BenchPauseParts $pg
-        $onlyWinSat = ($script:BenchPauseParts.Count -and -not @($script:BenchPauseParts | Where-Object { $_.Teil -ne 'WinSAT' }).Count)
-        # nur WinSAT gemessen: keine eigene Messung, deren Werte Unterbrechungen verfälschen könnten
-        $script:BenchPause = $(if ($pm.Sekunden -gt 0) { Get-PauseAssessment $pm.Werte $pm.Sekunden } elseif ($onlyWinSat) { $null } else { Get-PauseAssessment $pg ((Get-Date) - $script:BenchT0).TotalSeconds })
+        $script:BenchPause = $(if ($pm.Sekunden -gt 0) { Get-PauseAssessment $pm.Werte $pm.Sekunden } else { Get-PauseAssessment $pg ((Get-Date) - $script:BenchT0).TotalSeconds })
     }
     try { Stop-BenchSensors } catch { }
     $inv = $script:Inv
@@ -636,7 +578,7 @@ Invoke-Section 'Benchmark: Auswertung und Vergleich' {
         if (-not $script:BenchResults.Count -and -not $script:BenchDisks.Count) { Add-Line '  Keine Messwerte vorhanden.'; Add-TestResult 'Benchmark' 'Info' 'keine Messwerte'; return }
         Add-Sub 'Ergebnisse'
         if ($script:BenchPause) {
-            Add-Line ('  Unterbrechungen während der Messungen: {0}{1}' -f $script:BenchPause.Text, $(if (@($script:BenchPauseParts | Where-Object { $_.Teil -eq 'WinSAT' }).Count) { '; WinSAT läuft als eigener Prozess und zählt nicht mit' } else { '' }))
+            Add-Line ('  Unterbrechungen während der Messungen: {0}' -f $script:BenchPause.Text)
             $pl = @($script:BenchPauseParts | Where-Object { $_.Von -and $_.Bis } | ForEach-Object { '{0} {1:N0} ({2:N1} s)' -f $_.Teil, ([double]$_.Bis[0] - [double]$_.Von[0]), (([double]$_.Bis[2] - [double]$_.Von[2]) / 1000.0) })
             if ($pl.Count -gt 1) { Add-Line ('  Je Abschnitt: {0}' -f ($pl -join ', ')) }
             if ($script:BenchPause.Auffaellig) { Add-Finding INFO 'Benchmark' ('Die Messungen liefen nicht ohne Unterbrechung: {0}. Einzelne Werte können dadurch etwas niedriger ausfallen.' -f $script:BenchPause.Text) }
@@ -682,7 +624,7 @@ Invoke-Section 'Benchmark: Auswertung und Vergleich' {
         } catch { }
         $bw = @($script:BenchResults | Where-Object Status -eq 'Warnung').Count
         $grps = @($script:BenchGroupOrder | Where-Object { (Get-BenchGroup $_).Anzahl })
-        $want = @(@{ CPU = 'CPU'; RAM = 'RAM'; GPU = 'GPU'; Disk = 'Laufwerke'; WinSAT = 'WinSAT' }.GetEnumerator() | Where-Object { $script:BenchSel[$_.Key] } | ForEach-Object { $_.Value })
+        $want = @(@{ CPU = 'CPU'; RAM = 'RAM'; GPU = 'GPU'; Disk = 'Laufwerke' }.GetEnumerator() | Where-Object { $script:BenchSel[$_.Key] } | ForEach-Object { $_.Value })
         $missing = @($want | Where-Object { $grps -notcontains $_ })
         Add-TestResult 'Benchmark' $(if ($bw) { 'Warnung' } elseif ($missing.Count) { 'Info' } else { 'OK' }) ('{0} Messwerte für {1}, {2} auffällig{3}{4}' -f $script:BenchResults.Count, ($grps -join ', '), $bw,
             $(if ($missing.Count) { ', ohne Ergebnis: ' + ($missing -join ', ') } else { '' }), $(if ($sumParts.Count) { '. Referenz: ' + ($sumParts -join ', ') } else { '' }))

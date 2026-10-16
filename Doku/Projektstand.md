@@ -1,11 +1,19 @@
-﻿# Leos Minibench: Projektstand
+# Leos Minibench: Projektstand
 
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
-## Stand: Version 3.71 (15.10.2026)
-Release-Commit "Release v3.71: Präzise Stromverbrauchsschätzung, Startzeit-Transparenz, Profilkarten und Dashboard-Korrekturen" (Commit 5664f49).
+## Stand: Version 3.72 (16.10.2026)
+Release-Commit "Release v3.72: Neue dreiteilige Startseite, interaktiver Schnellstart & System-Feinschliff".
 Getestet und gebaut unter Windows mit Windows PowerShell 5.1 und Pester 6.2.0.
 
+Inhalt von 3.72 (Einzelheiten in Doku\Änderungen_v3.72.txt):
+1. Neue dreiteilige Startseite (Drei-Fragen-Prinzip): Aufgeräumte Einstiegsseite als Standardansicht ganz oben in der Seitenleiste. Zwei dynamische Zustände: Zustand A (Erststart ohne Datenbankläufe) mit Begrüßung, Hardware-Steckbrief („DIESER PC“) inkl. Inventar-Link, vier interaktiven Aufgabenkarten, Schritt-für-Schritt-Ablauf und Werkzeug-Verweisen; Zustand B (Folgestart mit vorhandener Datenbank) mit Schlüsseldaten in Badges („Willkommen zurück“), 2x2-Kachelmatrix für den letzten Lauf (KPIs, Bericht öffnen, Dashboard-Vergleich), asynchroner Kachel „Schnell behebbar“ für Konfigurationsprüfungen, Aufgabenliste mit Datum des letzten Laufs sowie Werkzeuge-Live-Status. Abschlussleiste mit Option „Beim Start diese Seite zeigen“, Kurzanleitung und „Was ist neu“ (dynamisches Neu-Badge bei Versionswechsel).
+2. Interaktiver Schnellstart & Ablaufsteuerung: Klick auf eine Aufgabenkachel wählt die zuständigen Module in der Seitenleiste an, lädt Standardvorgaben und springt zur ersten Seite; Fußleiste zeigt im Leerzustand den deaktivierten Startknopf „Ablauf wählen“ und aktiviert sich automatisch nach Modulauswahl.
+3. Vollständige WinSAT-Bereinigung: Entfernung aller veralteten WinSAT-Funktionen (-BenchGpuWahl, chkGpuWahl, WinSAT-Schritt, WinSAT-SVG und Auswertungen im Bericht) zugunsten moderner nativer Messungen.
+4. Automatische Standard-Referenz: Automatische Wahl von Referenz_Notebook.json bzw. Referenz_Desktop.json anhand der Hardware-Erkennung (Test-IsNotebookSystem).
+5. System-Feinschliff: Sachliche Benennung der Konfigurationsprüfung im Diagnosebericht, asynchrone Hintergrundprüfung von XMP/EXPO, BIOS-Alter und LAN-Link ohne UI-Blockade, durchgehende Dialoggestaltung mit UI.ThemeDialog.
+
+## Vorher: Version 3.71
 Inhalt von 3.71 (Einzelheiten in Doku\Änderungen_v3.71.txt):
 1. Präzise Stromverbrauchsschätzung (PSU-Effizienzmodell): Umstellung der DC- und AC-Berechnung auf ein physikalisches Hardware- und Netzteil-Modell mit 230V EU-Effizienzkurven (Unbekannt, 80 PLUS White bis Titanium) und linearer Stützstellen-Interpolation (5 % bis 100 % Netzteilauslastung); interaktive Konfigurationsleiste direkt im HTML-Bericht (Nennleistung in Watt und Effizienzklasse) für Desktops mit Live-Neuberechnung aller Verbrauchswerte, Auslastungsgrade und Stromkosten sowie Speicherung im Browser (localStorage); automatische Erkennung mobiler Plattformen mit OEM-Netzteil-/Akkumodell (~90 % Wirkungsgrad) ohne ATX-Netzteilwahl; detaillierte DC-Erfassung inkl. Mainboard-VRM-Verlusten, AMD-Radeon-TBP-Zuschlägen (+4 W / +15 %), DIMM-Arbeitsspeichermodulen, Datenträgertypen (NVMe/SATA/HDD) und Lüftern sowie Warnung bei Netzteil-Überlastung (> 85 % unter Volllast).
 2. System-Startzeit & Nutzungsprofil-Transparenz: Standardmäßig geöffnetes Boot-Performance-Element (<details class="box grp" data-section="system" open>) im HTML-Bericht; saubere Trennung und verständliche Erläuterung der beiden Boot-Phasen aus Event 100 (MainPathBootTime: Desktop/Treiber einsatzbereit vs. BootPostBootTime: Autostart bis vollständiger Leerlauf); Nutzungsprofile (Gaming, Büro, Workstation) mit transparentem Hover-Tooltip zur genauen mathematischen Zusammensetzung und Gewichtung der Komponenten; Referenzsystem-Auswahl (Gespeicherte Referenz, Mediane, Datenbankeinträge) und Referenz-Speichern im Benchmark-Reiter der Benutzeroberfläche wiederhergestellt.
@@ -62,4 +70,4 @@ Inhalt von 3.64 (Einzelheiten in Doku\Änderungen_v3.64.txt):
 Keine offenen Befunde.
 
 ## Letzter Commit
-Release-Commit v3.71 (Commit 5664f49)
+Release-Commit v3.71 (Commit 5664f49) (Release v3.72 wird durch Bauen.cmd committet)

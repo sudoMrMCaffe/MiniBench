@@ -1,4 +1,4 @@
-﻿// Versionshistorie (ab v2.7): Seite Versionen der Oberfläche und Doku\Versionshistorie.txt.
+// Versionshistorie (ab v2.7): Seite Versionen der Oberfläche und Doku\Versionshistorie.txt.
 // Jede neue Version bekommt hier oben einen Eintrag (ein Test prüft, dass es einen für $ScriptVersion gibt).
 // Einzelheiten stehen in Doku\Änderungen_vX.Y.txt. Für 1.0 bis 2.1 gibt es keine Änderungsdateien mehr; die Einträge
 // nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
@@ -11,6 +11,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.72", "16.10.2026", "Neue dreiteilige Startseite, interaktiver Schnellstart & System-Feinschliff",
+            "Neue dreiteilige Startseite: Moderne Einstiegsseite nach dem Drei-Fragen-Prinzip („Was ist das für ein PC?“, „Was kann ich hier tun?“, „Was ist seit dem letzten Mal passiert?“) als Standardansicht beim Programmstart. Zwei dynamische Zustände: Zustand A für den Erststart mit Hardware-Steckbrief, vier interaktiven Aufgabenkarten (PC durchchecken, Leistung messen, Stabilität prüfen, Pflegen und beschleunigen), Ablauf-Erklärung und Werkzeug-Verweisen; Zustand B für Folgestarts mit Schnellübersicht der Hardware in Badges, Kachel für den letzten Lauf mit vier Kennzahlen (Gesamt, CPU, RAM, GPU) und Direktlinks, asynchroner Kachel „Schnell behebbar“ für Konfigurationsprüfungen ohne Last sowie Aufgaben- und Werkzeuglisten. " +
+            "Interaktiver Schnellstart: Direkte Aufgabenwahl hakt die erforderlichen Module an, lädt sinnvolle Standardprofile und wechselt zur ersten Arbeitsseite; Fußleiste mit deaktiviertem Startknopf „Ablauf wählen“ im Leerzustand und automatischer Aktivierung nach Modulauswahl. " +
+            "Bereinigung veralteter WinSAT-Funktionen: Vollständige Entfernung aller WinSAT-Messungen, Optionen und Diagramme aus Benchmark, Bericht und Oberfläche zugunsten nativer Messungen. " +
+            "Automatische Standard-Referenz: Hardware-basierte automatische Wahl von Referenz_Notebook.json bzw. Referenz_Desktop.json je nach Gerätetyp (Notebook vs. Desktop). " +
+            "System-Feinschliff: Sachliche Benennung der Konfigurationsprüfung im Diagnosebericht, asynchrone Hintergrundprüfung für XMP/EXPO, BIOS-Alter und Netzwerkverbindung sowie verbesserte Dialoggestaltung."),
         new Eintrag("3.71", "15.10.2026", "Präzise Stromverbrauchsschätzung, Startzeit-Transparenz, Profilkarten und Dashboard-Korrekturen",
             "Präzise Stromverbrauchsschätzung: Hardware- und Netzteil-Modellierung mit 230V EU-Effizienzkurven (Unbekannt bis 80 PLUS Titanium) über lineare Stützstellen-Interpolation (5 % bis 100 % Last); interaktive Konfiguration von Nennleistung (Watt) und Effizienzklasse direkt im HTML-Bericht mit Live-Neuberechnung aller Verbrauchswerte, Auslastungsgrade und Stromkosten sowie browserseitiger Persistenz; automatische Erkennung mobiler Plattformen mit OEM-Netzteil-/Akkumodell ohne ATX-Netzteilwahl; genaue DC-Berechnung inkl. VRM-Wandlerverlusten, AMD-Radeon-TBP-Zuschlägen, DIMM-, Datenträger- und Lüfter-Basisverbräuchen sowie Überlastwarnung (> 85 % unter Volllast). " +
             "Startzeit-Transparenz & Benchmark-Referenz: Standardmäßig geöffnete Boot-Performance-Sektion mit getrennter Ausweisung von Kernel- und Treiberstart (MainPathBootTime, Desktop einsatzbereit) und Hintergrund-Initialisierung (BootPostBootTime, vollständiger Leerlauf); Nutzungsprofile (Gaming, Büro, Workstation) und Komponentenkarten im Benchmark mit transparentem Hover-Tooltip zur exakten Zusammensetzung und Gewichtung der Teilwerte; Referenzauswahl (Gespeicherte Referenz, Mediane, Datenbankeinträge) und Referenz-Speichern in der Benutzeroberfläche wiederhergestellt. " +

@@ -1080,7 +1080,7 @@ if ($script:SmartTests | Where-Object Status -eq 'läuft') {
     })
     $qfStatus = if ($quickFixIssues.Count) { 'Warnung' } else { 'OK' }
     $qfDetail = if ($quickFixIssues.Count) { ('{0} auffällige Einstellung(en) gefunden' -f $quickFixIssues.Count) } else { 'RAM-Profil, Monitoranschluss, Bildwiederholrate, LAN-Rate und BIOS geprüft: keine Fehler' }
-    Add-TestResult 'Konfigurationsprüfung (Schnell behebbar)' $qfStatus $qfDetail
+    Add-TestResult 'Konfigurationsprüfung' $qfStatus $qfDetail
 }   # Ende: Diagnose
 
 

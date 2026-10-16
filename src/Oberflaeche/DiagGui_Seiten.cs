@@ -791,4 +791,1188 @@ public partial class DiagGui
             return dlg.ShowDialog(this) == DialogResult.OK ? tb.Text : null;
         }
     }
+
+    // ============================================================ Startseite (ab v3.72)
+    class QuickFixItem
+    {
+        public string Level = "ok", Badge = "", Title = "", Desc = "", ButtonText = "", Tip = "";
+        public Action Action;
+    }
+
+    Control BuildStartPage()
+    {
+        Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel; f.AutoScroll = true;
+        BuildStartContent(f);
+        return f;
+    }
+
+    void BuildStartContent(Panel f)
+    {
+        f.SuspendLayout();
+        f.Controls.Clear();
+        if (db.Count == 0)
+        {
+            BuildStartPageA(f);
+        }
+        else
+        {
+            BuildStartPageB(f);
+        }
+        f.ResumeLayout(true);
+    }
+
+    void BuildStartPageA(Panel f)
+    {
+        FlowLayoutPanel p = new FlowLayoutPanel();
+        p.FlowDirection = FlowDirection.TopDown;
+        p.WrapContents = false;
+        p.AutoSize = true;
+        p.BackColor = UI.Panel;
+        p.Margin = new Padding(0);
+        p.Padding = new Padding(0);
+
+        // 1. Kopfbereich & Steckbrief (zweispaltig, Breite Gruppenbreite)
+        TableLayoutPanel headGrid = new TableLayoutPanel();
+        headGrid.Width = UI.S(UI.Gruppenbreite);
+        headGrid.Height = UI.S(145);
+        headGrid.ColumnCount = 2;
+        headGrid.RowCount = 1;
+        headGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60f));
+        headGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
+        headGrid.Margin = new Padding(0, 0, 0, UI.S(14));
+
+        FlowLayoutPanel leftHead = new FlowLayoutPanel();
+        leftHead.Dock = DockStyle.Fill;
+        leftHead.FlowDirection = FlowDirection.TopDown;
+        leftHead.WrapContents = false;
+        leftHead.BackColor = UI.Panel;
+        leftHead.Margin = new Padding(0);
+
+        Label lblTitle = Lbl("Willkommen bei Leos Minibench", 15f, true, UI.Text);
+        lblTitle.Margin = new Padding(0, 0, 0, UI.S(6));
+        leftHead.Controls.Add(lblTitle);
+
+        Label lblDesc = Lbl("Prüft, misst und pflegt diesen PC. Wähle unten eine Aufgabe oder links einen oder mehrere Abläufe und starte unten rechts. Am Ende steht ein Bericht mit allen Befunden.", 9.25f, false, UI.Muted);
+        lblDesc.MaximumSize = new Size(UI.S(440), 0);
+        lblDesc.Margin = new Padding(0, 0, 0, UI.S(10));
+        leftHead.Controls.Add(lblDesc);
+
+        FlowLayoutPanel statusRow = new FlowLayoutPanel();
+        statusRow.AutoSize = true;
+        statusRow.WrapContents = false;
+        statusRow.BackColor = UI.Panel;
+        statusRow.Margin = new Padding(0);
+
+        Label dot1 = Lbl("● ", 9f, true, UI.Ok); dot1.Margin = new Padding(0);
+        Label txt1 = Lbl("Prüfungen lesen nur   ", 8.75f, false, UI.Muted); txt1.Margin = new Padding(0);
+        Label dot2 = Lbl("● ", 9f, true, UI.Warn); dot2.Margin = new Padding(UI.S(8), 0, 0, 0);
+        Label txt2 = Lbl("Änderungen sind gekennzeichnet und umkehrbar", 8.75f, false, UI.Muted); txt2.Margin = new Padding(0);
+        statusRow.Controls.Add(dot1); statusRow.Controls.Add(txt1); statusRow.Controls.Add(dot2); statusRow.Controls.Add(txt2);
+        leftHead.Controls.Add(statusRow);
+        headGrid.Controls.Add(leftHead, 0, 0);
+
+        Panel cardPc = new Panel();
+        cardPc.Dock = DockStyle.Fill;
+        cardPc.BackColor = UI.Panel;
+        cardPc.Padding = new Padding(UI.S(12), UI.S(10), UI.S(12), UI.S(10));
+        cardPc.Paint += delegate(object sender, PaintEventArgs pe) {
+            using (Pen pen = new Pen(UI.Line)) pe.Graphics.DrawRectangle(pen, 0, 0, cardPc.Width - 1, cardPc.Height - 1);
+        };
+
+        TableLayoutPanel pcTop = new TableLayoutPanel();
+        pcTop.Dock = DockStyle.Top;
+        pcTop.Height = UI.S(24);
+        pcTop.ColumnCount = 2;
+        pcTop.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+        pcTop.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+        Label lblDpc = Lbl("DIESER PC", 8f, true, UI.Muted);
+        lblDpc.Margin = new Padding(0);
+        LinkLabel lnkInvA = new LinkLabel();
+        lnkInvA.Text = "Inventar";
+        lnkInvA.Font = new Font("Segoe UI", 8.5f);
+        lnkInvA.LinkColor = UI.Accent;
+        lnkInvA.ActiveLinkColor = UI.AccentHover;
+        lnkInvA.LinkBehavior = LinkBehavior.HoverUnderline;
+        lnkInvA.Anchor = AnchorStyles.Right;
+        lnkInvA.AutoSize = true;
+        Tip(lnkInvA, "Öffnet das detaillierte Hardware-Inventar dieses Rechners.");
+        lnkInvA.LinkClicked += delegate { ShowInventoryDialog(); };
+        pcTop.Controls.Add(lblDpc, 0, 0);
+        pcTop.Controls.Add(lnkInvA, 1, 0);
+        cardPc.Controls.Add(pcTop);
+
+        TableLayoutPanel pcGrid = new TableLayoutPanel();
+        pcGrid.Dock = DockStyle.Fill;
+        pcGrid.ColumnCount = 2;
+        pcGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UI.S(75)));
+        pcGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+
+        string cleanCpu = DbEntry.CleanCpuName(HwCpu);
+        string cpuSpec = cleanCpu.Length > 0 ? (cleanCpu + (HwCores > 0 ? " · " + HwCores + " Kerne / " + HwThreads + " Threads" : "")) : "Standard-Prozessor";
+        string gpuSpec = GpuNames.Length > 0 ? GpuNames[0] : "Grafikeinheit";
+        string ramSpec = HwRam.Length > 0 ? HwRam : "Arbeitsspeicher";
+        string diskSpec = GetDisksSummary();
+        string boardSpec = HwBoard.Length > 0 ? HwBoard : "Standard-Mainboard";
+
+        string[][] specs = new string[][] {
+            new string[] { "Prozessor", cpuSpec },
+            new string[] { "Grafik", gpuSpec },
+            new string[] { "Speicher", ramSpec },
+            new string[] { "Laufwerke", diskSpec },
+            new string[] { "Mainboard", boardSpec }
+        };
+
+        for (int i = 0; i < specs.Length; i++)
+        {
+            Label k = Lbl(specs[i][0], 8.25f, false, UI.Muted);
+            k.Margin = new Padding(0, UI.S(1), UI.S(4), UI.S(1));
+            Label v = Lbl(specs[i][1], 8.25f, false, UI.Text);
+            v.Margin = new Padding(0, UI.S(1), 0, UI.S(1));
+            v.AutoEllipsis = true;
+            pcGrid.Controls.Add(k, 0, i);
+            pcGrid.Controls.Add(v, 1, i);
+        }
+        cardPc.Controls.Add(pcGrid);
+        pcGrid.BringToFront();
+        headGrid.Controls.Add(cardPc, 1, 0);
+        p.Controls.Add(headGrid);
+
+        // 2. Aufgabenkarten
+        Label lblStartHead = Lbl("Womit möchtest du anfangen?", 11.5f, true, UI.Text);
+        lblStartHead.Margin = new Padding(0, UI.S(10), 0, UI.S(10));
+        p.Controls.Add(lblStartHead);
+
+        FlowLayoutPanel tasksRow = new FlowLayoutPanel();
+        tasksRow.Width = UI.S(UI.Gruppenbreite);
+        tasksRow.AutoSize = true;
+        tasksRow.WrapContents = false;
+        tasksRow.BackColor = UI.Panel;
+        tasksRow.Margin = new Padding(0, 0, 0, UI.S(16));
+
+        StartTaskCard c1 = new StartTaskCard("PC durchchecken", "Hardware, Treiber, Abstürze und Ereignisse prüfen. Ergebnis ist ein Bericht mit Befunden.", "Diagnose · ca. 14 Min.", "Lesen", "ok", UI.IcoDiag, true);
+        Tip(c1, "Startet die Systemdiagnose: prüft Hardware, Treiber und Windows-Ereignisse ohne Änderungen.");
+        c1.CardClicked += delegate { SelectTask("PC durchchecken"); };
+
+        StartTaskCard c2 = new StartTaskCard("Leistung messen", "Prozessor, Speicher, Grafik und Laufwerke messen und mit anderen Systemen vergleichen.", "Benchmark · ca. 7 Min.", "Lesen", "ok", UI.IcoSpeed, false);
+        Tip(c2, "Startet den Leistungsbenchmark für CPU, RAM, Grafikkarte und Datenträger.");
+        c2.CardClicked += delegate { SelectTask("Leistung messen"); };
+
+        StartTaskCard c3 = new StartTaskCard("Stabilität prüfen", "Volllast mit Temperatur, Takt und Fehlerprüfung. Findet Hitze- und Stabilitätsprobleme.", "Lasttest · ab 2 Min.", "Lesen", "ok", UI.IcoFlame, false);
+        Tip(c3, "Startet den Stabilitätstest unter Volllast zur Erkennung von Überhitzung und Instabilitäten.");
+        c3.CardClicked += delegate { SelectTask("Stabilität prüfen"); };
+
+        StartTaskCard c4 = new StartTaskCard("Pflegen und beschleunigen", "Reparieren, aufräumen, Einstellungen verbessern. Jede Änderung lässt sich rückgängig machen.", "Wartung, Optimierung", "Ändert", "warn", UI.IcoWartung, false);
+        c4.Margin = new Padding(0);
+        Tip(c4, "Startet Wartung und Optimierung zur Systembereinigung und Leistungsverbesserung.");
+        c4.CardClicked += delegate { SelectTask("Pflegen und beschleunigen"); };
+
+        tasksRow.Controls.Add(c1);
+        tasksRow.Controls.Add(c2);
+        tasksRow.Controls.Add(c3);
+        tasksRow.Controls.Add(c4);
+        p.Controls.Add(tasksRow);
+
+        // 3. Erklärbereich (zweispaltig, Breite Gruppenbreite)
+        TableLayoutPanel explGrid = new TableLayoutPanel();
+        explGrid.Width = UI.S(UI.Gruppenbreite);
+        explGrid.Height = UI.S(145);
+        explGrid.ColumnCount = 2;
+        explGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 58f));
+        explGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42f));
+        explGrid.Margin = new Padding(0, 0, 0, UI.S(16));
+
+        Panel cardSteps = new Panel();
+        cardSteps.Dock = DockStyle.Fill;
+        cardSteps.BackColor = UI.Panel;
+        cardSteps.Padding = new Padding(UI.S(14), UI.S(12), UI.S(14), UI.S(12));
+        cardSteps.Margin = new Padding(0, 0, UI.S(10), 0);
+        cardSteps.Paint += delegate(object sender, PaintEventArgs pe) {
+            using (Pen pen = new Pen(UI.Line)) pe.Graphics.DrawRectangle(pen, 0, 0, cardSteps.Width - 1, cardSteps.Height - 1);
+        };
+
+        Label lblStpHead = Lbl("So läuft ein Durchgang", 10.5f, true, UI.Text);
+        lblStpHead.Dock = DockStyle.Top;
+        lblStpHead.Height = UI.S(24);
+        cardSteps.Controls.Add(lblStpHead);
+
+        TableLayoutPanel stepCols = new TableLayoutPanel();
+        stepCols.Dock = DockStyle.Fill;
+        stepCols.ColumnCount = 3;
+        stepCols.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3f));
+        stepCols.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3f));
+        stepCols.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.4f));
+
+        string[][] stepData = new string[][] {
+            new string[] { "1", "Ablauf wählen", "Links abhaken, mehrere lassen sich kombinieren. Die Seite daneben zeigt die Optionen." },
+            new string[] { "2", "Starten", "Unten rechts. Die Fußleiste zeigt vorher die Gesamtdauer." },
+            new string[] { "3", "Bericht lesen", "Öffnet sich am Ende. Befunde sind nach kritisch, Warnung und Hinweis sortiert." }
+        };
+
+        for (int i = 0; i < 3; i++)
+        {
+            FlowLayoutPanel sp = new FlowLayoutPanel();
+            sp.Dock = DockStyle.Fill;
+            sp.FlowDirection = FlowDirection.TopDown;
+            sp.WrapContents = false;
+            sp.BackColor = UI.Panel;
+            sp.Margin = new Padding(0, 0, UI.S(6), 0);
+
+            FlowLayoutPanel badgeRow = new FlowLayoutPanel();
+            badgeRow.AutoSize = true;
+            badgeRow.WrapContents = false;
+            badgeRow.BackColor = UI.Panel;
+            badgeRow.Margin = new Padding(0, 0, 0, UI.S(4));
+
+            Badge bNum = new Badge(stepData[i][0], "info");
+            bNum.Margin = new Padding(0, 0, UI.S(6), 0);
+            Tip(bNum, "Schritt " + stepData[i][0]);
+            Label stTitle = Lbl(stepData[i][1], 9f, true, UI.Text);
+            badgeRow.Controls.Add(bNum);
+            badgeRow.Controls.Add(stTitle);
+            sp.Controls.Add(badgeRow);
+
+            Label stDesc = Lbl(stepData[i][2], 8f, false, UI.Muted);
+            stDesc.MaximumSize = new Size(UI.S(125), 0);
+            sp.Controls.Add(stDesc);
+            stepCols.Controls.Add(sp, i, 0);
+        }
+        cardSteps.Controls.Add(stepCols);
+        stepCols.BringToFront();
+        explGrid.Controls.Add(cardSteps, 0, 0);
+
+        Panel cardTools = new Panel();
+        cardTools.Dock = DockStyle.Fill;
+        cardTools.BackColor = UI.Panel;
+        cardTools.Padding = new Padding(UI.S(14), UI.S(12), UI.S(14), UI.S(12));
+        cardTools.Margin = new Padding(UI.S(4), 0, 0, 0);
+        cardTools.Paint += delegate(object sender, PaintEventArgs pe) {
+            using (Pen pen = new Pen(UI.Line)) pe.Graphics.DrawRectangle(pen, 0, 0, cardTools.Width - 1, cardTools.Height - 1);
+        };
+
+        Label lblToolsHead = Lbl("Werkzeuge", 10.5f, true, UI.Text);
+        lblToolsHead.Dock = DockStyle.Top;
+        lblToolsHead.Height = UI.S(24);
+        cardTools.Controls.Add(lblToolsHead);
+
+        TableLayoutPanel toolRows = new TableLayoutPanel();
+        toolRows.Dock = DockStyle.Fill;
+        toolRows.RowCount = 3;
+        toolRows.ColumnCount = 1;
+
+        Control rowSensA = CreateToolItem(UI.IcoSens, "Sensoren live", "Temperatur, Takt, Lüfter laufend ansehen", delegate { ShowPage(7); }, "Öffnet die Live-Sensoranzeige für Temperaturen, Taktraten und Spannungen.");
+        Control rowDbA = CreateToolItem(UI.IcoDb, "Vergleichsdatenbank", db.Count + " Systeme, im Dashboard vergleichen", delegate { ShowPage(8); }, "Öffnet die Vergleichsdatenbank aller gespeicherten Messungen.");
+        Control rowToolsA = CreateToolItem(UI.IcoTools, "Tools", "Portable Werkzeuge, Programme, BIOS-Neustart", delegate { ShowPage(6); }, "Öffnet die Werkzeugseite mit portablen Hilfsprogrammen und Windows-Schnellstartern.");
+
+        toolRows.Controls.Add(rowSensA, 0, 0);
+        toolRows.Controls.Add(rowDbA, 0, 1);
+        toolRows.Controls.Add(rowToolsA, 0, 2);
+        cardTools.Controls.Add(toolRows);
+        toolRows.BringToFront();
+        explGrid.Controls.Add(cardTools, 1, 0);
+        p.Controls.Add(explGrid);
+
+        // 4. Abschlussleiste
+        p.Controls.Add(BuildStartFooter());
+
+        f.Controls.Add(p);
+    }
+
+    void BuildStartPageB(Panel f)
+    {
+        FlowLayoutPanel p = new FlowLayoutPanel();
+        p.FlowDirection = FlowDirection.TopDown;
+        p.WrapContents = false;
+        p.AutoSize = true;
+        p.BackColor = UI.Panel;
+        p.Margin = new Padding(0);
+        p.Padding = new Padding(0);
+
+        // 1. Kopfzeile mit Badges/Pills & Inventar-Link
+        TableLayoutPanel headRow = new TableLayoutPanel();
+        headRow.Width = UI.S(UI.Gruppenbreite);
+        headRow.Height = UI.S(32);
+        headRow.ColumnCount = 2;
+        headRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 80f));
+        headRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
+        headRow.Margin = new Padding(0, 0, 0, UI.S(4));
+
+        Label lblWelcome = Lbl("Willkommen zurück", 15f, true, UI.Text);
+        lblWelcome.Margin = new Padding(0);
+        headRow.Controls.Add(lblWelcome, 0, 0);
+
+        LinkLabel lnkInvB = new LinkLabel();
+        lnkInvB.Text = "Inventar anzeigen";
+        lnkInvB.Font = new Font("Segoe UI", 9f);
+        lnkInvB.LinkColor = UI.Accent;
+        lnkInvB.ActiveLinkColor = UI.AccentHover;
+        lnkInvB.LinkBehavior = LinkBehavior.HoverUnderline;
+        lnkInvB.Anchor = AnchorStyles.Right;
+        lnkInvB.AutoSize = true;
+        Tip(lnkInvB, "Öffnet das detaillierte Hardware-Inventar dieses Rechners.");
+        lnkInvB.LinkClicked += delegate { ShowInventoryDialog(); };
+        headRow.Controls.Add(lnkInvB, 1, 0);
+        p.Controls.Add(headRow);
+
+        // Pills-Reihe mit Hardwaredaten
+        FlowLayoutPanel pillsRow = new FlowLayoutPanel();
+        pillsRow.Width = UI.S(UI.Gruppenbreite);
+        pillsRow.AutoSize = true;
+        pillsRow.WrapContents = true;
+        pillsRow.BackColor = UI.Panel;
+        pillsRow.Margin = new Padding(0, 0, 0, UI.S(16));
+
+        string cleanCpu = DbEntry.CleanCpuName(HwCpu);
+        if (cleanCpu.Length > 0) pillsRow.Controls.Add(new PillLabel(cleanCpu));
+        if (GpuNames.Length > 0 && GpuNames[0].Length > 0) pillsRow.Controls.Add(new PillLabel(GpuNames[0]));
+        if (HwRam.Length > 0) pillsRow.Controls.Add(new PillLabel(HwRam));
+        string disksSummary = GetDisksSummary();
+        if (disksSummary.Length > 0) pillsRow.Controls.Add(new PillLabel(disksSummary));
+        if (HwBoard.Length > 0) pillsRow.Controls.Add(new PillLabel(HwBoard));
+        p.Controls.Add(pillsRow);
+
+        // Bestimme letzten Lauf
+        DbEntry lastRun = null;
+        DateTime lastDt = DateTime.MinValue;
+        string lastBenchDate = "";
+        string lastLoadDate = "";
+        DateTime lastBenchDt = DateTime.MinValue;
+        DateTime lastLoadDt = DateTime.MinValue;
+
+        foreach (DbEntry e in db)
+        {
+            DateTime dt;
+            if (DateTime.TryParse(e.Datum, CultureInfo.CurrentCulture, DateTimeStyles.None, out dt) ||
+                DateTime.TryParseExact(e.Datum, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out dt) ||
+                DateTime.TryParseExact(e.Datum, "yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out dt) ||
+                DateTime.TryParseExact(e.Datum, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out dt))
+            {
+                if (dt > lastDt) { lastDt = dt; lastRun = e; }
+                if (e.HasBench && dt > lastBenchDt) { lastBenchDt = dt; lastBenchDate = dt.ToString("dd.MM."); }
+                if (e.Module.IndexOf("Lasttest", StringComparison.OrdinalIgnoreCase) >= 0 && dt > lastLoadDt) { lastLoadDt = dt; lastLoadDate = dt.ToString("dd.MM."); }
+            }
+            else if (lastRun == null)
+            {
+                lastRun = e;
+            }
+        }
+        if (lastRun == null && db.Count > 0) lastRun = db[0];
+
+        // 2x2 Grid (Breite Gruppenbreite)
+        TableLayoutPanel grid2x2 = new TableLayoutPanel();
+        grid2x2.Width = UI.S(UI.Gruppenbreite);
+        grid2x2.ColumnCount = 2;
+        grid2x2.RowCount = 2;
+        grid2x2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 53f));
+        grid2x2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 47f));
+        grid2x2.RowStyles.Add(new RowStyle(SizeType.Absolute, UI.S(195)));
+        grid2x2.RowStyles.Add(new RowStyle(SizeType.Absolute, UI.S(195)));
+        grid2x2.Margin = new Padding(0, 0, 0, UI.S(14));
+
+        // --- Kachel 1 (links oben): Letzter Lauf ---
+        Panel cardLast = new Panel();
+        cardLast.Dock = DockStyle.Fill;
+        cardLast.BackColor = UI.Panel;
+        cardLast.Margin = new Padding(0, 0, UI.S(12), UI.S(12));
+        cardLast.Padding = new Padding(UI.S(14));
+        cardLast.Paint += delegate(object sender, PaintEventArgs pe) {
+            using (Pen pen = new Pen(UI.Line)) pe.Graphics.DrawRectangle(pen, 0, 0, cardLast.Width - 1, cardLast.Height - 1);
+        };
+
+        TableLayoutPanel lastHead = new TableLayoutPanel();
+        lastHead.Dock = DockStyle.Top;
+        lastHead.Height = UI.S(24);
+        lastHead.ColumnCount = 2;
+        lastHead.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45f));
+        lastHead.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55f));
+        Label lblLTitle = Lbl("Letzter Lauf", 10.5f, true, UI.Text);
+        lblLTitle.Margin = new Padding(0);
+        string lastRunInfo = lastRun != null ? (ShortTime(lastRun.Datum) + " · " + (lastRun.Module.Length > 0 ? lastRun.Module : "Lauf")) : "keine Läufe";
+        Label lblLDate = Lbl(lastRunInfo, 8.25f, false, UI.Muted);
+        lblLDate.Anchor = AnchorStyles.Right;
+        lblLDate.Margin = new Padding(0);
+        lblLDate.AutoEllipsis = true;
+        lastHead.Controls.Add(lblLTitle, 0, 0);
+        lastHead.Controls.Add(lblLDate, 1, 0);
+        cardLast.Controls.Add(lastHead);
+
+        TableLayoutPanel kpiGrid = new TableLayoutPanel();
+        kpiGrid.Dock = DockStyle.Top;
+        kpiGrid.Height = UI.S(64);
+        kpiGrid.ColumnCount = 4;
+        kpiGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+        kpiGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+        kpiGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+        kpiGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+        kpiGrid.Margin = new Padding(0, UI.S(6), 0, UI.S(6));
+
+        string kpiGesamt = (lastRun != null && lastRun.OverallScore > 0) ? lastRun.OverallScore.ToString("N0", CultureInfo.CurrentCulture) : "-";
+        string kpiCpu = (lastRun != null && lastRun.Get("CPU|MT") > 0) ? lastRun.Get("CPU|MT").ToString("N0", CultureInfo.CurrentCulture) : "-";
+        string kpiRam = "-";
+        if (lastRun != null)
+        {
+            double rVal = lastRun.Get("RAM|Lesen");
+            if (rVal <= 0) rVal = lastRun.Get("RAM|Read");
+            if (rVal > 0) kpiRam = (rVal / 1000.0).ToString("N1", CultureInfo.CurrentCulture) + " GB/s";
+        }
+        string kpiGpu = "-";
+        if (lastRun != null)
+        {
+            double gVal = lastRun.Get("GPU|REND");
+            if (gVal <= 0) gVal = lastRun.Get("GPU|FPS");
+            if (gVal > 0) kpiGpu = Math.Round(gVal, 0) + " FPS";
+        }
+
+        kpiGrid.Controls.Add(CreateKpiBox("Gesamt", kpiGesamt), 0, 0);
+        kpiGrid.Controls.Add(CreateKpiBox("CPU Mehrkern", kpiCpu), 1, 0);
+        kpiGrid.Controls.Add(CreateKpiBox("RAM Lesen", kpiRam), 2, 0);
+        kpiGrid.Controls.Add(CreateKpiBox("Grafik", kpiGpu), 3, 0);
+        cardLast.Controls.Add(kpiGrid);
+
+        FlowLayoutPanel lastAct = new FlowLayoutPanel();
+        lastAct.Dock = DockStyle.Bottom;
+        lastAct.Height = UI.S(38);
+        lastAct.WrapContents = false;
+        lastAct.BackColor = UI.Panel;
+        lastAct.Margin = new Padding(0);
+
+        Button btnOpenRep = UI.Primary("Bericht öffnen");
+        btnOpenRep.Height = UI.S(32);
+        btnOpenRep.Enabled = (lastRun != null);
+        Tip(btnOpenRep, "Öffnet den vollständigen HTML-Bericht des letzten Laufs.");
+        DbEntry targetRun = lastRun;
+        btnOpenRep.Click += delegate { if (targetRun != null) OpenEntry(targetRun); };
+        lastAct.Controls.Add(btnOpenRep);
+
+        Button btnDash = UI.Secondary("Im Dashboard vergleichen");
+        btnDash.Height = UI.S(32);
+        btnDash.Margin = new Padding(UI.S(8), 0, 0, 0);
+        Tip(btnDash, "Öffnet das interaktive Dashboard zum Vergleich mit anderen Systemen.");
+        btnDash.Click += delegate { OpenDashboard(); };
+        lastAct.Controls.Add(btnDash);
+
+        string befundeText = "Befunde: keine";
+        Color befundeColor = UI.Ok;
+        if (lastRun != null && lastRun.Befunde.Length > 0 && lastRun.Befunde != "0 / 0 / 0")
+        {
+            befundeText = "Befunde: " + lastRun.Befunde;
+            befundeColor = UI.Warn;
+        }
+        Label lblBef = Lbl(befundeText, 8.5f, true, befundeColor);
+        lblBef.Margin = new Padding(UI.S(12), UI.S(8), 0, 0);
+        lastAct.Controls.Add(lblBef);
+        cardLast.Controls.Add(lastAct);
+        grid2x2.Controls.Add(cardLast, 0, 0);
+
+        // --- Kachel 2 (rechts oben): Aufgaben ---
+        Panel cardTasks = new Panel();
+        cardTasks.Dock = DockStyle.Fill;
+        cardTasks.BackColor = UI.Panel;
+        cardTasks.Margin = new Padding(0, 0, 0, UI.S(12));
+        cardTasks.Padding = new Padding(UI.S(14), UI.S(10), UI.S(14), UI.S(10));
+        cardTasks.Paint += delegate(object sender, PaintEventArgs pe) {
+            using (Pen pen = new Pen(UI.Line)) pe.Graphics.DrawRectangle(pen, 0, 0, cardTasks.Width - 1, cardTasks.Height - 1);
+        };
+
+        Label lblTHead = Lbl("Aufgaben", 10.5f, true, UI.Text);
+        lblTHead.Dock = DockStyle.Top;
+        lblTHead.Height = UI.S(24);
+        cardTasks.Controls.Add(lblTHead);
+
+        TableLayoutPanel taskList = new TableLayoutPanel();
+        taskList.Dock = DockStyle.Fill;
+        taskList.RowCount = 4;
+        taskList.ColumnCount = 1;
+
+        StartTaskRow tr1 = new StartTaskRow("PC durchchecken", "Diagnose · ca. 14 Min.", "Lesen", "ok", UI.IcoDiag);
+        tr1.Dock = DockStyle.Fill;
+        Tip(tr1, "Startet die Systemdiagnose: prüft Hardware, Treiber und Windows-Ereignisse.");
+        tr1.RowClicked += delegate { SelectTask("PC durchchecken"); };
+
+        string bSub = "Benchmark · ca. 7 Min." + (lastBenchDate.Length > 0 ? " · zuletzt " + lastBenchDate : " · noch nie");
+        StartTaskRow tr2 = new StartTaskRow("Leistung messen", bSub, "Lesen", "ok", UI.IcoSpeed);
+        tr2.Dock = DockStyle.Fill;
+        Tip(tr2, "Startet den Leistungsbenchmark für CPU, RAM, Grafikkarte und Datenträger.");
+        tr2.RowClicked += delegate { SelectTask("Leistung messen"); };
+
+        string lSub = "Lasttest · ab 2 Min." + (lastLoadDate.Length > 0 ? " · zuletzt " + lastLoadDate : " · noch nie");
+        StartTaskRow tr3 = new StartTaskRow("Stabilität prüfen", lSub, "Lesen", "ok", UI.IcoFlame);
+        tr3.Dock = DockStyle.Fill;
+        Tip(tr3, "Startet den Stabilitätstest unter Volllast zur Erkennung von Überhitzung und Instabilitäten.");
+        tr3.RowClicked += delegate { SelectTask("Stabilität prüfen"); };
+
+        StartTaskRow tr4 = new StartTaskRow("Pflegen und beschleunigen", "Wartung, Optimierung", "Ändert", "warn", UI.IcoWartung);
+        tr4.Dock = DockStyle.Fill;
+        Tip(tr4, "Startet Wartung und Optimierung zur Systembereinigung und Leistungsverbesserung.");
+        tr4.RowClicked += delegate { SelectTask("Pflegen und beschleunigen"); };
+
+        taskList.Controls.Add(tr1, 0, 0);
+        taskList.Controls.Add(tr2, 0, 1);
+        taskList.Controls.Add(tr3, 0, 2);
+        taskList.Controls.Add(tr4, 0, 3);
+        cardTasks.Controls.Add(taskList);
+        taskList.BringToFront();
+        grid2x2.Controls.Add(cardTasks, 1, 0);
+
+        // --- Kachel 3 (links unten): Schnell behebbar ---
+        Panel cardQuick = new Panel();
+        cardQuick.Dock = DockStyle.Fill;
+        cardQuick.BackColor = UI.Panel;
+        cardQuick.Margin = new Padding(0, 0, UI.S(12), 0);
+        cardQuick.Padding = new Padding(UI.S(14), UI.S(10), UI.S(14), UI.S(10));
+        cardQuick.Paint += delegate(object sender, PaintEventArgs pe) {
+            using (Pen pen = new Pen(UI.Line)) pe.Graphics.DrawRectangle(pen, 0, 0, cardQuick.Width - 1, cardQuick.Height - 1);
+        };
+
+        TableLayoutPanel qHead = new TableLayoutPanel();
+        qHead.Dock = DockStyle.Top;
+        qHead.Height = UI.S(24);
+        qHead.ColumnCount = 2;
+        qHead.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45f));
+        qHead.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55f));
+        Label lblQTitle = Lbl("Schnell behebbar", 10.5f, true, UI.Text);
+        lblQTitle.Margin = new Padding(0);
+        Label lblQSub = Lbl("beim Start erkannt, ohne Messung", 8f, false, UI.Muted);
+        lblQSub.Anchor = AnchorStyles.Right;
+        lblQSub.Margin = new Padding(0);
+        qHead.Controls.Add(lblQTitle, 0, 0);
+        qHead.Controls.Add(lblQSub, 1, 0);
+        cardQuick.Controls.Add(qHead);
+
+        Panel pQuickFixes = new Panel();
+        pQuickFixes.Dock = DockStyle.Fill;
+        pQuickFixes.BackColor = UI.Panel;
+        Label lblLoad = Lbl("Konfiguration wird im Hintergrund geprüft ...", 8.5f, false, UI.Muted);
+        lblLoad.Margin = new Padding(0, UI.S(16), 0, 0);
+        pQuickFixes.Controls.Add(lblLoad);
+        cardQuick.Controls.Add(pQuickFixes);
+        pQuickFixes.BringToFront();
+        grid2x2.Controls.Add(cardQuick, 0, 1);
+
+        StartQuickFixChecks(pQuickFixes);
+
+        // --- Kachel 4 (rechts unten): Werkzeuge ---
+        Panel cardToolsB = new Panel();
+        cardToolsB.Dock = DockStyle.Fill;
+        cardToolsB.BackColor = UI.Panel;
+        cardToolsB.Margin = new Padding(0);
+        cardToolsB.Padding = new Padding(UI.S(14), UI.S(10), UI.S(14), UI.S(10));
+        cardToolsB.Paint += delegate(object sender, PaintEventArgs pe) {
+            using (Pen pen = new Pen(UI.Line)) pe.Graphics.DrawRectangle(pen, 0, 0, cardToolsB.Width - 1, cardToolsB.Height - 1);
+        };
+
+        Label lblWHead = Lbl("Werkzeuge", 10.5f, true, UI.Text);
+        lblWHead.Dock = DockStyle.Top;
+        lblWHead.Height = UI.S(24);
+        cardToolsB.Controls.Add(lblWHead);
+
+        TableLayoutPanel toolsListB = new TableLayoutPanel();
+        toolsListB.Dock = DockStyle.Fill;
+        toolsListB.RowCount = 3;
+        toolsListB.ColumnCount = 1;
+
+        Control rowSensB = CreateToolItem(UI.IcoSens, "Sensoren live", "CPU [°C] · GPU [°C]", delegate { ShowPage(7); }, "Öffnet die Live-Sensoranzeige für Temperaturen, Taktraten und Spannungen.");
+        Control rowDbB = CreateToolItem(UI.IcoDb, "Vergleichsdatenbank", db.Count + " Systeme", delegate { ShowPage(8); }, "Öffnet die Vergleichsdatenbank aller gespeicherten Messungen.");
+        int openChanges = 0;
+        foreach (ChangeEntry ce in changes) if (ce.Undoable) openChanges++;
+        string chgInfo = openChanges == 0 ? "keine offenen" : (openChanges + " offen");
+        Control rowChgB = CreateToolItem(UI.IcoChg, "Systemänderungen", chgInfo, delegate { ShowPage(9); }, "Öffnet das Protokoll der Systemänderungen mit Rückgängig-Funktion.");
+
+        toolsListB.Controls.Add(rowSensB, 0, 0);
+        toolsListB.Controls.Add(rowDbB, 0, 1);
+        toolsListB.Controls.Add(rowChgB, 0, 2);
+        cardToolsB.Controls.Add(toolsListB);
+        toolsListB.BringToFront();
+        grid2x2.Controls.Add(cardToolsB, 1, 1);
+
+        p.Controls.Add(grid2x2);
+
+        // 4. Abschlussleiste
+        p.Controls.Add(BuildStartFooter());
+
+        f.Controls.Add(p);
+    }
+
+    Control CreateKpiBox(string title, string value)
+    {
+        Panel box = new Panel();
+        box.Dock = DockStyle.Fill;
+        box.Margin = new Padding(0, 0, UI.S(6), 0);
+        box.BackColor = UI.IsDark ? Color.FromArgb(42, 44, 48) : Color.FromArgb(240, 243, 248);
+        box.Padding = new Padding(UI.S(6), UI.S(6), UI.S(6), UI.S(4));
+        box.Paint += delegate(object sender, PaintEventArgs pe) {
+            using (Pen pen = new Pen(UI.Line)) pe.Graphics.DrawRectangle(pen, 0, 0, box.Width - 1, box.Height - 1);
+        };
+
+        Label lblT = Lbl(title, 7.75f, false, UI.Muted);
+        lblT.Dock = DockStyle.Top;
+        lblT.Height = UI.S(16);
+        lblT.AutoEllipsis = true;
+
+        Label lblV = Lbl(value, 11f, true, UI.Text);
+        lblV.Dock = DockStyle.Fill;
+        lblV.AutoEllipsis = true;
+
+        box.Controls.Add(lblV);
+        box.Controls.Add(lblT);
+        lblT.BringToFront();
+        return box;
+    }
+
+    Control CreateToolItem(string icon, string title, string sub, Action click, string tipText)
+    {
+        Panel row = new Panel();
+        row.Dock = DockStyle.Fill;
+        row.Cursor = Cursors.Hand;
+        row.Margin = new Padding(0);
+
+        Label lblIco = Lbl(icon, 11f, false, UI.Accent);
+        lblIco.Font = UI.SymbolFont(11f);
+        lblIco.Location = new Point(0, UI.S(2));
+        lblIco.Size = new Size(UI.S(22), UI.S(22));
+
+        Label lblT = Lbl(title, 9f, true, UI.Text);
+        lblT.Location = new Point(UI.S(26), 0);
+        lblT.AutoSize = true;
+
+        Label lblS = Lbl(sub, 8f, false, UI.Muted);
+        lblS.Location = new Point(UI.S(26), UI.S(16));
+        lblS.AutoSize = true;
+
+        Tip(row, tipText);
+        Tip(lblIco, tipText);
+        Tip(lblT, tipText);
+        Tip(lblS, tipText);
+
+        EventHandler eh = delegate { if (click != null) click(); };
+        row.Click += eh;
+        lblIco.Click += eh;
+        lblT.Click += eh;
+        lblS.Click += eh;
+
+        row.Controls.Add(lblIco);
+        row.Controls.Add(lblT);
+        row.Controls.Add(lblS);
+        return row;
+    }
+
+    Control BuildStartFooter()
+    {
+        FlowLayoutPanel foot = new FlowLayoutPanel();
+        foot.Width = UI.S(UI.Gruppenbreite);
+        foot.AutoSize = true;
+        foot.WrapContents = false;
+        foot.BackColor = UI.Panel;
+        foot.Margin = new Padding(0, UI.S(4), 0, UI.S(14));
+
+        CheckBox chkShowStart = Chk("Beim Start diese Seite zeigen", LoadStartPagePreference());
+        chkShowStart.Margin = new Padding(0, UI.S(2), UI.S(24), 0);
+        Tip(chkShowStart, "Legt fest, ob beim Programmstart standardmäßig diese Startseite geöffnet wird.");
+        chkShowStart.CheckedChanged += delegate {
+            SaveStartPagePreference(chkShowStart.Checked);
+        };
+        foot.Controls.Add(chkShowStart);
+
+        string seenVer = LoadSeenVersionPreference();
+        bool isNew = (seenVer != this.version);
+
+        LinkLabel lnkNew = new LinkLabel();
+        lnkNew.Text = "Was ist neu";
+        lnkNew.Font = new Font("Segoe UI", 9f);
+        lnkNew.LinkColor = UI.Accent;
+        lnkNew.ActiveLinkColor = UI.AccentHover;
+        lnkNew.LinkBehavior = LinkBehavior.HoverUnderline;
+        lnkNew.AutoSize = true;
+        lnkNew.Margin = new Padding(0, UI.S(4), UI.S(6), 0);
+        Tip(lnkNew, "Zeigt die Neuerungen dieser Version in der Versionshistorie.");
+        lnkNew.LinkClicked += delegate {
+            SaveSeenVersionPreference(this.version);
+            ShowPage(versionPage);
+        };
+        foot.Controls.Add(lnkNew);
+
+        if (isNew)
+        {
+            Badge bNew = new Badge("Neu", "info");
+            bNew.Margin = new Padding(0, UI.S(4), UI.S(18), 0);
+            Tip(bNew, "Neuerungen in Version " + this.version);
+            foot.Controls.Add(bNew);
+        }
+
+        LinkLabel lnkGuide = new LinkLabel();
+        lnkGuide.Text = "Kurzanleitung";
+        lnkGuide.Font = new Font("Segoe UI", 9f);
+        lnkGuide.LinkColor = UI.Accent;
+        lnkGuide.ActiveLinkColor = UI.AccentHover;
+        lnkGuide.LinkBehavior = LinkBehavior.HoverUnderline;
+        lnkGuide.AutoSize = true;
+        lnkGuide.Margin = new Padding(UI.S(12), UI.S(4), 0, 0);
+        Tip(lnkGuide, "Öffnet eine kompakte Kurzanleitung zur Bedienung von Leos Minibench.");
+        lnkGuide.LinkClicked += delegate {
+            ShowGuideDialog();
+        };
+        foot.Controls.Add(lnkGuide);
+
+        return foot;
+    }
+
+    void SelectTask(string name)
+    {
+        for (int i = 1; i <= 5 && i < nav.Count; i++) nav[i].Checked = false;
+
+        if (name == "PC durchchecken")
+        {
+            if (nav.Count > 1) nav[1].Checked = true;
+            if (rbVoll != null) rbVoll.Checked = true;
+            ShowPage(1);
+        }
+        else if (name == "Leistung messen")
+        {
+            if (nav.Count > 2) nav[2].Checked = true;
+            ShowPage(2);
+        }
+        else if (name == "Stabilität prüfen")
+        {
+            if (nav.Count > 3) nav[3].Checked = true;
+            ShowPage(3);
+        }
+        else if (name == "Pflegen und beschleunigen")
+        {
+            if (nav.Count > 4) nav[4].Checked = true;
+            if (nav.Count > 5) nav[5].Checked = true;
+            ShowPage(4);
+        }
+        UpdateSummary();
+    }
+
+    string GetDisksSummary()
+    {
+        if (this.disks == null || this.disks.Length == 0)
+        {
+            try
+            {
+                DriveInfo[] drvs = DriveInfo.GetDrives();
+                long tot = 0; int cnt = 0;
+                foreach (DriveInfo d in drvs)
+                {
+                    if (d.IsReady && d.DriveType == DriveType.Fixed) { tot += d.TotalSize; cnt++; }
+                }
+                if (cnt > 0)
+                {
+                    double tb = tot / (1024.0 * 1024.0 * 1024.0 * 1024.0);
+                    return String.Format("{0}x Datenträger · {1:F1} TB", cnt, tb).Replace('.', ',');
+                }
+            }
+            catch { }
+            return "Datenträger";
+        }
+
+        int nvme = 0, sataSsd = 0, hdd = 0, other = 0;
+        double totalBytes = 0;
+        foreach (string d in this.disks)
+        {
+            string[] x = d.Split('|');
+            if (x.Length < 7) continue;
+            string bus = x[2], med = x[3], sizeStr = x[4];
+            if (bus.IndexOf("NVMe", StringComparison.OrdinalIgnoreCase) >= 0) nvme++;
+            else if (med.IndexOf("SSD", StringComparison.OrdinalIgnoreCase) >= 0) sataSsd++;
+            else if (med.IndexOf("HDD", StringComparison.OrdinalIgnoreCase) >= 0) hdd++;
+            else other++;
+
+            if (sizeStr.IndexOf("TB", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                double val;
+                string num = sizeStr.Replace("TB", "").Trim().Replace(',', '.');
+                if (double.TryParse(num, NumberStyles.Any, CultureInfo.InvariantCulture, out val)) totalBytes += val * 1024.0 * 1024.0 * 1024.0 * 1024.0;
+            }
+            else if (sizeStr.IndexOf("GB", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                double val;
+                string num = sizeStr.Replace("GB", "").Trim().Replace(',', '.');
+                if (double.TryParse(num, NumberStyles.Any, CultureInfo.InvariantCulture, out val)) totalBytes += val * 1024.0 * 1024.0 * 1024.0;
+            }
+        }
+
+        List<string> parts = new List<string>();
+        if (nvme > 0) parts.Add(nvme + "x NVMe");
+        if (sataSsd > 0) parts.Add(sataSsd + "x SATA-SSD");
+        if (hdd > 0) parts.Add(hdd + "x HDD");
+        if (parts.Count == 0 && other > 0) parts.Add(other + "x Datenträger");
+        if (parts.Count == 0) return "Datenträger";
+
+        string types = String.Join(", ", parts.ToArray());
+        double totTb = totalBytes / (1024.0 * 1024.0 * 1024.0 * 1024.0);
+        if (totTb >= 1.0)
+        {
+            return String.Format("{0} · {1:F1} TB", types, totTb).Replace('.', ',');
+        }
+        double totGb = totalBytes / (1024.0 * 1024.0 * 1024.0);
+        if (totGb > 0)
+        {
+            return String.Format("{0} · {1:F0} GB", types, totGb);
+        }
+        return types;
+    }
+
+    void StartQuickFixChecks(Panel container)
+    {
+        if (container == null) return;
+        System.ComponentModel.BackgroundWorker bw = new System.ComponentModel.BackgroundWorker();
+        bw.DoWork += delegate(object sender, System.ComponentModel.DoWorkEventArgs e)
+        {
+            List<QuickFixItem> items = new List<QuickFixItem>();
+
+            // 1. RAM Clock / XMP Check
+            try
+            {
+                if (!HwIsLaptop && HwRam.Length > 0)
+                {
+                    if (HwRam.IndexOf("DDR4-2133", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        HwRam.IndexOf("DDR4-2400", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        QuickFixItem it = new QuickFixItem();
+                        it.Level = "warn";
+                        it.Badge = "Warnung";
+                        it.Title = "Arbeitsspeicher läuft nur mit 2133 MT/s";
+                        it.Desc = "Das XMP-Profil ist vermutlich nicht aktiv. Im BIOS einschalten, danach Lasttest Arbeitsspeicher.";
+                        it.ButtonText = "Anleitung";
+                        it.Action = delegate { ShowXmpInstructionsDialog(); };
+                        it.Tip = "Öffnet eine Schritt-für-Schritt-Anleitung zur Aktivierung von XMP/EXPO im BIOS.";
+                        items.Add(it);
+                    }
+                    else if (HwRam.IndexOf("DDR5-4800", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        QuickFixItem it = new QuickFixItem();
+                        it.Level = "warn";
+                        it.Badge = "Warnung";
+                        it.Title = "Arbeitsspeicher läuft nur mit 4800 MT/s";
+                        it.Desc = "Das XMP- oder EXPO-Profil ist vermutlich nicht aktiv. Im BIOS einschalten.";
+                        it.ButtonText = "Anleitung";
+                        it.Action = delegate { ShowXmpInstructionsDialog(); };
+                        it.Tip = "Öffnet eine Schritt-für-Schritt-Anleitung zur Aktivierung von XMP/EXPO im BIOS.";
+                        items.Add(it);
+                    }
+                }
+            }
+            catch { }
+
+            // 2. Lasttest check
+            try
+            {
+                bool hadLasttest = false;
+                foreach (DbEntry dbe in db)
+                {
+                    if (dbe.Module.IndexOf("Lasttest", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        hadLasttest = true; break;
+                    }
+                }
+                if (!hadLasttest)
+                {
+                    QuickFixItem it = new QuickFixItem();
+                    it.Level = "info";
+                    it.Badge = "Hinweis";
+                    it.Title = "Noch kein Lasttest auf diesem PC";
+                    it.Desc = "Ein Lasttest zeigt, ob Kühlung und Netzteil unter Dauerlast mithalten.";
+                    it.ButtonText = "Einrichten";
+                    it.Action = delegate { SelectTask("Stabilität prüfen"); };
+                    it.Tip = "Wechselt zur Einrichtung des Stabilitätstests.";
+                    items.Add(it);
+                }
+            }
+            catch { }
+
+            // 3. BIOS Date check (> 2 Jahre)
+            try
+            {
+                using (Microsoft.Win32.RegistryKey rk = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"HARDWARE\DESCRIPTION\System\BIOS"))
+                {
+                    if (rk != null)
+                    {
+                        object bDate = rk.GetValue("BIOSReleaseDate");
+                        if (bDate != null)
+                        {
+                            string sDate = bDate.ToString().Trim();
+                            DateTime dtBios;
+                            if (DateTime.TryParse(sDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out dtBios) ||
+                                DateTime.TryParse(sDate, CultureInfo.CurrentCulture, DateTimeStyles.None, out dtBios))
+                            {
+                                if (DateTime.Now.Subtract(dtBios).TotalDays > 730)
+                                {
+                                    QuickFixItem it = new QuickFixItem();
+                                    it.Level = "info";
+                                    it.Badge = "Hinweis";
+                                    it.Title = "BIOS-Version ist über 2 Jahre alt (" + dtBios.ToString("dd.MM.yyyy") + ")";
+                                    it.Desc = "Ein BIOS-Update bringt oft Fehlerbehebungen, neue CPU-Mikrocodes und Stabilitätsverbesserungen.";
+                                    it.ButtonText = "Inventar";
+                                    it.Action = delegate { ShowInventoryDialog(); };
+                                    it.Tip = "Zeigt Mainboard-Modell und BIOS-Stand im Inventar an.";
+                                    items.Add(it);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 4. LAN-Link 100 Mbit/s check
+            try
+            {
+                foreach (System.Net.NetworkInformation.NetworkInterface nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (nic.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up &&
+                        nic.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Ethernet)
+                    {
+                        if (nic.Speed == 100000000)
+                        {
+                            QuickFixItem it = new QuickFixItem();
+                            it.Level = "warn";
+                            it.Badge = "Warnung";
+                            it.Title = "LAN-Verbindung verhandelt nur 100 Mbit/s";
+                            it.Desc = "Netzwerkkarte oder Switch-Port ist auf 100 Mbit/s gedrosselt (Kabel oder Port prüfen).";
+                            it.ButtonText = "Prüfen";
+                            it.Action = delegate {
+                                try { System.Diagnostics.Process.Start("ncpa.cpl"); } catch { }
+                            };
+                            it.Tip = "Öffnet die Windows-Netzwerkverbindungen zur Überprüfung der Verbindungseigenschaften.";
+                            items.Add(it);
+                            break;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            e.Result = items;
+        };
+
+        bw.RunWorkerCompleted += delegate(object sender, System.ComponentModel.RunWorkerCompletedEventArgs e)
+        {
+            if (e.Error != null || container.IsDisposed) return;
+            List<QuickFixItem> items = e.Result as List<QuickFixItem>;
+            if (items == null) return;
+
+            container.SuspendLayout();
+            container.Controls.Clear();
+
+            if (items.Count == 0)
+            {
+                Label lblOk = Lbl("Keine Auffälligkeiten erkannt. Das System ist optimal konfiguriert.", 9f, false, UI.Ok);
+                lblOk.Location = new Point(0, UI.S(16));
+                lblOk.AutoSize = true;
+                container.Controls.Add(lblOk);
+            }
+            else
+            {
+                int curY = 0;
+                for (int i = 0; i < items.Count && i < 2; i++)
+                {
+                    QuickFixItem it = items[i];
+                    Panel row = new Panel();
+                    row.Location = new Point(0, curY);
+                    row.Width = container.ClientSize.Width - UI.S(4);
+                    row.Height = UI.S(54);
+                    Color bbg = it.Level == "warn" ? (UI.IsDark ? Color.FromArgb(50, 42, 20) : Color.FromArgb(254, 249, 231)) : (UI.IsDark ? Color.FromArgb(24, 38, 54) : Color.FromArgb(235, 243, 250));
+                    row.BackColor = bbg;
+                    Color borderColor = it.Level == "warn" ? UI.Warn : UI.Accent;
+                    row.Paint += delegate(object s, PaintEventArgs pe) {
+                        using (Pen pen = new Pen(borderColor)) {
+                            pe.Graphics.DrawRectangle(pen, 0, 0, row.Width - 1, row.Height - 1);
+                        }
+                    };
+
+                    Badge badge = new Badge(it.Badge, it.Level);
+                    badge.Location = new Point(UI.S(8), UI.S(10));
+                    Tip(badge, it.Badge + ": " + it.Title);
+
+                    Label lblT = Lbl(it.Title, 9f, true, UI.Text);
+                    lblT.Location = new Point(UI.S(82), UI.S(8));
+                    lblT.AutoSize = true;
+
+                    Label lblD = Lbl(it.Desc, 8f, false, UI.Muted);
+                    lblD.Location = new Point(UI.S(82), UI.S(28));
+                    lblD.Size = new Size(row.Width - UI.S(180), UI.S(20));
+                    lblD.AutoEllipsis = true;
+
+                    Button btnAct = UI.Secondary(it.ButtonText);
+                    btnAct.Size = new Size(UI.S(84), UI.S(28));
+                    btnAct.Location = new Point(row.Width - UI.S(94), UI.S(13));
+                    btnAct.Anchor = AnchorStyles.Right | AnchorStyles.Top;
+                    Tip(btnAct, it.Tip);
+                    Action act = it.Action;
+                    btnAct.Click += delegate { if (act != null) act(); };
+
+                    row.Controls.Add(badge);
+                    row.Controls.Add(lblT);
+                    row.Controls.Add(lblD);
+                    row.Controls.Add(btnAct);
+                    container.Controls.Add(row);
+                    curY += UI.S(60);
+                }
+            }
+            container.ResumeLayout(true);
+        };
+
+        bw.RunWorkerAsync();
+    }
+
+    void ShowInventoryDialog()
+    {
+        using (Form dlg = new Form())
+        {
+            dlg.Text = "Hardware-Inventar";
+            dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+            dlg.MaximizeBox = false; dlg.MinimizeBox = false;
+            dlg.StartPosition = FormStartPosition.CenterParent;
+            dlg.ClientSize = new Size(UI.S(560), UI.S(400));
+            dlg.BackColor = UI.Bg; dlg.Font = new Font("Segoe UI", 9.5f);
+
+            Panel p = new Panel(); p.Dock = DockStyle.Fill; p.Padding = new Padding(UI.S(16)); p.BackColor = UI.Bg;
+            Label lt = Lbl("Übersicht der erkannten Hardware", 12f, true, UI.Text);
+            lt.Dock = DockStyle.Top; lt.Height = UI.S(32); p.Controls.Add(lt);
+
+            TableLayoutPanel t = new TableLayoutPanel();
+            t.Dock = DockStyle.Fill; t.ColumnCount = 2; t.AutoScroll = true;
+            t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UI.S(140)));
+            t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+
+            string cleanCpu = DbEntry.CleanCpuName(HwCpu);
+            string cpuVal = cleanCpu.Length > 0 ? (cleanCpu + (HwCores > 0 ? " (" + HwCores + " Kerne, " + HwThreads + " Threads)" : "")) : "Standard-Prozessor";
+
+            string[][] rows = new string[][] {
+                new string[] { "Computer", Environment.MachineName },
+                new string[] { "Betriebssystem", OsName() },
+                new string[] { "Prozessor", cpuVal },
+                new string[] { "Mainboard", HwBoard.Length > 0 ? HwBoard : "Standard-Mainboard" },
+                new string[] { "Arbeitsspeicher", HwRam.Length > 0 ? HwRam : "Arbeitsspeicher" },
+                new string[] { "Grafik", GpuNames.Length > 0 ? String.Join(", ", GpuNames) : "Standard-Grafik" },
+                new string[] { "Datenträger", GetDisksSummary() }
+            };
+
+            for (int i = 0; i < rows.Length; i++)
+            {
+                Label lKey = Lbl(rows[i][0], 9.25f, true, UI.Muted);
+                lKey.Margin = new Padding(0, UI.S(6), UI.S(8), UI.S(6));
+                Label lVal = Lbl(rows[i][1], 9.25f, false, UI.Text);
+                lVal.Margin = new Padding(0, UI.S(6), 0, UI.S(6));
+                t.Controls.Add(lKey, 0, i);
+                t.Controls.Add(lVal, 1, i);
+            }
+
+            FlowLayoutPanel bf = new FlowLayoutPanel(); bf.Dock = DockStyle.Bottom; bf.Height = UI.S(44); bf.FlowDirection = FlowDirection.RightToLeft;
+            Button btnClose = UI.Primary("Schließen"); btnClose.DialogResult = DialogResult.OK;
+            Tip(btnClose, "Schließt das Inventarfenster.");
+            bf.Controls.Add(btnClose);
+
+            p.Controls.Add(t);
+            t.BringToFront();
+            p.Controls.Add(bf);
+            dlg.Controls.Add(p);
+            dlg.AcceptButton = btnClose;
+            UI.ThemeDialog(dlg);
+            dlg.ShowDialog(this);
+        }
+    }
+
+    void ShowGuideDialog()
+    {
+        using (Form dlg = new Form())
+        {
+            dlg.Text = "Kurzanleitung";
+            dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+            dlg.MaximizeBox = false; dlg.MinimizeBox = false;
+            dlg.StartPosition = FormStartPosition.CenterParent;
+            dlg.ClientSize = new Size(UI.S(540), UI.S(420));
+            dlg.BackColor = UI.Bg; dlg.Font = new Font("Segoe UI", 9.5f);
+
+            Panel p = new Panel(); p.Dock = DockStyle.Fill; p.Padding = new Padding(UI.S(16)); p.BackColor = UI.Bg;
+            Label lt = Lbl("So bedienst du Leos Minibench", 12f, true, UI.Text);
+            lt.Dock = DockStyle.Top; lt.Height = UI.S(32); p.Controls.Add(lt);
+
+            RichTextBox rt = new RichTextBox(); rt.ReadOnly = true; rt.BorderStyle = BorderStyle.None; rt.BackColor = UI.Bg; rt.ForeColor = UI.Text;
+            rt.Dock = DockStyle.Fill; rt.Font = new Font("Segoe UI", 9.5f);
+            Font fh = new Font("Segoe UI Semibold", 10f); Font fb = new Font("Segoe UI", 9f);
+
+            string[][] steps = new string[][] {
+                new string[] { "1. Ablauf wählen", "Hake in der linken Leiste die gewünschten Module an (Diagnose, Benchmark, Lasttest, Wartung oder Optimierung). Du kannst mehrere Module beliebig kombinieren." },
+                new string[] { "2. Starten", "Klicke unten rechts auf den Startknopf. Vor dem Start zeigt die Leiste die geschätzte Gesamtdauer aller gewählten Prüfungen an." },
+                new string[] { "3. Bericht lesen", "Nach Abschluss öffnet sich automatisch der detaillierte HTML-Bericht. Alle Befunde sind nach Dringlichkeit (Kritisch, Warnung, Hinweis) gegliedert." },
+                new string[] { "4. Änderungen rückgängig machen", "Wartungs- und Optimierungsmaßnahmen werden im Änderungsprotokoll erfasst und können auf der Seite Systemänderungen einzeln zurückgenommen werden." }
+            };
+
+            foreach (string[] st in steps)
+            {
+                rt.SelectionFont = fh; rt.SelectionColor = UI.Text;
+                rt.AppendText(st[0] + "\r\n");
+                rt.SelectionFont = fb; rt.SelectionColor = UI.Muted;
+                rt.AppendText(st[1] + "\r\n\r\n");
+            }
+            rt.SelectionStart = 0; rt.ScrollToCaret();
+
+            FlowLayoutPanel bf = new FlowLayoutPanel(); bf.Dock = DockStyle.Bottom; bf.Height = UI.S(44); bf.FlowDirection = FlowDirection.RightToLeft;
+            Button btnClose = UI.Primary("Schließen"); btnClose.DialogResult = DialogResult.OK;
+            Tip(btnClose, "Schließt die Kurzanleitung.");
+            bf.Controls.Add(btnClose);
+
+            p.Controls.Add(rt);
+            rt.BringToFront();
+            p.Controls.Add(bf);
+            dlg.Controls.Add(p);
+            dlg.AcceptButton = btnClose;
+            UI.ThemeDialog(dlg);
+            dlg.ShowDialog(this);
+        }
+    }
+
+    void ShowXmpInstructionsDialog()
+    {
+        using (Form dlg = new Form())
+        {
+            dlg.Text = "XMP / EXPO im BIOS aktivieren";
+            dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+            dlg.MaximizeBox = false; dlg.MinimizeBox = false;
+            dlg.StartPosition = FormStartPosition.CenterParent;
+            dlg.ClientSize = new Size(UI.S(540), UI.S(400));
+            dlg.BackColor = UI.Bg; dlg.Font = new Font("Segoe UI", 9.5f);
+
+            Panel p = new Panel(); p.Dock = DockStyle.Fill; p.Padding = new Padding(UI.S(16)); p.BackColor = UI.Bg;
+            Label lt = Lbl("Arbeitsspeicher mit voller Geschwindigkeit betreiben", 12f, true, UI.Text);
+            lt.Dock = DockStyle.Top; lt.Height = UI.S(32); p.Controls.Add(lt);
+
+            RichTextBox rt = new RichTextBox(); rt.ReadOnly = true; rt.BorderStyle = BorderStyle.None; rt.BackColor = UI.Bg; rt.ForeColor = UI.Text;
+            rt.Dock = DockStyle.Fill; rt.Font = new Font("Segoe UI", 9.5f);
+            Font fh = new Font("Segoe UI Semibold", 10f); Font fb = new Font("Segoe UI", 9f);
+
+            string[][] steps = new string[][] {
+                new string[] { "Warum ist das wichtig?", "Ohne XMP oder EXPO läuft der Arbeitsspeicher nur mit dem JEDEC-Basistakt (z. B. 2133 MT/s bei DDR4 oder 4800 MT/s bei DDR5). Dadurch verschenkst du spürbar Prozessor- und Spieleleistung." },
+                new string[] { "Schritt 1: BIOS aufrufen", "Starte den Computer neu und drücke beim Einschalten wiederholt die Taste Entf oder F2, um ins BIOS bzw. UEFI zu gelangen." },
+                new string[] { "Schritt 2: Profil auswählen", "Suche im Menü nach der Option XMP (Intel/manche AMD), DOCP (ASUS AMD) oder EXPO (AMD DDR5) und wähle Profil 1." },
+                new string[] { "Schritt 3: Speichern und neu starten", "Drücke Taste F10 zum Speichern und Neustarten. Windows startet nun mit dem höheren Speichertakt." },
+                new string[] { "Schritt 4: Stabilität prüfen", "Führe in Leos Minibench einen Lasttest für den Arbeitsspeicher durch, um sicherzustellen, dass das System absolut stabil arbeitet." }
+            };
+
+            foreach (string[] st in steps)
+            {
+                rt.SelectionFont = fh; rt.SelectionColor = UI.Text;
+                rt.AppendText(st[0] + "\r\n");
+                rt.SelectionFont = fb; rt.SelectionColor = UI.Muted;
+                rt.AppendText(st[1] + "\r\n\r\n");
+            }
+            rt.SelectionStart = 0; rt.ScrollToCaret();
+
+            FlowLayoutPanel bf = new FlowLayoutPanel(); bf.Dock = DockStyle.Bottom; bf.Height = UI.S(44); bf.FlowDirection = FlowDirection.RightToLeft;
+            Button btnClose = UI.Primary("Schließen"); btnClose.DialogResult = DialogResult.OK;
+            Tip(btnClose, "Schließt die Anleitung.");
+            bf.Controls.Add(btnClose);
+
+            p.Controls.Add(rt);
+            rt.BringToFront();
+            p.Controls.Add(bf);
+            dlg.Controls.Add(p);
+            dlg.AcceptButton = btnClose;
+            UI.ThemeDialog(dlg);
+            dlg.ShowDialog(this);
+        }
+    }
 }
+

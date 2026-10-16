@@ -1,4 +1,4 @@
-# Fügt die Quelltextteile aus src\ zu einer einzigen LeosMinibench.ps1 zusammen.
+﻿# Fügt die Quelltextteile aus src\ zu einer einzigen LeosMinibench.ps1 zusammen.
 # Verwendet von Bauen.cmd, Testen.cmd und den Pester-Tests. Läuft unter Windows PowerShell 5.1 und PowerShell 7.
 #
 #   . .\src\Zusammenbau.ps1

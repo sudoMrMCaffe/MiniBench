@@ -1,0 +1,79 @@
+﻿LEOS MINIBENCH 3.72: ÄNDERUNGEN
+==============================
+
+Version 3.72 führt eine moderne dreiteilige Startseite nach dem Drei-Fragen-Prinzip ein, bietet einen
+interaktiven Schnellstart mit direkter Modulaktivierung, bereinigt die veralteten WinSAT-Funktionen
+vollständig, wählt gespeicherte Benchmark-Referenzen automatisch nach Gerätetyp und verfeinert die
+Konfigurationsprüfungen sowie die Benutzeroberfläche.
+
+1. NEUE DREITEILIGE STARTSEITE (DREI-FRAGEN-PRINZIP)
+  Standardansicht       Die Startseite ("Start") ist der oberste Eintrag in der Navigationsleiste und beim
+                        Öffnen standardmäßig aktiv.
+  Zustand A (Erststart) Begrüßung mit Erklärtext und Statuspunkten (Grün für lesende Prüfungen, Gelb für
+                        umkehrbare Änderungen); Steckbrief-Karte "DIESER PC" mit Prozessor, Grafik, RAM,
+                        Laufwerken und Mainboard sowie Direktlink zum Hardware-Inventar; vier interaktive
+                        Aufgabenkarten ("PC durchchecken", "Leistung messen", "Stabilität prüfen", "Pflegen
+                        und beschleunigen"); zweispaltiger Erklärbereich ("So läuft ein Durchgang" in 3
+                        Schritten und Direktzugriff auf "Werkzeuge").
+  Zustand B (Folgestart)Schaltet bei vorhandener Datenbank automatisch auf die Willkommen-zurück-Übersicht:
+                        Kopfzeile mit Badges für CPU, GPU, RAM, Datenträger und Mainboard; 2x2-Kachelmatrix
+                        mit Kachel "Letzter Lauf" (Gesamtscore, CPU Mehrkern, RAM Lesen, GPU FPS, Befundstatus,
+                        Bericht öffnen, Dashboard vergleichen), Kachel "Schnell behebbar" (asynchrone
+                        Konfigurationsprüfungen), kompakter Aufgabenliste mit Datum des letzten Laufs sowie
+                        Live-Status der Werkzeuge (Sensoren, Datenbank, Systemänderungen).
+  Abschlussleiste       Einstellung "Beim Start diese Seite zeigen" (persistent in Einstellungen.json),
+                        Direktlink zur Kurzanleitung sowie "Was ist neu" mit optischer Badge-Hervorhebung
+                        bei neuen Versionen (GeseheneVersion).
+
+2. INTERAKTIVER SCHNELLSTART & ABLAUFSTEUERUNG
+  Aufgabenkarten        Klick auf eine Aufgabe hakt automatisch die zuständigen Module an (Diagnose für PC
+                        durchchecken, Benchmark für Leistung messen, Lasttest für Stabilität prüfen, Wartung
+                        und Optimierung für Pflegen und beschleunigen), lädt empfohlene Vorgaben und wechselt
+                        sofort auf die Arbeitsseite des ersten Moduls.
+  Fußleisten-Zustand    Im Leerzustand (kein Modul gewählt) zeigt die Fußleiste "Noch kein Ablauf gewählt",
+                        und der Startknopf ist als "Ablauf wählen" ausgegraut. Nach Auswahl wird der Startknopf
+                        sofort aktiv ("Diagnose starten", "2 Module starten").
+  Voreinstellungen      Wird beim Start eine Voreinstellung mit automatischer Ausführung geladen, wird die
+                        Startseite automatisch übersprungen und direkt die Zielseite geöffnet.
+
+3. VOLLSTÄNDIGE WINSAT-BEREINIGUNG
+  Entfernung            Veraltete WinSAT-Funktionen (Parameter -BenchGpuWahl, Option chkGpuWahl, WinSAT-Schritt
+                        im Benchmark, WinSAT-SVG-Generierung und Auswertungen im Bericht) wurden restlos
+                        entfernt.
+  Fokus                 Benchmarks stützen sich vollständig auf die deterministischen, hardwarenahen Direct3D 11-,
+                        Kryptografie-, Rechen- und Datenträger-Routinen von Minibench.
+
+4. AUTOMATISCHE STANDARD-REFERENZ NACH GERÄTETYP
+  Geräteerkennung       Test-IsNotebookSystem unterscheidet automatisch zwischen mobilen Geräten und Desktop-PCs.
+  Referenzwahl          Notebooks nutzen standardmäßig Referenz_Notebook.json (bzw. die eingebettete Referenz
+                        Notebook_Standard.json), Desktops nutzen Referenz_Desktop.json (bzw. Desktop_Mittelklasse.json).
+  Median-Handling       Allgemeines *median bildet den Gesamtschnitt aller Systeme, typbezogene Mediane
+                        (*median:notebook, *median:desktop) werten gezielt die jeweilige Gerätekategorie aus.
+
+5. SYSTEM-FEINSCHLIFF & KONFIGURATIONSPRÜFUNGEN
+  Berichtstitel         Der Prüfschritt im Diagnosebericht heißt sachlich "Konfigurationsprüfung" (vorher
+                        "Konfigurationsprüfung (Schnell behebbar)").
+  Asynchrone Prüfung    Hintergrund-Ermittlung von RAM-Takt (XMP/EXPO), Lasttest-Historie, BIOS-Alter und
+                        100-Mbit/s-LAN-Verhandlung ohne UI-Blockade.
+  Dialog-Konsistenz     Alle neu erzeugten Dialoge (Hardware-Inventar, Kurzanleitung, XMP-Anleitung)
+                        binden UI.ThemeDialog ein und sind für Hell- und Dunkelmodus optimiert.
+
+
+GEFUNDEN UND BEHOBEN
+  Der Startknopf zeigte bisher auch ohne Modulauswahl "Start", obwohl kein Ablauf aktiv war; zeigt nun "Ablauf wählen" im deaktivierten Zustand.
+  WinSAT-Aufrufe verzögerten den Benchmark und lieferten inkonsistente Werte bei Hybridgrafik; durch vollständige Bereinigung behoben.
+  Standard-Benchmarkläufe verglichen Mobilprozessoren bisher mit Desktop-Referenzen; die automatische Gerätetyperkennung wählt nun passende Standard-Referenzwerte.
+  In der Benutzeroberfläche fehlten Tooltips für einzelne Kacheln und Steuerknöpfe; alle Steuerelemente erhielten sachliche Tip-Texte.
+  Pester-Tests in Messung.Tests.ps1 und Praxistest.Tests.ps1 litten unter BOM-Verlust; UTF-8 mit BOM wurde für alle Quell- und Testdateien wiederhergestellt.
+  *median filterte fälschlich Desktop-Systeme aus dem Gesamtschnitt; der Standard-Median berechnet wieder alle Systeme.
+
+GRENZEN
+  Die Schnellprüfung von XMP/EXPO stützt sich auf ausgelesene SMBIOS-Speichertaktwerte und erkennt Basistaktraten (z. B. DDR4-2133 oder DDR5-4800); proprietäre OEM-Profile ohne JEDEC-Taktabweichung erfordern einen Blick ins BIOS.
+  Das BIOS-Datum im Registry-Schlüssel HARDWARE\DESCRIPTION\System\BIOS hängt von der Implementierung des Mainboard-Herstellers ab.
+
+UMSTIEG
+  Vorhandene Messungen, Datenbanken und Voreinstellungen bleiben uneingeschränkt kompatibel. Beim ersten Start von v3.72 empfängt die neue Startseite den Anwender.
+
+QUELLEN
+  JEDEC Solid State Technology Association: DDR4 (JESD79-4) und DDR5 (JESD79-5) Spezifikationen für Basistaktraten.
+  Microsoft Windows Management Instrumentation (WMI) & CIM Hardware Information Architecture.

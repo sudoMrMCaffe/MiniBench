@@ -334,8 +334,8 @@ public static class GuiSelbsttest
 
     static void StartknopfBeschriftung()
     {
-        Ist(DiagGui.StartButtonText(new System.Collections.Generic.List<string>()) == "Start", "kein Modul");
-        Ist(DiagGui.StartButtonText(null) == "Start", "null");
+        Ist(DiagGui.StartButtonText(new System.Collections.Generic.List<string>()) == "Ablauf wählen", "kein Modul");
+        Ist(DiagGui.StartButtonText(null) == "Ablauf wählen", "null");
         Ist(DiagGui.StartButtonText(new System.Collections.Generic.List<string>(new string[] { "Diagnose" })) == "Diagnose starten", "ein Modul");
         Ist(DiagGui.StartButtonText(new System.Collections.Generic.List<string>(new string[] { "Diagnose", "Lasttest", "Wartung" })) == "3 Module starten", "drei Module");
     }

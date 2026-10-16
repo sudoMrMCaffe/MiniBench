@@ -57,8 +57,6 @@ param(
     [string]$ReferenzDatei,
     [string]$VergleichDateien = '',
     [switch]$KeineDatenbank,
-    # Hybridgrafik: zweite WinSAT-Messung mit vorübergehend bevorzugter Grafikkarte
-    [switch]$BenchGpuWahl,
     # GPU-Rendertest (Benchmark und Lasttest): Auflösung und Anzeige (Fenster, Vollbild, Aus)
     [ValidateSet('1280x720', '1920x1080')] [string]$GpuAufloesung = '1280x720',
     [ValidateSet('Fenster', 'Vollbild', 'Aus')] [string]$GpuAnzeige = 'Fenster',

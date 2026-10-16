@@ -1,9 +1,23 @@
-﻿LEOS MINIBENCH: VERSIONSHISTORIE
+LEOS MINIBENCH: VERSIONSHISTORIE
 ================================
 
 Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab 2.2). Für 1.0 bis 2.1 gibt es
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Info-Knopf oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
+
+VERSION 3.72   (16.10.2026)  NEUE DREITEILIGE STARTSEITE, INTERAKTIVER SCHNELLSTART & SYSTEM-FEINSCHLIFF
+====================================================================================================
+Neue dreiteilige Startseite: Moderne Einstiegsseite nach dem Drei-Fragen-Prinzip („Was ist das für ein PC?“,
+„Was kann ich hier tun?“, „Was ist seit dem letzten Mal passiert?“) als Standardansicht beim Programmstart.
+Zustand A für den Erststart mit Hardware-Steckbrief, vier interaktiven Aufgabenkarten, Ablauf-Erklärung und
+Werkzeug-Verweisen; Zustand B für Folgestarts mit Schnellübersicht der Hardware in Badges, Kachel für den
+letzten Lauf mit vier Kennzahlen (Gesamt, CPU, RAM, GPU) und Direktlinks, asynchroner Kachel „Schnell behebbar“
+für Konfigurationsprüfungen ohne Last sowie Aufgaben- und Werkzeuglisten.
+Interaktiver Schnellstart: Direkte Aufgabenwahl hakt die erforderlichen Module an, lädt sinnvolle Standardprofile
+und wechselt zur ersten Arbeitsseite; Fußleiste mit deaktiviertem Startknopf „Ablauf wählen“ im Leerzustand.
+Bereinigung veralteter WinSAT-Funktionen: Vollständige Entfernung aller WinSAT-Messungen, Optionen und Diagramme.
+Automatische Standard-Referenz: Automatische Wahl von Referenz_Notebook.json bzw. Referenz_Desktop.json je nach Gerätetyp.
+System-Feinschliff: Sachliche Benennung der Konfigurationsprüfung im Diagnosebericht und asynchrone Hintergrundprüfung.
 
 VERSION 3.71   (15.10.2026)  PRÄZISE STROMVERBRAUCHSSCHÄTZUNG, STARTZEIT-TRANSPARENZ, PROFILKARTEN UND DASHBOARD-KORREKTUREN
 ====================================================================================================

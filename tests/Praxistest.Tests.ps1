@@ -410,6 +410,6 @@ Describe 'Quelltext: Vorgaben aus dem Praxistest' {
     It 'keine Lizenzbefunde mehr' { $script:Diag | Should -Not -Match "Add-Finding \w+ 'Lizenz'" }
     It 'SMART-Langtest wartet standardmäßig höchstens 120 Minuten' { $script:Kopf | Should -Match '\[int\]\$SmartTimeoutMinutes = 120' }
     It 'Oberfläche bietet 120 Minuten als Vorgabe' { $script:Gui | Should -Match 'smartMinutes = new int\[\] \{ 30, 60, 90, 120,' ; $script:Gui | Should -Match 'cmbSmartMax = Combo\(220, sm, 3\)' }
-    It 'GPU-Wahl in der Oberfläche nur auf Wunsch (Vorgabe aus)' { $script:Gui | Should -Match 'chkGpuWahl = Chk\("[^"]*WinSAT zusätzlich auf der Grafikkarte messen[^"]*", false\)' }
+    It 'WinSAT und GPU-Wahl vollständig entfernt' { $script:Gui | Should -Not -Match 'chkGpuWahl'; $script:Kopf | Should -Not -Match 'BenchGpuWahl' }
     It 'Diagrammzeichnung gepuffert (Flackern)' { $script:Gui | Should -Match 'EnableDoubleBuffer'; $script:Gui | Should -Match 'Flush\(\)' }
 }

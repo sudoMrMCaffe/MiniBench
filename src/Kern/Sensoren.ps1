@@ -1,4 +1,4 @@
-#region ---------- Sensoren: LibreHardwareMonitor, PawnIO und Ersatzquellen ----------
+﻿#region ---------- Sensoren: LibreHardwareMonitor, PawnIO und Ersatzquellen ----------
 # Temperatur, Takt, Lüfter, Spannung und Leistung kommen bevorzugt aus LibreHardwareMonitorLib (portabel unter
 # Minibench-Daten\Tools\LibreHardwareMonitor). Ab 0.9.5 liest die Bibliothek CPU-Werte und Mainboard-Chips nur über den
 # Treiber PawnIO. Der Treiber wird nie ungefragt installiert: nur mit -SensorTreiber (Rückfrage in der Oberfläche),

@@ -78,7 +78,6 @@ public partial class DiagGui : Form
     // Hilfswerkzeuge (PawnIO, smartmontools per winget): je Gerät entfernen, behalten oder jedes Mal fragen (Geraete.json)
     string deviceId = "";
     ComboBox cmbKeep;
-    CheckBox chkGpuWahl;
     // GPU-Rendertest (ab v2.6): Auflösung und Anzeige, auf den Seiten Benchmark und Lasttest gleich eingestellt
     ComboBox cmbGpuRes, cmbGpuShow, cmbLGpuRes, cmbLGpuShow;
     bool syncGpu;
@@ -101,6 +100,11 @@ public partial class DiagGui : Form
     // ab v2.8: Katalog des Moduls Optimierung (Zeilen K|... und E|... aus Get-OptGuiLines) und Domänenmitgliedschaft
     public static string[] OptKatalog = new string[0];
     public static bool DomainPc = false;
+    // ab v3.72: Hardware-Schlüsseldaten für die Startseite
+    public static string HwCpu = "";
+    public static int HwCores = 0, HwThreads = 0;
+    public static string HwRam = "", HwBoard = "";
+    public static bool HwIsLaptop = false;
     ComboBox cmbGpuSel, cmbLGpuSel;
     List<string> gpuSelValues = new List<string>();
     // Schneller Modus (ab v2.6): parallele Prüfungen der Diagnose
@@ -111,8 +115,8 @@ public partial class DiagGui : Form
     Dictionary<string, string[]> parJobs = new Dictionary<string, string[]>();
     List<string> parOrder = new List<string>();
     // Benchmark
-    string[] benchKeys = new string[] { "CPU", "RAM", "GPU", "Disk", "WinSAT" };
-    string[] benchText = new string[] { "Prozessor", "Arbeitsspeicher", "Grafik", "Laufwerke", "WinSAT-Leistungsbewertung" };
+    string[] benchKeys = new string[] { "CPU", "RAM", "GPU", "Disk" };
+    string[] benchText = new string[] { "Prozessor", "Arbeitsspeicher", "Grafik", "Laufwerke" };
     CheckBox[] benchChk;
     CheckedListBox clbDisks, clbCompare;
     List<string> diskNums = new List<string>();
@@ -125,7 +129,7 @@ public partial class DiagGui : Form
     CheckBox chkLCpu, chkLRam, chkLGpu, chkLDisk;
     ComboBox cmbLCpu, cmbLRam, cmbLGpu, cmbLDisk, cmbLRamPct, cmbLDiskDrive, cmbLAbortCpu, cmbLAbortGpu;
     // Sensoren (Live-Seite)
-    NavItem navSens, navDb, navChg, navTools;
+    NavItem navStart, navSens, navDb, navChg, navTools;
     Process liveProc;
     ConcurrentQueue<string> liveQueue = new ConcurrentQueue<string>();
     Timer liveTimer;
@@ -365,6 +369,7 @@ public partial class DiagGui : Form
         LoadDb();
         setupView = BuildSetup(); runView = BuildRun();
         FillPresets(true);
+        if (!LoadStartPagePreference() && curPage == 0) ShowPage(1);
         UpdateSensStatusBadge();
         setupView.Dock = DockStyle.Fill; runView.Dock = DockStyle.Fill; runView.Visible = false;
         body.Controls.Add(runView); body.Controls.Add(setupView);
@@ -536,6 +541,78 @@ public partial class DiagGui : Form
                     if (d.ContainsKey("PsuRating")) psuRating = Convert.ToString(d["PsuRating"]);
                 }
             }
+        }
+        catch { }
+    }
+
+    bool LoadStartPagePreference()
+    {
+        try
+        {
+            if (SettingsFile.Length > 0 && File.Exists(SettingsFile))
+            {
+                System.Web.Script.Serialization.JavaScriptSerializer js = new System.Web.Script.Serialization.JavaScriptSerializer();
+                Dictionary<string, object> d = js.DeserializeObject(File.ReadAllText(SettingsFile, Encoding.UTF8)) as Dictionary<string, object>;
+                if (d != null && d.ContainsKey("StartseiteZeigen"))
+                {
+                    return Convert.ToBoolean(d["StartseiteZeigen"]);
+                }
+            }
+        }
+        catch { }
+        return true;
+    }
+
+    void SaveStartPagePreference(bool show)
+    {
+        try
+        {
+            if (SettingsFile.Length == 0) return;
+            Dictionary<string, object> d = null;
+            System.Web.Script.Serialization.JavaScriptSerializer js = new System.Web.Script.Serialization.JavaScriptSerializer();
+            if (File.Exists(SettingsFile))
+            {
+                try { d = js.DeserializeObject(File.ReadAllText(SettingsFile, Encoding.UTF8)) as Dictionary<string, object>; } catch { }
+            }
+            if (d == null) d = new Dictionary<string, object>();
+            d["StartseiteZeigen"] = show;
+            File.WriteAllText(SettingsFile, js.Serialize(d), Encoding.UTF8);
+        }
+        catch { }
+    }
+
+    string LoadSeenVersionPreference()
+    {
+        try
+        {
+            if (SettingsFile.Length > 0 && File.Exists(SettingsFile))
+            {
+                System.Web.Script.Serialization.JavaScriptSerializer js = new System.Web.Script.Serialization.JavaScriptSerializer();
+                Dictionary<string, object> d = js.DeserializeObject(File.ReadAllText(SettingsFile, Encoding.UTF8)) as Dictionary<string, object>;
+                if (d != null && d.ContainsKey("GeseheneVersion"))
+                {
+                    return Convert.ToString(d["GeseheneVersion"]);
+                }
+            }
+        }
+        catch { }
+        return "";
+    }
+
+    void SaveSeenVersionPreference(string ver)
+    {
+        try
+        {
+            if (SettingsFile.Length == 0) return;
+            Dictionary<string, object> d = null;
+            System.Web.Script.Serialization.JavaScriptSerializer js = new System.Web.Script.Serialization.JavaScriptSerializer();
+            if (File.Exists(SettingsFile))
+            {
+                try { d = js.DeserializeObject(File.ReadAllText(SettingsFile, Encoding.UTF8)) as Dictionary<string, object>; } catch { }
+            }
+            if (d == null) d = new Dictionary<string, object>();
+            d["GeseheneVersion"] = ver;
+            File.WriteAllText(SettingsFile, js.Serialize(d), Encoding.UTF8);
         }
         catch { }
     }
@@ -789,6 +866,7 @@ public partial class DiagGui : Form
         FillChangeList();
         UpdateSensTools();
         if (lblDbPath != null) SetText(lblDbPath, NasAblage.AblageText(dataDir));
+        if (pages.Count > 0 && pages[0] is Panel) { BuildStartContent((Panel)pages[0]); }
     }
 
     // Modulverträge übernehmen: Navigation und Seite Reparatur richten sich danach (ohne Vertrag gelten die festen Listen)
@@ -840,8 +918,9 @@ public partial class DiagGui : Form
 
         left = new FlowLayoutPanel(); left.Dock = DockStyle.Left; left.Width = UI.S(246); left.FlowDirection = FlowDirection.TopDown; left.WrapContents = false;
         left.BackColor = UI.Bg; left.Padding = new Padding(0, 0, UI.S(14), 0); left.AutoScroll = true;
-        // ab v3.64 zwei Gruppen: ausführbare Module (mit Haken) und Werkzeugseiten (ohne Haken)
-        Label lm = SideHead("Ablauf"); lm.Margin = new Padding(UI.S(4), 0, 0, UI.S(6)); left.Controls.Add(lm);
+        navStart = new NavItem("Start", "", UI.IcoHome); navStart.HasCheck = false;
+        Tip(navStart, "Start: Übersicht über diesen PC, empfohlene Aufgaben und letzte Ergebnisse.");
+        nav.Add(navStart);
         nav.Add(ModNav("Diagnose", "Diagnose", "Inventar, Prüfungen, Ereignisse", UI.IcoDiag));
         nav.Add(ModNav("Benchmark", "Benchmark", "Wählbare Messungen mit Vergleich", UI.IcoCpu));
         nav.Add(ModNav("Lasttest", "Lasttest", "Komponenten und Dauer wählbar", UI.IcoFlame));
@@ -851,15 +930,20 @@ public partial class DiagGui : Form
         navSens = ModNav("Sensoren", "Sensoren live", "Temperatur, Takt, Lüfter, Leistung", UI.IcoSens); navSens.HasCheck = false; nav.Add(navSens);
         navDb = new NavItem("Vergleichsdatenbank", db.Count + " gespeicherte Systeme", UI.IcoDb); navDb.HasCheck = false; Tip(navDb, "Vergleichsdatenbank aller gespeicherten Systeme verwalten und vergleichen."); nav.Add(navDb);
         navChg = new NavItem("Systemänderungen", "Protokoll und Rückgängig", UI.IcoChg); navChg.HasCheck = false; Tip(navChg, "Änderungsprotokoll: was Leos Minibench an diesem PC verändert hat, mit Rückgängig."); nav.Add(navChg);
+
+        left.Controls.Add(navStart);
+        Label lm = SideHead("Ablauf"); lm.Margin = new Padding(UI.S(4), UI.S(UI.Abstand4), 0, UI.S(6)); left.Controls.Add(lm);
+        for (int i = 1; i < nav.Count; i++)
+        {
+            if (nav[i] == navTools) { Label lw = SideHead("Werkzeuge"); lw.Margin = new Padding(UI.S(4), UI.S(UI.Abstand4), 0, UI.S(6)); left.Controls.Add(lw); }
+            left.Controls.Add(nav[i]);
+        }
         for (int i = 0; i < nav.Count; i++)
         {
             int idx = i;
             nav[i].Picked += delegate { ShowPage(idx); };
             nav[i].CheckedChanged += delegate { UpdateSummary(); };
-            if (nav[i] == navTools) { Label lw = SideHead("Werkzeuge"); lw.Margin = new Padding(UI.S(4), UI.S(UI.Abstand4), 0, UI.S(6)); left.Controls.Add(lw); }
-            left.Controls.Add(nav[i]);
         }
-        nav[0].Checked = true;
         // ab v2.8 acht Einträge: bei kleinem Fenster mit senkrechter Bildlaufleiste schmaler statt waagerecht zu scrollen
         left.Layout += delegate { int w = left.ClientSize.Width - left.Padding.Horizontal - 2; if (w > UI.S(150)) foreach (NavItem n in nav) if (n.Width != w) n.Width = w; };
 
@@ -867,7 +951,7 @@ public partial class DiagGui : Form
         contentHost = new Panel(); contentHost.Dock = DockStyle.Fill; contentHost.BackColor = UI.Line; contentHost.Padding = new Padding(1);
         contentHost.Controls.Add(content);
 
-        pages.Add(BuildDiagPage()); pages.Add(BuildBenchPage()); pages.Add(BuildLoadPage()); pages.Add(BuildRepairPage()); pages.Add(BuildOptPage()); pages.Add(BuildToolsPage()); pages.Add(BuildSensorPage()); pages.Add(BuildDbPage()); pages.Add(BuildChangePage()); versionPage = pages.Count; pages.Add(BuildVersionPage());
+        pages.Add(BuildStartPage()); pages.Add(BuildDiagPage()); pages.Add(BuildBenchPage()); pages.Add(BuildLoadPage()); pages.Add(BuildRepairPage()); pages.Add(BuildOptPage()); pages.Add(BuildToolsPage()); pages.Add(BuildSensorPage()); pages.Add(BuildDbPage()); pages.Add(BuildChangePage()); versionPage = pages.Count; pages.Add(BuildVersionPage());
         // ab v3.64 einheitlicher Seitenrand: Seiten ohne Dock stehen an der Position des Innenabstands (vorher bei 0,0,
         // dort wirkte der Innenabstand des Bildlaufbereichs nicht und der Titel klebte am Rahmen)
         foreach (Control c in pages) { c.Visible = false; if (c.Dock == DockStyle.None) c.Location = new Point(UI.S(UI.Seitenrand), UI.S(UI.Seitenrand)); content.Controls.Add(c); }
@@ -889,7 +973,8 @@ public partial class DiagGui : Form
         fo.Controls.Add(lnkAblage);
         chkAnon = Chk("Personenbezogene Daten für die KI-Auswertung entfernen", true); chkAnon.Margin = new Padding(0, UI.S(5), 0, 0);
         fo.Controls.Add(chkAnon);
-        btnStart = UI.Primary("Start"); btnStart.Margin = new Padding(UI.S(UI.Abstand5), 0, 0, 0); btnStart.MinimumSize = new Size(UI.S(150), UI.S(44)); btnStart.Anchor = AnchorStyles.Right;
+        btnStart = UI.Primary("Ablauf wählen"); btnStart.Enabled = false; btnStart.Margin = new Padding(UI.S(UI.Abstand5), 0, 0, 0); btnStart.MinimumSize = new Size(UI.S(150), UI.S(44)); btnStart.Anchor = AnchorStyles.Right;
+        Tip(btnStart, "Erst eine Aufgabe wählen oder links ein Modul anhaken.");
         btnStart.Click += delegate { StartRun(); };
         cmbPreset.SelectedIndexChanged += delegate { if (!presetFilling) PresetPicked(); };
         btnPresetSave.Click += delegate { SavePresetDialog(); };
@@ -931,15 +1016,15 @@ public partial class DiagGui : Form
     static readonly Dictionary<string, string> benchTips = new Dictionary<string, string> {
         { "CPU", "Einzelkern und Mehrkern mit eigener Rechenlast (Punkte), AES-256 und SHA-256 über die Windows-Kryptografie (ein Thread) und ZIP-Kompression auf allen Threads. Dazu der Takt unter Einzel- und Mehrkernlast. Je Messung 5 Sekunden, im Kurzlauf 2." },
         { "RAM", "Lesen, Schreiben und Kopieren auf allen Threads über bis zu 1 GB sowie die Latenz zufälliger Zugriffe über 256 MB. Bewertet wird gegen den theoretischen Wert aus Takt und Kanalzahl." },
-        { "GPU", "WinSAT DWM (Grafikspeicher-Durchsatz, Desktop-Komposition) und der eigene Rendertest mit Direct3D 11 auf jeder gewählten Grafikeinheit (Bilder/s, 1-%-Low, Punktzahl), dazu PCIe-Anbindung und Grafikspeicher. Je Grafikeinheit 6 s Aufwärmen und 20 s Messung ohne VSync; vorher prüft eine kurze Gegenprobe, ob eine Bildratengrenze im Treiber bremst." },
-        { "Disk", "Sequentiell Lesen und Schreiben (1-MiB-Blöcke) und 4K zufällig (QD1, 8 Threads, Schreiben), jeweils ohne Windows-Cache. Die Testdatei (1 GB, im Kurzlauf 256 MB) wird danach gelöscht. Welche Laufwerke, steht in der Liste darunter." },
-        { "WinSAT", "Vollständige Leistungsbewertung von Windows (winsat formal), 2 bis 5 Minuten. Auf Akku, per Remotedesktop und in virtuellen Maschinen oft nicht möglich." } };
+        { "GPU", "Eigener Rendertest mit Direct3D 11 auf jeder gewählten Grafikeinheit (Bilder/s, 1-%-Low, Punktzahl), dazu Speicherdurchsatz, Desktop-Komposition, PCIe-Anbindung und Grafikspeicher. Je Grafikeinheit 6 s Aufwärmen und 20 s Messung ohne VSync; vorher prüft eine kurze Gegenprobe, ob eine Bildratengrenze im Treiber bremst." },
+        { "Disk", "Sequentiell Lesen und Schreiben (1-MiB-Blöcke) und 4K zufällig (QD1, 8 Threads, Schreiben), jeweils ohne Windows-Cache. Die Testdatei (1 GB, im Kurzlauf 256 MB) wird danach gelöscht. Welche Laufwerke, steht in der Liste darunter." } };
 
     void ApplySetupTips()
     {
         string[] navTips = new string[] {
+            "Start: Übersicht über diesen PC, empfohlene Aufgaben und letzte Ergebnisse.",
             "Diagnose: Inventar, Treiber, Sicherheit, Ereignisprotokolle und die gewählten Prüfungen. Verändert nichts am System. Haken setzen, damit das Modul beim Start läuft.",
-            "Benchmark: misst Prozessor, Arbeitsspeicher, Grafik, Laufwerke und WinSAT und vergleicht mit der Referenz und früheren Läufen. Ab v2.7 mit Temperatur, Takt und Leistung je Messung im Bericht.",
+            "Benchmark: misst Prozessor, Arbeitsspeicher, Grafik und Laufwerke und vergleicht mit der Referenz und früheren Läufen. Ab v2.7 mit Temperatur, Takt und Leistung je Messung im Bericht.",
             "Lasttest: belastet CPU, RAM, Grafik und Datenträger gleichzeitig mit eigener Dauer, zeichnet Kurven auf und weist Drosselung nach. Hier steckt ab v2.7 auch die Prüfung der CPU-Stabilität.",
             "Wartung: Standardreparaturen wie DISM und SFC sowie Systempflege. Verändert das System; vorher auf Wunsch ein Wiederherstellungspunkt. Jede Maßnahme zeigt ihre Risikostufe.",
             "Optimierung (ab v2.8): das Windows Optimisation Pack nativ, mit Sophia- und O&O-Einstellungen, in Kategorien einzeln wählbar. Ändern ist einzeln rücknehmbar, Eingriffe sichert der Wiederherstellungspunkt ab.",
@@ -964,7 +1049,6 @@ public partial class DiagGui : Form
         Tip(cmbGpuSel, "Welche Grafikeinheiten der Rendertest belastet: alle, nur die Grafikkarte, nur die Prozessorgrafik oder eine bestimmte. Gilt für Benchmark und Lasttest.");
         Tip(cmbGpuRes, "Auflösung des Rendertests. Bilder/s sind nur bei gleicher Auflösung vergleichbar, die Punktzahl auch über Auflösungen.");
         Tip(cmbGpuShow, "Fenster: Vorschau des Rendertests. Vollbild: erste Grafikeinheit im Vollbild. Ohne Anzeige: misst unsichtbar (Esc entfällt).");
-        Tip(chkGpuWahl, "Bei Notebooks mit zwei Grafikeinheiten misst WinSAT nur die Einheit, die den Desktop ausgibt. Mit diesem Haken wird WinSAT kurz auf die Grafikkarte gestellt und gleich wieder zurück (steht im Änderungsprotokoll).");
         Tip(cmbRef, "System oder Medianwert, gegen den die Messungen in Prozent angegeben werden (100 % = Referenz). Gespeicherte Referenz: Referenz.json im Datenordner; Median: aus allen passenden Läufen der Datenbank.");
         Tip(btnUpdateMed, "Berechnet die Median-Referenzen für alle Systeme, Notebooks und Desktops aus der Datenbank neu und speichert sie als Referenz.json, Referenz_Notebook.json und Referenz_Desktop.json.");
         Tip(chkRefSave, "Speichert die Werte dieses Laufs als Referenz.json im Datenordner. Alle PCs, die mit diesem Datenordner messen, werden dann in Prozent dieses Systems angegeben.");
@@ -1043,7 +1127,7 @@ public partial class DiagGui : Form
         for (int k = 0; k < nav.Count; k++) nav[k].Selected = (k == i);
         content.AutoScrollPosition = new Point(0, 0);
         for (int k = 0; k < pages.Count; k++) pages[k].Visible = (k == i);
-        if (i == 2) UpdateLoadExtras();
+        if (i == 3) UpdateLoadExtras();
         ApplyNativeControlThemes();
     }
 
@@ -1237,7 +1321,7 @@ public partial class DiagGui : Form
 
     Control BuildDiagPage()
     {
-        FlowLayoutPanel f = Page("Diagnose", "Liest Hardware, Treiber, Sicherheit und Ereignisprotokolle aus, führt die gewählten Prüfungen durch und bewertet alles in einem Bericht. Die Prüfungen verändern nichts am System; gekennzeichnete Optionen nehmen Änderungen vor.", 0);
+        FlowLayoutPanel f = Page("Diagnose", "Liest Hardware, Treiber, Sicherheit und Ereignisprotokolle aus, führt die gewählten Prüfungen durch und bewertet alles in einem Bericht. Die Prüfungen verändern nichts am System; gekennzeichnete Optionen nehmen Änderungen vor.", 1);
         if (File.Exists(Path.Combine(cpDir, "laufend.json")))
         {
             Label warn = Lbl("  Der letzte Lauf wurde nicht beendet (Absturz?). Die Absturzanalyse läuft beim nächsten Start automatisch zuerst.  ", 9.75f, true, UI.Crit);
@@ -1381,17 +1465,16 @@ public partial class DiagGui : Form
         "Einzel- und Mehrkern, AES-256, SHA-256, Kompression",
         "Lesen, Schreiben, Kopieren, Latenz",
         "Rendertest je Grafikeinheit (Bilder/s, 1-%-Low, Punktzahl), Speicherdurchsatz, Desktop-Komposition, PCIe",
-        "sequentiell und 4K-Zufallszugriff, Auswahl unten",
-        "Leistungsbewertung von Windows, 2 bis 5 Min." };
+        "sequentiell und 4K-Zufallszugriff, Auswahl unten" };
 
     Control BuildBenchPage()
     {
-        FlowLayoutPanel f = Page("Benchmark", "Misst die Leistung der gewählten Komponenten und vergleicht sie mit der Referenz, mit früheren Läufen auf diesem PC und mit bereits geprüften Systemen.", 1);
+        FlowLayoutPanel f = Page("Benchmark", "Misst die Leistung der gewählten Komponenten und vergleicht sie mit der Referenz, mit früheren Läufen auf diesem PC und mit bereits geprüften Systemen.", 2);
         f.Controls.Add(Section("Messungen"));
         benchChk = new CheckBox[benchKeys.Length];
         for (int i = 0; i < benchKeys.Length; i++)
         {
-            benchChk[i] = Chk(benchText[i], i < 4);
+            benchChk[i] = Chk(benchText[i], true);
             benchChk[i].CheckedChanged += delegate { clbDisks.Enabled = benchChk[3].Checked; UpdateSummary(); };
             f.Controls.Add(Opt2(benchChk[i], benchDetail[i]));
         }
@@ -1417,8 +1500,6 @@ public partial class DiagGui : Form
         rg.Controls.Add(RowLabel("Anzeige", 70)); cmbGpuShow = Combo(170, new string[] { "Fenster", "Vollbild", "ohne Anzeige" }, 0); rg.Controls.Add(cmbGpuShow);
         f.Controls.Add(rg);
         f.Controls.Add(Hint("Ergebnis: Ø Bilder/s, 1-%-Low und Punktzahl je Grafikeinheit. Esc im Fenster beendet den Test.", 4));
-        chkGpuWahl = Chk("Bei Hybridgrafik WinSAT zusätzlich auf der Grafikkarte messen", false);
-        Control gw = Opt2(chkGpuWahl, "kurze Umstellung der Grafikeinheit für WinSAT, gleich danach zurück", RiskBadge("Aendern")); gw.Margin = new Padding(0, UI.S(UI.Abstand2), 0, 0); f.Controls.Add(gw);
 
         f.Controls.Add(Section("Referenz"));
         FlowLayoutPanel r2 = Row(); r2.Controls.Add(RowLabel("Referenz (100 %)", 170));
@@ -1546,7 +1627,7 @@ public partial class DiagGui : Form
 
     Control BuildLoadPage()
     {
-        FlowLayoutPanel f = Page("Lasttest", "Belastet die gewählten Komponenten gleichzeitig, jede mit eigener Dauer, und zeichnet Temperatur, Takt, Leistung und Lüfter auf. Gemeldet werden Rechen-, Bit- und Datenfehler, WHEA-Fehler und Drosselung. Während des Tests lässt er sich jederzeit beenden.", 2);
+        FlowLayoutPanel f = Page("Lasttest", "Belastet die gewählten Komponenten gleichzeitig, jede mit eigener Dauer, und zeichnet Temperatur, Takt, Leistung und Lüfter auf. Gemeldet werden Rechen-, Bit- und Datenfehler, WHEA-Fehler und Drosselung. Während des Tests lässt er sich jederzeit beenden.", 3);
         string[] mins = new string[] { "2 Min.", "5 Min.", "10 Min.", "15 Min.", "30 Min.", "60 Min.", "120 Min.", "240 Min." };
         lblAkku = Lbl("  Akkubetrieb: Für den Lasttest das Netzteil anschließen, sonst begrenzt die Energieverwaltung Takt und Leistung.  ", UI.SchriftText, true, UI.Warn);
         lblAkku.BackColor = UI.WarnBg; lblAkku.Padding = new Padding(UI.S(6)); lblAkku.Margin = new Padding(0, UI.S(4), 0, UI.S(4)); lblAkku.Visible = false; f.Controls.Add(lblAkku);
@@ -1712,7 +1793,7 @@ public partial class DiagGui : Form
 
     Control BuildRepairPage()
     {
-        FlowLayoutPanel f = Page("Wartung", "Führt die gewählten Wartungs- und Reparaturaufgaben nacheinander aus. Vorher wird auf Wunsch ein Wiederherstellungspunkt angelegt. Aufgaben mit dem Etikett Neustart werden erst danach vollständig wirksam.", 3);
+        FlowLayoutPanel f = Page("Wartung", "Führt die gewählten Wartungs- und Reparaturaufgaben nacheinander aus. Vorher wird auf Wunsch ein Wiederherstellungspunkt angelegt. Aufgaben mit dem Etikett Neustart werden erst danach vollständig wirksam.", 4);
         f.Controls.Add(Section("Absicherung"));
         chkRestorePoint = Chk("Vorher einen Systemwiederherstellungspunkt anlegen", true); chkRestorePoint.Margin = new Padding(UI.S(4), UI.S(2), 0, UI.S(2)); f.Controls.Add(chkRestorePoint);
         lblRestoreWarn = Lbl("", UI.SchriftText, true, UI.Warn); lblRestoreWarn.BackColor = UI.WarnBg; lblRestoreWarn.Padding = new Padding(UI.S(6)); lblRestoreWarn.Margin = new Padding(UI.S(4), UI.S(4), 0, UI.S(2));
@@ -2049,7 +2130,7 @@ public partial class DiagGui : Form
     Control BuildOptPage()
     {
         ReadOptCatalog();
-        FlowLayoutPanel f = Page("Optimierung", "Die Einstellungen des Windows Optimisation Pack mit seiner Sophia- und O&O-Auswahl, nativ umgesetzt und nach Kategorien gruppiert.", 4);
+        FlowLayoutPanel f = Page("Optimierung", "Die Einstellungen des Windows Optimisation Pack mit seiner Sophia- und O&O-Auswahl, nativ umgesetzt und nach Kategorien gruppiert.", 5);
         f.Controls.Add(Section("Absicherung"));
         chkOptRestore = Chk("Vorher einen Systemwiederherstellungspunkt anlegen", true); f.Controls.Add(chkOptRestore);
         f.Controls.Add(Section("Vorlagen und Zustand"));
@@ -2214,7 +2295,7 @@ public partial class DiagGui : Form
     string OptStartArgs(List<StartPunkt> punkte, List<string> zusatz)
     {
         List<string> ids = SelectedOptIds();
-        if (ids.Count == 0) { MessageBox.Show(this, "In der Optimierung ist kein Eintrag ausgewählt.", "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Information); ShowPage(4); return null; }
+        if (ids.Count == 0) { MessageBox.Show(this, "In der Optimierung ist kein Eintrag ausgewählt.", "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Information); ShowPage(5); return null; }
         int ver = 0;
         foreach (OptItem it in optItems)
         {
@@ -2767,11 +2848,11 @@ public partial class DiagGui : Form
     {
         List<string> m = new List<string>();
         string[] names = new string[] { "Diagnose", "Benchmark", "Lasttest", "Wartung", "Optimierung" };
-        for (int i = 0; i < names.Length; i++) if (nav[i].Checked) m.Add(names[i]);
+        for (int i = 0; i < names.Length; i++) if (nav[i + 1].Checked) m.Add(names[i]);
         return m;
     }
 
-    // Geschätzte Minuten je Modul (Index wie nav), ohne Wartezeit auf den SMART-Langtest
+    // Geschätzte Minuten je Modul (Index 0..4 für die 5 Module), ohne Wartezeit auf den SMART-Langtest
     int ModuleMinutes(int mod)
     {
         int t = 0;
@@ -2788,7 +2869,6 @@ public partial class DiagGui : Form
             if (benchChk[1].Checked) t += 1;
             if (benchChk[2].Checked) t += 2;
             if (benchChk[3].Checked) t += clbDisks.CheckedItems.Count;
-            if (benchChk[4].Checked) t += 1;
         }
         else if (mod == 2)
         {
@@ -2804,7 +2884,7 @@ public partial class DiagGui : Form
     int EstimateMinutes()
     {
         int t = 0;
-        for (int i = 0; i < 5; i++) if (nav[i].Checked) t += ModuleMinutes(i);
+        for (int i = 0; i < 5; i++) if (nav[i + 1].Checked) t += ModuleMinutes(i);
         return t;
     }
 
@@ -2819,7 +2899,7 @@ public partial class DiagGui : Form
     // Beschriftung des Startknopfs: sagt, was er startet (vorher immer nur "Start", auch auf der Seite Tools)
     public static string StartButtonText(List<string> modules)
     {
-        if (modules == null || modules.Count == 0) return "Start";
+        if (modules == null || modules.Count == 0) return "Ablauf wählen";
         if (modules.Count == 1) return modules[0] + " starten";
         return modules.Count + " Module starten";
     }
@@ -2838,19 +2918,19 @@ public partial class DiagGui : Form
         UpdateLoadTotal();
         if (lblSel == null || btnStart == null || diagChk == null || benchChk == null || repChk == null || chkLCpu == null || chkOptRestore == null) return;
         List<string> m = SelectedModules();
-        for (int i = 0; i < 5 && i < nav.Count; i++) { string h = nav[i].Checked ? "ca. " + MinText(ModuleMinutes(i)) : ""; if (nav[i].Hint != h) { nav[i].Hint = h; nav[i].Invalidate(); } }
+        for (int i = 0; i < 5 && (i + 1) < nav.Count; i++) { string h = nav[i + 1].Checked ? "ca. " + MinText(ModuleMinutes(i)) : ""; if (nav[i + 1].Hint != h) { nav[i + 1].Hint = h; nav[i + 1].Invalidate(); } }
         SetText(btnStart, StartButtonText(m));
         if (m.Count == 0)
         {
-            lblSel.Text = "Kein Modul ausgewählt: in der Seitenleiste mindestens ein Modul anhaken"; lblSel.ForeColor = UI.Crit; btnStart.Enabled = false;
-            Tip(btnStart, "Erst ein Modul in der Seitenleiste anhaken.");
+            lblSel.Text = "Noch kein Ablauf gewählt"; lblSel.ForeColor = UI.Muted; btnStart.Enabled = false;
+            Tip(btnStart, "Erst eine Aufgabe wählen oder links ein Modul anhaken.");
             return;
         }
         int min = EstimateMinutes();
-        bool smart = nav[0].Checked && diagChk[4].Checked;
+        bool smart = nav[1].Checked && diagChk[4].Checked;
         lblSel.ForeColor = UI.Text;
         List<string> shown = new List<string>(m);
-        if (nav[0].Checked && chkFast != null && chkFast.Checked && chkFast.Enabled && shown.Count > 0 && shown[0] == "Diagnose") shown[0] = "Diagnose (parallel)";
+        if (nav[1].Checked && chkFast != null && chkFast.Checked && chkFast.Enabled && shown.Count > 0 && shown[0] == "Diagnose") shown[0] = "Diagnose (parallel)";
         lblSel.Text = String.Join("  →  ", shown.ToArray())
             + "   ·   ca. " + MinText(min) + (smart ? ", mit SMART-Langtest höchstens " + MinText(min + SmartMax()) : "");
         btnStart.Enabled = true;
@@ -2866,7 +2946,7 @@ public partial class DiagGui : Form
         // Live-Ansicht und Lauf greifen auf dieselben Sensoren und denselben Treiber zu
         if (liveRunning && !StopLiveAndWait()) return;
         bool drv = false; runKeep = "";
-        if (nav[0].Checked || nav[1].Checked || nav[2].Checked)
+        if (nav[1].Checked || nav[2].Checked || nav[3].Checked)
         {
             TryAutoFetchSensorTools();
             drv = cmbDriver == null || cmbDriver.SelectedIndex == 0;
@@ -2878,7 +2958,7 @@ public partial class DiagGui : Form
         if (dataDir.Length > 0) a.Append(" -DatenDir ").Append(Q(dataDir));
         if (!chkAnon.Checked) a.Append(" -KiOhneAnonymisierung");
 
-        if (nav[0].Checked)
+        if (nav[1].Checked)
         {
             string prof = rbVoll.Checked ? "Voll" : rbSchnell.Checked ? "Schnell" : "Benutzerdefiniert";
             a.Append(" -DiagProfil ").Append(prof);
@@ -2890,20 +2970,19 @@ public partial class DiagGui : Form
             if (cmbDays.Enabled) a.Append(" -EventDays ").Append(Convert.ToString(cmbDays.SelectedItem).Split(' ')[0]);
             if (diagChk[4].Checked) a.Append(" -SmartTimeoutMinutes ").Append(SmartMax());
         }
-        if (nav[1].Checked)
+        if (nav[2].Checked)
         {
             List<string> b = new List<string>();
             for (int i = 0; i < benchChk.Length; i++) if (benchChk[i].Checked) b.Add(benchKeys[i]);
-            if (b.Count == 0) { MessageBox.Show(this, "Im Benchmark ist keine Messung ausgewählt.", "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Information); ShowPage(1); return; }
+            if (b.Count == 0) { MessageBox.Show(this, "Im Benchmark ist keine Messung ausgewählt.", "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Information); ShowPage(2); return; }
             a.Append(" -BenchTests ").Append(String.Join(",", b.ToArray()));
             if (benchChk[3].Checked)
             {
                 List<string> dn = new List<string>();
                 for (int i = 0; i < clbDisks.Items.Count && i < diskNums.Count; i++) if (clbDisks.GetItemChecked(i)) dn.Add(diskNums[i]);
-                if (dn.Count == 0) { MessageBox.Show(this, "Für den Laufwerks-Benchmark ist kein Laufwerk ausgewählt.", "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Information); ShowPage(1); return; }
+                if (dn.Count == 0) { MessageBox.Show(this, "Für den Laufwerks-Benchmark ist kein Laufwerk ausgewählt.", "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Information); ShowPage(2); return; }
                 a.Append(" -BenchLaufwerke ").Append(String.Join(",", dn.ToArray()));
             }
-            if (benchChk[2].Checked && chkGpuWahl != null && chkGpuWahl.Checked) a.Append(" -BenchGpuWahl");
             if (cmbRef != null)
             {
                 if (cmbRef.SelectedIndex == 1) a.Append(" -ReferenzDatei *median");
@@ -2916,35 +2995,35 @@ public partial class DiagGui : Form
             if (clbCompare.Enabled) for (int i = 0; i < clbCompare.Items.Count && i < cmpItems.Count; i++) if (clbCompare.GetItemChecked(i)) cmp.Add(cmpItems[i].Path);
             if (cmp.Count > 0) a.Append(" -VergleichDateien ").Append(Q(String.Join(";", cmp.ToArray())));
         }
-        if (nav[2].Checked)
+        if (nav[3].Checked)
         {
-            if (!chkLCpu.Checked && !chkLRam.Checked && !chkLGpu.Checked && !chkLDisk.Checked) { MessageBox.Show(this, "Im Lasttest ist keine Komponente ausgewählt.", "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Information); ShowPage(2); return; }
+            if (!chkLCpu.Checked && !chkLRam.Checked && !chkLGpu.Checked && !chkLDisk.Checked) { MessageBox.Show(this, "Im Lasttest ist keine Komponente ausgewählt.", "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Information); ShowPage(3); return; }
             if (chkLCpu.Checked) a.Append(" -LastCpuMinuten ").Append(Minutes(cmbLCpu));
             if (chkLRam.Checked) a.Append(" -LastRamMinuten ").Append(Minutes(cmbLRam)).Append(" -LastRamProzent ").Append(Convert.ToString(cmbLRamPct.SelectedItem).Split(' ')[0]);
             if (chkLGpu.Checked) a.Append(" -LastGpuMinuten ").Append(Minutes(cmbLGpu));
             if (chkLDisk.Checked) a.Append(" -LastDiskMinuten ").Append(Minutes(cmbLDisk)).Append(" -LastDiskLaufwerk ").Append(Convert.ToString(cmbLDiskDrive.SelectedItem).Substring(0, 1));
             a.Append(" -LastAbbruchCpu ").Append(AbortArg(cmbLAbortCpu)).Append(" -LastAbbruchGpu ").Append(AbortArg(cmbLAbortGpu));
         }
-        if (nav[3].Checked)
+        if (nav[4].Checked)
         {
             List<string> r = new List<string>();
             for (int i = 0; i < repChk.Length; i++) if (repChk[i].Checked) { r.Add(repKeys[i]); punkte.Add(new StartPunkt("Wartung", SplitDetail(repText[i])[0], i < repRisk.Length && repRisk[i].Length > 0 ? repRisk[i] : "Eingriff", i < repRestart.Length ? repRestart[i] : "")); }
-            if (r.Count == 0) { MessageBox.Show(this, "Im Wartungsmodul ist nichts ausgewählt.", "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Information); ShowPage(3); return; }
+            if (r.Count == 0) { MessageBox.Show(this, "Im Wartungsmodul ist nichts ausgewählt.", "Leos Minibench", MessageBoxButtons.OK, MessageBoxIcon.Information); ShowPage(4); return; }
             wp.Add("Wartung|" + (chkRestorePoint.Checked ? "1" : "0")); if (!chkRestorePoint.Checked) ohneWp = true;
             a.Append(" -Wartung ").Append(String.Join(",", r.ToArray()));
             if (!chkRestorePoint.Checked) a.Append(" -OhneWiederherstellungspunkt");
         }
-        if (nav[4].Checked)
+        if (nav[5].Checked)
         {
             string optArgs = OptStartArgs(punkte, zusatz); if (optArgs == null) return;
             wp.Add("Optimierung|" + (chkOptRestore.Checked ? "1" : "0")); if (!chkOptRestore.Checked) ohneWp = true;
             a.Append(optArgs);
         }
-        if (nav[0].Checked && chkMem.Enabled && chkMem.Checked) punkte.Add(new StartPunkt("Diagnose", "Windows-Speicherdiagnose beim nächsten Neustart", "Aendern", "immer"));
+        if (nav[1].Checked && chkMem.Enabled && chkMem.Checked) punkte.Add(new StartPunkt("Diagnose", "Windows-Speicherdiagnose beim nächsten Neustart", "Aendern", "immer"));
         // ab v3.64 eine Zusammenfassung vor dem Start, nur bei Eingriffen, Neustarts oder abgewähltem Wiederherstellungspunkt
         if ((StartUebersicht.Noetig(punkte, ohneWp) || zusatz.Count > 0) && !ConfirmStart(StartUebersicht.Text(mods, "ca. " + MinText(EstimateMinutes()), punkte, wp, zusatz), punkte)) return;
-        if (nav[0].Checked && chkFast != null && chkFast.Enabled && chkFast.Checked) a.Append(" -SchnellerModus");
-        bool gpuBench = nav[1].Checked && benchChk[2].Checked, gpuLoad = nav[2].Checked && chkLGpu.Checked;
+        if (nav[1].Checked && chkFast != null && chkFast.Enabled && chkFast.Checked) a.Append(" -SchnellerModus");
+        bool gpuBench = nav[2].Checked && benchChk[2].Checked, gpuLoad = nav[3].Checked && chkLGpu.Checked;
         if (gpuBench || gpuLoad)
         {
             ComboBox res = gpuLoad ? cmbLGpuRes : cmbGpuRes, show = gpuLoad ? cmbLGpuShow : cmbGpuShow;
@@ -3054,8 +3133,23 @@ public partial class DiagGui : Form
     {
         try
         {
-            string f = dataDir.Length > 0 ? Path.Combine(dataDir, "Referenz.json") : "";
-            if (f.Length > 0 && !File.Exists(f)) f = Path.Combine(dataDir, "PC-Diagnose-Referenz.json");
+            string f = "";
+            if (dataDir.Length > 0)
+            {
+                string devFile = HwIsLaptop ? "Referenz_Notebook.json" : "Referenz_Desktop.json";
+                string devPath = Path.Combine(dataDir, devFile);
+                if (File.Exists(devPath)) f = devPath;
+                else
+                {
+                    string stdPath = Path.Combine(dataDir, "Referenz.json");
+                    if (File.Exists(stdPath)) f = stdPath;
+                    else
+                    {
+                        string altPath = Path.Combine(dataDir, "PC-Diagnose-Referenz.json");
+                        if (File.Exists(altPath)) f = altPath;
+                    }
+                }
+            }
             if (f.Length > 0 && File.Exists(f))
             {
                 System.Web.Script.Serialization.JavaScriptSerializer js = new System.Web.Script.Serialization.JavaScriptSerializer();
@@ -3118,7 +3212,21 @@ public partial class DiagGui : Form
             foreach (string n in names) cmbPreset.Items.Add(n == start ? n + "   (beim Start)" : n);
             int sel = 0;
             if (presetActive.Length > 0) { int i = names.IndexOf(presetActive); if (i >= 0) sel = i + 1; }
-            if (autoLoad && start.Length > 0) { int i = names.IndexOf(start); if (i >= 0) { sel = i + 1; ApplyPreset(start); } }
+            if (autoLoad && start.Length > 0)
+            {
+                int i = names.IndexOf(start);
+                if (i >= 0)
+                {
+                    sel = i + 1;
+                    ApplyPreset(start);
+                    int targetPage = 1;
+                    for (int m = 1; m <= 5 && m < nav.Count; m++)
+                    {
+                        if (nav[m].Checked) { targetPage = m; break; }
+                    }
+                    ShowPage(targetPage);
+                }
+            }
             cmbPreset.SelectedIndex = sel;
             btnPresetDel.Enabled = sel > 0;
             btnPresetSave.Enabled = PresetFile.Length > 0;
@@ -3252,14 +3360,13 @@ public partial class DiagGui : Form
     {
         Dictionary<string, object> d = new Dictionary<string, object>();
         string[] mods = new string[] { "Diagnose", "Benchmark", "Lasttest", "Reparatur", "Optimierung" };
-        for (int i = 0; i < mods.Length && i < nav.Count; i++) d["Modul." + mods[i]] = nav[i].Checked;
+        for (int i = 0; i < mods.Length && (i + 1) < nav.Count; i++) d["Modul." + mods[i]] = nav[i + 1].Checked;
         RadioButton[] rbs = new RadioButton[] { rbVoll, rbSchnell, rbCustom };
         for (int i = 0; i < rbs.Length; i++) if (rbs[i] != null && rbs[i].Checked) d["Diag.Profil"] = diagProfiles[i];
         for (int i = 0; i < diagKeys.Length && diagChk != null; i++) d["Diag." + diagKeys[i]] = diagChk[i].Checked;
         PutC(d, "Diag.SchnellerModus", chkFast); PutC(d, "Diag.Smartmontools", chkInstall); PutC(d, "Diag.Speicherdiagnose", chkMem);
         PutCb(d, "Diag.Tage", cmbDays); PutCb(d, "Diag.SmartMax", cmbSmartMax);
         for (int i = 0; i < benchKeys.Length && benchChk != null; i++) d["Bench." + benchKeys[i]] = benchChk[i].Checked;
-        PutC(d, "Bench.GpuWahl", chkGpuWahl);
         if (cmbRef != null)
         {
             if (cmbRef.SelectedIndex == 1) d["Bench.Referenz"] = "Median";
@@ -3289,7 +3396,7 @@ public partial class DiagGui : Form
     {
         string[] mods = new string[] { "Diagnose", "Benchmark", "Lasttest", "Reparatur", "Optimierung" };
         bool v;
-        for (int i = 0; i < mods.Length && i < nav.Count; i++) if (GetB(d, "Modul." + mods[i], out v)) nav[i].Checked = v;
+        for (int i = 0; i < mods.Length && (i + 1) < nav.Count; i++) if (GetB(d, "Modul." + mods[i], out v)) nav[i + 1].Checked = v;
         string prof = GetS(d, "Diag.Profil");
         RadioButton[] rbs = new RadioButton[] { rbVoll, rbSchnell, rbCustom };
         // Voreinstellungen vor v3.64 mit Funktionstest oder Absturzanalyse: Profil Schnell, ohne die dort abgeschalteten
@@ -3304,7 +3411,6 @@ public partial class DiagGui : Form
         GetC(d, "Diag.SchnellerModus", chkFast);
         GetCb(d, "Diag.Tage", cmbDays); GetCb(d, "Diag.SmartMax", cmbSmartMax);
         for (int i = 0; i < benchKeys.Length && benchChk != null; i++) GetC(d, "Bench." + benchKeys[i], benchChk[i]);
-        GetC(d, "Bench.GpuWahl", chkGpuWahl);
         if (cmbRef != null)
         {
             string r = GetS(d, "Bench.Referenz");

@@ -1,4 +1,4 @@
-// Vergleichsdatenbank und Systemvergleich (Teilklasse DiagGui)
+﻿// Vergleichsdatenbank und Systemvergleich (Teilklasse DiagGui)
 public partial class DiagGui
 {
     class DbItemComparer : System.Collections.IComparer

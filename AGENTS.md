@@ -42,8 +42,7 @@ Minibench-Daten     Datenordner neben der exe: Berichte, Datenbank (JSON, PC-Dia
    Installationen (winget), Netzlaufwerke und Werkzeugstarts aus der Oberfläche.
 4. Keine Reste auf fremden PCs: Rückstandskontrolle am Laufende. Der Nutzer kann Hilfswerkzeuge je Gerät behalten.
 5. Fremdwerkzeuge nur portabel, frei weitergebbar und mit fester Prüfsumme im Manifest.
-6. Texte in Oberfläche und Bericht auf Deutsch, sachlich, ohne Spiegelstriche als Aufzählung, ohne Werbesprache und
-   ohne Emojis.
+6. Texte in Oberfläche und Bericht auf Deutsch, sachlich, ohne Spiegelstriche als Aufzählung, ohne Werbesprache.
 7. Messungen (Benchmark, Lasttest) laufen nie parallel zu anderer Last.
 8. Jedes neue Bedienelement bekommt einen Hinweis beim Überfahren (Tip(...)); Oberflaeche.Tests.ps1 prüft das.
 9. Macht eine Änderung Lasttestergebnisse unvergleichbar, $script:MessreiheAb in Kern\Datenpflege.ps1 anheben.

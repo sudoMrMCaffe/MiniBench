@@ -648,7 +648,7 @@ Describe 'Abläufe von Benchmark und Lasttest nutzen die geprüften Bausteine' {
         @{ Datei = 'Module/Lasttest/Ablauf.ps1'; Zweck = 'Befunde und Abfall der Bilder/s'; Muster = '(?s)Add-RenderFindings.*Get-FpsDrop' }
         @{ Datei = 'Module/Benchmark/Ablauf.ps1'; Zweck = 'Rendertest je ausgewählter Grafikeinheit'; Muster = '(?s)Select-RenderAdapters @\(Get-RenderAdapters\) \$GpuAuswahl.*Invoke-RenderBenchmark' }
         @{ Datei = 'Module/Benchmark/Ablauf.ps1'; Zweck = 'Unterbrechungen, Sensoren beenden, dann Sensorbericht'; Muster = '(?s)Start-PauseWatch.*Stop-PauseWatch.*Stop-BenchSensors.*Write-BenchSensorReport' }
-        @{ Datei = 'Module/Benchmark/Ablauf.ps1'; Zweck = 'Sensoren je Abschnitt'; Muster = "(?s)Start-BenchSensors.*Set-BenchSensorPart 'Prozessor'.*Set-BenchSensorPart 'Arbeitsspeicher'.*Set-BenchSensorPart 'Grafik'.*Set-BenchSensorPart 'Datenträger'.*Set-BenchSensorPart 'WinSAT'" }
+        @{ Datei = 'Module/Benchmark/Ablauf.ps1'; Zweck = 'Sensoren je Abschnitt'; Muster = "(?s)Start-BenchSensors.*Set-BenchSensorPart 'Prozessor'.*Set-BenchSensorPart 'Arbeitsspeicher'.*Set-BenchSensorPart 'Grafik'.*Set-BenchSensorPart 'Datenträger'" }
         @{ Datei = 'Kern/Grundgeruest.ps1'; Zweck = 'Sensor-Messpunkte in den Wartepausen'; Muster = 'Add-BenchSensorSample' }
         @{ Datei = 'Kern/Grafiktest.ps1'; Zweck = 'Sensor-Messpunkte in den Wartepausen'; Muster = 'Add-BenchSensorSample' }
         @{ Datei = 'Kern/Berichtshilfen.ps1'; Zweck = 'Sensor-Messpunkte in den Wartepausen'; Muster = 'Add-BenchSensorSample' }

@@ -1,5 +1,5 @@
 ﻿#region ---------- Grafische Bausteine für die Berichte ----------
-$script:GroupOfKey = @{ 'CPU' = 'Prozessor'; 'RAM' = 'Arbeitsspeicher'; 'GPU' = 'Grafik'; 'DISK' = 'Laufwerke'; 'LW' = 'Laufwerke'; 'WINSAT' = 'WinSAT-Bewertung' }
+$script:GroupOfKey = @{ 'CPU' = 'Prozessor'; 'RAM' = 'Arbeitsspeicher'; 'GPU' = 'Grafik'; 'DISK' = 'Laufwerke'; 'LW' = 'Laufwerke' }
 
 # Balken 0 bis 150 % mit Markierung bei 100 %
 function Get-RefBar($Pct, [string]$Cls = 'info', [switch]$Small) {
@@ -106,11 +106,7 @@ function New-BenchOverview {
         if (-not $g.Anzahl) { continue }
         $c = $bcls[$g.Status]; if (-not $c) { $c = 'info' }
         $kopf = $g.Kopf
-        if ($gk -eq 'WinSAT' -and $script:WinsatTotal -gt 0) {
-            $big = '{0:N1}<small> von 9,9</small>' -f $script:WinsatTotal
-            $kopf = 'Gesamtwert = niedrigster Teilwert'
-            $bar = [string]::Format($script:Inv, '<span class="rb"><span class="rbf {0}" style="width:{1:0.#}%"></span></span>', (Get-WinsatClass $script:WinsatTotal), ($script:WinsatTotal / 9.9 * 100))
-        } elseif ($null -ne $g.RefPct) {
+        if ($null -ne $g.RefPct) {
             $big = '{0}<small> % der Referenz</small>' -f $g.RefPct
             $bar = Get-RefBar $g.RefPct $c
         } else {
@@ -121,42 +117,6 @@ function New-BenchOverview {
             $c, $gk, (ConvertTo-HtmlText $g.Name), (ConvertTo-HtmlText $g.Status), $big, $bar, (ConvertTo-HtmlText $kopf)))
     }
     [void]$sb.Append('</div>')
-    return $sb.ToString()
-}
-
-function Get-WinsatClass([double]$v) { if ($v -ge 7) { 'ok' } elseif ($v -ge 5) { 'info' } elseif ($v -ge 3.5) { 'warn' } else { 'crit' } }
-
-# WinSAT-Teilwerte als Balkendiagramm (Skala 1,0 bis 9,9, gestrichelte Linie = Gesamtwert)
-function New-WinsatSvg($Items, [double]$Total) {
-    $inv = $script:Inv
-    $items = @($Items | Where-Object { [double]$_.Wert -gt 0 })
-    if (-not $items.Count) { return '' }
-    $W = 860; $rowH = 38; $ml = 175; $mr = 150; $mt = 26; $mb = 30
-    $H = $mt + $items.Count * $rowH + $mb
-    $pw = $W - $ml - $mr
-    $fx = { param($v) $ml + ([math]::Max(1.0, [double]$v) - 1.0) / 8.9 * $pw }
-    $sb = New-Object System.Text.StringBuilder
-    [void]$sb.Append([string]::Format($inv, '<svg class="chart ws" viewBox="0 0 {0} {1}" role="img" aria-label="WinSAT-Teilwerte">', $W, $H))
-    foreach ($t in 1, 2, 3, 4, 5, 6, 7, 8, 9, 9.9) {
-        $x = & $fx $t
-        [void]$sb.Append([string]::Format($inv, '<line class="grid" x1="{0:0.#}" x2="{0:0.#}" y1="{1}" y2="{2}"/><text x="{0:0.#}" y="{3}" text-anchor="middle">{4}</text>', $x, $mt - 6, $H - $mb, $H - 10, ('{0:0.#}' -f $t)))
-    }
-    $y = $mt
-    foreach ($i in $items) {
-        $v = [double]$i.Wert
-        $cls = Get-WinsatClass $v
-        [void]$sb.Append([string]::Format($inv, '<text class="l" x="{0}" y="{1:0.#}" text-anchor="end" dominant-baseline="middle">{2}</text>', $ml - 12, $y + $rowH / 2, (ConvertTo-HtmlText $i.Messung)))
-        [void]$sb.Append([string]::Format($inv, '<rect class="bg" x="{0}" y="{1:0.#}" width="{2:0.#}" height="20" rx="5"/>', $ml, $y + ($rowH - 20) / 2, $pw))
-        [void]$sb.Append([string]::Format($inv, '<rect class="b-{0}" x="{1}" y="{2:0.#}" width="{3:0.#}" height="20" rx="5"><title>{4}: {5:N1} von 9,9</title></rect>', $cls, $ml, $y + ($rowH - 20) / 2, [math]::Max(6.0, (& $fx $v) - $ml), (ConvertTo-HtmlText $i.Messung), $v))
-        $cmp = $(if ($i.Vergleich) { '  ' + $i.Vergleich -replace ' zum letzten Lauf', ' zuletzt' -replace ' zu (\d+) Läufen', ' zu $1 Läufen' } else { '' })
-        [void]$sb.Append([string]::Format($inv, '<text class="v" x="{0:0.#}" y="{1:0.#}" dominant-baseline="middle">{2}<tspan class="d">{3}</tspan></text>', $ml + $pw + 10, $y + $rowH / 2, ('{0:N1}' -f $v), (ConvertTo-HtmlText $cmp)))
-        $y += $rowH
-    }
-    if ($Total -gt 0) {
-        $x = & $fx $Total
-        [void]$sb.Append([string]::Format($inv, '<line class="tot" x1="{0:0.#}" x2="{0:0.#}" y1="{1}" y2="{2}"/><text class="tl" x="{0:0.#}" y="{3}" text-anchor="middle">Gesamt {4}</text>', $x, $mt - 4, $H - $mb, $mt - 10, ('{0:N1}' -f $Total)))
-    }
-    [void]$sb.Append('</svg>')
     return $sb.ToString()
 }
 
@@ -339,14 +299,6 @@ function New-CompareReport([string[]]$Paths) {
         if ($part.Length) { [void]$sb.Append(('<section class="box"><h2>{0}</h2>{1}</section>' -f (ConvertTo-HtmlText $sn), $part.ToString())) }
     }
 
-    # WinSAT, falls vorhanden
-    $wsDefs = @(@('WINSAT|CPU', 'Prozessor'), @('WINSAT|RAM', 'Arbeitsspeicher'), @('WINSAT|DISK', 'Systemlaufwerk'), @('WINSAT|GFX', 'Grafik (Desktop)'))
-    $wsPart = New-Object System.Text.StringBuilder
-    foreach ($w in $wsDefs) {
-        $vals = @(foreach ($s in $sys) { $(if ($s.Messwerte[$w[0]] -gt 0) { [double]$s.Messwerte[$w[0]] } else { $null }) })
-        [void]$wsPart.Append((New-MetricBarsHtml -Label $w[1] -Unit 'von 9,9' -Fmt 'N1' -LowerBetter $false -Values $vals -Names $names -Mode 'Abs' -AbsMax 9.9 -Own $own))
-    }
-    if ($wsPart.Length) { [void]$sb.Append(('<section class="box"><h2>WinSAT-Bewertung</h2>{0}</section>' -f $wsPart.ToString())) }
 
     # alle gemessenen Laufwerke
     if (@($sys | Where-Object { $_.Laufwerke.Count }).Count) {

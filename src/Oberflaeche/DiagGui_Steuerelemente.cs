@@ -153,6 +153,8 @@ public static class UI
     public const string IcoChg = "\uE81C";
     public const string IcoFlame = "\uECAD";
     public const string IcoTools = "\uE71D";
+    public const string IcoHome = "\uE80F";
+    public const string IcoSpeed = "\uEC4A";
 
     public static GraphicsPath Round(RectangleF r, float rad)
     {
@@ -417,6 +419,254 @@ public class Badge : Control
         using (GraphicsPath p = UI.Round(new RectangleF(0, 0, Width - 1, Height - 1), (Height - 1) / 2f))
         using (SolidBrush b = new SolidBrush(bg)) g.FillPath(b, p);
         TextRenderer.DrawText(g, Text, Font, ClientRectangle, fg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+    }
+}
+
+// ab v3.72: Pill-Etikett für Hardware-Schlüsseldaten auf der Startseite
+public class PillLabel : Control
+{
+    public PillLabel(string text)
+    {
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        BackColor = Color.Transparent;
+        Font = new Font("Segoe UI", 8.75f);
+        Text = text ?? "";
+        Margin = new Padding(0, 0, UI.S(6), UI.S(6));
+        FitSize();
+    }
+    void FitSize()
+    {
+        Size sz = TextRenderer.MeasureText(Text, Font);
+        Size = new Size(sz.Width + UI.S(16), Math.Max(UI.S(24), sz.Height + UI.S(6)));
+    }
+    protected override void OnTextChanged(EventArgs e) { base.OnTextChanged(e); FitSize(); Invalidate(); }
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+        Color bg = UI.IsDark ? Color.FromArgb(42, 44, 48) : Color.FromArgb(235, 238, 242);
+        using (GraphicsPath p = UI.Round(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), UI.SF(4)))
+        {
+            using (SolidBrush b = new SolidBrush(bg)) g.FillPath(b, p);
+            using (Pen pen = new Pen(UI.Line)) g.DrawPath(pen, p);
+        }
+        TextRenderer.DrawText(g, Text, Font, ClientRectangle, UI.Text, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+    }
+}
+
+// ab v3.72: Aufgabenkachel auf der neuen Startseite
+public class StartTaskCard : Control
+{
+    bool hover;
+    string title = "", desc = "", footText = "", badgeText = "", badgeLevel = "ok", icon = "";
+    bool recommended;
+    public event EventHandler CardClicked;
+
+    public StartTaskCard(string title, string desc, string footText, string badgeText, string badgeLevel, string icon, bool recommended)
+    {
+        this.title = title ?? "";
+        this.desc = desc ?? "";
+        this.footText = footText ?? "";
+        this.badgeText = badgeText ?? "";
+        this.badgeLevel = badgeLevel ?? "ok";
+        this.icon = icon ?? "";
+        this.recommended = recommended;
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
+        Cursor = Cursors.Hand;
+        BackColor = UI.Panel;
+        Size = new Size(UI.S(184), UI.S(204));
+        Margin = new Padding(0, 0, UI.S(14), UI.S(14));
+    }
+
+    public string Title { get { return title; } set { title = value ?? ""; Invalidate(); } }
+    public string Description { get { return desc; } set { desc = value ?? ""; Invalidate(); } }
+    public string FootText { get { return footText; } set { footText = value ?? ""; Invalidate(); } }
+    public string BadgeText { get { return badgeText; } set { badgeText = value ?? ""; Invalidate(); } }
+    public string BadgeLevel { get { return badgeLevel; } set { badgeLevel = value ?? "ok"; Invalidate(); } }
+    public bool Recommended { get { return recommended; } set { recommended = value; Invalidate(); } }
+
+    protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
+    protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
+    protected override void OnMouseClick(MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left && CardClicked != null) CardClicked(this, EventArgs.Empty);
+        base.OnMouseClick(e);
+    }
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if ((e.KeyCode == Keys.Space || e.KeyCode == Keys.Enter) && CardClicked != null) { CardClicked(this, EventArgs.Empty); e.Handled = true; }
+        base.OnKeyDown(e);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+        Color border = hover || (recommended && !hover) ? UI.Accent : UI.Line;
+        float bWidth = hover ? 1.5f : 1f;
+
+        using (GraphicsPath p = UI.Round(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), UI.SF(8)))
+        {
+            using (SolidBrush b = new SolidBrush(UI.Panel)) g.FillPath(b, p);
+            using (Pen pen = new Pen(border, bWidth)) g.DrawPath(pen, p);
+        }
+
+        // Icon Box
+        int iconSize = UI.S(36);
+        RectangleF iconBox = new RectangleF(UI.S(14), UI.S(14), iconSize, iconSize);
+        Color iconBg = UI.IsDark ? Color.FromArgb(46, 50, 56) : Color.FromArgb(235, 240, 250);
+        using (GraphicsPath ip = UI.Round(iconBox, UI.SF(6)))
+        {
+            using (SolidBrush ib = new SolidBrush(iconBg)) g.FillPath(ib, ip);
+        }
+        using (Font fIcon = UI.SymbolFont(13f))
+        {
+            TextRenderer.DrawText(g, icon, fIcon, new Rectangle((int)iconBox.X, (int)iconBox.Y, (int)iconBox.Width, (int)iconBox.Height), UI.Accent, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        }
+
+        // Empfohlen Badge
+        if (recommended)
+        {
+            using (Font fRec = new Font("Segoe UI Semibold", 8f))
+            {
+                Size szR = TextRenderer.MeasureText("Empfohlen", fRec);
+                Rectangle rRec = new Rectangle(Width - szR.Width - UI.S(24), UI.S(14), szR.Width + UI.S(12), UI.S(20));
+                using (GraphicsPath rp = UI.Round(new RectangleF(rRec.X, rRec.Y, rRec.Width, rRec.Height), UI.SF(4)))
+                using (SolidBrush rb = new SolidBrush(UI.InfoBg))
+                {
+                    g.FillPath(rb, rp);
+                }
+                TextRenderer.DrawText(g, "Empfohlen", fRec, rRec, UI.Info, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
+        }
+
+        // Titel
+        using (Font fTitle = new Font("Segoe UI Semibold", 10.5f))
+        {
+            Rectangle rTitle = new Rectangle(UI.S(14), UI.S(58), Width - UI.S(28), UI.S(22));
+            TextRenderer.DrawText(g, title, fTitle, rTitle, UI.Text, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis);
+        }
+
+        // Beschreibung
+        using (Font fDesc = new Font("Segoe UI", 8.75f))
+        {
+            Rectangle rDesc = new Rectangle(UI.S(14), UI.S(84), Width - UI.S(28), Height - UI.S(124));
+            TextRenderer.DrawText(g, desc, fDesc, rDesc, UI.Muted, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak);
+        }
+
+        // Fußzeile
+        int footY = Height - UI.S(30);
+        using (Font fFoot = new Font("Segoe UI", 8.25f))
+        {
+            Rectangle rFoot = new Rectangle(UI.S(14), footY, Width - UI.S(74), UI.S(18));
+            TextRenderer.DrawText(g, footText, fFoot, rFoot, UI.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        }
+
+        // Badge
+        if (badgeText.Length > 0)
+        {
+            Color bfg, bbg;
+            UI.BadgeColors(badgeLevel, out bfg, out bbg);
+            using (Font fBadge = new Font("Segoe UI Semibold", 8f))
+            {
+                Size szB = TextRenderer.MeasureText(badgeText, fBadge);
+                Rectangle rBadge = new Rectangle(Width - szB.Width - UI.S(22), footY, szB.Width + UI.S(10), UI.S(18));
+                using (GraphicsPath bp = UI.Round(new RectangleF(rBadge.X, rBadge.Y, rBadge.Width, rBadge.Height), UI.SF(4)))
+                using (SolidBrush bb = new SolidBrush(bbg))
+                {
+                    g.FillPath(bb, bp);
+                }
+                TextRenderer.DrawText(g, badgeText, fBadge, rBadge, bfg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
+        }
+    }
+}
+
+// ab v3.72: Kompakte Aufgabenzeile für State B
+public class StartTaskRow : Control
+{
+    bool hover;
+    string title = "", subtitle = "", badgeText = "", badgeLevel = "ok", icon = "";
+    public event EventHandler RowClicked;
+
+    public StartTaskRow(string title, string subtitle, string badgeText, string badgeLevel, string icon)
+    {
+        this.title = title ?? "";
+        this.subtitle = subtitle ?? "";
+        this.badgeText = badgeText ?? "";
+        this.badgeLevel = badgeLevel ?? "ok";
+        this.icon = icon ?? "";
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
+        Cursor = Cursors.Hand;
+        BackColor = Color.Transparent;
+        Size = new Size(UI.S(350), UI.S(46));
+        Margin = new Padding(0, 0, 0, UI.S(6));
+    }
+
+    public string Subtitle { get { return subtitle; } set { subtitle = value ?? ""; Invalidate(); } }
+    public string BadgeText { get { return badgeText; } set { badgeText = value ?? ""; Invalidate(); } }
+    public string BadgeLevel { get { return badgeLevel; } set { badgeLevel = value ?? "ok"; Invalidate(); } }
+
+    protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
+    protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
+    protected override void OnMouseClick(MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left && RowClicked != null) RowClicked(this, EventArgs.Empty);
+        base.OnMouseClick(e);
+    }
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if ((e.KeyCode == Keys.Space || e.KeyCode == Keys.Enter) && RowClicked != null) { RowClicked(this, EventArgs.Empty); e.Handled = true; }
+        base.OnKeyDown(e);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+        if (hover)
+        {
+            Color hbg = UI.IsDark ? Color.FromArgb(46, 48, 52) : Color.FromArgb(240, 242, 246);
+            using (GraphicsPath p = UI.Round(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), UI.SF(6)))
+            using (SolidBrush b = new SolidBrush(hbg))
+            {
+                g.FillPath(b, p);
+            }
+        }
+
+        // Icon
+        using (Font fIcon = UI.SymbolFont(12f))
+        {
+            TextRenderer.DrawText(g, icon, fIcon, new Rectangle(UI.S(8), 0, UI.S(24), Height), UI.Accent, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+        }
+
+        // Titel & Subtitle
+        int textX = UI.S(38);
+        using (Font fTitle = new Font("Segoe UI Semibold", 9.5f))
+        {
+            Rectangle rTitle = new Rectangle(textX, UI.S(4), Width - textX - UI.S(70), UI.S(18));
+            TextRenderer.DrawText(g, title, fTitle, rTitle, UI.Text, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis);
+        }
+        using (Font fSub = new Font("Segoe UI", 8.25f))
+        {
+            Rectangle rSub = new Rectangle(textX, UI.S(24), Width - textX - UI.S(70), UI.S(16));
+            TextRenderer.DrawText(g, subtitle, fSub, rSub, UI.Muted, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis);
+        }
+
+        // Badge
+        if (badgeText.Length > 0)
+        {
+            Color bfg, bbg;
+            UI.BadgeColors(badgeLevel, out bfg, out bbg);
+            using (Font fBadge = new Font("Segoe UI Semibold", 8f))
+            {
+                Size szB = TextRenderer.MeasureText(badgeText, fBadge);
+                Rectangle rBadge = new Rectangle(Width - szB.Width - UI.S(18), (Height - UI.S(18)) / 2, szB.Width + UI.S(10), UI.S(18));
+                using (GraphicsPath bp = UI.Round(new RectangleF(rBadge.X, rBadge.Y, rBadge.Width, rBadge.Height), UI.SF(4)))
+                using (SolidBrush bb = new SolidBrush(bbg))
+                {
+                    g.FillPath(bb, bp);
+                }
+                TextRenderer.DrawText(g, badgeText, fBadge, rBadge, bfg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
+        }
     }
 }
 

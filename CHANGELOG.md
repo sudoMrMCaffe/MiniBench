@@ -1,6 +1,17 @@
-﻿# Changelog - Leos Minibench
+# Changelog - Leos Minibench
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
+
+## v3.72 (16.10.2026)
+
+* **Neue dreiteilige Startseite (Drei-Fragen-Prinzip):** Einführung einer modernen, intuitiven Einstiegsseite als Standardansicht beim Start der Oberfläche. Zwei dynamische Betriebsmodi:
+  * **Zustand A (Erststart):** Hardware-Steckbrief („Dieser PC“) mit kompakter Übersicht (CPU, GPU, RAM, Laufwerke, Mainboard) und Direktlink zum Detail-Inventar; vier interaktive Aufgabenkarten („PC durchchecken“, „Leistung messen“, „Stabilität prüfen“, „Pflegen und beschleunigen“) mit Hervorhebung und Tooltips; zweispaltiger Erklärbereich („So läuft ein Durchgang“ mit 3 Schritten und „Werkzeuge“-Direktzugriff).
+  * **Zustand B (Folgestarts bei vorhandener Datenbank):** Schnellübersicht der Schlüsseldaten als Badges/Pills („Willkommen zurück“); 2x2-Kachelmatrix mit Kachel „Letzter Lauf“ (Gesamtscore, CPU Mehrkern, RAM Lesen, GPU FPS, Befund-Status, Bericht öffnen und Dashboard-Vergleich), Kachel „Schnell behebbar“ (asynchron im Hintergrund geladene Konfigurationsprüfungen), kompakter Aufgabenliste mit Datum des letzten Laufs sowie Live-Status der Werkzeuge.
+  * **Abschlussleiste:** Einstellung „Beim Start diese Seite zeigen“ (persistent in `Einstellungen.json`), Direktlink zur Kurzanleitung sowie „Was ist neu“ mit dynamischer Badge-Benachrichtigung für neue Versionen (`GeseheneVersion`).
+* **Interaktiver Schnellstart & Ablaufsteuerung:** Direkter Klick auf eine Aufgabenkarte wählt die zugehörigen Module in der Seitenleiste an (z. B. Diagnose für PC durchchecken, Wartung und Optimierung für Pflegen), setzt empfohlene Vorgaben und navigiert sofort zur ersten Arbeitsseite; Fußleiste zeigt im Leerzustand den deaktivierten Startknopf „Ablauf wählen“ und wechselt bei Modulwahl nahtlos auf den aktiven Startknopf („Diagnose starten“).
+* **Vollständige WinSAT-Bereinigung:** Vollständige Entfernung alter WinSAT-Funktionen (`-BenchGpuWahl`, `chkGpuWahl`, WinSAT-Benchmarkschritt, WinSAT-SVG und Auswertungen im Bericht) zugunsten moderner nativer Messungen.
+* **Automatische Standard-Referenz:** Automatische Wahl von `Referenz_Notebook.json` (Notebooks) bzw. `Referenz_Desktop.json` (Desktop-PCs) bei Standard-Benchmarkläufen anhand der Hardware-Erkennung (`Test-IsNotebookSystem`).
+* **System-Feinschliff & Konfigurationsprüfung:** Sachliche Benennung des Diagnose-Prüfschritts als „Konfigurationsprüfung“ im HTML-Bericht; asynchrone Prüfung von XMP/EXPO, BIOS-Alter und Netzwerkverbindung ohne Blockierung der Oberfläche; konsistente Anwendung von `UI.ThemeDialog` auf allen neuen Dialogen.
 
 ## v3.71 (15.10.2026)
 
