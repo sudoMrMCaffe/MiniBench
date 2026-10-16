@@ -4,23 +4,25 @@ $StartTime = Get-Date
 $script:Inv = [Globalization.CultureInfo]::InvariantCulture
 
 # Netzteil-Konfiguration (ab v3.71): CLI-Parameter oder Einstellungen.json
-$script:PsuWattage = if ($PSBoundParameters.ContainsKey('PsuWattage')) { [int]$PsuWattage } else { $null }
-$script:PsuRating  = if ($PSBoundParameters.ContainsKey('PsuRating'))  { [string]$PsuRating } else { $null }
-if ($null -eq $script:PsuWattage -or $null -eq $script:PsuRating) {
+$activePsuWattage = if ($PSBoundParameters.ContainsKey('PsuWattage')) { [int]$PsuWattage } else { $null }
+$activePsuRating  = if ($PSBoundParameters.ContainsKey('PsuRating'))  { [string]$PsuRating } else { $null }
+if ($null -eq $activePsuWattage -or $null -eq $activePsuRating) {
     try {
         $settingsPath = if ($script:DataDir) { Join-Path $script:DataDir 'Einstellungen.json' } else { $null }
         if ($settingsPath -and (Test-Path -LiteralPath $settingsPath)) {
             $rawJson = [IO.File]::ReadAllText($settingsPath, [Text.Encoding]::UTF8)
             $sDict = ConvertFrom-Json $rawJson -ErrorAction SilentlyContinue
             if ($sDict) {
-                if ($null -eq $script:PsuWattage -and $null -ne $sDict.PsuWattage) { $script:PsuWattage = [int]$sDict.PsuWattage }
-                if ($null -eq $script:PsuRating -and $null -ne $sDict.PsuRating) { $script:PsuRating = [string]$sDict.PsuRating }
+                if ($null -eq $activePsuWattage -and $null -ne $sDict.PsuWattage) { $activePsuWattage = [int]$sDict.PsuWattage }
+                if ($null -eq $activePsuRating -and $null -ne $sDict.PsuRating) { $activePsuRating = [string]$sDict.PsuRating }
             }
         }
     } catch { }
 }
-if ($null -eq $script:PsuWattage) { $script:PsuWattage = $(if ($PsuWattage -ne $null) { [int]$PsuWattage } else { 650 }) }
-if ($null -eq $script:PsuRating -or "$($script:PsuRating)" -eq '') { $script:PsuRating = $(if ($PsuRating) { [string]$PsuRating } else { '80 PLUS Bronze' }) }
+if ($null -eq $activePsuWattage) { $activePsuWattage = $(if ($PsuWattage -ne $null) { [int]$PsuWattage } else { 650 }) }
+if ($null -eq $activePsuRating -or "$activePsuRating" -eq '') { $activePsuRating = $(if ($PsuRating) { [string]$PsuRating } else { '80 PLUS Bronze' }) }
+$script:PsuWattage = $activePsuWattage
+$script:PsuRating  = $activePsuRating
 
 function Split-List([string]$Text) { @(([string]$Text) -split '[,;]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) }
 

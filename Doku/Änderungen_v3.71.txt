@@ -65,6 +65,9 @@ GEFUNDEN UND BEHOBEN
   AMD Radeon Grafikkarten meldeten unter Last nur TGP/ASIC-Verbrauch ohne VRAM- und VRM-Verluste; durch TBP-Korrekturaufschlag (+15 % unter Last, +4 W im Idle) korrigiert.
   Netzteilauslastungen über 100 % führten bei Stützstellenarrays potenziell zu Bereichsüberschreitungen; durch Begrenzung und Überlast-Extrapolation abgefangen.
   Laufwerke ohne Temperaturerfassung im Idle wurden mit Standardwerten behandelt; NVMe-Zuschlag greift nur bei Sensormessung > 45 °C.
+  ValidationMetadataException beim Öffnen des Dashboards oder bei Aufrufen ohne expliziten -PsuRating-Parameter behoben ($PsuRating wurde durch $null-Zuweisung ungültig).
+  Auswahl des Referenzsystems (Gespeicherte Referenz, Mediane, Datenbankeinträge) und der Haken "Dieses System als Referenz festlegen" im Benchmark-Reiter der Benutzeroberfläche wiederhergestellt.
+  Auf Notebook-Systemen entfällt die ATX-Netzteilkonfiguration im Bericht; die Berechnung nutzt automatisch das mobile OEM-Netzteil-/Akkumodell (~90 % Wirkungsgrad).
 
 GRENZEN
   Die Netzteilauslastung basiert auf den vom Benutzer hinterlegten Werten für Wattzahl und Effizienzklasse; sind diese unbekannt (0 W / "Unbekannt"), greift das Modell auf konservative Standard-Wirkungsgrade zurück.

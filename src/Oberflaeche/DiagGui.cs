@@ -116,6 +116,10 @@ public partial class DiagGui : Form
     CheckBox[] benchChk;
     CheckedListBox clbDisks, clbCompare;
     List<string> diskNums = new List<string>();
+    ComboBox cmbRef;
+    Label lblRefState;
+    Button btnUpdateMed;
+    CheckBox chkRefSave;
     List<DbEntry> refItems = new List<DbEntry>(), cmpItems = new List<DbEntry>();
     // Lasttest
     CheckBox chkLCpu, chkLRam, chkLGpu, chkLDisk;
@@ -961,6 +965,9 @@ public partial class DiagGui : Form
         Tip(cmbGpuRes, "Auflösung des Rendertests. Bilder/s sind nur bei gleicher Auflösung vergleichbar, die Punktzahl auch über Auflösungen.");
         Tip(cmbGpuShow, "Fenster: Vorschau des Rendertests. Vollbild: erste Grafikeinheit im Vollbild. Ohne Anzeige: misst unsichtbar (Esc entfällt).");
         Tip(chkGpuWahl, "Bei Notebooks mit zwei Grafikeinheiten misst WinSAT nur die Einheit, die den Desktop ausgibt. Mit diesem Haken wird WinSAT kurz auf die Grafikkarte gestellt und gleich wieder zurück (steht im Änderungsprotokoll).");
+        Tip(cmbRef, "System oder Medianwert, gegen den die Messungen in Prozent angegeben werden (100 % = Referenz). Gespeicherte Referenz: Referenz.json im Datenordner; Median: aus allen passenden Läufen der Datenbank.");
+        Tip(btnUpdateMed, "Berechnet die Median-Referenzen für alle Systeme, Notebooks und Desktops aus der Datenbank neu und speichert sie als Referenz.json, Referenz_Notebook.json und Referenz_Desktop.json.");
+        Tip(chkRefSave, "Speichert die Werte dieses Laufs als Referenz.json im Datenordner. Alle PCs, die mit diesem Datenordner messen, werden dann in Prozent dieses Systems angegeben.");
         // Lasttest
         Tip(chkLCpu, "Alle logischen Prozessoren rechnen mit Ergebnisprüfung; Rechenfehler deuten auf Instabilität (Übertaktung, Spannung, Kühlung, Netzteil). Läuft in einem eigenen Prozess ohne Unterbrechungen. Mit Sensoren gibt es Takt- und Temperaturverlauf und den Drosselnachweis. Ersetzt ab v2.7 den CPU-Stabilitätstest der Diagnose.");
         Tip(chkLRam, "Mustertest über einen Teil des freien Arbeitsspeichers mit Bitfehlerprüfung. Neben der CPU-Last läuft er mit niedriger Priorität auf einem Viertel der Threads.");
@@ -1413,6 +1420,25 @@ public partial class DiagGui : Form
         chkGpuWahl = Chk("Bei Hybridgrafik WinSAT zusätzlich auf der Grafikkarte messen", false);
         Control gw = Opt2(chkGpuWahl, "kurze Umstellung der Grafikeinheit für WinSAT, gleich danach zurück", RiskBadge("Aendern")); gw.Margin = new Padding(0, UI.S(UI.Abstand2), 0, 0); f.Controls.Add(gw);
 
+        f.Controls.Add(Section("Referenz"));
+        FlowLayoutPanel r2 = Row(); r2.Controls.Add(RowLabel("Referenz (100 %)", 170));
+        cmbRef = Combo(360, new string[0], 0); r2.Controls.Add(cmbRef);
+        btnUpdateMed = UI.Secondary("Median aktualisieren");
+        btnUpdateMed.Click += delegate {
+            if (running) return;
+            List<string> lines;
+            string res = RunHelperPumped("-MedianAktualisieren", out lines, 60);
+            string msg = "Aktualisierung fehlgeschlagen.";
+            foreach (string l in lines) if (l.StartsWith("@@STATUS|")) msg = l.Substring(9);
+            MessageBox.Show(this, msg, "Median-Referenz", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            FillRefLists();
+        };
+        r2.Controls.Add(btnUpdateMed);
+        f.Controls.Add(r2);
+        lblRefState = Hint("", 180); f.Controls.Add(lblRefState);
+        cmbRef.SelectedIndexChanged += delegate { UpdateRefState(); };
+        chkRefSave = Chk("Dieses System als Referenz (100 %) festlegen", false); f.Controls.Add(chkRefSave);
+
         clbCompare = new CheckedListBox(); clbCompare.BackColor = UI.Panel; clbCompare.ForeColor = UI.Text;
         FillRefLists();
         return f;
@@ -1443,8 +1469,38 @@ public partial class DiagGui : Form
         return gb >= 1024 ? (gb / 1024).ToString("0.0", CultureInfo.GetCultureInfo("de-DE")) + " TB" : gb.ToString("0", CultureInfo.GetCultureInfo("de-DE")) + " GB";
     }
 
+    void UpdateRefState()
+    {
+        if (lblRefState == null || cmbRef == null) return;
+        int i = cmbRef.SelectedIndex;
+        string t; bool warn = false;
+        if (i == 0)
+        {
+            string st = SavedRefText();
+            warn = st.Length == 0;
+            t = warn ? "Noch keine Referenz gespeichert: Im Datenordner liegt keine Referenz.json." : st;
+        }
+        else if (i >= 1 && i <= 3) t = "Median aus den Systemen der Vergleichsdatenbank (" + db.FindAll(delegate(DbEntry e) { return e.HasBench; }).Count + " mit Benchmark).";
+        else t = "Einzelner gespeicherter Lauf als Bezug.";
+        SetText(lblRefState, t);
+        lblRefState.ForeColor = warn ? UI.Warn : UI.Muted;
+    }
+
     void FillRefLists()
     {
+        int prevSpecial = -1;
+        string prevRef = "";
+        if (cmbRef != null)
+        {
+            if (cmbRef.SelectedIndex >= 0 && cmbRef.SelectedIndex <= 3) prevSpecial = cmbRef.SelectedIndex;
+            else if (cmbRef.SelectedIndex >= 4 && cmbRef.SelectedIndex - 4 < refItems.Count) prevRef = refItems[cmbRef.SelectedIndex - 4].Path;
+            cmbRef.Items.Clear();
+            cmbRef.Items.Add("Gespeicherte Referenz");
+            cmbRef.Items.Add("Median aller Systeme");
+            cmbRef.Items.Add("Median der Notebooks");
+            cmbRef.Items.Add("Median der Desktop-PCs");
+        }
+        refItems.Clear();
         HashSet<string> prevCmp = new HashSet<string>();
         if (clbCompare != null)
         {
@@ -1455,7 +1511,20 @@ public partial class DiagGui : Form
         {
             if (!e.HasBench) continue;
             refItems.Add(e);
+            if (cmbRef != null) cmbRef.Items.Add(e.Label);
             if (clbCompare != null) { cmpItems.Add(e); clbCompare.Items.Add(e.Label, prevCmp.Contains(e.Path)); }
+        }
+        if (cmbRef != null)
+        {
+            int sel = 0;
+            if (prevSpecial >= 0 && prevSpecial < cmbRef.Items.Count) sel = prevSpecial;
+            else if (prevRef.Length > 0)
+            {
+                int idx = refItems.FindIndex(delegate(DbEntry x) { return String.Equals(x.Path, prevRef, StringComparison.OrdinalIgnoreCase); });
+                if (idx >= 0) sel = idx + 4;
+            }
+            if (sel >= 0 && sel < cmbRef.Items.Count) cmbRef.SelectedIndex = sel;
+            UpdateRefState();
         }
         if (clbCompare != null)
         {
@@ -2835,6 +2904,14 @@ public partial class DiagGui : Form
                 a.Append(" -BenchLaufwerke ").Append(String.Join(",", dn.ToArray()));
             }
             if (benchChk[2].Checked && chkGpuWahl != null && chkGpuWahl.Checked) a.Append(" -BenchGpuWahl");
+            if (cmbRef != null)
+            {
+                if (cmbRef.SelectedIndex == 1) a.Append(" -ReferenzDatei *median");
+                else if (cmbRef.SelectedIndex == 2) a.Append(" -ReferenzDatei *median:notebook");
+                else if (cmbRef.SelectedIndex == 3) a.Append(" -ReferenzDatei *median:desktop");
+                else if (cmbRef.SelectedIndex >= 4 && cmbRef.SelectedIndex - 4 < refItems.Count) a.Append(" -ReferenzDatei ").Append(Q(refItems[cmbRef.SelectedIndex - 4].Path));
+            }
+            if (chkRefSave != null && chkRefSave.Checked) a.Append(" -ReferenzSpeichern");
             List<string> cmp = new List<string>();
             if (clbCompare.Enabled) for (int i = 0; i < clbCompare.Items.Count && i < cmpItems.Count; i++) if (clbCompare.GetItemChecked(i)) cmp.Add(cmpItems[i].Path);
             if (cmp.Count > 0) a.Append(" -VergleichDateien ").Append(Q(String.Join(";", cmp.ToArray())));
@@ -3183,6 +3260,14 @@ public partial class DiagGui : Form
         PutCb(d, "Diag.Tage", cmbDays); PutCb(d, "Diag.SmartMax", cmbSmartMax);
         for (int i = 0; i < benchKeys.Length && benchChk != null; i++) d["Bench." + benchKeys[i]] = benchChk[i].Checked;
         PutC(d, "Bench.GpuWahl", chkGpuWahl);
+        if (cmbRef != null)
+        {
+            if (cmbRef.SelectedIndex == 1) d["Bench.Referenz"] = "Median";
+            else if (cmbRef.SelectedIndex == 2) d["Bench.Referenz"] = "Median:Notebook";
+            else if (cmbRef.SelectedIndex == 3) d["Bench.Referenz"] = "Median:Desktop";
+            else if (cmbRef.SelectedIndex >= 4 && cmbRef.SelectedIndex - 4 < refItems.Count) d["Bench.Referenz"] = "Datei:" + refItems[cmbRef.SelectedIndex - 4].Path;
+            else d["Bench.Referenz"] = "Gespeichert";
+        }
         PutCb(d, "Gpu.Aufloesung", cmbGpuRes); PutCb(d, "Gpu.Anzeige", cmbGpuShow); d["Gpu.Auswahl"] = GpuChoiceValue(cmbGpuSel);
         PutC(d, "Last.CPU", chkLCpu); PutCb(d, "Last.CPUDauer", cmbLCpu);
         PutC(d, "Last.RAM", chkLRam); PutCb(d, "Last.RAMDauer", cmbLRam); PutCb(d, "Last.RAMAnteil", cmbLRamPct);
@@ -3220,6 +3305,20 @@ public partial class DiagGui : Form
         GetCb(d, "Diag.Tage", cmbDays); GetCb(d, "Diag.SmartMax", cmbSmartMax);
         for (int i = 0; i < benchKeys.Length && benchChk != null; i++) GetC(d, "Bench." + benchKeys[i], benchChk[i]);
         GetC(d, "Bench.GpuWahl", chkGpuWahl);
+        if (cmbRef != null)
+        {
+            string r = GetS(d, "Bench.Referenz");
+            int ri = 0;
+            if (r == "Median" || r == "*median") ri = 1;
+            else if (r == "Median:Notebook" || r == "*median:notebook") ri = 2;
+            else if (r == "Median:Desktop" || r == "*median:desktop") ri = 3;
+            else if (r != null && r.StartsWith("Datei:")) {
+                int k = refItems.FindIndex(delegate(DbEntry x) { return String.Equals(x.Path, r.Substring(6), StringComparison.OrdinalIgnoreCase); });
+                ri = k >= 0 ? k + 4 : 0;
+            }
+            if (ri >= 0 && ri < cmbRef.Items.Count) cmbRef.SelectedIndex = ri;
+        }
+        if (chkRefSave != null) chkRefSave.Checked = false;
         GetCb(d, "Gpu.Aufloesung", cmbGpuRes); GetCb(d, "Gpu.Anzeige", cmbGpuShow);
         string gs = GetS(d, "Gpu.Auswahl"); if (gs != null) SetGpuChoice(gs);
         GetC(d, "Last.CPU", chkLCpu); GetCb(d, "Last.CPUDauer", cmbLCpu);

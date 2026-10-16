@@ -102,7 +102,7 @@ param(
     [switch]$MedianAktualisieren,
     # Netzteil-Effizienz (ab v3.71): Nennleistung in Watt (0 = unbekannt) und 80-PLUS-Klasse für EU-230V-Wirkungsgradkurve
     [int]$PsuWattage = 650,
-    [ValidateSet('Unbekannt', '80 PLUS White', '80 PLUS Bronze', '80 PLUS Silver', '80 PLUS Gold', '80 PLUS Platinum', '80 PLUS Titanium')]
+    [ValidateSet('', 'Unbekannt', '80 PLUS White', '80 PLUS Bronze', '80 PLUS Silver', '80 PLUS Gold', '80 PLUS Platinum', '80 PLUS Titanium')]
     [string]$PsuRating = '80 PLUS Bronze',
     # Allgemein
     [switch]$KiOhneAnonymisierung,
@@ -5702,6 +5702,10 @@ public partial class DiagGui : Form
     CheckBox[] benchChk;
     CheckedListBox clbDisks, clbCompare;
     List<string> diskNums = new List<string>();
+    ComboBox cmbRef;
+    Label lblRefState;
+    Button btnUpdateMed;
+    CheckBox chkRefSave;
     List<DbEntry> refItems = new List<DbEntry>(), cmpItems = new List<DbEntry>();
     // Lasttest
     CheckBox chkLCpu, chkLRam, chkLGpu, chkLDisk;
@@ -6547,6 +6551,9 @@ public partial class DiagGui : Form
         Tip(cmbGpuRes, "Auflösung des Rendertests. Bilder/s sind nur bei gleicher Auflösung vergleichbar, die Punktzahl auch über Auflösungen.");
         Tip(cmbGpuShow, "Fenster: Vorschau des Rendertests. Vollbild: erste Grafikeinheit im Vollbild. Ohne Anzeige: misst unsichtbar (Esc entfällt).");
         Tip(chkGpuWahl, "Bei Notebooks mit zwei Grafikeinheiten misst WinSAT nur die Einheit, die den Desktop ausgibt. Mit diesem Haken wird WinSAT kurz auf die Grafikkarte gestellt und gleich wieder zurück (steht im Änderungsprotokoll).");
+        Tip(cmbRef, "System oder Medianwert, gegen den die Messungen in Prozent angegeben werden (100 % = Referenz). Gespeicherte Referenz: Referenz.json im Datenordner; Median: aus allen passenden Läufen der Datenbank.");
+        Tip(btnUpdateMed, "Berechnet die Median-Referenzen für alle Systeme, Notebooks und Desktops aus der Datenbank neu und speichert sie als Referenz.json, Referenz_Notebook.json und Referenz_Desktop.json.");
+        Tip(chkRefSave, "Speichert die Werte dieses Laufs als Referenz.json im Datenordner. Alle PCs, die mit diesem Datenordner messen, werden dann in Prozent dieses Systems angegeben.");
         // Lasttest
         Tip(chkLCpu, "Alle logischen Prozessoren rechnen mit Ergebnisprüfung; Rechenfehler deuten auf Instabilität (Übertaktung, Spannung, Kühlung, Netzteil). Läuft in einem eigenen Prozess ohne Unterbrechungen. Mit Sensoren gibt es Takt- und Temperaturverlauf und den Drosselnachweis. Ersetzt ab v2.7 den CPU-Stabilitätstest der Diagnose.");
         Tip(chkLRam, "Mustertest über einen Teil des freien Arbeitsspeichers mit Bitfehlerprüfung. Neben der CPU-Last läuft er mit niedriger Priorität auf einem Viertel der Threads.");
@@ -6999,6 +7006,25 @@ public partial class DiagGui : Form
         chkGpuWahl = Chk("Bei Hybridgrafik WinSAT zusätzlich auf der Grafikkarte messen", false);
         Control gw = Opt2(chkGpuWahl, "kurze Umstellung der Grafikeinheit für WinSAT, gleich danach zurück", RiskBadge("Aendern")); gw.Margin = new Padding(0, UI.S(UI.Abstand2), 0, 0); f.Controls.Add(gw);
 
+        f.Controls.Add(Section("Referenz"));
+        FlowLayoutPanel r2 = Row(); r2.Controls.Add(RowLabel("Referenz (100 %)", 170));
+        cmbRef = Combo(360, new string[0], 0); r2.Controls.Add(cmbRef);
+        btnUpdateMed = UI.Secondary("Median aktualisieren");
+        btnUpdateMed.Click += delegate {
+            if (running) return;
+            List<string> lines;
+            string res = RunHelperPumped("-MedianAktualisieren", out lines, 60);
+            string msg = "Aktualisierung fehlgeschlagen.";
+            foreach (string l in lines) if (l.StartsWith("@@STATUS|")) msg = l.Substring(9);
+            MessageBox.Show(this, msg, "Median-Referenz", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            FillRefLists();
+        };
+        r2.Controls.Add(btnUpdateMed);
+        f.Controls.Add(r2);
+        lblRefState = Hint("", 180); f.Controls.Add(lblRefState);
+        cmbRef.SelectedIndexChanged += delegate { UpdateRefState(); };
+        chkRefSave = Chk("Dieses System als Referenz (100 %) festlegen", false); f.Controls.Add(chkRefSave);
+
         clbCompare = new CheckedListBox(); clbCompare.BackColor = UI.Panel; clbCompare.ForeColor = UI.Text;
         FillRefLists();
         return f;
@@ -7029,8 +7055,38 @@ public partial class DiagGui : Form
         return gb >= 1024 ? (gb / 1024).ToString("0.0", CultureInfo.GetCultureInfo("de-DE")) + " TB" : gb.ToString("0", CultureInfo.GetCultureInfo("de-DE")) + " GB";
     }
 
+    void UpdateRefState()
+    {
+        if (lblRefState == null || cmbRef == null) return;
+        int i = cmbRef.SelectedIndex;
+        string t; bool warn = false;
+        if (i == 0)
+        {
+            string st = SavedRefText();
+            warn = st.Length == 0;
+            t = warn ? "Noch keine Referenz gespeichert: Im Datenordner liegt keine Referenz.json." : st;
+        }
+        else if (i >= 1 && i <= 3) t = "Median aus den Systemen der Vergleichsdatenbank (" + db.FindAll(delegate(DbEntry e) { return e.HasBench; }).Count + " mit Benchmark).";
+        else t = "Einzelner gespeicherter Lauf als Bezug.";
+        SetText(lblRefState, t);
+        lblRefState.ForeColor = warn ? UI.Warn : UI.Muted;
+    }
+
     void FillRefLists()
     {
+        int prevSpecial = -1;
+        string prevRef = "";
+        if (cmbRef != null)
+        {
+            if (cmbRef.SelectedIndex >= 0 && cmbRef.SelectedIndex <= 3) prevSpecial = cmbRef.SelectedIndex;
+            else if (cmbRef.SelectedIndex >= 4 && cmbRef.SelectedIndex - 4 < refItems.Count) prevRef = refItems[cmbRef.SelectedIndex - 4].Path;
+            cmbRef.Items.Clear();
+            cmbRef.Items.Add("Gespeicherte Referenz");
+            cmbRef.Items.Add("Median aller Systeme");
+            cmbRef.Items.Add("Median der Notebooks");
+            cmbRef.Items.Add("Median der Desktop-PCs");
+        }
+        refItems.Clear();
         HashSet<string> prevCmp = new HashSet<string>();
         if (clbCompare != null)
         {
@@ -7041,7 +7097,20 @@ public partial class DiagGui : Form
         {
             if (!e.HasBench) continue;
             refItems.Add(e);
+            if (cmbRef != null) cmbRef.Items.Add(e.Label);
             if (clbCompare != null) { cmpItems.Add(e); clbCompare.Items.Add(e.Label, prevCmp.Contains(e.Path)); }
+        }
+        if (cmbRef != null)
+        {
+            int sel = 0;
+            if (prevSpecial >= 0 && prevSpecial < cmbRef.Items.Count) sel = prevSpecial;
+            else if (prevRef.Length > 0)
+            {
+                int idx = refItems.FindIndex(delegate(DbEntry x) { return String.Equals(x.Path, prevRef, StringComparison.OrdinalIgnoreCase); });
+                if (idx >= 0) sel = idx + 4;
+            }
+            if (sel >= 0 && sel < cmbRef.Items.Count) cmbRef.SelectedIndex = sel;
+            UpdateRefState();
         }
         if (clbCompare != null)
         {
@@ -8421,6 +8490,14 @@ public partial class DiagGui : Form
                 a.Append(" -BenchLaufwerke ").Append(String.Join(",", dn.ToArray()));
             }
             if (benchChk[2].Checked && chkGpuWahl != null && chkGpuWahl.Checked) a.Append(" -BenchGpuWahl");
+            if (cmbRef != null)
+            {
+                if (cmbRef.SelectedIndex == 1) a.Append(" -ReferenzDatei *median");
+                else if (cmbRef.SelectedIndex == 2) a.Append(" -ReferenzDatei *median:notebook");
+                else if (cmbRef.SelectedIndex == 3) a.Append(" -ReferenzDatei *median:desktop");
+                else if (cmbRef.SelectedIndex >= 4 && cmbRef.SelectedIndex - 4 < refItems.Count) a.Append(" -ReferenzDatei ").Append(Q(refItems[cmbRef.SelectedIndex - 4].Path));
+            }
+            if (chkRefSave != null && chkRefSave.Checked) a.Append(" -ReferenzSpeichern");
             List<string> cmp = new List<string>();
             if (clbCompare.Enabled) for (int i = 0; i < clbCompare.Items.Count && i < cmpItems.Count; i++) if (clbCompare.GetItemChecked(i)) cmp.Add(cmpItems[i].Path);
             if (cmp.Count > 0) a.Append(" -VergleichDateien ").Append(Q(String.Join(";", cmp.ToArray())));
@@ -8769,6 +8846,14 @@ public partial class DiagGui : Form
         PutCb(d, "Diag.Tage", cmbDays); PutCb(d, "Diag.SmartMax", cmbSmartMax);
         for (int i = 0; i < benchKeys.Length && benchChk != null; i++) d["Bench." + benchKeys[i]] = benchChk[i].Checked;
         PutC(d, "Bench.GpuWahl", chkGpuWahl);
+        if (cmbRef != null)
+        {
+            if (cmbRef.SelectedIndex == 1) d["Bench.Referenz"] = "Median";
+            else if (cmbRef.SelectedIndex == 2) d["Bench.Referenz"] = "Median:Notebook";
+            else if (cmbRef.SelectedIndex == 3) d["Bench.Referenz"] = "Median:Desktop";
+            else if (cmbRef.SelectedIndex >= 4 && cmbRef.SelectedIndex - 4 < refItems.Count) d["Bench.Referenz"] = "Datei:" + refItems[cmbRef.SelectedIndex - 4].Path;
+            else d["Bench.Referenz"] = "Gespeichert";
+        }
         PutCb(d, "Gpu.Aufloesung", cmbGpuRes); PutCb(d, "Gpu.Anzeige", cmbGpuShow); d["Gpu.Auswahl"] = GpuChoiceValue(cmbGpuSel);
         PutC(d, "Last.CPU", chkLCpu); PutCb(d, "Last.CPUDauer", cmbLCpu);
         PutC(d, "Last.RAM", chkLRam); PutCb(d, "Last.RAMDauer", cmbLRam); PutCb(d, "Last.RAMAnteil", cmbLRamPct);
@@ -8806,6 +8891,20 @@ public partial class DiagGui : Form
         GetCb(d, "Diag.Tage", cmbDays); GetCb(d, "Diag.SmartMax", cmbSmartMax);
         for (int i = 0; i < benchKeys.Length && benchChk != null; i++) GetC(d, "Bench." + benchKeys[i], benchChk[i]);
         GetC(d, "Bench.GpuWahl", chkGpuWahl);
+        if (cmbRef != null)
+        {
+            string r = GetS(d, "Bench.Referenz");
+            int ri = 0;
+            if (r == "Median" || r == "*median") ri = 1;
+            else if (r == "Median:Notebook" || r == "*median:notebook") ri = 2;
+            else if (r == "Median:Desktop" || r == "*median:desktop") ri = 3;
+            else if (r != null && r.StartsWith("Datei:")) {
+                int k = refItems.FindIndex(delegate(DbEntry x) { return String.Equals(x.Path, r.Substring(6), StringComparison.OrdinalIgnoreCase); });
+                ri = k >= 0 ? k + 4 : 0;
+            }
+            if (ri >= 0 && ri < cmbRef.Items.Count) cmbRef.SelectedIndex = ri;
+        }
+        if (chkRefSave != null) chkRefSave.Checked = false;
         GetCb(d, "Gpu.Aufloesung", cmbGpuRes); GetCb(d, "Gpu.Anzeige", cmbGpuShow);
         string gs = GetS(d, "Gpu.Auswahl"); if (gs != null) SetGpuChoice(gs);
         GetC(d, "Last.CPU", chkLCpu); GetCb(d, "Last.CPUDauer", cmbLCpu);
@@ -13192,9 +13291,9 @@ public static class Versionshistorie
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
         new Eintrag("3.71", "15.10.2026", "Präzise Stromverbrauchsschätzung, Startzeit-Transparenz, Profilkarten und Dashboard-Korrekturen",
-            "Präzise Stromverbrauchsschätzung: Hardware- und Netzteil-Modellierung mit 230V EU-Effizienzkurven (Unbekannt bis 80 PLUS Titanium) über lineare Stützstellen-Interpolation (5 % bis 100 % Last); interaktive Konfiguration von Nennleistung (Watt) und Effizienzklasse direkt im HTML-Bericht mit Live-Neuberechnung aller Verbrauchswerte, Auslastungsgrade und Stromkosten sowie browserseitiger Persistenz; genaue DC-Berechnung inkl. VRM-Wandlerverlusten, AMD-Radeon-TBP-Zuschlägen, DIMM-, Datenträger- und Lüfter-Basisverbräuchen sowie Überlastwarnung (> 85 % unter Volllast). " +
-            "Startzeit-Transparenz & Nutzungsprofile: Standardmäßig geöffnete Boot-Performance-Sektion mit getrennter Ausweisung von Kernel- und Treiberstart (MainPathBootTime, Desktop einsatzbereit) und Hintergrund-Initialisierung (BootPostBootTime, vollständiger Leerlauf); Nutzungsprofile (Gaming, Büro, Workstation) und Komponentenkarten im Benchmark mit transparentem Hover-Tooltip zur exakten Zusammensetzung und Gewichtung der Teilwerte. " +
-            "Dashboard & Dark Mode: Horizontale und vertikale Trennlinien in Spalte 1 im Dark Mode mittels kontrastreicher Randlinien und z-index-Priorisierung repariert; Emojis (🎮, 💼, 🚀, 📊) beibehalten."),
+            "Präzise Stromverbrauchsschätzung: Hardware- und Netzteil-Modellierung mit 230V EU-Effizienzkurven (Unbekannt bis 80 PLUS Titanium) über lineare Stützstellen-Interpolation (5 % bis 100 % Last); interaktive Konfiguration von Nennleistung (Watt) und Effizienzklasse direkt im HTML-Bericht mit Live-Neuberechnung aller Verbrauchswerte, Auslastungsgrade und Stromkosten sowie browserseitiger Persistenz; automatische Erkennung mobiler Plattformen mit OEM-Netzteil-/Akkumodell ohne ATX-Netzteilwahl; genaue DC-Berechnung inkl. VRM-Wandlerverlusten, AMD-Radeon-TBP-Zuschlägen, DIMM-, Datenträger- und Lüfter-Basisverbräuchen sowie Überlastwarnung (> 85 % unter Volllast). " +
+            "Startzeit-Transparenz & Benchmark-Referenz: Standardmäßig geöffnete Boot-Performance-Sektion mit getrennter Ausweisung von Kernel- und Treiberstart (MainPathBootTime, Desktop einsatzbereit) und Hintergrund-Initialisierung (BootPostBootTime, vollständiger Leerlauf); Nutzungsprofile (Gaming, Büro, Workstation) und Komponentenkarten im Benchmark mit transparentem Hover-Tooltip zur exakten Zusammensetzung und Gewichtung der Teilwerte; Referenzauswahl (Gespeicherte Referenz, Mediane, Datenbankeinträge) und Referenz-Speichern in der Benutzeroberfläche wiederhergestellt. " +
+            "Dashboard & Dark Mode: Horizontale und vertikale Trennlinien in Spalte 1 im Dark Mode mittels kontrastreicher Randlinien und z-index-Priorisierung repariert; Emojis (🎮, 💼, 🚀, 📊) beibehalten; Dashboard-Öffnen bei Erstbenutzung ohne Parameterfehler stabilisiert."),
         new Eintrag("3.7", "15.10.2026", "Schnell behebbare Systemfehler, Startzeit-Analyse, Sensoren-Harmonisierung und modulares Dashboard",
             "Schnell behebbare Konfigurationsfehler: Automatische Erkennung von LAN-Verhandlungsrate gebremst (100 Mbit/s oder Halbduplex an Gigabit/2.5GbE-Adaptern), Monitorkabel an iGPU statt dGPU bei Desktops, Hz-Bremse bei Monitoren >= 75 Hz auf 60 Hz limitiert, inaktivem RAM-Speicherprofil (XMP/EXPO/DOCP) und veraltetem BIOS (> 2 Jahre) mit direkten Hersteller-Supportlinks sowie transparenter Bestätigung der Prüfung im Bericht. " +
             "Startzeit-Analyse: Aufschlüsselung der Boot Performance aus Event 100 (Kernel-Initialisierung, Desktop/PostBoot) und BIOS-POST-Dauer mit visueller Wasserfall-/Stack-Kaskade im Bericht (eingeklappt am Berichtsende) sowie Erfassung von Autostart-Verzögerern (Event 101-110 ab 1,0 s); robuster Fallback ohne Schätzwerte bei deaktiviertem Protokoll. " +
@@ -13429,23 +13528,25 @@ $StartTime = Get-Date
 $script:Inv = [Globalization.CultureInfo]::InvariantCulture
 
 # Netzteil-Konfiguration (ab v3.71): CLI-Parameter oder Einstellungen.json
-$script:PsuWattage = if ($PSBoundParameters.ContainsKey('PsuWattage')) { [int]$PsuWattage } else { $null }
-$script:PsuRating  = if ($PSBoundParameters.ContainsKey('PsuRating'))  { [string]$PsuRating } else { $null }
-if ($null -eq $script:PsuWattage -or $null -eq $script:PsuRating) {
+$activePsuWattage = if ($PSBoundParameters.ContainsKey('PsuWattage')) { [int]$PsuWattage } else { $null }
+$activePsuRating  = if ($PSBoundParameters.ContainsKey('PsuRating'))  { [string]$PsuRating } else { $null }
+if ($null -eq $activePsuWattage -or $null -eq $activePsuRating) {
     try {
         $settingsPath = if ($script:DataDir) { Join-Path $script:DataDir 'Einstellungen.json' } else { $null }
         if ($settingsPath -and (Test-Path -LiteralPath $settingsPath)) {
             $rawJson = [IO.File]::ReadAllText($settingsPath, [Text.Encoding]::UTF8)
             $sDict = ConvertFrom-Json $rawJson -ErrorAction SilentlyContinue
             if ($sDict) {
-                if ($null -eq $script:PsuWattage -and $null -ne $sDict.PsuWattage) { $script:PsuWattage = [int]$sDict.PsuWattage }
-                if ($null -eq $script:PsuRating -and $null -ne $sDict.PsuRating) { $script:PsuRating = [string]$sDict.PsuRating }
+                if ($null -eq $activePsuWattage -and $null -ne $sDict.PsuWattage) { $activePsuWattage = [int]$sDict.PsuWattage }
+                if ($null -eq $activePsuRating -and $null -ne $sDict.PsuRating) { $activePsuRating = [string]$sDict.PsuRating }
             }
         }
     } catch { }
 }
-if ($null -eq $script:PsuWattage) { $script:PsuWattage = $(if ($PsuWattage -ne $null) { [int]$PsuWattage } else { 650 }) }
-if ($null -eq $script:PsuRating -or "$($script:PsuRating)" -eq '') { $script:PsuRating = $(if ($PsuRating) { [string]$PsuRating } else { '80 PLUS Bronze' }) }
+if ($null -eq $activePsuWattage) { $activePsuWattage = $(if ($PsuWattage -ne $null) { [int]$PsuWattage } else { 650 }) }
+if ($null -eq $activePsuRating -or "$activePsuRating" -eq '') { $activePsuRating = $(if ($PsuRating) { [string]$PsuRating } else { '80 PLUS Bronze' }) }
+$script:PsuWattage = $activePsuWattage
+$script:PsuRating  = $activePsuRating
 
 function Split-List([string]$Text) { @(([string]$Text) -split '[,;]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) }
 
@@ -19726,16 +19827,17 @@ function New-PowerEfficiencyHtml($Profile) {
     $hwTyp = $(if ($Profile.IsNotebook) { 'Notebook-Plattform mit SoC/Display-Modell' } else { 'Desktop-PC mit ATX-Mainboard & 80-PLUS-Netzteil' })
     [void]$sb.Append(('<p class="note">Mathematisch modellierter Gesamtverbrauch (DC intern und AC an der Steckdose) auf Basis der gemessenen Sensorwerte (CPU-Package und GPU-Board) sowie Plattform-Zuschlägen ({0}). Echte Sensormesswerte bleiben unangetastet.</p>' -f $hwTyp))
 
-    # Interaktive Netzteil-Konfigurationsleiste direkt im Bericht
-    $curWatt = if ($Profile.PsuWattage -gt 0) { [int]$Profile.PsuWattage } else { 650 }
-    $curRate = if ($Profile.PsuRating) { [string]$Profile.PsuRating } else { '80 PLUS Bronze' }
-    $rOpts = @('Unbekannt', '80 PLUS White', '80 PLUS Bronze', '80 PLUS Silver', '80 PLUS Gold', '80 PLUS Platinum', '80 PLUS Titanium')
-    $rSb = New-Object System.Text.StringBuilder
-    foreach ($ro in $rOpts) {
-        $sel = if ($ro -eq $curRate) { ' selected' } else { '' }
-        [void]$rSb.Append(('<option value="{0}"{1}>{0}</option>' -f $ro, $sel))
-    }
-    $cfgTpl = @'
+    # Interaktive Netzteil-Konfigurationsleiste direkt im Bericht (nur Desktop-PCs; Notebooks nutzen OEM-Modell)
+    if (-not $Profile.IsNotebook) {
+        $curWatt = if ($Profile.PsuWattage -gt 0) { [int]$Profile.PsuWattage } else { 650 }
+        $curRate = if ($Profile.PsuRating) { [string]$Profile.PsuRating } else { '80 PLUS Bronze' }
+        $rOpts = @('Unbekannt', '80 PLUS White', '80 PLUS Bronze', '80 PLUS Silver', '80 PLUS Gold', '80 PLUS Platinum', '80 PLUS Titanium')
+        $rSb = New-Object System.Text.StringBuilder
+        foreach ($ro in $rOpts) {
+            $sel = if ($ro -eq $curRate) { ' selected' } else { '' }
+            [void]$rSb.Append(('<option value="{0}"{1}>{0}</option>' -f $ro, $sel))
+        }
+        $cfgTpl = @'
 <div class="pwr-cfg-bar" style="margin:12px 0 16px;padding:12px 16px;background:var(--code);border:1px solid var(--line);border-radius:10px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;">
   <div style="font-weight:650;font-size:13.5px;color:var(--text);display:flex;align-items:center;gap:6px;">
     <span>⚡</span><span>Netzteil-Konfiguration:</span>
@@ -19756,7 +19858,10 @@ function New-PowerEfficiencyHtml($Profile) {
   </div>
 </div>
 '@
-    [void]$sb.Append(($cfgTpl -f $curWatt, $rSb.ToString()))
+        [void]$sb.Append(($cfgTpl -f $curWatt, $rSb.ToString()))
+    } else {
+        [void]$sb.Append('<p class="note" style="margin:10px 0 14px;"><b>Notebook-Plattform:</b> Berechnung nutzt das mobile OEM-Netzteil- und Akkumodell (90 % Effizienz, kein austauschbares ATX-Netzteil).</p>')
+    }
 
     # Kacheln für Leerlauf, Teillast, Gaming, Volllast
     [void]$sb.Append('<div class="pwr-grid">')
@@ -19969,10 +20074,11 @@ function recalcPowerCost(){
 
 (function initPsuFromStorage() {
   try {
-    var sW = localStorage.getItem('minibench_psu_watt');
-    var sR = localStorage.getItem('minibench_psu_rating');
     var eW = document.getElementById('cfgPsuWatt');
     var eR = document.getElementById('cfgPsuRating');
+    if (!eW || !eR) return;
+    var sW = localStorage.getItem('minibench_psu_watt');
+    var sR = localStorage.getItem('minibench_psu_rating');
     if (sW && eW) eW.value = sW;
     if (sR && eR) eR.value = sR;
     if (sW || sR) recalcPsuModel();

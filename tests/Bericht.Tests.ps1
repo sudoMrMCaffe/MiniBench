@@ -730,3 +730,43 @@ Describe 'System-Startzeit im Bericht (v3.7)' {
     }
 }
 
+Describe 'Energieeffizienz und Netzteil-Konfiguration im Bericht' {
+    BeforeAll {
+        Import-MinibenchTestModule -Parts 'Kern\Berichtshilfen.ps1', 'Bericht\HtmlBericht.ps1'
+    }
+    It 'Desktop rendert interaktive Netzteil-Konfiguration' {
+        $mockProf = [pscustomobject]@{
+            IsNotebook = $false
+            PsuWattage = 650
+            PsuRating  = '80 PLUS Bronze'
+            Leerlauf   = [pscustomobject]@{ Verfuegbar = $true; P_AC = 45; P_DC = 38; Aufschluesselung = 'Leerlauf' }
+            Teillast   = [pscustomobject]@{ Verfuegbar = $true; P_AC = 95; P_DC = 82; Aufschluesselung = 'Teillast' }
+            Gaming     = [pscustomobject]@{ Verfuegbar = $true; P_AC = 280; P_DC = 250; Aufschluesselung = 'Gaming' }
+            Volllast   = [pscustomobject]@{ Verfuegbar = $true; P_AC = 390; P_DC = 345; Aufschluesselung = 'Volllast'; AufschluesselungKurz = 'Volllast kurz' }
+            Effizienz  = [pscustomobject]@{ CpuMT_PerWatt = 15.2; Gpu_PerWatt = 0.85; System_PerWatt = 22.4 }
+        }
+        $html = MinibenchTest\New-PowerEfficiencyHtml $mockProf
+        $html | Should -Match 'class="pwr-cfg-bar"'
+        $html | Should -Match 'id="cfgPsuWatt"'
+        $html | Should -Match 'id="cfgPsuRating"'
+    }
+    It 'Notebook blendet Netzteil-Konfiguration aus und nennt OEM-Modell' {
+        $mockProf = [pscustomobject]@{
+            IsNotebook = $true
+            PsuWattage = 0
+            PsuRating  = 'OEM Netzteil'
+            Leerlauf   = [pscustomobject]@{ Verfuegbar = $true; P_AC = 12; P_DC = 10.8; Aufschluesselung = 'Leerlauf' }
+            Teillast   = [pscustomobject]@{ Verfuegbar = $true; P_AC = 24; P_DC = 21.6; Aufschluesselung = 'Teillast' }
+            Gaming     = $null
+            Volllast   = [pscustomobject]@{ Verfuegbar = $true; P_AC = 48; P_DC = 43.2; Aufschluesselung = 'Volllast'; AufschluesselungKurz = 'Volllast kurz' }
+            Effizienz  = [pscustomobject]@{ CpuMT_PerWatt = 18.5; Gpu_PerWatt = $null; System_PerWatt = 30.1 }
+        }
+        $html = MinibenchTest\New-PowerEfficiencyHtml $mockProf
+        $html | Should -Not -Match 'class="pwr-cfg-bar"'
+        $html | Should -Not -Match 'id="cfgPsuWatt"'
+        $html | Should -Match 'Notebook-Plattform:'
+        $html | Should -Match 'OEM-Netzteil'
+    }
+}
+
+

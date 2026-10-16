@@ -312,16 +312,17 @@ function New-PowerEfficiencyHtml($Profile) {
     $hwTyp = $(if ($Profile.IsNotebook) { 'Notebook-Plattform mit SoC/Display-Modell' } else { 'Desktop-PC mit ATX-Mainboard & 80-PLUS-Netzteil' })
     [void]$sb.Append(('<p class="note">Mathematisch modellierter Gesamtverbrauch (DC intern und AC an der Steckdose) auf Basis der gemessenen Sensorwerte (CPU-Package und GPU-Board) sowie Plattform-Zuschlägen ({0}). Echte Sensormesswerte bleiben unangetastet.</p>' -f $hwTyp))
 
-    # Interaktive Netzteil-Konfigurationsleiste direkt im Bericht
-    $curWatt = if ($Profile.PsuWattage -gt 0) { [int]$Profile.PsuWattage } else { 650 }
-    $curRate = if ($Profile.PsuRating) { [string]$Profile.PsuRating } else { '80 PLUS Bronze' }
-    $rOpts = @('Unbekannt', '80 PLUS White', '80 PLUS Bronze', '80 PLUS Silver', '80 PLUS Gold', '80 PLUS Platinum', '80 PLUS Titanium')
-    $rSb = New-Object System.Text.StringBuilder
-    foreach ($ro in $rOpts) {
-        $sel = if ($ro -eq $curRate) { ' selected' } else { '' }
-        [void]$rSb.Append(('<option value="{0}"{1}>{0}</option>' -f $ro, $sel))
-    }
-    $cfgTpl = @'
+    # Interaktive Netzteil-Konfigurationsleiste direkt im Bericht (nur Desktop-PCs; Notebooks nutzen OEM-Modell)
+    if (-not $Profile.IsNotebook) {
+        $curWatt = if ($Profile.PsuWattage -gt 0) { [int]$Profile.PsuWattage } else { 650 }
+        $curRate = if ($Profile.PsuRating) { [string]$Profile.PsuRating } else { '80 PLUS Bronze' }
+        $rOpts = @('Unbekannt', '80 PLUS White', '80 PLUS Bronze', '80 PLUS Silver', '80 PLUS Gold', '80 PLUS Platinum', '80 PLUS Titanium')
+        $rSb = New-Object System.Text.StringBuilder
+        foreach ($ro in $rOpts) {
+            $sel = if ($ro -eq $curRate) { ' selected' } else { '' }
+            [void]$rSb.Append(('<option value="{0}"{1}>{0}</option>' -f $ro, $sel))
+        }
+        $cfgTpl = @'
 <div class="pwr-cfg-bar" style="margin:12px 0 16px;padding:12px 16px;background:var(--code);border:1px solid var(--line);border-radius:10px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;">
   <div style="font-weight:650;font-size:13.5px;color:var(--text);display:flex;align-items:center;gap:6px;">
     <span>⚡</span><span>Netzteil-Konfiguration:</span>
@@ -342,7 +343,10 @@ function New-PowerEfficiencyHtml($Profile) {
   </div>
 </div>
 '@
-    [void]$sb.Append(($cfgTpl -f $curWatt, $rSb.ToString()))
+        [void]$sb.Append(($cfgTpl -f $curWatt, $rSb.ToString()))
+    } else {
+        [void]$sb.Append('<p class="note" style="margin:10px 0 14px;"><b>Notebook-Plattform:</b> Berechnung nutzt das mobile OEM-Netzteil- und Akkumodell (90 % Effizienz, kein austauschbares ATX-Netzteil).</p>')
+    }
 
     # Kacheln für Leerlauf, Teillast, Gaming, Volllast
     [void]$sb.Append('<div class="pwr-grid">')
@@ -555,10 +559,11 @@ function recalcPowerCost(){
 
 (function initPsuFromStorage() {
   try {
-    var sW = localStorage.getItem('minibench_psu_watt');
-    var sR = localStorage.getItem('minibench_psu_rating');
     var eW = document.getElementById('cfgPsuWatt');
     var eR = document.getElementById('cfgPsuRating');
+    if (!eW || !eR) return;
+    var sW = localStorage.getItem('minibench_psu_watt');
+    var sR = localStorage.getItem('minibench_psu_rating');
     if (sW && eW) eW.value = sW;
     if (sR && eR) eR.value = sR;
     if (sW || sR) recalcPsuModel();
