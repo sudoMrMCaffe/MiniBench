@@ -3,7 +3,7 @@
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
 ## Stand: Version 3.72 (16.10.2026)
-Release-Commit "Release v3.72: Neue dreiteilige Startseite, interaktiver Schnellstart & System-Feinschliff" (Commit 631ec22).
+Release-Commit "Release v3.72: Neue dreiteilige Startseite, interaktiver Schnellstart & System-Feinschliff" (Commit 103f1a7).
 Getestet und gebaut unter Windows mit Windows PowerShell 5.1 und Pester 6.2.0.
 
 Inhalt von 3.72 (Einzelheiten in Doku\Änderungen_v3.72.txt):
@@ -11,7 +11,7 @@ Inhalt von 3.72 (Einzelheiten in Doku\Änderungen_v3.72.txt):
 2. Interaktiver Schnellstart & Ablaufsteuerung: Klick auf eine Aufgabenkachel wählt die zuständigen Module in der Seitenleiste an, lädt Standardvorgaben und springt zur ersten Seite; Fußleiste zeigt im Leerzustand den deaktivierten Startknopf „Ablauf wählen“ und aktiviert sich automatisch nach Modulauswahl.
 3. Vollständige WinSAT-Bereinigung: Entfernung aller veralteten WinSAT-Funktionen (-BenchGpuWahl, chkGpuWahl, WinSAT-Schritt, WinSAT-SVG und Auswertungen im Bericht) zugunsten moderner nativer Messungen.
 4. Automatische Standard-Referenz: Automatische Wahl von Referenz_Notebook.json bzw. Referenz_Desktop.json anhand der Hardware-Erkennung (Test-IsNotebookSystem).
-5. System-Feinschliff: Sachliche Benennung der Konfigurationsprüfung im Diagnosebericht, asynchrone Hintergrundprüfung von XMP/EXPO, BIOS-Alter und LAN-Link ohne UI-Blockade, durchgehende Dialoggestaltung mit UI.ThemeDialog.
+5. System-Feinschliff: Sachliche Benennung der Konfigurationsprüfung im Diagnosebericht, asynchrone Hintergrundprüfung von XMP/EXPO, BIOS-Alter und LAN-Link ohne UI-Blockade, durchgehende Dialoggestaltung mit UI.ThemeDialog. Transparente Hintergründe in PillLabel, StartTaskCard und StartTaskRow über ControlStyles.SupportsTransparentBackColor abgesichert.
 
 ## Vorher: Version 3.71
 Inhalt von 3.71 (Einzelheiten in Doku\Änderungen_v3.71.txt):
