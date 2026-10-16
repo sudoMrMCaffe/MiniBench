@@ -66,6 +66,7 @@ GEFUNDEN UND BEHOBEN
   In der Benutzeroberfläche fehlten Tooltips für einzelne Kacheln und Steuerknöpfe; alle Steuerelemente erhielten sachliche Tip-Texte.
   Pester-Tests in Messung.Tests.ps1 und Praxistest.Tests.ps1 litten unter BOM-Verlust; UTF-8 mit BOM wurde für alle Quell- und Testdateien wiederhergestellt.
   *median filterte fälschlich Desktop-Systeme aus dem Gesamtschnitt; der Standard-Median berechnet wieder alle Systeme.
+  PillLabel und StartTaskRow warfen beim Start auf Rechnern mit bestehender Datenbank einen Fehler ("Control does not support transparent background colors."); durch ControlStyles.SupportsTransparentBackColor und Aufnahme in ApplyThemeRecursive behoben.
 
 GRENZEN
   Die Schnellprüfung von XMP/EXPO stützt sich auf ausgelesene SMBIOS-Speichertaktwerte und erkennt Basistaktraten (z. B. DDR4-2133 oder DDR5-4800); proprietäre OEM-Profile ohne JEDEC-Taktabweichung erfordern einen Blick ins BIOS.

@@ -6281,12 +6281,12 @@ public partial class DiagGui : Form
             c.BackColor = UI.Bg;
             c.Invalidate();
         }
-        else if (c is FluentCard)
+        else if (c is FluentCard || c is StartTaskCard)
         {
             c.BackColor = UI.Panel;
             c.Invalidate();
         }
-        else if (c is ToggleSwitch || c is Badge)
+        else if (c is ToggleSwitch || c is Badge || c is PillLabel || c is StartTaskRow)
         {
             c.Invalidate();
         }
@@ -10043,7 +10043,7 @@ public class PillLabel : Control
 {
     public PillLabel(string text)
     {
-        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
         Font = new Font("Segoe UI", 8.75f);
         Text = text ?? "";
@@ -10086,7 +10086,7 @@ public class StartTaskCard : Control
         this.badgeLevel = badgeLevel ?? "ok";
         this.icon = icon ?? "";
         this.recommended = recommended;
-        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable | ControlStyles.SupportsTransparentBackColor, true);
         Cursor = Cursors.Hand;
         BackColor = UI.Panel;
         Size = new Size(UI.S(184), UI.S(204));
@@ -10210,7 +10210,7 @@ public class StartTaskRow : Control
         this.badgeText = badgeText ?? "";
         this.badgeLevel = badgeLevel ?? "ok";
         this.icon = icon ?? "";
-        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable | ControlStyles.SupportsTransparentBackColor, true);
         Cursor = Cursors.Hand;
         BackColor = Color.Transparent;
         Size = new Size(UI.S(350), UI.S(46));

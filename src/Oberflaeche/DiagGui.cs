@@ -677,12 +677,12 @@ public partial class DiagGui : Form
             c.BackColor = UI.Bg;
             c.Invalidate();
         }
-        else if (c is FluentCard)
+        else if (c is FluentCard || c is StartTaskCard)
         {
             c.BackColor = UI.Panel;
             c.Invalidate();
         }
-        else if (c is ToggleSwitch || c is Badge)
+        else if (c is ToggleSwitch || c is Badge || c is PillLabel || c is StartTaskRow)
         {
             c.Invalidate();
         }

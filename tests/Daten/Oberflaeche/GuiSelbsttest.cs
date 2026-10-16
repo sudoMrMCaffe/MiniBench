@@ -41,6 +41,7 @@ public static class GuiSelbsttest
         Fall("Diagnose.Profile", DiagnoseProfile);
         Fall("Etikett.Schreibweise", EtikettSchreibweise);
         Fall("Karte", KarteRahmen);
+        Fall("StartseitenElemente", StartseitenElemente);
         foreach (string l in outLines) System.Console.WriteLine(l);
         return 0;
     }
@@ -481,6 +482,23 @@ public static class GuiSelbsttest
         {
             Ist(c.BackColor == UI.Panel, "Grund wie die Seite");
             Ist(c.Padding.Left >= UI.S(8) && c.Padding.Top >= UI.S(8), "Innenabstand für den Rahmen");
+        }
+    }
+
+    // ab v3.72: Startseiten-Elemente (PillLabel, StartTaskCard, StartTaskRow) unterstützen transparente Hintergründe
+    static void StartseitenElemente()
+    {
+        using (PillLabel pill = new PillLabel("Ryzen 5 5600"))
+        {
+            Ist(pill.Text == "Ryzen 5 5600" && pill.BackColor == Color.Transparent, "PillLabel transparent");
+        }
+        using (StartTaskCard card = new StartTaskCard("Test", "Beschreibung", "Fußzeile", "Badge", "ok", UI.IcoDiag, true))
+        {
+            Ist(card.Title == "Test" && card.Recommended, "StartTaskCard initialisiert");
+        }
+        using (StartTaskRow row = new StartTaskRow("Test", "Untertitel", "Badge", "warn", UI.IcoSpeed))
+        {
+            Ist(row.Subtitle == "Untertitel" && row.BackColor == Color.Transparent, "StartTaskRow transparent");
         }
     }
 }

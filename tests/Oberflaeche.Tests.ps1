@@ -56,6 +56,7 @@ Describe 'Selbsttest der Oberfläche' {
         @{ Fall = 'Diagnose.Profile' }
         @{ Fall = 'Etikett.Schreibweise' }
         @{ Fall = 'Karte' }
+        @{ Fall = 'StartseitenElemente' }
     ) {
         Assert-GuiSelbsttest $Fall
     }
