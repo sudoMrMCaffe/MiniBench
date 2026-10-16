@@ -1,9 +1,9 @@
-# Leos Minibench: Projektstand
+﻿# Leos Minibench: Projektstand
 
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
 ## Stand: Version 3.72 (16.10.2026)
-Release-Commit "Release v3.72: Neue dreiteilige Startseite, interaktiver Schnellstart & System-Feinschliff".
+Release-Commit "Release v3.72: Neue dreiteilige Startseite, interaktiver Schnellstart & System-Feinschliff" (Commit 631ec22).
 Getestet und gebaut unter Windows mit Windows PowerShell 5.1 und Pester 6.2.0.
 
 Inhalt von 3.72 (Einzelheiten in Doku\Änderungen_v3.72.txt):
@@ -70,4 +70,4 @@ Inhalt von 3.64 (Einzelheiten in Doku\Änderungen_v3.64.txt):
 Keine offenen Befunde.
 
 ## Letzter Commit
-Release-Commit v3.71 (Commit 5664f49) (Release v3.72 wird durch Bauen.cmd committet)
+Release-Commit v3.72 (Commit 631ec22)
