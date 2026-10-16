@@ -3,7 +3,7 @@
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
 ## Stand: Version 3.71 (15.10.2026)
-Release-Commit "Release v3.71: Präzise Stromverbrauchsschätzung, Startzeit-Transparenz, Profilkarten und Dashboard-Korrekturen".
+Release-Commit "Release v3.71: Präzise Stromverbrauchsschätzung, Startzeit-Transparenz, Profilkarten und Dashboard-Korrekturen" (Commit 5664f49).
 Getestet und gebaut unter Windows mit Windows PowerShell 5.1 und Pester 6.2.0.
 
 Inhalt von 3.71 (Einzelheiten in Doku\Änderungen_v3.71.txt):
@@ -62,4 +62,4 @@ Inhalt von 3.64 (Einzelheiten in Doku\Änderungen_v3.64.txt):
 Keine offenen Befunde.
 
 ## Letzter Commit
-Release-Commit v3.7 (Commit a053352)
+Release-Commit v3.71 (Commit 5664f49)
