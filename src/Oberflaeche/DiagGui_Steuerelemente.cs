@@ -539,24 +539,24 @@ public class StartTaskCard : Control
         }
 
         // Titel
-        using (Font fTitle = new Font("Segoe UI Semibold", 10.5f))
+        using (Font fTitle = new Font("Segoe UI Semibold", 10f))
         {
             Rectangle rTitle = new Rectangle(UI.S(14), UI.S(58), Width - UI.S(28), UI.S(22));
             TextRenderer.DrawText(g, title, fTitle, rTitle, UI.Text, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis);
         }
 
         // Beschreibung
-        using (Font fDesc = new Font("Segoe UI", 8.75f))
+        using (Font fDesc = new Font("Segoe UI", 8.25f))
         {
-            Rectangle rDesc = new Rectangle(UI.S(14), UI.S(84), Width - UI.S(28), Height - UI.S(124));
+            Rectangle rDesc = new Rectangle(UI.S(14), UI.S(82), Width - UI.S(28), Height - UI.S(118));
             TextRenderer.DrawText(g, desc, fDesc, rDesc, UI.Muted, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak);
         }
 
         // Fußzeile
-        int footY = Height - UI.S(30);
+        int footY = Height - UI.S(28);
         using (Font fFoot = new Font("Segoe UI", 8.25f))
         {
-            Rectangle rFoot = new Rectangle(UI.S(14), footY, Width - UI.S(74), UI.S(18));
+            Rectangle rFoot = new Rectangle(UI.S(14), footY, Width - UI.S(75), UI.S(18));
             TextRenderer.DrawText(g, footText, fFoot, rFoot, UI.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         }
 
@@ -568,7 +568,7 @@ public class StartTaskCard : Control
             using (Font fBadge = new Font("Segoe UI Semibold", 8f))
             {
                 Size szB = TextRenderer.MeasureText(badgeText, fBadge);
-                Rectangle rBadge = new Rectangle(Width - szB.Width - UI.S(22), footY, szB.Width + UI.S(10), UI.S(18));
+                Rectangle rBadge = new Rectangle(Width - szB.Width - UI.S(16), footY, szB.Width + UI.S(10), UI.S(18));
                 using (GraphicsPath bp = UI.Round(new RectangleF(rBadge.X, rBadge.Y, rBadge.Width, rBadge.Height), UI.SF(4)))
                 using (SolidBrush bb = new SolidBrush(bbg))
                 {
@@ -597,10 +597,11 @@ public class StartTaskRow : Control
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable | ControlStyles.SupportsTransparentBackColor, true);
         Cursor = Cursors.Hand;
         BackColor = Color.Transparent;
-        Size = new Size(UI.S(350), UI.S(46));
-        Margin = new Padding(0, 0, 0, UI.S(6));
+        Size = new Size(UI.S(350), UI.S(40));
+        Margin = new Padding(0, 0, 0, UI.S(4));
     }
 
+    public string Title { get { return title; } set { title = value ?? ""; Invalidate(); } }
     public string Subtitle { get { return subtitle; } set { subtitle = value ?? ""; Invalidate(); } }
     public string BadgeText { get { return badgeText; } set { badgeText = value ?? ""; Invalidate(); } }
     public string BadgeLevel { get { return badgeLevel; } set { badgeLevel = value ?? "ok"; Invalidate(); } }
@@ -638,15 +639,15 @@ public class StartTaskRow : Control
         }
 
         // Titel & Subtitle
-        int textX = UI.S(38);
-        using (Font fTitle = new Font("Segoe UI Semibold", 9.5f))
+        int textX = UI.S(36);
+        using (Font fTitle = new Font("Segoe UI Semibold", 9.25f))
         {
-            Rectangle rTitle = new Rectangle(textX, UI.S(4), Width - textX - UI.S(70), UI.S(18));
+            Rectangle rTitle = new Rectangle(textX, UI.S(3), Width - textX - UI.S(75), UI.S(18));
             TextRenderer.DrawText(g, title, fTitle, rTitle, UI.Text, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis);
         }
-        using (Font fSub = new Font("Segoe UI", 8.25f))
+        using (Font fSub = new Font("Segoe UI", 8f))
         {
-            Rectangle rSub = new Rectangle(textX, UI.S(24), Width - textX - UI.S(70), UI.S(16));
+            Rectangle rSub = new Rectangle(textX, UI.S(20), Width - textX - UI.S(75), UI.S(16));
             TextRenderer.DrawText(g, subtitle, fSub, rSub, UI.Muted, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis);
         }
 
@@ -658,7 +659,7 @@ public class StartTaskRow : Control
             using (Font fBadge = new Font("Segoe UI Semibold", 8f))
             {
                 Size szB = TextRenderer.MeasureText(badgeText, fBadge);
-                Rectangle rBadge = new Rectangle(Width - szB.Width - UI.S(18), (Height - UI.S(18)) / 2, szB.Width + UI.S(10), UI.S(18));
+                Rectangle rBadge = new Rectangle(Width - szB.Width - UI.S(14), (Height - UI.S(18)) / 2, szB.Width + UI.S(10), UI.S(18));
                 using (GraphicsPath bp = UI.Round(new RectangleF(rBadge.X, rBadge.Y, rBadge.Width, rBadge.Height), UI.SF(4)))
                 using (SolidBrush bb = new SolidBrush(bbg))
                 {
@@ -666,6 +667,46 @@ public class StartTaskRow : Control
                 }
                 TextRenderer.DrawText(g, badgeText, fBadge, rBadge, bfg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
+        }
+    }
+}
+
+// ab v3.72: KPI-Kachel für Letzter Lauf auf der Startseite
+public class KpiBox : Control
+{
+    string title = "", val = "";
+    public KpiBox(string title, string val)
+    {
+        this.title = title ?? "";
+        this.val = val ?? "";
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
+        BackColor = Color.Transparent;
+        Margin = new Padding(0, 0, UI.S(6), 0);
+    }
+
+    public string Title { get { return title; } set { title = value ?? ""; Invalidate(); } }
+    public string Value { get { return val; } set { val = value ?? ""; Invalidate(); } }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+        Color bg = UI.IsDark ? Color.FromArgb(40, 44, 50) : Color.FromArgb(240, 243, 248);
+        using (GraphicsPath p = UI.Round(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), UI.SF(6)))
+        {
+            using (SolidBrush b = new SolidBrush(bg)) g.FillPath(b, p);
+            using (Pen pen = new Pen(UI.Line)) g.DrawPath(pen, p);
+        }
+
+        using (Font fTitle = new Font("Segoe UI", 7.75f))
+        {
+            Rectangle rTitle = new Rectangle(UI.S(8), UI.S(6), Width - UI.S(16), UI.S(16));
+            TextRenderer.DrawText(g, title, fTitle, rTitle, UI.Muted, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis);
+        }
+
+        using (Font fVal = new Font("Segoe UI Semibold", 12f))
+        {
+            Rectangle rVal = new Rectangle(UI.S(8), UI.S(24), Width - UI.S(16), Height - UI.S(28));
+            TextRenderer.DrawText(g, val, fVal, rVal, UI.Text, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis);
         }
     }
 }

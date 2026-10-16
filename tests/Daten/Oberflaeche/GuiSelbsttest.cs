@@ -500,5 +500,9 @@ public static class GuiSelbsttest
         {
             Ist(row.Subtitle == "Untertitel" && row.BackColor == Color.Transparent, "StartTaskRow transparent");
         }
+        using (KpiBox kpi = new KpiBox("Gesamt", "12.111"))
+        {
+            Ist(kpi.Title == "Gesamt" && kpi.Value == "12.111" && kpi.BackColor == Color.Transparent, "KpiBox transparent");
+        }
     }
 }

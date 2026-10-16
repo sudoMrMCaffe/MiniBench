@@ -682,7 +682,7 @@ public partial class DiagGui : Form
             c.BackColor = UI.Panel;
             c.Invalidate();
         }
-        else if (c is ToggleSwitch || c is Badge || c is PillLabel || c is StartTaskRow)
+        else if (c is ToggleSwitch || c is Badge || c is PillLabel || c is StartTaskRow || c is KpiBox)
         {
             c.Invalidate();
         }

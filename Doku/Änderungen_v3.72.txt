@@ -67,6 +67,8 @@ GEFUNDEN UND BEHOBEN
   Pester-Tests in Messung.Tests.ps1 und Praxistest.Tests.ps1 litten unter BOM-Verlust; UTF-8 mit BOM wurde für alle Quell- und Testdateien wiederhergestellt.
   *median filterte fälschlich Desktop-Systeme aus dem Gesamtschnitt; der Standard-Median berechnet wieder alle Systeme.
   PillLabel und StartTaskRow warfen beim Start auf Rechnern mit bestehender Datenbank einen Fehler ("Control does not support transparent background colors."); durch ControlStyles.SupportsTransparentBackColor und Aufnahme in ApplyThemeRecursive behoben.
+  Auf frischen PCs mit vorhandenen Vergleichssystemen in der Datenbank wurde fälschlich Zustand B ("Willkommen zurück") mit Fremddaten statt Zustand A ("Willkommen bei Leos Minibench") angezeigt; behoben durch rechnerbezogene Auswertung (GetCurrentPcLastRun).
+  Im Zustand B überlappten Beschriftungen und Messwerte in der Kachel "Letzter Lauf", und Zeile 2 des 2x2-Rasters wurde mangels expliziter Tabellenhöhe abgeschnitten; behoben durch KpiBox, angepasste Tabellenhöhen und Neugestaltung der Kacheln analog zur Entwurfsvorlage.
 
 GRENZEN
   Die Schnellprüfung von XMP/EXPO stützt sich auf ausgelesene SMBIOS-Speichertaktwerte und erkennt Basistaktraten (z. B. DDR4-2133 oder DDR5-4800); proprietäre OEM-Profile ohne JEDEC-Taktabweichung erfordern einen Blick ins BIOS.
