@@ -3,7 +3,7 @@
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
 ## Stand: Version 3.72 (16.10.2026)
-Release-Commit "Release v3.72: Neue dreiteilige Startseite, interaktiver Schnellstart & System-Feinschliff" (Commit 103f1a7).
+Release-Commit "Release v3.72: Neue dreiteilige Startseite, interaktiver Schnellstart & System-Feinschliff" (Commit f66ef90).
 Getestet und gebaut unter Windows mit Windows PowerShell 5.1 und Pester 6.2.0.
 
 Inhalt von 3.72 (Einzelheiten in Doku\Änderungen_v3.72.txt):
