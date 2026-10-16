@@ -69,6 +69,11 @@ GEFUNDEN UND BEHOBEN
   PillLabel und StartTaskRow warfen beim Start auf Rechnern mit bestehender Datenbank einen Fehler ("Control does not support transparent background colors."); durch ControlStyles.SupportsTransparentBackColor und Aufnahme in ApplyThemeRecursive behoben.
   Auf frischen PCs mit vorhandenen Vergleichssystemen in der Datenbank wurde fälschlich Zustand B ("Willkommen zurück") mit Fremddaten statt Zustand A ("Willkommen bei Leos Minibench") angezeigt; behoben durch rechnerbezogene Auswertung (GetCurrentPcLastRun).
   Im Zustand B überlappten Beschriftungen und Messwerte in der Kachel "Letzter Lauf", und Zeile 2 des 2x2-Rasters wurde mangels expliziter Tabellenhöhe abgeschnitten; behoben durch KpiBox, angepasste Tabellenhöhen und Neugestaltung der Kacheln analog zur Entwurfsvorlage.
+  KpiBox-Initialisierung und Tabellenraster im Zustand B: Fehlende Vorgabegrößen und fehlende RowStyles im TableLayoutPanel führten zum Ausblenden der Kennzahlen; behoben durch Vorgabegröße, DockStyle.Fill und prozentuale Zeilenhöhen.
+  Umrechnung des RAM-Lesedurchsatzes im Zustand B korrigiert: Werte lagen bereits in GB/s vor und wurden zuvor fälschlich nochmals durch 1000 geteilt.
+  Überlappende Beschriftungen in der Kachel "Schnell behebbar": Titeltext schnitt den Link "Inventar" ab; behoben durch explizite Textbreitenbegrenzung mit Auslassungspunkten und feste Verankerung.
+  Textabschneidungen auf Aufgabenkarten im Zustand A behoben: Zweizeiliger Umbruch für lange Titel ("Pflegen und beschleunigen") sowie dynamische Messung der Badge-Breite für Fußzeilentexte.
+  Aufgabe und Preset "PC durchchecken" aktiviert nun wie gefordert die Module Diagnose, Lasttest und Benchmark gleichzeitig.
 
 GRENZEN
   Die Schnellprüfung von XMP/EXPO stützt sich auf ausgelesene SMBIOS-Speichertaktwerte und erkennt Basistaktraten (z. B. DDR4-2133 oder DDR5-4800); proprietäre OEM-Profile ohne JEDEC-Taktabweichung erfordern einen Blick ins BIOS.

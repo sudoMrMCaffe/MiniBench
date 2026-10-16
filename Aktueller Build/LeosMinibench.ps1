@@ -10089,8 +10089,8 @@ public class StartTaskCard : Control
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable | ControlStyles.SupportsTransparentBackColor, true);
         Cursor = Cursors.Hand;
         BackColor = UI.Panel;
-        Size = new Size(UI.S(184), UI.S(204));
-        Margin = new Padding(0, 0, UI.S(14), UI.S(14));
+        Size = new Size(UI.S(177), UI.S(205));
+        Margin = new Padding(0, 0, UI.S(10), UI.S(14));
     }
 
     public string Title { get { return title; } set { title = value ?? ""; Invalidate(); } }
@@ -10126,14 +10126,14 @@ public class StartTaskCard : Control
         }
 
         // Icon Box
-        int iconSize = UI.S(36);
-        RectangleF iconBox = new RectangleF(UI.S(14), UI.S(14), iconSize, iconSize);
+        int iconSize = UI.S(34);
+        RectangleF iconBox = new RectangleF(UI.S(12), UI.S(12), iconSize, iconSize);
         Color iconBg = UI.IsDark ? Color.FromArgb(46, 50, 56) : Color.FromArgb(235, 240, 250);
         using (GraphicsPath ip = UI.Round(iconBox, UI.SF(6)))
         {
             using (SolidBrush ib = new SolidBrush(iconBg)) g.FillPath(ib, ip);
         }
-        using (Font fIcon = UI.SymbolFont(13f))
+        using (Font fIcon = UI.SymbolFont(12.5f))
         {
             TextRenderer.DrawText(g, icon, fIcon, new Rectangle((int)iconBox.X, (int)iconBox.Y, (int)iconBox.Width, (int)iconBox.Height), UI.Accent, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
         }
@@ -10141,10 +10141,11 @@ public class StartTaskCard : Control
         // Empfohlen Badge
         if (recommended)
         {
-            using (Font fRec = new Font("Segoe UI Semibold", 8f))
+            using (Font fRec = new Font("Segoe UI Semibold", 7.75f))
             {
                 Size szR = TextRenderer.MeasureText("Empfohlen", fRec);
-                Rectangle rRec = new Rectangle(Width - szR.Width - UI.S(24), UI.S(14), szR.Width + UI.S(12), UI.S(20));
+                int rW = szR.Width + UI.S(10);
+                Rectangle rRec = new Rectangle(Width - rW - UI.S(12), UI.S(12), rW, UI.S(18));
                 using (GraphicsPath rp = UI.Round(new RectangleF(rRec.X, rRec.Y, rRec.Width, rRec.Height), UI.SF(4)))
                 using (SolidBrush rb = new SolidBrush(UI.InfoBg))
                 {
@@ -10154,37 +10155,32 @@ public class StartTaskCard : Control
             }
         }
 
-        // Titel
-        using (Font fTitle = new Font("Segoe UI Semibold", 10f))
+        // Titel (2-zeilig mit WordBreak, Semibold 9.5f)
+        using (Font fTitle = new Font("Segoe UI Semibold", 9.5f))
         {
-            Rectangle rTitle = new Rectangle(UI.S(14), UI.S(58), Width - UI.S(28), UI.S(22));
-            TextRenderer.DrawText(g, title, fTitle, rTitle, UI.Text, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis);
+            Rectangle rTitle = new Rectangle(UI.S(12), UI.S(52), Width - UI.S(24), UI.S(34));
+            TextRenderer.DrawText(g, title, fTitle, rTitle, UI.Text, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak);
         }
 
         // Beschreibung
         using (Font fDesc = new Font("Segoe UI", 8.25f))
         {
-            Rectangle rDesc = new Rectangle(UI.S(14), UI.S(82), Width - UI.S(28), Height - UI.S(118));
+            Rectangle rDesc = new Rectangle(UI.S(12), UI.S(88), Width - UI.S(24), Height - UI.S(116));
             TextRenderer.DrawText(g, desc, fDesc, rDesc, UI.Muted, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak);
         }
 
-        // Fußzeile
-        int footY = Height - UI.S(28);
-        using (Font fFoot = new Font("Segoe UI", 8.25f))
-        {
-            Rectangle rFoot = new Rectangle(UI.S(14), footY, Width - UI.S(75), UI.S(18));
-            TextRenderer.DrawText(g, footText, fFoot, rFoot, UI.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-        }
-
-        // Badge
+        // Fußzeile mit dynamischer Breitenberechnung
+        int footY = Height - UI.S(26);
+        int badgeW = 0;
         if (badgeText.Length > 0)
         {
             Color bfg, bbg;
             UI.BadgeColors(badgeLevel, out bfg, out bbg);
-            using (Font fBadge = new Font("Segoe UI Semibold", 8f))
+            using (Font fBadge = new Font("Segoe UI Semibold", 7.75f))
             {
                 Size szB = TextRenderer.MeasureText(badgeText, fBadge);
-                Rectangle rBadge = new Rectangle(Width - szB.Width - UI.S(16), footY, szB.Width + UI.S(10), UI.S(18));
+                badgeW = szB.Width + UI.S(10);
+                Rectangle rBadge = new Rectangle(Width - badgeW - UI.S(10), footY, badgeW, UI.S(18));
                 using (GraphicsPath bp = UI.Round(new RectangleF(rBadge.X, rBadge.Y, rBadge.Width, rBadge.Height), UI.SF(4)))
                 using (SolidBrush bb = new SolidBrush(bbg))
                 {
@@ -10192,6 +10188,13 @@ public class StartTaskCard : Control
                 }
                 TextRenderer.DrawText(g, badgeText, fBadge, rBadge, bfg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
+        }
+
+        int availFootW = Width - UI.S(20) - badgeW;
+        using (Font fFoot = new Font("Segoe UI", 7.75f))
+        {
+            Rectangle rFoot = new Rectangle(UI.S(10), footY, availFootW, UI.S(18));
+            TextRenderer.DrawText(g, footText, fFoot, rFoot, UI.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         }
     }
 }
@@ -10297,16 +10300,23 @@ public class KpiBox : Control
         this.val = val ?? "";
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
+        Size = new Size(UI.S(80), UI.S(64));
+        Dock = DockStyle.Fill;
         Margin = new Padding(0, 0, UI.S(6), 0);
     }
 
     public string Title { get { return title; } set { title = value ?? ""; Invalidate(); } }
     public string Value { get { return val; } set { val = value ?? ""; Invalidate(); } }
 
+    public override Size GetPreferredSize(Size proposedSize)
+    {
+        return new Size(UI.S(80), UI.S(64));
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         Graphics g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
-        Color bg = UI.IsDark ? Color.FromArgb(40, 44, 50) : Color.FromArgb(240, 243, 248);
+        Color bg = UI.IsDark ? Color.FromArgb(32, 36, 42) : Color.FromArgb(242, 244, 248);
         using (GraphicsPath p = UI.Round(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), UI.SF(6)))
         {
             using (SolidBrush b = new SolidBrush(bg)) g.FillPath(b, p);
@@ -10319,9 +10329,9 @@ public class KpiBox : Control
             TextRenderer.DrawText(g, title, fTitle, rTitle, UI.Muted, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis);
         }
 
-        using (Font fVal = new Font("Segoe UI Semibold", 12f))
+        using (Font fVal = new Font("Segoe UI Semibold", 11.5f))
         {
-            Rectangle rVal = new Rectangle(UI.S(8), UI.S(24), Width - UI.S(16), Height - UI.S(28));
+            Rectangle rVal = new Rectangle(UI.S(8), UI.S(23), Width - UI.S(16), Height - UI.S(27));
             TextRenderer.DrawText(g, val, fVal, rVal, UI.Text, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis);
         }
     }
@@ -12356,6 +12366,22 @@ public partial class DiagGui
         return d;
     }
 
+    static string FormatRunDate(string d)
+    {
+        if (String.IsNullOrEmpty(d)) return "";
+        DateTime t;
+        if (DateTime.TryParseExact(d, new string[] { "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm" }, CultureInfo.InvariantCulture, DateTimeStyles.None, out t) ||
+            DateTime.TryParse(d, CultureInfo.CurrentCulture, DateTimeStyles.None, out t))
+        {
+            return t.ToString("dd.MM.yyyy, HH:mm");
+        }
+        if (DateTime.TryParseExact(d, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out t))
+        {
+            return t.ToString("dd.MM.yyyy");
+        }
+        return d;
+    }
+
     void FillChangeList()
     {
         if (lvChg == null) return;
@@ -13265,11 +13291,12 @@ public partial class DiagGui
         tasksGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
         tasksGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
         tasksGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+        tasksGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
         tasksGrid.Margin = new Padding(0, 0, 0, UI.S(16));
 
-        StartTaskCard c1 = new StartTaskCard("PC durchchecken", "Hardware, Treiber, Abstürze und Ereignisse prüfen. Ergebnis ist ein Bericht mit Befunden.", "Diagnose · ca. 14 Min.", "Lesen", "ok", UI.IcoDiag, true);
+        StartTaskCard c1 = new StartTaskCard("PC durchchecken", "Hardware, Treiber, Leistung und Stabilität prüfen. Ergebnis ist ein ausführlicher Bericht.", "Diagnose, Bench., Last.", "Lesen", "ok", UI.IcoDiag, true);
         c1.Dock = DockStyle.Fill; c1.Margin = new Padding(0, 0, UI.S(10), 0);
-        Tip(c1, "Startet die Systemdiagnose: prüft Hardware, Treiber und Windows-Ereignisse ohne Änderungen.");
+        Tip(c1, "Startet Diagnose, Benchmark und Lasttest zur vollständigen Überprüfung von Hardware, Leistung und Stabilität.");
         c1.CardClicked += delegate { SelectTask("PC durchchecken"); };
 
         StartTaskCard c2 = new StartTaskCard("Leistung messen", "Prozessor, Speicher, Grafik und Laufwerke messen und mit anderen Systemen vergleichen.", "Benchmark · ca. 7 Min.", "Lesen", "ok", UI.IcoSpeed, false);
@@ -13296,11 +13323,12 @@ public partial class DiagGui
         // 3. Erklärbereich (zweispaltig, Breite Gruppenbreite)
         TableLayoutPanel explGrid = new TableLayoutPanel();
         explGrid.Width = UI.S(UI.Gruppenbreite);
-        explGrid.Height = UI.S(150);
+        explGrid.Height = UI.S(154);
         explGrid.ColumnCount = 2;
         explGrid.RowCount = 1;
         explGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 58f));
         explGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42f));
+        explGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
         explGrid.Margin = new Padding(0, 0, 0, UI.S(16));
 
         Panel cardSteps = new Panel();
@@ -13372,7 +13400,7 @@ public partial class DiagGui
         cardTools.Dock = DockStyle.Fill;
         cardTools.BackColor = UI.Panel;
         cardTools.Padding = new Padding(UI.S(14), UI.S(12), UI.S(14), UI.S(12));
-        cardTools.Margin = new Padding(UI.S(4), 0, 0, 0);
+        cardTools.Margin = new Padding(0);
         cardTools.Paint += delegate(object sender, PaintEventArgs pe) {
             pe.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             using (GraphicsPath path = UI.Round(new RectangleF(0.5f, 0.5f, cardTools.Width - 1.5f, cardTools.Height - 1.5f), UI.SF(8)))
@@ -13531,12 +13559,12 @@ public partial class DiagGui
         TableLayoutPanel lastHead = new TableLayoutPanel();
         lastHead.Dock = DockStyle.Fill;
         lastHead.ColumnCount = 2;
-        lastHead.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45f));
-        lastHead.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55f));
+        lastHead.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
+        lastHead.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60f));
         lastHead.Margin = new Padding(0);
         Label lblLTitle = Lbl("Letzter Lauf", 10.5f, true, UI.Text);
         lblLTitle.Margin = new Padding(0);
-        string lastRunInfo = lastRun != null ? (ShortTime(lastRun.Datum) + " · " + (lastRun.Module.Length > 0 ? (lastRun.Module.IndexOf("Benchmark") >= 0 ? "Benchmark" : (lastRun.Module.IndexOf("Diagnose") >= 0 ? "Diagnose" : "Lauf")) : "Lauf")) : "keine Läufe";
+        string lastRunInfo = lastRun != null ? (FormatRunDate(lastRun.Datum) + " · " + (lastRun.Module.Length > 0 ? (lastRun.Module.IndexOf("Benchmark") >= 0 ? "Benchmark" : (lastRun.Module.IndexOf("Diagnose") >= 0 ? "Diagnose" : "Lauf")) : "Lauf")) : "keine Läufe";
         Label lblLDate = Lbl(lastRunInfo, 8.25f, false, UI.Muted);
         lblLDate.Anchor = AnchorStyles.Right;
         lblLDate.Margin = new Padding(0);
@@ -13556,7 +13584,8 @@ public partial class DiagGui
         kpiGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
         kpiGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
         kpiGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
-        kpiGrid.Margin = new Padding(0, UI.S(2), 0, UI.S(2));
+        kpiGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        kpiGrid.Margin = new Padding(0, UI.S(4), 0, UI.S(6));
 
         string kpiGesamt = (lastRun != null && lastRun.OverallScore > 0) ? lastRun.OverallScore.ToString("N0", CultureInfo.CurrentCulture) : "-";
         string kpiCpu = (lastRun != null && lastRun.Get("CPU|MT") > 0) ? lastRun.Get("CPU|MT").ToString("N0", CultureInfo.CurrentCulture) : "-";
@@ -13565,7 +13594,11 @@ public partial class DiagGui
         {
             double rVal = lastRun.Get("RAM|Lesen");
             if (rVal <= 0) rVal = lastRun.Get("RAM|Read");
-            if (rVal > 0) kpiRam = (rVal / 1000.0).ToString("N1", CultureInfo.CurrentCulture) + " GB/s";
+            if (rVal > 0)
+            {
+                double gb = rVal > 1000.0 ? rVal / 1000.0 : rVal;
+                kpiRam = gb.ToString("N1", CultureInfo.CurrentCulture) + " GB/s";
+            }
         }
         string kpiGpu = "-";
         if (lastRun != null)
@@ -13575,10 +13608,10 @@ public partial class DiagGui
             if (gVal > 0) kpiGpu = Math.Round(gVal, 0) + " FPS";
         }
 
-        KpiBox kpi1 = new KpiBox("Gesamt", kpiGesamt); Tip(kpi1, "Gesamtpunktzahl des letzten Benchmarklaufs.");
-        KpiBox kpi2 = new KpiBox("CPU Mehrkern", kpiCpu); Tip(kpi2, "CPU-Mehrkern-Punktzahl des letzten Laufs.");
-        KpiBox kpi3 = new KpiBox("RAM Lesen", kpiRam); Tip(kpi3, "Gemessener Speicherdurchsatz beim Lesen.");
-        KpiBox kpi4 = new KpiBox("Grafik", kpiGpu); kpi4.Margin = new Padding(0); Tip(kpi4, "Gemessene Bildrate im Grafik-Rendertest.");
+        KpiBox kpi1 = new KpiBox("Gesamt", kpiGesamt); kpi1.Dock = DockStyle.Fill; Tip(kpi1, "Gesamtpunktzahl des letzten Benchmarklaufs.");
+        KpiBox kpi2 = new KpiBox("CPU Mehrkern", kpiCpu); kpi2.Dock = DockStyle.Fill; Tip(kpi2, "CPU-Mehrkern-Punktzahl des letzten Laufs.");
+        KpiBox kpi3 = new KpiBox("RAM Lesen", kpiRam); kpi3.Dock = DockStyle.Fill; Tip(kpi3, "Gemessener Speicherdurchsatz beim Lesen.");
+        KpiBox kpi4 = new KpiBox("Grafik", kpiGpu); kpi4.Dock = DockStyle.Fill; kpi4.Margin = new Padding(0); Tip(kpi4, "Gemessene Bildrate im Grafik-Rendertest.");
 
         kpiGrid.Controls.Add(kpi1, 0, 0);
         kpiGrid.Controls.Add(kpi2, 1, 0);
@@ -13590,32 +13623,53 @@ public partial class DiagGui
         TableLayoutPanel actGrid = new TableLayoutPanel();
         actGrid.Dock = DockStyle.Fill;
         actGrid.ColumnCount = 2;
-        actGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 72f));
-        actGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28f));
+        actGrid.RowCount = 1;
+        actGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        actGrid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        actGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
         actGrid.Margin = new Padding(0);
 
         FlowLayoutPanel pnlButtons = new FlowLayoutPanel();
         pnlButtons.Dock = DockStyle.Fill;
         pnlButtons.WrapContents = false;
+        pnlButtons.AutoSize = true;
         pnlButtons.BackColor = UI.Panel;
         pnlButtons.Margin = new Padding(0);
 
-        Button btnOpenRep = UI.Primary("Bericht öffnen");
-        btnOpenRep.AutoSize = false;
-        btnOpenRep.Size = new Size(UI.S(115), UI.S(30));
-        btnOpenRep.Font = new Font("Segoe UI Semibold", 8.75f);
-        btnOpenRep.Margin = new Padding(0, UI.S(4), UI.S(8), 0);
+        Button btnOpenRep = new PrimaryButton();
+        btnOpenRep.Text = "Bericht öffnen";
+        btnOpenRep.FlatStyle = FlatStyle.Flat;
+        btnOpenRep.FlatAppearance.BorderSize = 0;
+        btnOpenRep.BackColor = UI.Accent;
+        btnOpenRep.ForeColor = UI.OnAccent;
+        btnOpenRep.FlatAppearance.MouseOverBackColor = UI.AccentHover;
+        btnOpenRep.FlatAppearance.MouseDownBackColor = UI.AccentActive;
+        btnOpenRep.Font = new Font("Segoe UI Semibold", 8.5f);
+        btnOpenRep.Padding = new Padding(UI.S(10), UI.S(3), UI.S(10), UI.S(3));
+        btnOpenRep.Margin = new Padding(0, UI.S(2), UI.S(6), 0);
+        btnOpenRep.AutoSize = true;
+        btnOpenRep.Cursor = Cursors.Hand;
+        btnOpenRep.UseVisualStyleBackColor = false;
         btnOpenRep.Enabled = (lastRun != null);
         Tip(btnOpenRep, "Öffnet den vollständigen HTML-Bericht des letzten Laufs.");
         DbEntry targetRun = lastRun;
         btnOpenRep.Click += delegate { if (targetRun != null) OpenEntry(targetRun); };
         pnlButtons.Controls.Add(btnOpenRep);
 
-        Button btnDash = UI.Secondary("Im Dashboard vergleichen");
-        btnDash.AutoSize = false;
-        btnDash.Size = new Size(UI.S(175), UI.S(30));
-        btnDash.Font = new Font("Segoe UI Semibold", 8.75f);
-        btnDash.Margin = new Padding(0, UI.S(4), 0, 0);
+        Button btnDash = new Button();
+        btnDash.Text = "Im Dashboard vergleichen";
+        btnDash.FlatStyle = FlatStyle.Flat;
+        btnDash.FlatAppearance.BorderColor = UI.Line;
+        btnDash.BackColor = UI.Panel;
+        btnDash.ForeColor = UI.Text;
+        btnDash.FlatAppearance.MouseOverBackColor = UI.IsDark ? Color.FromArgb(45, 48, 52) : Color.FromArgb(243, 244, 246);
+        btnDash.FlatAppearance.MouseDownBackColor = UI.IsDark ? Color.FromArgb(55, 58, 62) : Color.FromArgb(235, 237, 240);
+        btnDash.Font = new Font("Segoe UI", 8.5f);
+        btnDash.Padding = new Padding(UI.S(8), UI.S(3), UI.S(8), UI.S(3));
+        btnDash.Margin = new Padding(0, UI.S(2), 0, 0);
+        btnDash.AutoSize = true;
+        btnDash.Cursor = Cursors.Hand;
+        btnDash.UseVisualStyleBackColor = false;
         Tip(btnDash, "Öffnet das interaktive Dashboard zum Vergleich mit anderen Systemen.");
         btnDash.Click += delegate { OpenDashboard(); };
         pnlButtons.Controls.Add(btnDash);
@@ -13628,10 +13682,11 @@ public partial class DiagGui
             befundeText = "Befunde: " + lastRun.Befunde;
             befundeColor = UI.Warn;
         }
-        Label lblBef = Lbl(befundeText, 8.5f, true, befundeColor);
+        Label lblBef = Lbl(befundeText, 8.25f, true, befundeColor);
         lblBef.Anchor = AnchorStyles.Right;
+        lblBef.TextAlign = ContentAlignment.MiddleRight;
         lblBef.AutoSize = true;
-        lblBef.Margin = new Padding(0, UI.S(8), 0, 0);
+        lblBef.Margin = new Padding(0, UI.S(4), 0, 0);
         Tip(lblBef, "Befundzusammenfassung (Kritisch / Warnungen / Hinweise) des letzten Laufs.");
         actGrid.Controls.Add(lblBef, 1, 0);
         lastLayout.Controls.Add(actGrid, 0, 2);
@@ -13673,9 +13728,9 @@ public partial class DiagGui
         taskList.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
         taskList.Margin = new Padding(0);
 
-        StartTaskRow tr1 = new StartTaskRow("PC durchchecken", "Diagnose · ca. 14 Min.", "Lesen", "ok", UI.IcoDiag);
+        StartTaskRow tr1 = new StartTaskRow("PC durchchecken", "Diagnose, Benchmark, Lasttest", "Lesen", "ok", UI.IcoDiag);
         tr1.Dock = DockStyle.Fill;
-        Tip(tr1, "Startet die Systemdiagnose: prüft Hardware, Treiber und Windows-Ereignisse.");
+        Tip(tr1, "Startet Diagnose, Benchmark und Lasttest zur vollständigen Überprüfung von Hardware, Leistung und Stabilität.");
         tr1.RowClicked += delegate { SelectTask("PC durchchecken"); };
 
         string bSub = "Benchmark · ca. 7 Min." + (lastBenchDate.Length > 0 ? " · zuletzt " + lastBenchDate : " · noch nie");
@@ -13819,12 +13874,13 @@ public partial class DiagGui
         row.MouseEnter += delegate { hover = true; row.Invalidate(); };
         row.MouseLeave += delegate { hover = false; row.Invalidate(); };
 
+        Panel capturedRow = row;
         row.Paint += delegate(object sender, PaintEventArgs pe) {
             if (hover)
             {
                 pe.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                 Color hbg = UI.IsDark ? Color.FromArgb(46, 48, 52) : Color.FromArgb(240, 242, 246);
-                using (GraphicsPath p = UI.Round(new RectangleF(0.5f, 0.5f, row.Width - 1.5f, row.Height - 1.5f), UI.SF(6)))
+                using (GraphicsPath p = UI.Round(new RectangleF(0.5f, 0.5f, capturedRow.Width - 1.5f, capturedRow.Height - 1.5f), UI.SF(6)))
                 using (SolidBrush b = new SolidBrush(hbg)) pe.Graphics.FillPath(b, p);
             }
         };
@@ -13839,9 +13895,11 @@ public partial class DiagGui
         lblT.AutoSize = true;
 
         Label lblR = Lbl(rightText, 8.5f, false, UI.Muted);
-        lblR.Anchor = AnchorStyles.Right | AnchorStyles.Top;
-        lblR.AutoSize = true;
-        lblR.Location = new Point(Math.Max(UI.S(180), row.Width - lblR.PreferredWidth - UI.S(12)), UI.S(12));
+        lblR.Dock = DockStyle.Right;
+        lblR.TextAlign = ContentAlignment.MiddleRight;
+        lblR.Padding = new Padding(0, 0, UI.S(10), 0);
+        lblR.AutoSize = false;
+        lblR.Width = UI.S(180);
 
         Tip(row, tipText);
         Tip(lblIco, tipText);
@@ -13854,19 +13912,15 @@ public partial class DiagGui
         lblT.Click += eh;
         lblR.Click += eh;
 
-        EventHandler onEnter = delegate { hover = true; row.Invalidate(); };
-        EventHandler onLeave = delegate { hover = false; row.Invalidate(); };
+        EventHandler onEnter = delegate { hover = true; capturedRow.Invalidate(); };
+        EventHandler onLeave = delegate { hover = false; capturedRow.Invalidate(); };
         lblIco.MouseEnter += onEnter; lblIco.MouseLeave += onLeave;
         lblT.MouseEnter += onEnter; lblT.MouseLeave += onLeave;
         lblR.MouseEnter += onEnter; lblR.MouseLeave += onLeave;
 
-        row.Resize += delegate {
-            lblR.Location = new Point(Math.Max(UI.S(180), row.Width - lblR.PreferredWidth - UI.S(12)), UI.S(12));
-        };
-
+        row.Controls.Add(lblR);
         row.Controls.Add(lblIco);
         row.Controls.Add(lblT);
-        row.Controls.Add(lblR);
         return row;
     }
 
@@ -13881,27 +13935,28 @@ public partial class DiagGui
         row.MouseEnter += delegate { hover = true; row.Invalidate(); };
         row.MouseLeave += delegate { hover = false; row.Invalidate(); };
 
+        Panel capturedRow = row;
         row.Paint += delegate(object sender, PaintEventArgs pe) {
             if (hover)
             {
                 pe.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                 Color hbg = UI.IsDark ? Color.FromArgb(46, 48, 52) : Color.FromArgb(240, 242, 246);
-                using (GraphicsPath p = UI.Round(new RectangleF(0.5f, 0.5f, row.Width - 1.5f, row.Height - 1.5f), UI.SF(6)))
+                using (GraphicsPath p = UI.Round(new RectangleF(0.5f, 0.5f, capturedRow.Width - 1.5f, capturedRow.Height - 1.5f), UI.SF(6)))
                 using (SolidBrush b = new SolidBrush(hbg)) pe.Graphics.FillPath(b, p);
             }
         };
 
         Label lblIco = Lbl(icon, 11f, false, UI.Accent);
         lblIco.Font = UI.SymbolFont(11f);
-        lblIco.Location = new Point(UI.S(6), UI.S(6));
+        lblIco.Location = new Point(UI.S(6), UI.S(7));
         lblIco.Size = new Size(UI.S(22), UI.S(22));
 
         Label lblT = Lbl(title, 9f, true, UI.Text);
-        lblT.Location = new Point(UI.S(34), UI.S(2));
+        lblT.Location = new Point(UI.S(34), UI.S(3));
         lblT.AutoSize = true;
 
         Label lblS = Lbl(sub, 8f, false, UI.Muted);
-        lblS.Location = new Point(UI.S(34), UI.S(19));
+        lblS.Location = new Point(UI.S(34), UI.S(20));
         lblS.AutoSize = true;
 
         Tip(row, tipText);
@@ -13915,8 +13970,8 @@ public partial class DiagGui
         lblT.Click += eh;
         lblS.Click += eh;
 
-        EventHandler onEnter = delegate { hover = true; row.Invalidate(); };
-        EventHandler onLeave = delegate { hover = false; row.Invalidate(); };
+        EventHandler onEnter = delegate { hover = true; capturedRow.Invalidate(); };
+        EventHandler onLeave = delegate { hover = false; capturedRow.Invalidate(); };
         lblIco.MouseEnter += onEnter; lblIco.MouseLeave += onLeave;
         lblT.MouseEnter += onEnter; lblT.MouseLeave += onLeave;
         lblS.MouseEnter += onEnter; lblS.MouseLeave += onLeave;
@@ -13994,6 +14049,8 @@ public partial class DiagGui
         if (name == "PC durchchecken")
         {
             if (nav.Count > 1) nav[1].Checked = true;
+            if (nav.Count > 2) nav[2].Checked = true;
+            if (nav.Count > 3) nav[3].Checked = true;
             if (rbVoll != null) rbVoll.Checked = true;
             ShowPage(1);
         }
@@ -14236,15 +14293,16 @@ public partial class DiagGui
                     Panel row = new Panel();
                     row.Location = new Point(0, curY);
                     row.Width = Math.Max(UI.S(300), container.ClientSize.Width);
-                    row.Height = UI.S(56);
+                    row.Height = UI.S(54);
                     row.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
 
                     Color bbg = it.Level == "warn" ? (UI.IsDark ? Color.FromArgb(54, 44, 18) : Color.FromArgb(254, 249, 231)) : (UI.IsDark ? Color.FromArgb(22, 40, 60) : Color.FromArgb(235, 243, 250));
                     Color borderColor = it.Level == "warn" ? (UI.IsDark ? Color.FromArgb(217, 155, 0) : Color.FromArgb(190, 135, 0)) : (UI.IsDark ? Color.FromArgb(0, 120, 212) : Color.FromArgb(0, 100, 180));
 
+                    Panel capturedRow = row;
                     row.Paint += delegate(object s, PaintEventArgs pe) {
                         pe.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                        using (GraphicsPath rp = UI.Round(new RectangleF(0.5f, 0.5f, row.Width - 1.5f, row.Height - 1.5f), UI.SF(6)))
+                        using (GraphicsPath rp = UI.Round(new RectangleF(0.5f, 0.5f, capturedRow.Width - 1.5f, capturedRow.Height - 1.5f), UI.SF(6)))
                         {
                             using (SolidBrush rb = new SolidBrush(bbg)) pe.Graphics.FillPath(rb, rp);
                             using (Pen rpen = new Pen(borderColor)) pe.Graphics.DrawPath(rpen, rp);
@@ -14252,18 +14310,26 @@ public partial class DiagGui
                     };
 
                     Badge badge = new Badge(it.Badge, it.Level);
-                    badge.Location = new Point(UI.S(10), UI.S(10));
+                    badge.Location = new Point(UI.S(10), UI.S(12));
                     Tip(badge, it.Badge + ": " + it.Title);
 
+                    int textX = UI.S(84);
+                    int textW = Math.Max(UI.S(100), row.Width - textX - UI.S(80));
+
                     Label lblT = Lbl(it.Title, 8.75f, true, UI.Text);
-                    lblT.Location = new Point(UI.S(86), UI.S(8));
-                    lblT.AutoSize = true;
+                    lblT.AutoSize = false;
+                    lblT.Location = new Point(textX, UI.S(8));
+                    lblT.Size = new Size(textW, UI.S(18));
+                    lblT.AutoEllipsis = true;
+                    lblT.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
                     Tip(lblT, it.Title);
 
                     Label lblD = Lbl(it.Desc, 7.75f, false, UI.Muted);
-                    lblD.Location = new Point(UI.S(86), UI.S(28));
-                    lblD.Size = new Size(Math.Max(UI.S(80), row.Width - UI.S(175)), UI.S(24));
+                    lblD.AutoSize = false;
+                    lblD.Location = new Point(textX, UI.S(27));
+                    lblD.Size = new Size(textW, UI.S(24));
                     lblD.AutoEllipsis = true;
+                    lblD.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
                     Tip(lblD, it.Desc);
 
                     LinkLabel lnkAct = new LinkLabel();
@@ -14272,16 +14338,20 @@ public partial class DiagGui
                     lnkAct.LinkColor = UI.Accent;
                     lnkAct.ActiveLinkColor = UI.AccentHover;
                     lnkAct.LinkBehavior = LinkBehavior.HoverUnderline;
-                    lnkAct.AutoSize = true;
-                    lnkAct.Location = new Point(row.Width - UI.S(78), UI.S(18));
+                    lnkAct.AutoSize = false;
+                    lnkAct.Size = new Size(UI.S(72), UI.S(20));
+                    lnkAct.TextAlign = ContentAlignment.MiddleRight;
+                    lnkAct.Location = new Point(row.Width - UI.S(80), UI.S(17));
                     lnkAct.Anchor = AnchorStyles.Right | AnchorStyles.Top;
                     Tip(lnkAct, it.Tip);
                     QuickFixItem capturedIt = it;
                     lnkAct.LinkClicked += delegate { if (capturedIt.Action != null) capturedIt.Action(); };
 
                     row.Resize += delegate {
-                        lblD.Size = new Size(Math.Max(UI.S(80), row.Width - UI.S(175)), UI.S(24));
-                        lnkAct.Location = new Point(row.Width - UI.S(78), UI.S(18));
+                        int w = Math.Max(UI.S(100), capturedRow.Width - textX - UI.S(80));
+                        lblT.Size = new Size(w, UI.S(18));
+                        lblD.Size = new Size(w, UI.S(24));
+                        lnkAct.Location = new Point(capturedRow.Width - UI.S(80), UI.S(17));
                     };
 
                     row.Controls.Add(badge);
@@ -14289,7 +14359,8 @@ public partial class DiagGui
                     row.Controls.Add(lblD);
                     row.Controls.Add(lnkAct);
                     container.Controls.Add(row);
-                    curY += UI.S(64);
+
+                    curY += UI.S(60);
                 }
             }
             container.ResumeLayout(true);
