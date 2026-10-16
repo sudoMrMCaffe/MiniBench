@@ -3,17 +3,17 @@
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
     const profiles = [
-      { key: 'Gaming', icon: '▲', title: 'Gaming', desc: 'GPU- & Single-Thread-Fokus' },
-      { key: 'Desktop', icon: '■', title: 'Büro / Desktop', desc: 'Reaktionszeit & SSD-Leistung' },
-      { key: 'Workstation', icon: '⚙', title: 'Workstation', desc: 'Mehrkern- & RAM-Durchsatz' }
+      { key: 'Gaming', icon: '🎮', title: 'Gaming', desc: 'GPU- & Single-Thread-Fokus', tip: 'Gaming-Profil: 70 % GPU-Bildrate, 20 % CPU Single-Core, 10 % RAM und SSD (Kerne > 8 neutral)' },
+      { key: 'Desktop', icon: '💼', title: 'Büro / Desktop', desc: 'Reaktionszeit & SSD-Leistung', tip: 'Büro- und Desktop-Profil: 45 % SSD-Reaktionszeit (4K), 35 % CPU Single-Core, 20 % RAM-Latenz (0 % GPU/Multi-Core)' },
+      { key: 'Workstation', icon: '🚀', title: 'Workstation', desc: 'Mehrkern- & RAM-Durchsatz', tip: 'Workstation-Profil: 45 % CPU Multi-Core, 20 % Instruktionen/Kompression, 20 % RAM-Bandbreite, 15 % Dauertransfer' }
     ];
 
     let html = '';
     profiles.forEach(p => {
       const baseScore = baseSystem?.Scores?.[p.key] || 0;
       html += `<div class="profile-card">
-        <div class="profile-header">
-          <span><span style="opacity: 0.7; margin-right: 6px;">${p.icon}</span>${escapeHtml(p.title)}</span>
+        <div class="profile-header" title="${escapeHtml(p.tip)}" style="cursor: help;">
+          <span><span style="margin-right: 6px;">${p.icon}</span>${escapeHtml(p.title)}</span>
           <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: normal;">${escapeHtml(p.desc)}</span>
         </div>
         <div class="profile-sys-list">`;

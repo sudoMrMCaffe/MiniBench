@@ -130,19 +130,9 @@ public partial class DiagGui : Form
     bool liveRunning, liveStopping;
     DateTime liveStopAt;
     Button btnLive, btnSensTools, btnSensSave;
-    ComboBox cmbDriver, cmbPsuWatt, cmbPsuRate;
+    ComboBox cmbDriver;
     int psuWattage = 650;
     string psuRating = "80 PLUS Bronze";
-    static readonly string[] psuWattOptions = new string[] { "300 W", "400 W", "450 W", "500 W", "550 W", "600 W", "650 W", "700 W", "750 W", "850 W", "1000 W", "1200 W", "Unbekannt" };
-    static readonly string[] psuRatingOptions = new string[] { "Unbekannt", "80 PLUS White", "80 PLUS Bronze", "80 PLUS Silver", "80 PLUS Gold", "80 PLUS Platinum", "80 PLUS Titanium" };
-    static int ParseWattage(string text)
-    {
-        if (string.IsNullOrEmpty(text)) return 0;
-        System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(text, @"\d+");
-        int val = 0;
-        if (m.Success && int.TryParse(m.Value, out val)) return val;
-        return 0;
-    }
     Label lblSensTools, lblSensInfo;
     SensorChart chartLive, chartRun;
     ListView lvSens;
@@ -542,25 +532,6 @@ public partial class DiagGui : Form
                     if (d.ContainsKey("PsuRating")) psuRating = Convert.ToString(d["PsuRating"]);
                 }
             }
-        }
-        catch { }
-    }
-
-    void SavePsuPreference(int wattage, string rating)
-    {
-        try
-        {
-            if (SettingsFile.Length == 0) return;
-            Dictionary<string, object> d = null;
-            System.Web.Script.Serialization.JavaScriptSerializer js = new System.Web.Script.Serialization.JavaScriptSerializer();
-            if (File.Exists(SettingsFile))
-            {
-                try { d = js.DeserializeObject(File.ReadAllText(SettingsFile, Encoding.UTF8)) as Dictionary<string, object>; } catch { }
-            }
-            if (d == null) d = new Dictionary<string, object>();
-            d["PsuWattage"] = wattage;
-            d["PsuRating"] = rating;
-            File.WriteAllText(SettingsFile, js.Serialize(d), Encoding.UTF8);
         }
         catch { }
     }
@@ -1023,8 +994,6 @@ public partial class DiagGui : Form
         Tip(btnSensSave, "Speichert alle Werte der Live-Ansicht als CSV unter Berichte\\Sensoren.");
         Tip(cmbDriver, "PawnIO ist der Treiber, den LibreHardwareMonitor für CPU-Temperatur, CPU-Takt, CPU-Leistung und Mainboard-Lüfter braucht. Standardmäßig aktiv für alle Messungen. Ein bereits installierter PawnIO bleibt immer unverändert.");
         Tip(cmbKeep, "Was nach dem Lauf mit PawnIO und smartmontools geschieht, die Leos Minibench installiert hat: nach dem Lauf entfernen (keine Reste) oder auf diesem PC behalten. Gespeichert je Gerät in Geraete.json.");
-        Tip(cmbPsuWatt, "Nennleistung des verbauten Netzteils in Watt für die Berechnung von Netzteilauslastung und Verlustleistung (0 W oder Unbekannt nutzt Standard-Schätzwerte).");
-        Tip(cmbPsuRate, "80-PLUS-Effizienzklasse des Netzteils für den typischen Wirkungsgrad an 230V EU bei unterschiedlicher Laststufe.");
         // Vergleichsdatenbank, Änderungen, Fuß
         Tip(btnCompare, "Vergleicht die angehakten Systeme in einem HTML-Bericht (mindestens zwei).");
         Tip(btnDelete, "Entfernt die angehakten Einträge aus der Datenbank. Die Berichtsordner bleiben erhalten.");
@@ -2411,23 +2380,6 @@ public partial class DiagGui : Form
         cmbKeep = Combo(230, new string[] { "nach dem Lauf entfernen (Standard)", "auf diesem PC behalten" }, 0); bk.Controls.Add(cmbKeep);
         Label lk = Lbl("PawnIO und smartmontools, die Leos Minibench installiert hat; gespeichert je Gerät in Geraete.json", 8.75f, false, UI.Muted); lk.Margin = new Padding(0, UI.S(5), 0, 0); bk.Controls.Add(lk);
         f.Controls.Add(bk);
-        FlowLayoutPanel bp = Row(); bp.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
-        bp.Controls.Add(RowLabel("Netzteil (Strom)", 120));
-        int wIdx = -1;
-        for (int i = 0; i < psuWattOptions.Length; i++) { if (ParseWattage(psuWattOptions[i]) == psuWattage) { wIdx = i; break; } }
-        cmbPsuWatt = Combo(100, psuWattOptions, wIdx >= 0 ? wIdx : 6); bp.Controls.Add(cmbPsuWatt);
-        int rIdx = Array.IndexOf(psuRatingOptions, psuRating);
-        cmbPsuRate = Combo(150, psuRatingOptions, rIdx >= 0 ? rIdx : 2); cmbPsuRate.Margin = new Padding(UI.S(6), 0, 0, 0); bp.Controls.Add(cmbPsuRate);
-        Label lp = Lbl("Nennleistung und 80-PLUS-Klasse für die präzise Stromverbrauchsschätzung", 8.75f, false, UI.Muted); lp.Margin = new Padding(UI.S(8), UI.S(5), 0, 0); bp.Controls.Add(lp);
-        f.Controls.Add(bp);
-        cmbPsuWatt.SelectedIndexChanged += delegate {
-            psuWattage = ParseWattage(Convert.ToString(cmbPsuWatt.SelectedItem));
-            SavePsuPreference(psuWattage, psuRating);
-        };
-        cmbPsuRate.SelectedIndexChanged += delegate {
-            psuRating = Convert.ToString(cmbPsuRate.SelectedItem);
-            SavePsuPreference(psuWattage, psuRating);
-        };
         LoadDeviceTools();
         cmbKeep.SelectedIndexChanged += delegate { SaveDeviceTools(); };
         cmbDriver.SelectedIndexChanged += delegate { SaveDeviceTools(); UpdateSensStatusBadge(); };
@@ -2927,10 +2879,8 @@ public partial class DiagGui : Form
         // ab v2.66 ohne Rückfrage vor dem Grafik-Lasttest (Wunsch aus dem Praxistest); die Abbruchschwelle wirkt weiter, Esc im Vorschaufenster beendet
         if (drv) a.Append(" -SensorTreiber");
         a.Append(KeepArg());
-        int pWatt = (cmbPsuWatt != null) ? ParseWattage(Convert.ToString(cmbPsuWatt.SelectedItem)) : psuWattage;
-        string pRate = (cmbPsuRate != null) ? Convert.ToString(cmbPsuRate.SelectedItem) : psuRating;
-        a.Append(" -PsuWattage ").Append(pWatt);
-        if (!string.IsNullOrEmpty(pRate)) a.Append(" -PsuRating ").Append(Q(pRate));
+        a.Append(" -PsuWattage ").Append(psuWattage);
+        if (!string.IsNullOrEmpty(psuRating)) a.Append(" -PsuRating ").Append(Q(psuRating));
         Launch(a.ToString(), String.Join(" + ", mods.ToArray()));
     }
 

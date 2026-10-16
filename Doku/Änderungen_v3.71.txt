@@ -10,9 +10,9 @@ sowie im Dark Mode.
   230V EU-Effizienz     Ermittlung des Wirkungsgrads über 5 Stützstellen bei 5 %, 10 %, 20 %, 50 % und 100 %
                         Netzteilauslastung für 7 Zertifizierungsstufen (Unbekannt, 80 PLUS White, Bronze, Silver,
                         Gold, Platinum, Titanium) via stückweise linearer Interpolation.
-  Konfiguration         Einstellbare Netzteil-Nennleistung (PsuWattage, Standard: 650 W, 0 = nicht angegeben) und
-                        Effizienzklasse (PsuRating, Standard: 80 PLUS Bronze) in den Oberflächen-Einstellungen sowie
-                        über die CLI-Startparameter -PsuWattage und -PsuRating; dauerhafte Speicherung in Einstellungen.json.
+  Berichtskonfiguration Interaktive Konfigurationsleiste direkt im HTML-Bericht (Eingabe der Nennleistung in Watt
+                        und Auswahl der 80 PLUS Effizienzklasse) mit sofortiger Live-Neuberechnung aller AC-Verbrauchswerte,
+                        Netzteilauslastungsgrade und jährlichen Stromkosten sowie automatischer Persistenz im Browser (localStorage).
   Detaillierte DC-Last  Physikalische Modellierung der internen DC-Verbrauchswerte:
                         - CPU: Package-Power zuzüglich 5 % (Idle) bzw. 10 % (Last) Mainboard-VRM-Wandlerverluste.
                         - GPU: TBP-Direktmessung bei NVIDIA/Intel; bei AMD Radeon ASIC/TGP-Aufschläge von +4 W (Idle)
@@ -43,6 +43,9 @@ sowie im Dark Mode.
 3. BERICHTS-FEINSCHLIFF & BENCHMARK-PROFILKARTEN
   Nutzungsprofile       Die drei Bewertungsprofile (Gaming, Büro, Workstation) stehen wieder prominent über den
                         Benchmark-Detailtabellen, visuell abgehoben mit dezentem Akzent-Hintergrund (var(--accent-soft)).
+  Transparenter Tooltip Jede Profilkarte bietet beim Überfahren einen ausführlichen Hover-Tooltip, der das gewichtete
+                        geometrische Mittel, die prozentuale Gewichtung jeder Hardwarekomponente und die tatsächliche
+                        Leistung des gemessenen Systems transparent aufschlüsselt.
   Komponentenkarten     Neutrale Metrik-Kacheln für CPU, GPU, RAM und Datenträger ordnen sich direkt unter den
                         Nutzungsprofilen ein.
   System-Bereinigung    Die kompakte Facts-Tabelle im Kopfbereich des Diagnoseberichts wurde von redundanten
@@ -51,15 +54,13 @@ sowie im Dark Mode.
                         über den Abschnitt „Sensoren während des Benchmarks“ verschoben.
 
 4. DASHBOARD- & DARK-MODE-KORREKTUREN
-  Gitterlinien Spalte 1 In der Matrix-Tabelle im Dark Mode blieben Trennlinien der fixierten ersten Spalte (sticky)
-                        durch Browser-Rendering-Artefakte verborgen; behoben über gezielte Inset-Box-Shadows.
-  Monochrome Symbole    Bunte Mobiltelefon- und Messenger-Emojis wurden gemäß AGENTS.md Regel 6 im gesamten Bericht
-                        und Dashboard durch dezente, monochrome Unicode-Symbole (▲, ■, ⚙, ⏱, ⚡, ✓, !, ✕) ersetzt.
+  Gitterlinien Spalte 1 In der Matrix-Tabelle im Dark Mode sind Trennlinien der fixierten ersten Spalte (sticky)
+                        durch kontrastreiche Randlinien (#444E5E / #363E4D) und z-index-Priorisierung deutlich sichtbar.
+  Emojis beibehalten    Die bewährten Symbole (🎮, 💼, 🚀, 📊) für Nutzungsprofile und Aktionen bleiben erhalten.
 
 
 GEFUNDEN UND BEHOBEN
-  In der Matrix-Tabelle des Dashboards verschwanden die unteren Rahmenlinien der ersten Spalte im Dark Mode bei horizontalem Scrollen; behoben durch box-shadow: inset 0 -1px 0 var(--card-border).
-  Bunte Emojis (z.B. Raketen, Controller, Aktenkoffer, Feuer) widersprachen den Projekt- und Fluent-Designrichtlinien; durch monochrome Unicode-Symbole ersetzt.
+  In der Matrix-Tabelle des Dashboards verschwanden die unteren Rahmenlinien der ersten Spalte im Dark Mode; behoben durch #444E5E Trennlinien und z-index-Priorisierung.
   Die Startzeit aus Event 100 führte bei Anwendern zu Verwirrung, weil BootDuration auch die nachgelagerte Leerlauf-Wartezeit umfasst; Aufschlüsselung in MainPathBootTime und BootPostBootTime klärt die Diskrepanz auf.
   AMD Radeon Grafikkarten meldeten unter Last nur TGP/ASIC-Verbrauch ohne VRAM- und VRM-Verluste; durch TBP-Korrekturaufschlag (+15 % unter Last, +4 W im Idle) korrigiert.
   Netzteilauslastungen über 100 % führten bei Stützstellenarrays potenziell zu Bereichsüberschreitungen; durch Begrenzung und Überlast-Extrapolation abgefangen.

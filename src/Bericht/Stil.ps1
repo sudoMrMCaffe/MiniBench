@@ -131,7 +131,7 @@ small.okt{color:var(--ok)} small.warnt{color:var(--warn)}
 .ov.profile-grid{gap:14px;margin:4px 0 18px}
 a.tile,.tile{display:block;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--line);border-radius:10px;padding:11px 14px 12px}
 a.tile:hover,.tile:hover{border-color:var(--muted)}
-.tile.profile{background:var(--accent-soft);border:1px solid var(--accent-border);border-top:5px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,0.04)}
+.tile.profile{background:var(--accent-soft);border:1px solid var(--accent-border);border-top:5px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,0.04);cursor:help}
 .tile.profile h4{color:var(--text);font-size:13px;letter-spacing:0;text-transform:none}
 .tile.profile .pword{font-weight:600;font-size:13px;color:var(--accent);margin:2px 0 6px}
 .tile.tok,a.tile.tok{border-top-color:var(--ok)} .tile.twarn,a.tile.twarn{border-top-color:var(--warn)} .tile.tcrit,a.tile.tcrit{border-top-color:var(--crit)} .tile.tinfo,a.tile.tinfo{border-top-color:var(--info)}

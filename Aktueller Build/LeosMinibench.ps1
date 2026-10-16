@@ -5716,19 +5716,9 @@ public partial class DiagGui : Form
     bool liveRunning, liveStopping;
     DateTime liveStopAt;
     Button btnLive, btnSensTools, btnSensSave;
-    ComboBox cmbDriver, cmbPsuWatt, cmbPsuRate;
+    ComboBox cmbDriver;
     int psuWattage = 650;
     string psuRating = "80 PLUS Bronze";
-    static readonly string[] psuWattOptions = new string[] { "300 W", "400 W", "450 W", "500 W", "550 W", "600 W", "650 W", "700 W", "750 W", "850 W", "1000 W", "1200 W", "Unbekannt" };
-    static readonly string[] psuRatingOptions = new string[] { "Unbekannt", "80 PLUS White", "80 PLUS Bronze", "80 PLUS Silver", "80 PLUS Gold", "80 PLUS Platinum", "80 PLUS Titanium" };
-    static int ParseWattage(string text)
-    {
-        if (string.IsNullOrEmpty(text)) return 0;
-        System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(text, @"\d+");
-        int val = 0;
-        if (m.Success && int.TryParse(m.Value, out val)) return val;
-        return 0;
-    }
     Label lblSensTools, lblSensInfo;
     SensorChart chartLive, chartRun;
     ListView lvSens;
@@ -6128,25 +6118,6 @@ public partial class DiagGui : Form
                     if (d.ContainsKey("PsuRating")) psuRating = Convert.ToString(d["PsuRating"]);
                 }
             }
-        }
-        catch { }
-    }
-
-    void SavePsuPreference(int wattage, string rating)
-    {
-        try
-        {
-            if (SettingsFile.Length == 0) return;
-            Dictionary<string, object> d = null;
-            System.Web.Script.Serialization.JavaScriptSerializer js = new System.Web.Script.Serialization.JavaScriptSerializer();
-            if (File.Exists(SettingsFile))
-            {
-                try { d = js.DeserializeObject(File.ReadAllText(SettingsFile, Encoding.UTF8)) as Dictionary<string, object>; } catch { }
-            }
-            if (d == null) d = new Dictionary<string, object>();
-            d["PsuWattage"] = wattage;
-            d["PsuRating"] = rating;
-            File.WriteAllText(SettingsFile, js.Serialize(d), Encoding.UTF8);
         }
         catch { }
     }
@@ -6609,8 +6580,6 @@ public partial class DiagGui : Form
         Tip(btnSensSave, "Speichert alle Werte der Live-Ansicht als CSV unter Berichte\\Sensoren.");
         Tip(cmbDriver, "PawnIO ist der Treiber, den LibreHardwareMonitor für CPU-Temperatur, CPU-Takt, CPU-Leistung und Mainboard-Lüfter braucht. Standardmäßig aktiv für alle Messungen. Ein bereits installierter PawnIO bleibt immer unverändert.");
         Tip(cmbKeep, "Was nach dem Lauf mit PawnIO und smartmontools geschieht, die Leos Minibench installiert hat: nach dem Lauf entfernen (keine Reste) oder auf diesem PC behalten. Gespeichert je Gerät in Geraete.json.");
-        Tip(cmbPsuWatt, "Nennleistung des verbauten Netzteils in Watt für die Berechnung von Netzteilauslastung und Verlustleistung (0 W oder Unbekannt nutzt Standard-Schätzwerte).");
-        Tip(cmbPsuRate, "80-PLUS-Effizienzklasse des Netzteils für den typischen Wirkungsgrad an 230V EU bei unterschiedlicher Laststufe.");
         // Vergleichsdatenbank, Änderungen, Fuß
         Tip(btnCompare, "Vergleicht die angehakten Systeme in einem HTML-Bericht (mindestens zwei).");
         Tip(btnDelete, "Entfernt die angehakten Einträge aus der Datenbank. Die Berichtsordner bleiben erhalten.");
@@ -7997,23 +7966,6 @@ public partial class DiagGui : Form
         cmbKeep = Combo(230, new string[] { "nach dem Lauf entfernen (Standard)", "auf diesem PC behalten" }, 0); bk.Controls.Add(cmbKeep);
         Label lk = Lbl("PawnIO und smartmontools, die Leos Minibench installiert hat; gespeichert je Gerät in Geraete.json", 8.75f, false, UI.Muted); lk.Margin = new Padding(0, UI.S(5), 0, 0); bk.Controls.Add(lk);
         f.Controls.Add(bk);
-        FlowLayoutPanel bp = Row(); bp.Margin = new Padding(UI.S(4), 0, 0, UI.S(8));
-        bp.Controls.Add(RowLabel("Netzteil (Strom)", 120));
-        int wIdx = -1;
-        for (int i = 0; i < psuWattOptions.Length; i++) { if (ParseWattage(psuWattOptions[i]) == psuWattage) { wIdx = i; break; } }
-        cmbPsuWatt = Combo(100, psuWattOptions, wIdx >= 0 ? wIdx : 6); bp.Controls.Add(cmbPsuWatt);
-        int rIdx = Array.IndexOf(psuRatingOptions, psuRating);
-        cmbPsuRate = Combo(150, psuRatingOptions, rIdx >= 0 ? rIdx : 2); cmbPsuRate.Margin = new Padding(UI.S(6), 0, 0, 0); bp.Controls.Add(cmbPsuRate);
-        Label lp = Lbl("Nennleistung und 80-PLUS-Klasse für die präzise Stromverbrauchsschätzung", 8.75f, false, UI.Muted); lp.Margin = new Padding(UI.S(8), UI.S(5), 0, 0); bp.Controls.Add(lp);
-        f.Controls.Add(bp);
-        cmbPsuWatt.SelectedIndexChanged += delegate {
-            psuWattage = ParseWattage(Convert.ToString(cmbPsuWatt.SelectedItem));
-            SavePsuPreference(psuWattage, psuRating);
-        };
-        cmbPsuRate.SelectedIndexChanged += delegate {
-            psuRating = Convert.ToString(cmbPsuRate.SelectedItem);
-            SavePsuPreference(psuWattage, psuRating);
-        };
         LoadDeviceTools();
         cmbKeep.SelectedIndexChanged += delegate { SaveDeviceTools(); };
         cmbDriver.SelectedIndexChanged += delegate { SaveDeviceTools(); UpdateSensStatusBadge(); };
@@ -8513,10 +8465,8 @@ public partial class DiagGui : Form
         // ab v2.66 ohne Rückfrage vor dem Grafik-Lasttest (Wunsch aus dem Praxistest); die Abbruchschwelle wirkt weiter, Esc im Vorschaufenster beendet
         if (drv) a.Append(" -SensorTreiber");
         a.Append(KeepArg());
-        int pWatt = (cmbPsuWatt != null) ? ParseWattage(Convert.ToString(cmbPsuWatt.SelectedItem)) : psuWattage;
-        string pRate = (cmbPsuRate != null) ? Convert.ToString(cmbPsuRate.SelectedItem) : psuRating;
-        a.Append(" -PsuWattage ").Append(pWatt);
-        if (!string.IsNullOrEmpty(pRate)) a.Append(" -PsuRating ").Append(Q(pRate));
+        a.Append(" -PsuWattage ").Append(psuWattage);
+        if (!string.IsNullOrEmpty(psuRating)) a.Append(" -PsuRating ").Append(Q(psuRating));
         Launch(a.ToString(), String.Join(" + ", mods.ToArray()));
     }
 
@@ -13242,10 +13192,9 @@ public static class Versionshistorie
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
         new Eintrag("3.71", "15.10.2026", "Präzise Stromverbrauchsschätzung, Startzeit-Transparenz, Profilkarten und Dashboard-Korrekturen",
-            "Präzise Stromverbrauchsschätzung: Hardware- und Netzteil-Modellierung mit 230V EU-Effizienzkurven (Unbekannt bis 80 PLUS Titanium) über lineare Stützstellen-Interpolation (5 % bis 100 % Last), konfigurierbarer Nennleistung (PsuWattage) und Effizienzklasse (PsuRating) in Einstellungen und Startparametern; genaue DC-Berechnung inkl. VRM-Wandlerverlusten, AMD-Radeon-TBP-Zuschlägen, DIMM-, Datenträger- und Lüfter-Basisverbräuchen sowie Überlastwarnung (> 85 % unter Volllast). " +
-            "Startzeit-Transparenz: Standardmäßig geöffnete Boot-Performance-Sektion mit getrennter Ausweisung von Kernel- und Treiberstart (MainPathBootTime, Desktop einsatzbereit) und Hintergrund-Initialisierung (BootPostBootTime, vollständiger Leerlauf) zur Vermeidung von Fehlinterpretationen. " +
-            "Berichts-Feinschliff: Nutzungsprofile (Gaming, Büro, Workstation) mit dezentem Akzent-Hintergrund und neutrale Komponentenkarten prominent über den Benchmark-Detailtabellen wiederhergestellt; kompakte Facts-Tabelle von redundanten Leistungsschätzungen bereinigt; Block für Gesamtsystemverbrauch und Stromkostenrechner direkt über die Benchmark-Sensoren verlegt. " +
-            "Dashboard & Dark Mode: Rahmenlinien in Spalte 1 im Dark Mode mittels Inset-Box-Shadow repariert; bunte Emojis im Dashboard und Bericht durch dezente, monochrome Unicode-Symbole (▲, ■, ⚙, ⏱, ⚡, ✓, !, ✕) gemäß Projektrichtlinien ersetzt."),
+            "Präzise Stromverbrauchsschätzung: Hardware- und Netzteil-Modellierung mit 230V EU-Effizienzkurven (Unbekannt bis 80 PLUS Titanium) über lineare Stützstellen-Interpolation (5 % bis 100 % Last); interaktive Konfiguration von Nennleistung (Watt) und Effizienzklasse direkt im HTML-Bericht mit Live-Neuberechnung aller Verbrauchswerte, Auslastungsgrade und Stromkosten sowie browserseitiger Persistenz; genaue DC-Berechnung inkl. VRM-Wandlerverlusten, AMD-Radeon-TBP-Zuschlägen, DIMM-, Datenträger- und Lüfter-Basisverbräuchen sowie Überlastwarnung (> 85 % unter Volllast). " +
+            "Startzeit-Transparenz & Nutzungsprofile: Standardmäßig geöffnete Boot-Performance-Sektion mit getrennter Ausweisung von Kernel- und Treiberstart (MainPathBootTime, Desktop einsatzbereit) und Hintergrund-Initialisierung (BootPostBootTime, vollständiger Leerlauf); Nutzungsprofile (Gaming, Büro, Workstation) und Komponentenkarten im Benchmark mit transparentem Hover-Tooltip zur exakten Zusammensetzung und Gewichtung der Teilwerte. " +
+            "Dashboard & Dark Mode: Horizontale und vertikale Trennlinien in Spalte 1 im Dark Mode mittels kontrastreicher Randlinien und z-index-Priorisierung repariert; Emojis (🎮, 💼, 🚀, 📊) beibehalten."),
         new Eintrag("3.7", "15.10.2026", "Schnell behebbare Systemfehler, Startzeit-Analyse, Sensoren-Harmonisierung und modulares Dashboard",
             "Schnell behebbare Konfigurationsfehler: Automatische Erkennung von LAN-Verhandlungsrate gebremst (100 Mbit/s oder Halbduplex an Gigabit/2.5GbE-Adaptern), Monitorkabel an iGPU statt dGPU bei Desktops, Hz-Bremse bei Monitoren >= 75 Hz auf 60 Hz limitiert, inaktivem RAM-Speicherprofil (XMP/EXPO/DOCP) und veraltetem BIOS (> 2 Jahre) mit direkten Hersteller-Supportlinks sowie transparenter Bestätigung der Prüfung im Bericht. " +
             "Startzeit-Analyse: Aufschlüsselung der Boot Performance aus Event 100 (Kernel-Initialisierung, Desktop/PostBoot) und BIOS-POST-Dauer mit visueller Wasserfall-/Stack-Kaskade im Bericht (eingeklappt am Berichtsende) sowie Erfassung von Autostart-Verzögerern (Event 101-110 ab 1,0 s); robuster Fallback ohne Schätzwerte bei deaktiviertem Protokoll. " +
@@ -15794,7 +15743,7 @@ small.okt{color:var(--ok)} small.warnt{color:var(--warn)}
 .ov.profile-grid{gap:14px;margin:4px 0 18px}
 a.tile,.tile{display:block;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--line);border-radius:10px;padding:11px 14px 12px}
 a.tile:hover,.tile:hover{border-color:var(--muted)}
-.tile.profile{background:var(--accent-soft);border:1px solid var(--accent-border);border-top:5px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,0.04)}
+.tile.profile{background:var(--accent-soft);border:1px solid var(--accent-border);border-top:5px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,0.04);cursor:help}
 .tile.profile h4{color:var(--text);font-size:13px;letter-spacing:0;text-transform:none}
 .tile.profile .pword{font-weight:600;font-size:13px;color:var(--accent);margin:2px 0 6px}
 .tile.tok,a.tile.tok{border-top-color:var(--ok)} .tile.twarn,a.tile.twarn{border-top-color:var(--warn)} .tile.tcrit,a.tile.tcrit{border-top-color:var(--crit)} .tile.tinfo,a.tile.tinfo{border-top-color:var(--info)}
@@ -15928,9 +15877,9 @@ function New-ProfileCards {
     if ($null -eq $cpuMt -and $null -ne $gCpu.RefPct) { $cpuMt = $gCpu.RefPct }
 
     $profiles = @(
-        @{ Name = 'Gaming';       Icon = '▲'; W = @{ 'CPU_ST' = 1.0; 'CPU_MT' = 0.5; 'GPU' = 3.0; 'RAM' = 0.5; 'DISK' = 0.5 } }
-        @{ Name = 'Büro/Desktop'; Icon = '■'; W = @{ 'CPU_ST' = 2.0; 'CPU_MT' = 1.0; 'GPU' = 0.5; 'RAM' = 1.0; 'DISK' = 2.0 } }
-        @{ Name = 'Workstation';  Icon = '⚙'; W = @{ 'CPU_ST' = 0.5; 'CPU_MT' = 3.0; 'GPU' = 1.0; 'RAM' = 2.0; 'DISK' = 1.0 } }
+        @{ Name = 'Gaming';       Icon = '🎮'; W = @{ 'CPU_ST' = 1.0; 'CPU_MT' = 0.5; 'GPU' = 3.0; 'RAM' = 0.5; 'DISK' = 0.5 } }
+        @{ Name = 'Büro/Desktop'; Icon = '💼'; W = @{ 'CPU_ST' = 2.0; 'CPU_MT' = 1.0; 'GPU' = 0.5; 'RAM' = 1.0; 'DISK' = 2.0 } }
+        @{ Name = 'Workstation';  Icon = '🚀'; W = @{ 'CPU_ST' = 0.5; 'CPU_MT' = 3.0; 'GPU' = 1.0; 'RAM' = 2.0; 'DISK' = 1.0 } }
     )
 
     $sb = New-Object System.Text.StringBuilder
@@ -15950,8 +15899,37 @@ function New-ProfileCards {
         $word = Get-BenchRatingWord $score
         $bar = Get-RefBar $score 'ok'
 
-        [void]$sb.Append(('<div class="tile profile"><h4>{0} {1}</h4><div class="big">{2}<small> %</small></div><div class="pword">{3}</div>{4}</div>' -f
-            $p.Icon, (ConvertTo-HtmlText $p.Name), $score, (ConvertTo-HtmlText $word), $bar))
+        # Transparenter Hover-Tooltip zur Zusammensetzung der Bewertung
+        $tipLines = [System.Collections.Generic.List[string]]::new()
+        $wTotal = 0.0
+        foreach ($w in $weights) { $wTotal += $w }
+        $tipLines.Add(('Bewertung {0}: {1} % der Referenz ({2})' -f $p.Name, $score, $word))
+        $tipLines.Add('Zusammensetzung (gewichtetes geometrisches Mittel):')
+        if ($null -ne $gGpu.RefPct -and [double]$gGpu.RefPct -gt 0 -and $p.W['GPU'] -gt 0) {
+            $pct = [math]::Round(($p.W['GPU'] / $wTotal) * 100.0)
+            $tipLines.Add(('Grafikkarte (GPU): {0} % Gewicht (dieser PC: {1:N0} % der Referenz)' -f $pct, $gGpu.RefPct))
+        }
+        if ($null -ne $cpuSt -and [double]$cpuSt -gt 0 -and $p.W['CPU_ST'] -gt 0) {
+            $pct = [math]::Round(($p.W['CPU_ST'] / $wTotal) * 100.0)
+            $tipLines.Add(('CPU Single-Core: {0} % Gewicht (dieser PC: {1:N0} % der Referenz)' -f $pct, $cpuSt))
+        }
+        if ($null -ne $cpuMt -and [double]$cpuMt -gt 0 -and $p.W['CPU_MT'] -gt 0) {
+            $pct = [math]::Round(($p.W['CPU_MT'] / $wTotal) * 100.0)
+            $tipLines.Add(('CPU Multi-Core: {0} % Gewicht (dieser PC: {1:N0} % der Referenz)' -f $pct, $cpuMt))
+        }
+        if ($null -ne $gRam.RefPct -and [double]$gRam.RefPct -gt 0 -and $p.W['RAM'] -gt 0) {
+            $pct = [math]::Round(($p.W['RAM'] / $wTotal) * 100.0)
+            $tipLines.Add(('Arbeitsspeicher (RAM): {0} % Gewicht (dieser PC: {1:N0} % der Referenz)' -f $pct, $gRam.RefPct))
+        }
+        if ($null -ne $gDsk.RefPct -and [double]$gDsk.RefPct -gt 0 -and $p.W['DISK'] -gt 0) {
+            $pct = [math]::Round(($p.W['DISK'] / $wTotal) * 100.0)
+            $tipLines.Add(('Datenträger (SSD): {0} % Gewicht (dieser PC: {1:N0} % der Referenz)' -f $pct, $gDsk.RefPct))
+        }
+        $tipLines.Add('Berechnung: Relativ zur typischen Leistung der Hardwareklasse (Index 100).')
+        $tipText = ($tipLines -join "`n")
+
+        [void]$sb.Append(('<div class="tile profile" title="{0}" style="cursor:help;"><h4>{1} {2}</h4><div class="big">{3}<small> %</small></div><div class="pword">{4}</div>{5}</div>' -f
+            (ConvertTo-HtmlText $tipText), $p.Icon, (ConvertTo-HtmlText $p.Name), $score, (ConvertTo-HtmlText $word), $bar))
     }
     [void]$sb.Append('</div>')
     return $sb.ToString()
@@ -17581,7 +17559,7 @@ function Get-BenchDashboardHtmlTemplate {
       background: var(--neutral-bg);
       position: sticky;
       left: 0;
-      z-index: 2;
+      z-index: 3;
       box-shadow: inset 0 -1px 0 var(--card-border), inset -1px 0 0 var(--card-border);
     }
     .matrix-table td.col-feature {
@@ -17590,11 +17568,17 @@ function Get-BenchDashboardHtmlTemplate {
       background: var(--card-bg);
       position: sticky;
       left: 0;
+      z-index: 1;
       box-shadow: inset 0 -1px 0 var(--card-border), inset -1px 0 0 var(--card-border);
       border-bottom: 1px solid var(--card-border);
     }
+    [data-theme="dark"] .matrix-table th.col-feature,
     [data-theme="dark"] .matrix-table td.col-feature {
-      box-shadow: inset 0 -1px 0 var(--card-border), inset -1px 0 0 var(--card-border);
+      box-shadow: inset 0 -1px 0 #444E5E, inset -1px 0 0 #444E5E;
+      border-bottom: 1px solid #444E5E;
+    }
+    [data-theme="dark"] .matrix-table td {
+      border-bottom: 1px solid #363E4D;
     }
     .matrix-table th.col-base,
     .matrix-table td.col-base {
@@ -18586,17 +18570,17 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
     const profiles = [
-      { key: 'Gaming', icon: '▲', title: 'Gaming', desc: 'GPU- & Single-Thread-Fokus' },
-      { key: 'Desktop', icon: '■', title: 'Büro / Desktop', desc: 'Reaktionszeit & SSD-Leistung' },
-      { key: 'Workstation', icon: '⚙', title: 'Workstation', desc: 'Mehrkern- & RAM-Durchsatz' }
+      { key: 'Gaming', icon: '🎮', title: 'Gaming', desc: 'GPU- & Single-Thread-Fokus', tip: 'Gaming-Profil: 70 % GPU-Bildrate, 20 % CPU Single-Core, 10 % RAM und SSD (Kerne > 8 neutral)' },
+      { key: 'Desktop', icon: '💼', title: 'Büro / Desktop', desc: 'Reaktionszeit & SSD-Leistung', tip: 'Büro- und Desktop-Profil: 45 % SSD-Reaktionszeit (4K), 35 % CPU Single-Core, 20 % RAM-Latenz (0 % GPU/Multi-Core)' },
+      { key: 'Workstation', icon: '🚀', title: 'Workstation', desc: 'Mehrkern- & RAM-Durchsatz', tip: 'Workstation-Profil: 45 % CPU Multi-Core, 20 % Instruktionen/Kompression, 20 % RAM-Bandbreite, 15 % Dauertransfer' }
     ];
 
     let html = '';
     profiles.forEach(p => {
       const baseScore = baseSystem?.Scores?.[p.key] || 0;
       html += `<div class="profile-card">
-        <div class="profile-header">
-          <span><span style="opacity: 0.7; margin-right: 6px;">${p.icon}</span>${escapeHtml(p.title)}</span>
+        <div class="profile-header" title="${escapeHtml(p.tip)}" style="cursor: help;">
+          <span><span style="margin-right: 6px;">${p.icon}</span>${escapeHtml(p.title)}</span>
           <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: normal;">${escapeHtml(p.desc)}</span>
         </div>
         <div class="profile-sys-list">`;
@@ -19742,6 +19726,38 @@ function New-PowerEfficiencyHtml($Profile) {
     $hwTyp = $(if ($Profile.IsNotebook) { 'Notebook-Plattform mit SoC/Display-Modell' } else { 'Desktop-PC mit ATX-Mainboard & 80-PLUS-Netzteil' })
     [void]$sb.Append(('<p class="note">Mathematisch modellierter Gesamtverbrauch (DC intern und AC an der Steckdose) auf Basis der gemessenen Sensorwerte (CPU-Package und GPU-Board) sowie Plattform-Zuschlägen ({0}). Echte Sensormesswerte bleiben unangetastet.</p>' -f $hwTyp))
 
+    # Interaktive Netzteil-Konfigurationsleiste direkt im Bericht
+    $curWatt = if ($Profile.PsuWattage -gt 0) { [int]$Profile.PsuWattage } else { 650 }
+    $curRate = if ($Profile.PsuRating) { [string]$Profile.PsuRating } else { '80 PLUS Bronze' }
+    $rOpts = @('Unbekannt', '80 PLUS White', '80 PLUS Bronze', '80 PLUS Silver', '80 PLUS Gold', '80 PLUS Platinum', '80 PLUS Titanium')
+    $rSb = New-Object System.Text.StringBuilder
+    foreach ($ro in $rOpts) {
+        $sel = if ($ro -eq $curRate) { ' selected' } else { '' }
+        [void]$rSb.Append(('<option value="{0}"{1}>{0}</option>' -f $ro, $sel))
+    }
+    $cfgTpl = @'
+<div class="pwr-cfg-bar" style="margin:12px 0 16px;padding:12px 16px;background:var(--code);border:1px solid var(--line);border-radius:10px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;">
+  <div style="font-weight:650;font-size:13.5px;color:var(--text);display:flex;align-items:center;gap:6px;">
+    <span>⚡</span><span>Netzteil-Konfiguration:</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <label for="cfgPsuWatt" style="font-size:13px;color:var(--muted);font-weight:500;">Nennleistung:</label>
+    <input type="number" id="cfgPsuWatt" value="{0}" min="200" max="2500" step="50" style="width:85px;padding:5px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:inherit;font-size:13px;" oninput="recalcPsuModel()" title="Nennleistung des verbauten Netzteils in Watt (z. B. 550, 650, 750, 850, 1000 W)">
+    <span style="font-size:13px;color:var(--muted);">W</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <label for="cfgPsuRating" style="font-size:13px;color:var(--muted);font-weight:500;">Effizienzklasse:</label>
+    <select id="cfgPsuRating" style="padding:5px 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:inherit;font-size:13px;" onchange="recalcPsuModel()" title="80 PLUS Zertifizierung (230V EU Effizienzkurve)">
+      {1}
+    </select>
+  </div>
+  <div id="cfgPsuHint" style="font-size:12.5px;color:var(--muted);margin-left:auto;">
+    230V EU Effizienzmodell aktiv
+  </div>
+</div>
+'@
+    [void]$sb.Append(($cfgTpl -f $curWatt, $rSb.ToString()))
+
     # Kacheln für Leerlauf, Teillast, Gaming, Volllast
     [void]$sb.Append('<div class="pwr-grid">')
 
@@ -19750,16 +19766,18 @@ function New-PowerEfficiencyHtml($Profile) {
     $idleAc = $(if ($idle -and $idle.Verfuegbar) { '~{0:N0} W' -f [math]::Round($idle.P_AC) } else { 'n/v' })
     $idleDc = $(if ($idle -and $idle.Verfuegbar) { 'intern DC ~{0:N0} W' -f [math]::Round($idle.P_DC) } else { 'kein Leistungssensor' })
     $idleTip = $(if ($idle -and $idle.Verfuegbar) { $idle.Aufschluesselung } else { 'Keine Messwerte für CPU-Package-Power im Leerlauf vorhanden.' })
-    [void]$sb.Append(('<div class="pwr-card hit" data-tip="{0}"><h4>Leerlauf (Idle)</h4><div class="pwr-val">{1}</div><div class="pwr-sub">{2}</div></div>' -f `
-        (ConvertTo-HtmlText $idleTip), $idleAc, (ConvertTo-HtmlText $idleDc)))
+    $idleDcNum = $(if ($idle -and $idle.Verfuegbar) { [string]::Format($script:Inv, '{0:0.#}', $idle.P_DC) } else { '0' })
+    [void]$sb.Append(('<div class="pwr-card hit" id="pwrCardIdle" data-stage="Idle" data-dc="{0}" data-tip="{1}"><h4>Leerlauf (Idle)</h4><div class="pwr-val" id="pwrValIdle">{2}</div><div class="pwr-sub" id="pwrSubIdle">{3}</div></div>' -f `
+        $idleDcNum, (ConvertTo-HtmlText $idleTip), $idleAc, (ConvertTo-HtmlText $idleDc)))
 
     # 2. Teillast
     $part = $Profile.Teillast
     $partAc = $(if ($part -and $part.Verfuegbar) { '~{0:N0} W' -f [math]::Round($part.P_AC) } else { 'n/v' })
     $partDc = $(if ($part -and $part.Verfuegbar) { 'intern DC ~{0:N0} W' -f [math]::Round($part.P_DC) } else { 'kein Leistungssensor' })
     $partTip = $(if ($part -and $part.Verfuegbar) { $part.Aufschluesselung } else { 'Keine Messwerte für Teillast vorhanden.' })
-    [void]$sb.Append(('<div class="pwr-card hit" data-tip="{0}"><h4>Teillast (Alltag & Büro)</h4><div class="pwr-val">{1}</div><div class="pwr-sub">{2}</div></div>' -f `
-        (ConvertTo-HtmlText $partTip), $partAc, (ConvertTo-HtmlText $partDc)))
+    $partDcNum = $(if ($part -and $part.Verfuegbar) { [string]::Format($script:Inv, '{0:0.#}', $part.P_DC) } else { '0' })
+    [void]$sb.Append(('<div class="pwr-card hit" id="pwrCardPart" data-stage="Teillast" data-dc="{0}" data-tip="{1}"><h4>Teillast (Alltag & Büro)</h4><div class="pwr-val" id="pwrValPart">{2}</div><div class="pwr-sub" id="pwrSubPart">{3}</div></div>' -f `
+        $partDcNum, (ConvertTo-HtmlText $partTip), $partAc, (ConvertTo-HtmlText $partDc)))
 
     # 3. Typisches Gaming
     $game = $Profile.Gaming
@@ -19767,8 +19785,9 @@ function New-PowerEfficiencyHtml($Profile) {
         $gameAc = '~{0:N0} W' -f [math]::Round($game.P_AC)
         $gameDc = 'intern DC ~{0:N0} W' -f [math]::Round($game.P_DC)
         $gameTip = $game.Aufschluesselung
-        [void]$sb.Append(('<div class="pwr-card hit" data-tip="{0}"><h4>Typisches Gaming</h4><div class="pwr-val">{1}</div><div class="pwr-sub">{2}</div></div>' -f `
-            (ConvertTo-HtmlText $gameTip), $gameAc, (ConvertTo-HtmlText $gameDc)))
+        $gameDcNum = [string]::Format($script:Inv, '{0:0.#}', $game.P_DC)
+        [void]$sb.Append(('<div class="pwr-card hit" id="pwrCardGame" data-stage="Gaming" data-dc="{0}" data-tip="{1}"><h4>Typisches Gaming</h4><div class="pwr-val" id="pwrValGame">{2}</div><div class="pwr-sub" id="pwrSubGame">{3}</div></div>' -f `
+            $gameDcNum, (ConvertTo-HtmlText $gameTip), $gameAc, (ConvertTo-HtmlText $gameDc)))
     }
 
     # 4. Volllast
@@ -19776,12 +19795,16 @@ function New-PowerEfficiencyHtml($Profile) {
     $loadAc = $(if ($load -and $load.Verfuegbar) { '~{0:N0} W' -f [math]::Round($load.P_AC) } else { 'n/v' })
     $loadDc = $(if ($load -and $load.Verfuegbar) { 'intern DC ~{0:N0} W' -f [math]::Round($load.P_DC) } else { 'kein Leistungssensor' })
     $loadTip = $(if ($load -and $load.Verfuegbar) { $load.Aufschluesselung } else { 'Keine Messwerte unter Volllast vorhanden.' })
-    [void]$sb.Append(('<div class="pwr-card hit" data-tip="{0}"><h4>Volllast (Lasttest / Peak)</h4><div class="pwr-val">{1}</div><div class="pwr-sub">{2}</div></div>' -f `
-        (ConvertTo-HtmlText $loadTip), $loadAc, (ConvertTo-HtmlText $loadDc)))
+    $loadDcNum = $(if ($load -and $load.Verfuegbar) { [string]::Format($script:Inv, '{0:0.#}', $load.P_DC) } else { '0' })
+    [void]$sb.Append(('<div class="pwr-card hit" id="pwrCardLoad" data-stage="Load" data-dc="{0}" data-tip="{1}"><h4>Volllast (Lasttest / Peak)</h4><div class="pwr-val" id="pwrValLoad">{2}</div><div class="pwr-sub" id="pwrSubLoad">{3}</div></div>' -f `
+        $loadDcNum, (ConvertTo-HtmlText $loadTip), $loadAc, (ConvertTo-HtmlText $loadDc)))
 
     [void]$sb.Append('</div>')
     if ($load -and $load.AufschluesselungKurz) {
-        [void]$sb.Append(('<p class="note" style="margin:10px 0 14px;"><b>Volllast-Aufschlüsselung:</b> {0}</p>' -f (ConvertTo-HtmlText $load.AufschluesselungKurz)))
+        $warnDisplay = $(if ($load.LoadPercent -gt 85) { 'display:block;' } else { 'display:none;' })
+        $warnLoad = $(if ($load.LoadPercent) { [math]::Round($load.LoadPercent) } else { 0 })
+        [void]$sb.Append(('<p class="note" style="margin:10px 0 14px;"><b>Volllast-Aufschlüsselung:</b> <span id="pwrLoadBreakdown">{0}</span></p>' -f (ConvertTo-HtmlText $load.AufschluesselungKurz)))
+        [void]$sb.Append(('<div id="pwrLoadWarn" style="{0}margin:-6px 0 14px;padding:8px 12px;border-radius:8px;background:var(--warn-bg);border:1px solid var(--warn);color:var(--warn);font-size:13px;font-weight:600;">⚠️ Netzteil unter Volllast zu {1} % ausgelastet. Wenig Puffer für Lastspitzen.</div>' -f $warnDisplay, $warnLoad))
     }
 
     # Effizienz-Indizes
@@ -19810,7 +19833,7 @@ function New-PowerEfficiencyHtml($Profile) {
     if ($pTeilNum -gt 0 -or $pVollNum -gt 0) {
         $initKwh = [math]::Round((4 * $pTeilNum + 2 * $pVollNum) * 365 / 1000.0, 1)
         $initCost = [math]::Round($initKwh * 0.35, 2)
-        [void]$sb.Append('<details open style="margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:10px 16px;"><summary style="font-weight:650;color:var(--accent);">Jährliche Stromkosten-Schätzung (Verbrauchskalkulator)</summary>')
+        [void]$sb.Append('<details open style="margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:10px 16px;"><summary style="font-weight:650;color:var(--accent);cursor:pointer;">Jährliche Stromkosten-Schätzung (Verbrauchskalkulator)</summary>')
         $calcTpl = @'
 <div class="calc-grid">
 <input type="hidden" id="calcPTeil" value="{0}">
@@ -19820,11 +19843,120 @@ function New-PowerEfficiencyHtml($Profile) {
 <div class="calc-field"><label for="calcPrice">Strompreis (Cent/kWh):</label><input type="number" id="calcPrice" value="35" min="1" max="150" step="1" oninput="recalcPowerCost()"></div>
 <div class="calc-res"><span>Jahresverbrauch</span><b id="calcOutKwh">{2:N0} kWh</b></div>
 <div class="calc-res"><span>Geschätzte Kosten</span><b id="calcOutCost">{3:N2} €</b></div>
-</div><p class="note" style="margin-top:8px;">Berechnung basiert auf angenommenen 365 Tagen/Jahr mit den modellierten AC-Leistungswerten (~{0} W Teillast, ~{1} W Volllast).</p>
+</div><p class="note" id="calcCostNote" style="margin-top:8px;">Berechnung basiert auf angenommenen 365 Tagen/Jahr mit den modellierten AC-Leistungswerten (~{0} W Teillast, ~{1} W Volllast).</p>
 '@
         [void]$sb.Append(($calcTpl -f $pTeilNum, $pVollNum, $initKwh, $initCost))
         [void]$sb.Append(@'
 <script>
+var psuCurves = {
+  "Unbekannt":         [78.0, 82.0, 86.0, 88.0, 85.0],
+  "80 PLUS White":    [76.0, 80.0, 84.0, 86.0, 83.0],
+  "80 PLUS Bronze":   [79.0, 83.0, 86.5, 88.5, 85.5],
+  "80 PLUS Silver":   [81.0, 85.0, 88.5, 90.5, 88.0],
+  "80 PLUS Gold":     [83.5, 87.5, 90.5, 92.5, 90.0],
+  "80 PLUS Platinum": [85.5, 89.5, 92.5, 94.0, 91.5],
+  "80 PLUS Titanium": [88.0, 91.5, 94.5, 96.0, 93.5]
+};
+var loadSteps = [5, 10, 20, 50, 100];
+
+function calcPsuEta(pDc, pWatt, rating, stage) {
+  var curve = psuCurves[rating] || psuCurves["80 PLUS Bronze"];
+  if (!pWatt || pWatt <= 0) {
+    var eff = 86.0;
+    if (stage === 'Idle') eff = curve[1];
+    else if (stage === 'Teillast') eff = curve[2];
+    else eff = curve[3];
+    return { eta: eff / 100.0, etaPct: eff, loadPct: null };
+  }
+  var loadPct = (pDc / pWatt) * 100.0;
+  var eff = 80.0;
+  if (loadPct <= 5.0) {
+    eff = Math.max(70.0, curve[0] - (5.0 - loadPct) * 1.5);
+  } else if (loadPct >= 100.0) {
+    eff = Math.max(70.0, curve[4] - (loadPct - 100.0) * 0.1);
+  } else {
+    for (var i = 0; i < loadSteps.length - 1; i++) {
+      if (loadPct >= loadSteps[i] && loadPct <= loadSteps[i + 1]) {
+        var x0 = loadSteps[i], x1 = loadSteps[i + 1];
+        var y0 = curve[i], y1 = curve[i + 1];
+        eff = y0 + ((loadPct - x0) / (x1 - x0)) * (y1 - y0);
+        break;
+      }
+    }
+  }
+  return { eta: eff / 100.0, etaPct: Math.round(eff * 10) / 10, loadPct: Math.round(loadPct * 10) / 10 };
+}
+
+function recalcPsuModel() {
+  var eW = document.getElementById('cfgPsuWatt'), eR = document.getElementById('cfgPsuRating');
+  if (!eW || !eR) return;
+  var pWatt = parseInt(eW.value, 10) || 0;
+  var rating = eR.value;
+
+  try {
+    localStorage.setItem('minibench_psu_watt', pWatt);
+    localStorage.setItem('minibench_psu_rating', rating);
+  } catch(e) {}
+
+  var cards = [
+    { id: 'pwrCardIdle', vId: 'pwrValIdle', sId: 'pwrSubIdle', stage: 'Idle' },
+    { id: 'pwrCardPart', vId: 'pwrValPart', sId: 'pwrSubPart', stage: 'Teillast' },
+    { id: 'pwrCardGame', vId: 'pwrValGame', sId: 'pwrSubGame', stage: 'Gaming' },
+    { id: 'pwrCardLoad', vId: 'pwrValLoad', sId: 'pwrSubLoad', stage: 'Load' }
+  ];
+
+  var newAcPart = 0, newAcLoad = 0;
+
+  cards.forEach(function(c) {
+    var el = document.getElementById(c.id);
+    if (!el) return;
+    var pDc = parseFloat(el.getAttribute('data-dc'));
+    if (isNaN(pDc) || pDc <= 0) return;
+    var res = calcPsuEta(pDc, pWatt, rating, c.stage);
+    var pAc = Math.round(pDc / res.eta);
+    var vEl = document.getElementById(c.vId);
+    var sEl = document.getElementById(c.sId);
+    if (vEl) vEl.textContent = '~' + pAc + ' W';
+    if (sEl) {
+      if (res.loadPct !== null) {
+        sEl.textContent = 'intern DC ~' + Math.round(pDc) + ' W (PSU-Last ~' + Math.round(res.loadPct) + ' % @ ~' + res.etaPct.toLocaleString('de-DE') + ' % Effizienz)';
+      } else {
+        sEl.textContent = 'intern DC ~' + Math.round(pDc) + ' W (~' + res.etaPct.toLocaleString('de-DE') + ' % Effizienz)';
+      }
+    }
+    if (c.stage === 'Teillast') newAcPart = pAc;
+    if (c.stage === 'Load') {
+      newAcLoad = pAc;
+      var bdEl = document.getElementById('pwrLoadBreakdown');
+      if (bdEl) {
+        if (pWatt > 0 && res.loadPct !== null) {
+          bdEl.textContent = '~' + pAc + ' W an der Steckdose (intern ~' + Math.round(pDc) + ' W | PSU-Last ~' + Math.round(res.loadPct) + ' % @ ~' + res.etaPct.toLocaleString('de-DE') + ' % Effizienz [' + pWatt + ' W, ' + rating + '])';
+        } else {
+          bdEl.textContent = '~' + pAc + ' W an der Steckdose (intern ~' + Math.round(pDc) + ' W | ~' + res.etaPct.toLocaleString('de-DE') + ' % Effizienz [' + rating + '])';
+        }
+      }
+      var wEl = document.getElementById('pwrLoadWarn');
+      if (wEl) {
+        if (pWatt > 0 && res.loadPct > 85) {
+          wEl.style.display = 'block';
+          wEl.textContent = '⚠️ Netzteil unter Volllast zu ' + Math.round(res.loadPct) + ' % ausgelastet (~' + Math.round(pDc) + ' W von ' + pWatt + ' W Nennleistung). Wenig Puffer für Lastspitzen.';
+        } else {
+          wEl.style.display = 'none';
+        }
+      }
+    }
+  });
+
+  var elPT = document.getElementById('calcPTeil'), elPV = document.getElementById('calcPVoll');
+  if (elPT && newAcPart > 0) elPT.value = newAcPart;
+  if (elPV && newAcLoad > 0) elPV.value = newAcLoad;
+  var noteEl = document.getElementById('calcCostNote');
+  if (noteEl && newAcPart > 0 && newAcLoad > 0) {
+    noteEl.textContent = 'Berechnung basiert auf angenommenen 365 Tagen/Jahr mit den modellierten AC-Leistungswerten (~' + newAcPart + ' W Teillast, ~' + newAcLoad + ' W Volllast).';
+  }
+  if (typeof recalcPowerCost === 'function') recalcPowerCost();
+}
+
 function recalcPowerCost(){
   var eHT=document.getElementById('calcHTeil'),eHV=document.getElementById('calcHVoll'),eP=document.getElementById('calcPrice'),ePT=document.getElementById('calcPTeil'),ePV=document.getElementById('calcPVoll');
   if(!eHT||!eHV||!eP||!ePT||!ePV)return;
@@ -19834,6 +19966,18 @@ function recalcPowerCost(){
   if(oK)oK.textContent=Math.round(kwhY)+' kWh';
   if(oC)oC.textContent=cst.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
 }
+
+(function initPsuFromStorage() {
+  try {
+    var sW = localStorage.getItem('minibench_psu_watt');
+    var sR = localStorage.getItem('minibench_psu_rating');
+    var eW = document.getElementById('cfgPsuWatt');
+    var eR = document.getElementById('cfgPsuRating');
+    if (sW && eW) eW.value = sW;
+    if (sR && eR) eR.value = sR;
+    if (sW || sR) recalcPsuModel();
+  } catch(e) {}
+})();
 </script></details>
 '@)
     }
@@ -20104,7 +20248,7 @@ function New-HtmlReport {
         $cn = [string[]](@('Dieser PC') + @($script:CmpSystems | ForEach-Object { $_.Computer }))
         [void]$sb.Append('<section class="box" data-section="benchmark"><h2>Vergleich mit bereits geprüften Systemen</h2><p class="note">')
         for ($k = 0; $k -lt $cn.Count; $k++) { [void]$sb.Append(('<i class="sw c{0}"></i>{1}{2}&nbsp;&nbsp; ' -f $k, (ConvertTo-HtmlText $cn[$k]), $(if ($k) { ' (' + (ConvertTo-HtmlText $script:CmpSystems[$k - 1].Datum) + ')' } else { '' }))) }
-        [void]$sb.Append(('<br>Längerer Balken = besser. Prozent: Abstand des anderen Systems zu diesem PC, grün = das andere System ist besser. Platz: Rang dieses PCs unter allen Systemen der Datenbank.</p><div style="margin:12px 0 16px"><a href="../Dashboard.html?system={0}" class="tab-btn btn-dash" target="_blank">Interaktives Vergleichsdashboard öffnen (dieser PC vorausgewählt) &rarr;</a></div>' -f $compParam))
+        [void]$sb.Append(('<br>Längerer Balken = besser. Prozent: Abstand des anderen Systems zu diesem PC, grün = das andere System ist besser. Platz: Rang dieses PCs unter allen Systemen der Datenbank.</p><div style="margin:12px 0 16px"><a href="../Dashboard.html?system={0}" class="tab-btn btn-dash" target="_blank">📊 Interaktives Vergleichsdashboard öffnen (dieser PC vorausgewählt) &rarr;</a></div>' -f $compParam))
         $lastG = ''
         foreach ($r in $script:CmpRows) {
             $gname = $script:GroupOfKey[($r.Key -split '\|')[0]]

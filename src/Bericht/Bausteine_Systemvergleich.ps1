@@ -38,9 +38,9 @@ function New-ProfileCards {
     if ($null -eq $cpuMt -and $null -ne $gCpu.RefPct) { $cpuMt = $gCpu.RefPct }
 
     $profiles = @(
-        @{ Name = 'Gaming';       Icon = '▲'; W = @{ 'CPU_ST' = 1.0; 'CPU_MT' = 0.5; 'GPU' = 3.0; 'RAM' = 0.5; 'DISK' = 0.5 } }
-        @{ Name = 'Büro/Desktop'; Icon = '■'; W = @{ 'CPU_ST' = 2.0; 'CPU_MT' = 1.0; 'GPU' = 0.5; 'RAM' = 1.0; 'DISK' = 2.0 } }
-        @{ Name = 'Workstation';  Icon = '⚙'; W = @{ 'CPU_ST' = 0.5; 'CPU_MT' = 3.0; 'GPU' = 1.0; 'RAM' = 2.0; 'DISK' = 1.0 } }
+        @{ Name = 'Gaming';       Icon = '🎮'; W = @{ 'CPU_ST' = 1.0; 'CPU_MT' = 0.5; 'GPU' = 3.0; 'RAM' = 0.5; 'DISK' = 0.5 } }
+        @{ Name = 'Büro/Desktop'; Icon = '💼'; W = @{ 'CPU_ST' = 2.0; 'CPU_MT' = 1.0; 'GPU' = 0.5; 'RAM' = 1.0; 'DISK' = 2.0 } }
+        @{ Name = 'Workstation';  Icon = '🚀'; W = @{ 'CPU_ST' = 0.5; 'CPU_MT' = 3.0; 'GPU' = 1.0; 'RAM' = 2.0; 'DISK' = 1.0 } }
     )
 
     $sb = New-Object System.Text.StringBuilder
@@ -60,8 +60,37 @@ function New-ProfileCards {
         $word = Get-BenchRatingWord $score
         $bar = Get-RefBar $score 'ok'
 
-        [void]$sb.Append(('<div class="tile profile"><h4>{0} {1}</h4><div class="big">{2}<small> %</small></div><div class="pword">{3}</div>{4}</div>' -f
-            $p.Icon, (ConvertTo-HtmlText $p.Name), $score, (ConvertTo-HtmlText $word), $bar))
+        # Transparenter Hover-Tooltip zur Zusammensetzung der Bewertung
+        $tipLines = [System.Collections.Generic.List[string]]::new()
+        $wTotal = 0.0
+        foreach ($w in $weights) { $wTotal += $w }
+        $tipLines.Add(('Bewertung {0}: {1} % der Referenz ({2})' -f $p.Name, $score, $word))
+        $tipLines.Add('Zusammensetzung (gewichtetes geometrisches Mittel):')
+        if ($null -ne $gGpu.RefPct -and [double]$gGpu.RefPct -gt 0 -and $p.W['GPU'] -gt 0) {
+            $pct = [math]::Round(($p.W['GPU'] / $wTotal) * 100.0)
+            $tipLines.Add(('Grafikkarte (GPU): {0} % Gewicht (dieser PC: {1:N0} % der Referenz)' -f $pct, $gGpu.RefPct))
+        }
+        if ($null -ne $cpuSt -and [double]$cpuSt -gt 0 -and $p.W['CPU_ST'] -gt 0) {
+            $pct = [math]::Round(($p.W['CPU_ST'] / $wTotal) * 100.0)
+            $tipLines.Add(('CPU Single-Core: {0} % Gewicht (dieser PC: {1:N0} % der Referenz)' -f $pct, $cpuSt))
+        }
+        if ($null -ne $cpuMt -and [double]$cpuMt -gt 0 -and $p.W['CPU_MT'] -gt 0) {
+            $pct = [math]::Round(($p.W['CPU_MT'] / $wTotal) * 100.0)
+            $tipLines.Add(('CPU Multi-Core: {0} % Gewicht (dieser PC: {1:N0} % der Referenz)' -f $pct, $cpuMt))
+        }
+        if ($null -ne $gRam.RefPct -and [double]$gRam.RefPct -gt 0 -and $p.W['RAM'] -gt 0) {
+            $pct = [math]::Round(($p.W['RAM'] / $wTotal) * 100.0)
+            $tipLines.Add(('Arbeitsspeicher (RAM): {0} % Gewicht (dieser PC: {1:N0} % der Referenz)' -f $pct, $gRam.RefPct))
+        }
+        if ($null -ne $gDsk.RefPct -and [double]$gDsk.RefPct -gt 0 -and $p.W['DISK'] -gt 0) {
+            $pct = [math]::Round(($p.W['DISK'] / $wTotal) * 100.0)
+            $tipLines.Add(('Datenträger (SSD): {0} % Gewicht (dieser PC: {1:N0} % der Referenz)' -f $pct, $gDsk.RefPct))
+        }
+        $tipLines.Add('Berechnung: Relativ zur typischen Leistung der Hardwareklasse (Index 100).')
+        $tipText = ($tipLines -join "`n")
+
+        [void]$sb.Append(('<div class="tile profile" title="{0}" style="cursor:help;"><h4>{1} {2}</h4><div class="big">{3}<small> %</small></div><div class="pword">{4}</div>{5}</div>' -f
+            (ConvertTo-HtmlText $tipText), $p.Icon, (ConvertTo-HtmlText $p.Name), $score, (ConvertTo-HtmlText $word), $bar))
     }
     [void]$sb.Append('</div>')
     return $sb.ToString()

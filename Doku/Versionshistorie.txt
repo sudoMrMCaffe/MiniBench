@@ -8,16 +8,16 @@ Die Liste steht auch im Programm (Info-Knopf oben rechts, Quelle: src\Oberflaech
 VERSION 3.71   (15.10.2026)  PRÄZISE STROMVERBRAUCHSSCHÄTZUNG, STARTZEIT-TRANSPARENZ, PROFILKARTEN UND DASHBOARD-KORREKTUREN
 ====================================================================================================
 Präzise Stromverbrauchsschätzung: Hardware- und Netzteil-Modellierung mit 230V EU-Effizienzkurven (Unbekannt bis 80 PLUS Titanium)
-über lineare Stützstellen-Interpolation (5 % bis 100 % Last), konfigurierbarer Nennleistung (PsuWattage) und Effizienzklasse (PsuRating)
-in Einstellungen und Startparametern; genaue DC-Berechnung inkl. VRM-Wandlerverlusten, AMD-Radeon-TBP-Zuschlägen, DIMM-, Datenträger-
-und Lüfter-Basisverbräuchen sowie Überlastwarnung (> 85 % unter Volllast).
-Startzeit-Transparenz: Standardmäßig geöffnete Boot-Performance-Sektion mit getrennter Ausweisung von Kernel- und Treiberstart
-(MainPathBootTime, Desktop einsatzbereit) und Hintergrund-Initialisierung (BootPostBootTime, vollständiger Leerlauf) zur Vermeidung von Fehlinterpretationen.
-Berichts-Feinschliff: Nutzungsprofile (Gaming, Büro, Workstation) mit dezentem Akzent-Hintergrund und neutrale Komponentenkarten
-prominent über den Benchmark-Detailtabellen wiederhergestellt; kompakte Facts-Tabelle von redundanten Leistungsschätzungen bereinigt;
-Block für Gesamtsystemverbrauch und Stromkostenrechner direkt über die Benchmark-Sensoren verlegt.
-Dashboard & Dark Mode: Rahmenlinien in Spalte 1 im Dark Mode mittels Inset-Box-Shadow repariert; bunte Emojis im Dashboard und
-Bericht durch dezente, monochrome Unicode-Symbole (▲, ■, ⚙, ⏱, ⚡, ✓, !, ✕) gemäß Projektrichtlinien ersetzt.
+über lineare Stützstellen-Interpolation (5 % bis 100 % Last); interaktive Konfiguration von Nennleistung (Watt) und Effizienzklasse
+direkt im HTML-Bericht mit Live-Neuberechnung aller Verbrauchswerte, Auslastungsgrade und Stromkosten sowie browserseitiger Persistenz;
+genaue DC-Berechnung inkl. VRM-Wandlerverlusten, AMD-Radeon-TBP-Zuschlägen, DIMM-, Datenträger- und Lüfter-Basisverbräuchen sowie
+Überlastwarnung (> 85 % unter Volllast).
+Startzeit-Transparenz & Nutzungsprofile: Standardmäßig geöffnete Boot-Performance-Sektion mit getrennter Ausweisung von Kernel- und
+Treiberstart (MainPathBootTime, Desktop einsatzbereit) und Hintergrund-Initialisierung (BootPostBootTime, vollständiger Leerlauf);
+Nutzungsprofile (Gaming, Büro, Workstation) und Komponentenkarten im Benchmark mit transparentem Hover-Tooltip zur exakten Zusammensetzung
+und Gewichtung der Teilwerte.
+Dashboard & Dark Mode: Horizontale und vertikale Trennlinien in Spalte 1 im Dark Mode mittels kontrastreicher Randlinien und z-index-Priorisierung
+repariert; Emojis (🎮, 💼, 🚀, 📊) beibehalten.
 
 VERSION 3.7    (15.10.2026)  SCHNELL BEHEBBARE SYSTEMFEHLER, STARTZEIT-ANALYSE, SENSOREN-HARMONISIERUNG UND MODULARES DASHBOARD
 ====================================================================================================
