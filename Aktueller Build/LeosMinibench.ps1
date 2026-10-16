@@ -5973,7 +5973,8 @@ public partial class DiagGui : Form
         LoadDb();
         setupView = BuildSetup(); runView = BuildRun();
         FillPresets(true);
-        if (!LoadStartPagePreference() && curPage == 0) ShowPage(1);
+        if (LoadStartPagePreference()) ShowPage(0);
+        else if (curPage == 0) ShowPage(1);
         UpdateSensStatusBadge();
         setupView.Dock = DockStyle.Fill; runView.Dock = DockStyle.Fill; runView.Visible = false;
         body.Controls.Add(runView); body.Controls.Add(setupView);
@@ -8823,12 +8824,15 @@ public partial class DiagGui : Form
                 {
                     sel = i + 1;
                     ApplyPreset(start);
-                    int targetPage = 1;
-                    for (int m = 1; m <= 5 && m < nav.Count; m++)
+                    if (!LoadStartPagePreference())
                     {
-                        if (nav[m].Checked) { targetPage = m; break; }
+                        int targetPage = 1;
+                        for (int m = 1; m <= 5 && m < nav.Count; m++)
+                        {
+                            if (nav[m].Checked) { targetPage = m; break; }
+                        }
+                        ShowPage(targetPage);
                     }
-                    ShowPage(targetPage);
                 }
             }
             cmbPreset.SelectedIndex = sel;
@@ -9645,6 +9649,7 @@ public static class UI
     // ab v3.64: Gestaltungsregeln für alle Seiten (Werte in Pixeln bei 96 dpi, immer über S() verwenden)
     public const int Abstand1 = 4, Abstand2 = 8, Abstand3 = 12, Abstand4 = 16, Abstand5 = 24;
     public const int Gruppenbreite = 780;      // Breite von Gruppen, Tabellen und Hinweistexten
+    public const int StartGruppenbreite = 860; // Breite für Startseiten-Karten und Raster (ab v3.72)
     public const int Seitenrand = 24;          // Innenabstand jeder Seite links und oben
     public const float SchriftTitel = 15f, SchriftAbschnitt = 11.5f, SchriftGruppe = 10f, SchriftText = 9.5f, SchriftHinweis = 9f;
 
@@ -10089,7 +10094,7 @@ public class StartTaskCard : Control
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable | ControlStyles.SupportsTransparentBackColor, true);
         Cursor = Cursors.Hand;
         BackColor = UI.Panel;
-        Size = new Size(UI.S(177), UI.S(205));
+        Size = new Size(UI.S(205), UI.S(215));
         Margin = new Padding(0, 0, UI.S(10), UI.S(14));
     }
 
@@ -10165,7 +10170,7 @@ public class StartTaskCard : Control
         // Beschreibung
         using (Font fDesc = new Font("Segoe UI", 8.25f))
         {
-            Rectangle rDesc = new Rectangle(UI.S(12), UI.S(88), Width - UI.S(24), Height - UI.S(116));
+            Rectangle rDesc = new Rectangle(UI.S(12), UI.S(88), Width - UI.S(24), Height - UI.S(120));
             TextRenderer.DrawText(g, desc, fDesc, rDesc, UI.Muted, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak);
         }
 
@@ -10190,8 +10195,8 @@ public class StartTaskCard : Control
             }
         }
 
-        int availFootW = Width - UI.S(20) - badgeW;
-        using (Font fFoot = new Font("Segoe UI", 7.75f))
+        int availFootW = Width - UI.S(22) - badgeW;
+        using (Font fFoot = new Font("Segoe UI", 7.5f))
         {
             Rectangle rFoot = new Rectangle(UI.S(10), footY, availFootW, UI.S(18));
             TextRenderer.DrawText(g, footText, fFoot, rFoot, UI.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
@@ -10300,9 +10305,9 @@ public class KpiBox : Control
         this.val = val ?? "";
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
-        Size = new Size(UI.S(80), UI.S(64));
+        Size = new Size(UI.S(96), UI.S(64));
         Dock = DockStyle.Fill;
-        Margin = new Padding(0, 0, UI.S(6), 0);
+        Margin = new Padding(0, 0, UI.S(4), 0);
     }
 
     public string Title { get { return title; } set { title = value ?? ""; Invalidate(); } }
@@ -10310,7 +10315,7 @@ public class KpiBox : Control
 
     public override Size GetPreferredSize(Size proposedSize)
     {
-        return new Size(UI.S(80), UI.S(64));
+        return new Size(UI.S(96), UI.S(64));
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -10323,16 +10328,16 @@ public class KpiBox : Control
             using (Pen pen = new Pen(UI.Line)) g.DrawPath(pen, p);
         }
 
-        using (Font fTitle = new Font("Segoe UI", 7.75f))
+        using (Font fTitle = new Font("Segoe UI", 7.5f))
         {
-            Rectangle rTitle = new Rectangle(UI.S(8), UI.S(6), Width - UI.S(16), UI.S(16));
-            TextRenderer.DrawText(g, title, fTitle, rTitle, UI.Muted, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis);
+            Rectangle rTitle = new Rectangle(UI.S(6), UI.S(6), Width - UI.S(12), UI.S(16));
+            TextRenderer.DrawText(g, title, fTitle, rTitle, UI.Muted, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
         }
 
-        using (Font fVal = new Font("Segoe UI Semibold", 11.5f))
+        using (Font fVal = new Font("Segoe UI Semibold", 10.75f))
         {
-            Rectangle rVal = new Rectangle(UI.S(8), UI.S(23), Width - UI.S(16), Height - UI.S(27));
-            TextRenderer.DrawText(g, val, fVal, rVal, UI.Text, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis);
+            Rectangle rVal = new Rectangle(UI.S(6), UI.S(23), Width - UI.S(12), Height - UI.S(27));
+            TextRenderer.DrawText(g, val, fVal, rVal, UI.Text, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
         }
     }
 }
@@ -13161,9 +13166,9 @@ public partial class DiagGui
         p.Margin = new Padding(0);
         p.Padding = new Padding(0);
 
-        // 1. Kopfbereich & Steckbrief (zweispaltig, Breite Gruppenbreite)
+        // 1. Kopfbereich & Steckbrief (zweispaltig, Breite StartGruppenbreite)
         TableLayoutPanel headGrid = new TableLayoutPanel();
-        headGrid.Width = UI.S(UI.Gruppenbreite);
+        headGrid.Width = UI.S(UI.StartGruppenbreite);
         headGrid.Height = UI.S(148);
         headGrid.ColumnCount = 2;
         headGrid.RowCount = 1;
@@ -13183,7 +13188,7 @@ public partial class DiagGui
         leftHead.Controls.Add(lblTitle);
 
         Label lblDesc = Lbl("Prüft, misst und pflegt diesen PC. Wähle unten eine Aufgabe oder links einen oder mehrere Abläufe und starte unten rechts. Am Ende steht ein Bericht mit allen Befunden.", 9.25f, false, UI.Muted);
-        lblDesc.MaximumSize = new Size(UI.S(420), 0);
+        lblDesc.MaximumSize = new Size(UI.S(460), 0);
         lblDesc.Margin = new Padding(0, 0, 0, UI.S(10));
         leftHead.Controls.Add(lblDesc);
 
@@ -13283,8 +13288,8 @@ public partial class DiagGui
         p.Controls.Add(lblStartHead);
 
         TableLayoutPanel tasksGrid = new TableLayoutPanel();
-        tasksGrid.Width = UI.S(UI.Gruppenbreite);
-        tasksGrid.Height = UI.S(205);
+        tasksGrid.Width = UI.S(UI.StartGruppenbreite);
+        tasksGrid.Height = UI.S(215);
         tasksGrid.ColumnCount = 4;
         tasksGrid.RowCount = 1;
         tasksGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
@@ -13320,9 +13325,9 @@ public partial class DiagGui
         tasksGrid.Controls.Add(c4, 3, 0);
         p.Controls.Add(tasksGrid);
 
-        // 3. Erklärbereich (zweispaltig, Breite Gruppenbreite)
+        // 3. Erklärbereich (zweispaltig, Breite StartGruppenbreite)
         TableLayoutPanel explGrid = new TableLayoutPanel();
-        explGrid.Width = UI.S(UI.Gruppenbreite);
+        explGrid.Width = UI.S(UI.StartGruppenbreite);
         explGrid.Height = UI.S(154);
         explGrid.ColumnCount = 2;
         explGrid.RowCount = 1;
@@ -13449,37 +13454,15 @@ public partial class DiagGui
         p.Margin = new Padding(0);
         p.Padding = new Padding(0);
 
-        // 1. Kopfzeile mit Badges/Pills & Inventar-Link
-        TableLayoutPanel headRow = new TableLayoutPanel();
-        headRow.Width = UI.S(UI.Gruppenbreite);
-        headRow.Height = UI.S(32);
-        headRow.ColumnCount = 2;
-        headRow.RowCount = 1;
-        headRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 75f));
-        headRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
-        headRow.Margin = new Padding(0, 0, 0, UI.S(4));
-
+        // 1. Kopfzeile (ohne redundanten Inventar-Link)
         Label lblWelcome = Lbl("Willkommen zurück", 15.5f, true, UI.Text);
-        lblWelcome.Margin = new Padding(0);
+        lblWelcome.Margin = new Padding(0, 0, 0, UI.S(6));
         Tip(lblWelcome, "Startübersicht für dieses bereits früher geprüfte System.");
-        headRow.Controls.Add(lblWelcome, 0, 0);
-
-        LinkLabel lnkInvB = new LinkLabel();
-        lnkInvB.Text = "Inventar anzeigen";
-        lnkInvB.Font = new Font("Segoe UI", 9f);
-        lnkInvB.LinkColor = UI.Accent;
-        lnkInvB.ActiveLinkColor = UI.AccentHover;
-        lnkInvB.LinkBehavior = LinkBehavior.HoverUnderline;
-        lnkInvB.Anchor = AnchorStyles.Right;
-        lnkInvB.AutoSize = true;
-        Tip(lnkInvB, "Öffnet das detaillierte Hardware-Inventar dieses Rechners.");
-        lnkInvB.LinkClicked += delegate { ShowInventoryDialog(); };
-        headRow.Controls.Add(lnkInvB, 1, 0);
-        p.Controls.Add(headRow);
+        p.Controls.Add(lblWelcome);
 
         // Pills-Reihe mit Hardwaredaten
         FlowLayoutPanel pillsRow = new FlowLayoutPanel();
-        pillsRow.Width = UI.S(UI.Gruppenbreite);
+        pillsRow.Width = UI.S(UI.StartGruppenbreite);
         pillsRow.AutoSize = true;
         pillsRow.WrapContents = true;
         pillsRow.BackColor = UI.Panel;
@@ -13523,16 +13506,16 @@ public partial class DiagGui
             }
         }
 
-        // 2x2 Grid (Breite Gruppenbreite, Höhe 444)
+        // 2x2 Grid (Breite StartGruppenbreite, Höhe 448)
         TableLayoutPanel grid2x2 = new TableLayoutPanel();
-        grid2x2.Width = UI.S(UI.Gruppenbreite);
-        grid2x2.Height = UI.S(444);
+        grid2x2.Width = UI.S(UI.StartGruppenbreite);
+        grid2x2.Height = UI.S(448);
         grid2x2.ColumnCount = 2;
         grid2x2.RowCount = 2;
-        grid2x2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 53f));
-        grid2x2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 47f));
-        grid2x2.RowStyles.Add(new RowStyle(SizeType.Absolute, UI.S(215)));
-        grid2x2.RowStyles.Add(new RowStyle(SizeType.Absolute, UI.S(215)));
+        grid2x2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 52f));
+        grid2x2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 48f));
+        grid2x2.RowStyles.Add(new RowStyle(SizeType.Absolute, UI.S(217)));
+        grid2x2.RowStyles.Add(new RowStyle(SizeType.Absolute, UI.S(217)));
         grid2x2.Margin = new Padding(0, 0, 0, UI.S(14));
 
         // --- Kachel 1 (links oben): Letzter Lauf ---
@@ -13659,18 +13642,21 @@ public partial class DiagGui
         Button btnDash = new Button();
         btnDash.Text = "Im Dashboard vergleichen";
         btnDash.FlatStyle = FlatStyle.Flat;
-        btnDash.FlatAppearance.BorderColor = UI.Line;
-        btnDash.BackColor = UI.Panel;
-        btnDash.ForeColor = UI.Text;
-        btnDash.FlatAppearance.MouseOverBackColor = UI.IsDark ? Color.FromArgb(45, 48, 52) : Color.FromArgb(243, 244, 246);
-        btnDash.FlatAppearance.MouseDownBackColor = UI.IsDark ? Color.FromArgb(55, 58, 62) : Color.FromArgb(235, 237, 240);
-        btnDash.Font = new Font("Segoe UI", 8.5f);
-        btnDash.Padding = new Padding(UI.S(8), UI.S(3), UI.S(8), UI.S(3));
+        btnDash.FlatAppearance.BorderColor = UI.Accent;
+        btnDash.FlatAppearance.BorderSize = 1;
+        btnDash.BackColor = UI.IsDark ? Color.FromArgb(24, 44, 68) : Color.FromArgb(234, 243, 252);
+        btnDash.ForeColor = UI.IsDark ? Color.FromArgb(100, 180, 246) : Color.FromArgb(0, 100, 190);
+        btnDash.FlatAppearance.MouseOverBackColor = UI.Accent;
+        btnDash.FlatAppearance.MouseDownBackColor = UI.AccentActive;
+        btnDash.Font = new Font("Segoe UI Semibold", 8.5f);
+        btnDash.Padding = new Padding(UI.S(10), UI.S(3), UI.S(10), UI.S(3));
         btnDash.Margin = new Padding(0, UI.S(2), 0, 0);
         btnDash.AutoSize = true;
         btnDash.Cursor = Cursors.Hand;
         btnDash.UseVisualStyleBackColor = false;
-        Tip(btnDash, "Öffnet das interaktive Dashboard zum Vergleich mit anderen Systemen.");
+        btnDash.MouseEnter += delegate { btnDash.ForeColor = UI.OnAccent; };
+        btnDash.MouseLeave += delegate { btnDash.ForeColor = UI.IsDark ? Color.FromArgb(100, 180, 246) : Color.FromArgb(0, 100, 190); };
+        Tip(btnDash, "Öffnet das interaktive Dashboard zum grafischen Vergleich mit anderen Systemen.");
         btnDash.Click += delegate { OpenDashboard(); };
         pnlButtons.Controls.Add(btnDash);
         actGrid.Controls.Add(pnlButtons, 0, 0);
@@ -13683,10 +13669,10 @@ public partial class DiagGui
             befundeColor = UI.Warn;
         }
         Label lblBef = Lbl(befundeText, 8.25f, true, befundeColor);
-        lblBef.Anchor = AnchorStyles.Right;
+        lblBef.Dock = DockStyle.Fill;
         lblBef.TextAlign = ContentAlignment.MiddleRight;
-        lblBef.AutoSize = true;
-        lblBef.Margin = new Padding(0, UI.S(4), 0, 0);
+        lblBef.AutoSize = false;
+        lblBef.Margin = new Padding(UI.S(6), UI.S(4), 0, 0);
         Tip(lblBef, "Befundzusammenfassung (Kritisch / Warnungen / Hinweise) des letzten Laufs.");
         actGrid.Controls.Add(lblBef, 1, 0);
         lastLayout.Controls.Add(actGrid, 0, 2);
@@ -13833,13 +13819,14 @@ public partial class DiagGui
         toolsLayoutB.Controls.Add(lblWHead, 0, 0);
 
         TableLayoutPanel toolsListB = new TableLayoutPanel();
-        toolsListB.Dock = DockStyle.Fill;
+        toolsListB.Dock = DockStyle.Top;
+        toolsListB.Height = UI.S(116);
         toolsListB.RowCount = 3;
         toolsListB.ColumnCount = 1;
-        toolsListB.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
-        toolsListB.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
-        toolsListB.RowStyles.Add(new RowStyle(SizeType.Percent, 33.4f));
-        toolsListB.Margin = new Padding(0);
+        toolsListB.RowStyles.Add(new RowStyle(SizeType.Absolute, UI.S(38)));
+        toolsListB.RowStyles.Add(new RowStyle(SizeType.Absolute, UI.S(38)));
+        toolsListB.RowStyles.Add(new RowStyle(SizeType.Absolute, UI.S(38)));
+        toolsListB.Margin = new Padding(0, UI.S(4), 0, 0);
 
         Control rowSensB = CreateToolRowB(UI.IcoSens, "Sensoren live", "CPU [°C] · GPU [°C]", delegate { ShowPage(7); }, "Öffnet die Live-Sensoranzeige für Temperaturen, Taktraten und Spannungen.");
         Control rowDbB = CreateToolRowB(UI.IcoDb, "Vergleichsdatenbank", db.Count + " Systeme", delegate { ShowPage(8); }, "Öffnet die Vergleichsdatenbank aller gespeicherten Messungen.");
@@ -13868,7 +13855,7 @@ public partial class DiagGui
         Panel row = new Panel();
         row.Dock = DockStyle.Fill;
         row.Cursor = Cursors.Hand;
-        row.Margin = new Padding(0, 0, 0, UI.S(2));
+        row.Margin = new Padding(0, 0, 0, UI.S(4));
         bool hover = false;
 
         row.MouseEnter += delegate { hover = true; row.Invalidate(); };
@@ -13887,17 +13874,17 @@ public partial class DiagGui
 
         Label lblIco = Lbl(icon, 11f, false, UI.Accent);
         lblIco.Font = UI.SymbolFont(11f);
-        lblIco.Location = new Point(UI.S(8), UI.S(10));
+        lblIco.Location = new Point(UI.S(6), UI.S(6));
         lblIco.Size = new Size(UI.S(22), UI.S(22));
 
         Label lblT = Lbl(title, 9f, true, UI.Text);
-        lblT.Location = new Point(UI.S(36), UI.S(11));
+        lblT.Location = new Point(UI.S(32), UI.S(7));
         lblT.AutoSize = true;
 
         Label lblR = Lbl(rightText, 8.5f, false, UI.Muted);
         lblR.Dock = DockStyle.Right;
         lblR.TextAlign = ContentAlignment.MiddleRight;
-        lblR.Padding = new Padding(0, 0, UI.S(10), 0);
+        lblR.Padding = new Padding(0, 0, UI.S(8), 0);
         lblR.AutoSize = false;
         lblR.Width = UI.S(180);
 
@@ -13985,7 +13972,7 @@ public partial class DiagGui
     Control BuildStartFooter()
     {
         FlowLayoutPanel foot = new FlowLayoutPanel();
-        foot.Width = UI.S(UI.Gruppenbreite);
+        foot.Width = UI.S(UI.StartGruppenbreite);
         foot.AutoSize = true;
         foot.WrapContents = false;
         foot.BackColor = UI.Panel;
@@ -14223,7 +14210,7 @@ public partial class DiagGui
                                     it.Level = "info";
                                     it.Badge = "Hinweis";
                                     it.Title = "BIOS-Version ist über 2 Jahre alt (" + dtBios.ToString("dd.MM.yyyy") + ")";
-                                    it.Desc = "Ein BIOS-Update bringt oft Fehlerbehebungen, neue CPU-Mikrocodes und Stabilitätsverbesserungen.";
+                                    it.Desc = "Ein BIOS-Update bringt oft Fehlerbehebungen und Stabilität.";
                                     it.ButtonText = "Inventar";
                                     it.Action = delegate { ShowInventoryDialog(); };
                                     it.Tip = "Zeigt Mainboard-Modell und BIOS-Stand im Inventar an.";
@@ -14293,7 +14280,7 @@ public partial class DiagGui
                     Panel row = new Panel();
                     row.Location = new Point(0, curY);
                     row.Width = Math.Max(UI.S(300), container.ClientSize.Width);
-                    row.Height = UI.S(54);
+                    row.Height = UI.S(56);
                     row.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
 
                     Color bbg = it.Level == "warn" ? (UI.IsDark ? Color.FromArgb(54, 44, 18) : Color.FromArgb(254, 249, 231)) : (UI.IsDark ? Color.FromArgb(22, 40, 60) : Color.FromArgb(235, 243, 250));
@@ -14313,8 +14300,9 @@ public partial class DiagGui
                     badge.Location = new Point(UI.S(10), UI.S(12));
                     Tip(badge, it.Badge + ": " + it.Title);
 
-                    int textX = UI.S(84);
-                    int textW = Math.Max(UI.S(100), row.Width - textX - UI.S(80));
+                    int textX = UI.S(78);
+                    int actionW = UI.S(78);
+                    int textW = Math.Max(UI.S(100), row.Width - textX - actionW - UI.S(10));
 
                     Label lblT = Lbl(it.Title, 8.75f, true, UI.Text);
                     lblT.AutoSize = false;
@@ -14339,19 +14327,19 @@ public partial class DiagGui
                     lnkAct.ActiveLinkColor = UI.AccentHover;
                     lnkAct.LinkBehavior = LinkBehavior.HoverUnderline;
                     lnkAct.AutoSize = false;
-                    lnkAct.Size = new Size(UI.S(72), UI.S(20));
+                    lnkAct.Size = new Size(actionW, UI.S(20));
                     lnkAct.TextAlign = ContentAlignment.MiddleRight;
-                    lnkAct.Location = new Point(row.Width - UI.S(80), UI.S(17));
+                    lnkAct.Location = new Point(row.Width - actionW - UI.S(10), UI.S(17));
                     lnkAct.Anchor = AnchorStyles.Right | AnchorStyles.Top;
                     Tip(lnkAct, it.Tip);
                     QuickFixItem capturedIt = it;
                     lnkAct.LinkClicked += delegate { if (capturedIt.Action != null) capturedIt.Action(); };
 
                     row.Resize += delegate {
-                        int w = Math.Max(UI.S(100), capturedRow.Width - textX - UI.S(80));
+                        int w = Math.Max(UI.S(100), capturedRow.Width - textX - actionW - UI.S(10));
                         lblT.Size = new Size(w, UI.S(18));
                         lblD.Size = new Size(w, UI.S(24));
-                        lnkAct.Location = new Point(capturedRow.Width - UI.S(80), UI.S(17));
+                        lnkAct.Location = new Point(capturedRow.Width - actionW - UI.S(10), UI.S(17));
                     };
 
                     row.Controls.Add(badge);
@@ -14360,7 +14348,7 @@ public partial class DiagGui
                     row.Controls.Add(lnkAct);
                     container.Controls.Add(row);
 
-                    curY += UI.S(60);
+                    curY += UI.S(62);
                 }
             }
             container.ResumeLayout(true);

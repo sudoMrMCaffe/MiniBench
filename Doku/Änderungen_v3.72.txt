@@ -74,6 +74,11 @@ GEFUNDEN UND BEHOBEN
   Überlappende Beschriftungen in der Kachel "Schnell behebbar": Titeltext schnitt den Link "Inventar" ab; behoben durch explizite Textbreitenbegrenzung mit Auslassungspunkten und feste Verankerung.
   Textabschneidungen auf Aufgabenkarten im Zustand A behoben: Zweizeiliger Umbruch für lange Titel ("Pflegen und beschleunigen") sowie dynamische Messung der Badge-Breite für Fußzeilentexte.
   Aufgabe und Preset "PC durchchecken" aktiviert nun wie gefordert die Module Diagnose, Lasttest und Benchmark gleichzeitig.
+  Automatisches Laden einer Voreinstellung beim Start wechselte zuvor auf die Modulseite, obwohl "Beim Start diese Seite zeigen" aktiv war; die Startseite wird nun bei gesetztem Haken immer als erste Seite angezeigt.
+  Redundanter Link "Inventar anzeigen" in der Kopfzeile von Zustand B entfernt, da die Hardware-Pills darunter bereits die Schlüsseldaten präsentieren.
+  Kartenbreite der Startseite auf 860 px (StartGruppenbreite) vergrößert, wodurch zuvor gekürzte Kennzahlen ("CPU Mehrkern", "21.9 GB/s") und Fußzeilentexte vollständig Platz finden und der Befundstatus einzeilig bleibt.
+  Schaltfläche "Im Dashboard vergleichen" in der Kachel "Letzter Lauf" durch Akzentrahmen und getönten Hintergrund optisch hervorgehoben.
+  Zeilenabstand der Werkzeugliste im Zustand B auf kompakte Festhöhe (38 px) verdichtet, sodass die Einträge nicht mehr über die Kachel gestreckt werden.
 
 GRENZEN
   Die Schnellprüfung von XMP/EXPO stützt sich auf ausgelesene SMBIOS-Speichertaktwerte und erkennt Basistaktraten (z. B. DDR4-2133 oder DDR5-4800); proprietäre OEM-Profile ohne JEDEC-Taktabweichung erfordern einen Blick ins BIOS.

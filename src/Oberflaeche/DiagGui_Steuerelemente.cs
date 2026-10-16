@@ -29,6 +29,7 @@ public static class UI
     // ab v3.64: Gestaltungsregeln für alle Seiten (Werte in Pixeln bei 96 dpi, immer über S() verwenden)
     public const int Abstand1 = 4, Abstand2 = 8, Abstand3 = 12, Abstand4 = 16, Abstand5 = 24;
     public const int Gruppenbreite = 780;      // Breite von Gruppen, Tabellen und Hinweistexten
+    public const int StartGruppenbreite = 860; // Breite für Startseiten-Karten und Raster (ab v3.72)
     public const int Seitenrand = 24;          // Innenabstand jeder Seite links und oben
     public const float SchriftTitel = 15f, SchriftAbschnitt = 11.5f, SchriftGruppe = 10f, SchriftText = 9.5f, SchriftHinweis = 9f;
 
@@ -473,7 +474,7 @@ public class StartTaskCard : Control
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable | ControlStyles.SupportsTransparentBackColor, true);
         Cursor = Cursors.Hand;
         BackColor = UI.Panel;
-        Size = new Size(UI.S(177), UI.S(205));
+        Size = new Size(UI.S(205), UI.S(215));
         Margin = new Padding(0, 0, UI.S(10), UI.S(14));
     }
 
@@ -549,7 +550,7 @@ public class StartTaskCard : Control
         // Beschreibung
         using (Font fDesc = new Font("Segoe UI", 8.25f))
         {
-            Rectangle rDesc = new Rectangle(UI.S(12), UI.S(88), Width - UI.S(24), Height - UI.S(116));
+            Rectangle rDesc = new Rectangle(UI.S(12), UI.S(88), Width - UI.S(24), Height - UI.S(120));
             TextRenderer.DrawText(g, desc, fDesc, rDesc, UI.Muted, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak);
         }
 
@@ -574,8 +575,8 @@ public class StartTaskCard : Control
             }
         }
 
-        int availFootW = Width - UI.S(20) - badgeW;
-        using (Font fFoot = new Font("Segoe UI", 7.75f))
+        int availFootW = Width - UI.S(22) - badgeW;
+        using (Font fFoot = new Font("Segoe UI", 7.5f))
         {
             Rectangle rFoot = new Rectangle(UI.S(10), footY, availFootW, UI.S(18));
             TextRenderer.DrawText(g, footText, fFoot, rFoot, UI.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
@@ -684,9 +685,9 @@ public class KpiBox : Control
         this.val = val ?? "";
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
-        Size = new Size(UI.S(80), UI.S(64));
+        Size = new Size(UI.S(96), UI.S(64));
         Dock = DockStyle.Fill;
-        Margin = new Padding(0, 0, UI.S(6), 0);
+        Margin = new Padding(0, 0, UI.S(4), 0);
     }
 
     public string Title { get { return title; } set { title = value ?? ""; Invalidate(); } }
@@ -694,7 +695,7 @@ public class KpiBox : Control
 
     public override Size GetPreferredSize(Size proposedSize)
     {
-        return new Size(UI.S(80), UI.S(64));
+        return new Size(UI.S(96), UI.S(64));
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -707,16 +708,16 @@ public class KpiBox : Control
             using (Pen pen = new Pen(UI.Line)) g.DrawPath(pen, p);
         }
 
-        using (Font fTitle = new Font("Segoe UI", 7.75f))
+        using (Font fTitle = new Font("Segoe UI", 7.5f))
         {
-            Rectangle rTitle = new Rectangle(UI.S(8), UI.S(6), Width - UI.S(16), UI.S(16));
-            TextRenderer.DrawText(g, title, fTitle, rTitle, UI.Muted, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis);
+            Rectangle rTitle = new Rectangle(UI.S(6), UI.S(6), Width - UI.S(12), UI.S(16));
+            TextRenderer.DrawText(g, title, fTitle, rTitle, UI.Muted, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
         }
 
-        using (Font fVal = new Font("Segoe UI Semibold", 11.5f))
+        using (Font fVal = new Font("Segoe UI Semibold", 10.75f))
         {
-            Rectangle rVal = new Rectangle(UI.S(8), UI.S(23), Width - UI.S(16), Height - UI.S(27));
-            TextRenderer.DrawText(g, val, fVal, rVal, UI.Text, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis);
+            Rectangle rVal = new Rectangle(UI.S(6), UI.S(23), Width - UI.S(12), Height - UI.S(27));
+            TextRenderer.DrawText(g, val, fVal, rVal, UI.Text, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
         }
     }
 }

@@ -495,6 +495,7 @@ public static class GuiSelbsttest
         using (StartTaskCard card = new StartTaskCard("Test", "Beschreibung", "Fußzeile", "Badge", "ok", UI.IcoDiag, true))
         {
             Ist(card.Title == "Test" && card.Recommended, "StartTaskCard initialisiert");
+            Ist(card.Width >= UI.S(200), "StartTaskCard vergrößert");
         }
         using (StartTaskRow row = new StartTaskRow("Test", "Untertitel", "Badge", "warn", UI.IcoSpeed))
         {
@@ -503,6 +504,8 @@ public static class GuiSelbsttest
         using (KpiBox kpi = new KpiBox("Gesamt", "12.111"))
         {
             Ist(kpi.Title == "Gesamt" && kpi.Value == "12.111" && kpi.BackColor == Color.Transparent, "KpiBox transparent");
+            Ist(kpi.Width >= UI.S(90), "KpiBox vergrößert");
         }
+        Ist(UI.StartGruppenbreite >= 860, "StartGruppenbreite mindestens 860");
     }
 }

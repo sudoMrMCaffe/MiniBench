@@ -369,7 +369,8 @@ public partial class DiagGui : Form
         LoadDb();
         setupView = BuildSetup(); runView = BuildRun();
         FillPresets(true);
-        if (!LoadStartPagePreference() && curPage == 0) ShowPage(1);
+        if (LoadStartPagePreference()) ShowPage(0);
+        else if (curPage == 0) ShowPage(1);
         UpdateSensStatusBadge();
         setupView.Dock = DockStyle.Fill; runView.Dock = DockStyle.Fill; runView.Visible = false;
         body.Controls.Add(runView); body.Controls.Add(setupView);
@@ -3219,12 +3220,15 @@ public partial class DiagGui : Form
                 {
                     sel = i + 1;
                     ApplyPreset(start);
-                    int targetPage = 1;
-                    for (int m = 1; m <= 5 && m < nav.Count; m++)
+                    if (!LoadStartPagePreference())
                     {
-                        if (nav[m].Checked) { targetPage = m; break; }
+                        int targetPage = 1;
+                        for (int m = 1; m <= 5 && m < nav.Count; m++)
+                        {
+                            if (nav[m].Checked) { targetPage = m; break; }
+                        }
+                        ShowPage(targetPage);
                     }
-                    ShowPage(targetPage);
                 }
             }
             cmbPreset.SelectedIndex = sel;
