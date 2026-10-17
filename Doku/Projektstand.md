@@ -3,7 +3,7 @@
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
 ## Stand: Version 3.73 (17.10.2026)
-Release-Commit "Release v3.73: Kompakte Modulnamen, LMB.exe, mathematische Modellkorrektur, Dashboard-Fallback & Bereinigung externer Quellen".
+Release-Commit "Release v3.73: Kompakte Modulnamen, LMB.exe, mathematische Modellkorrektur, Dashboard-Fallback & Bereinigung externer Quellen" (Commit ed8dee5).
 Getestet und gebaut unter Windows mit Windows PowerShell 5.1 und Pester 6.2.0.
 
 Inhalt von 3.73 (Einzelheiten in Doku\Änderungen_v3.73.txt):
@@ -78,4 +78,4 @@ Inhalt von 3.64 (Einzelheiten in Doku\Änderungen_v3.64.txt):
 Keine offenen Befunde.
 
 ## Letzter Commit
-Release-Commit v3.73 (Release v3.73: Kompakte Modulnamen, LMB.exe, mathematische Modellkorrektur, Dashboard-Fallback & Bereinigung externer Quellen)
+Release-Commit v3.73 (Commit ed8dee5)
