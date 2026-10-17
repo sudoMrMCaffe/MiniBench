@@ -1,0 +1,80 @@
+﻿LEOS MINIBENCH 3.73: ÄNDERUNGEN
+==============================
+
+Version 3.73 widmet sich einem umfassenden Feinschliff des Projekts: Die Oberfläche erhält kompaktere
+Modulbezeichnungen, die ausführbare Datei wird auf das prägnante LMB.exe umgestellt, die mathematischen
+Modelle für Gesamtsystem-Effizienz und das Workstation-Profil werden praxistauglich kalibriert, das modulare
+Dashboard bindet bei fehlendem Lasttest automatisch Sensordaten des Benchmarks ein, externe Werkzeug-
+quellen im Optimierungsmodul werden auf offizielle Hersteller-Upstreams bereinigt und die GitHub-Präsenz
+wird mit einer grundlegend überarbeiteten Dokumentation sowie einer respektvollen Danksagung aufgewertet.
+
+1. KOMPAKTE BENENNUNG DER OBERFLÄCHE & LMB.EXE
+  Seitenleiste & Titel  In der Seitenleiste und in allen Fensterköpfen wurde "Vergleichsdatenbank" zu "Datenbank"
+                        und "Systemänderungen" zu "Änderungen" verkürzt. Die Tooltips wurden entsprechend angepasst.
+  Ausführbare Datei     Die erzeugte Binärdatei heißt fortan LMB.exe (zuvor LeosMinibench.exe). Dies verkürzt
+                        Befehlszeilen und erleichtert die Handhabung auf dem USB-Stick.
+  Abwärtskompatibilität Neben dem neuen Starter LMB.cmd bleibt LeosMinibench.cmd erhalten, sodass bestehende
+                        Skripte und Verknüpfungen weiterhin ohne Anpassung funktionieren.
+
+2. DASHBOARD-OPTIMIERUNGEN (CHRONOLOGISCHE SORTIERUNG & SENSOR-FALLBACK)
+  Sortierung            Die Systemauswahl (baseSelect) und die Vergleichs-Chips (compareChips) im HTML-Dashboard
+                        sortieren gespeicherte Läufe standardmäßig absteigend nach Datum (neuestes System zuerst).
+                        Sowohl deutsche Datumsformate (dd.MM.yyyy HH:mm) als auch ISO-Formate werden korrekt geparst.
+  Sensor-Fallback       Fehlt für ein System eine Lasttest-Zeitreihe (Sensoren_Lasttest.csv bzw. Lasttest-Verlauf.csv),
+                        überträgt das Dashboard automatisch die Telemetriedaten des Benchmarks (Sensoren_Benchmark.csv
+                        bzw. Benchmark-Sensoren.csv) in die Zeitreihe.
+  Beschriftung          Diagramme bleiben dadurch nicht mehr leer, sondern zeigen den Temperatur- und Leistungsverlauf
+                        mit der Kennzeichnung "Sensorverlauf (Benchmark-Messung)".
+
+3. MATHEMATISCHE MODELLKORREKTUR (GESAMTSYSTEM-EFFIZIENZ & WORKSTATION)
+  Effizienz-Anomalie    Bisher führte die synthetische Doppel-Volllast-Spitze im Nenner der Gesamteffizienz
+                        (P_AC = CPU_max + GPU_max) dazu, dass PCs mit höherer CPU- und höherer GPU-Einzeleffizienz
+                        paradoxerweise einen niedrigeren Gesamteffizienz-Score aufweisen konnten (Marvin vs. TORRENT).
+  Harmonisches Mittel   Die Gesamtsystem-Effizienz (System_PerWatt) wird nun über das gewichtete harmonische Mittel
+                        der gemessenen Teillast- bzw. Benchmark-Effizienzen von Prozessor und Grafikkarte unter
+                        Einbezug der realen 230V-Wirkleistung berechnet. Dadurch gilt strikte Monotonie: Ein PC mit
+                        höherer CPU- und GPU-Effizienz erzielt immer einen höheren Gesamtsystem-Index.
+  Workstation-Profil    Die Wichtung für rechenintensive Aufgaben wurde praxisgerecht angepasst: Der Anteil der
+                        Mehrkernleistung (CPU_MT) steigt von 3,0 auf 6,0 (ca. 60–65 % Gesamteinfluss; RAM 1,5,
+                        Disk 1,0, GPU 1,0, CPU_ST 0,5). Ein 8- oder 12-Kern-System spiegelt nun den realen
+                        Multithreading-Vorsprung (> 35–45 %) adäquat wider.
+
+4. BEREINIGUNG EXTERNER QUELLEN DES OPTIMIERUNGSMODULS
+  Inoffizielle Quellen  Sämtliche Download-Links auf private GitHub-Repositories von Drittanbietern wurden aus
+                        Katalog.psd1 und Funktionen.ps1 restlos entfernt.
+  Offizielle Upstreams  Fremdwerkzeuge (z. B. Display Driver Uninstaller / DDU) werden ausschließlich von
+                        offiziellen Herstellerseiten (wagnardsoft.com), verifizierten GitHub-Releases oder über
+                        den Windows Package Manager (winget: Wagnardsoft.DisplayDriverUninstaller) bezogen.
+  Prüfsummen            Alle Werkzeuge bleiben mit fester SHA-256-Prüfsumme im Manifest (Tools.json) verankert.
+
+5. DOKUMENTATION & GITHUB-AUSSENWIRKUNG
+  README.md             Umfassende Neugestaltung: Moderne, sachliche Gliederung ohne Werbesprache, detaillierte
+                        Übersicht über alle Kernmodule, aktualisierte Bildschirmfotos von Startseite und Dashboard
+                        sowie Download-Badge für LMB.exe.
+  Akkreditierung        Im Abschnitt Danksagung & Quellen wurde eine respektvolle, gut sichtbare Würdigung für das
+                        Projekt "Windows Optimisation Pack von Marvin700" aufgenommen, auf dessen Recherche das
+                        Optimierungsmodul aufbaut.
+  CHANGELOG.md          Strukturierung jeder Version nach den prägnanten Rubriken Neu, Verbessert und Behoben.
+
+
+GEFUNDEN UND BEHOBEN
+  Gesamtsystem-Effizienzscore bevorzugte fälschlich Systeme mit unausgewogener Teillast; behoben durch gewichtetes harmonisches Mittel der Benchmark-Effizienzen.
+  Workstation-Nutzungsprofil unterbewertete Mehrkernprozessoren; behoben durch Anhebung des CPU_MT-Gewichts auf 6,0.
+  Dashboard-Zeitreihengraphen blieben bei reinen Benchmarkläufen ohne Lasttest leer; behoben durch automatischen Sensor-Fallback auf Benchmark-Telemetriedaten.
+  Systemauswahl im Dashboard sortierte Einträge unsortiert oder in Einlesereihenfolge; behoben durch chronologische Sortierung nach Messdatum (neueste zuerst).
+  Optimierungsmodul enthielt inoffizielle Download-Mirrors; behoben durch Umstellung auf offizielle Herstellerquellen und winget.
+  Variable b in daten.js kollidierte mit Pester-Feldprüfungen für Diagnose-Befunde (b.Datum, b.Id); behoben durch Umbenennung in itemA, itemB.
+  Vergleichstests für doppelte Grafikleistung im Workstation-Profil an neue Gewichtung angepasst.
+  Download-Badge in Aufbau.Tests.ps1 akzeptiert nun sowohl LMB.exe als auch LeosMinibench.exe.
+
+GRENZEN
+  Die Benchmark-Sensortelemetrie umfasst kürzere Zeiträume als ein dedizierter Lasttest; bei fehlendem Lasttest liefert das Fallback eine verlässliche Momentaufnahme der Testphasen, ersetzt jedoch keine Dauerstabilitätsprüfung.
+  Die Berechnung der Gesamteffizienz erfordert Messwerte für CPU- oder GPU-Effizienz; fehlen Leistungssensoren vollständig, wird der Effizienzindex als nicht verfügbar ausgewiesen.
+
+UMSTIEG
+  Vorhandene Messungen und Datenbanken bleiben vollständig kompatibel. Verknüpfungen können direkt auf LMB.exe oder LMB.cmd umgestellt werden; LeosMinibench.cmd bleibt als Brücke für bestehende Skripte erhalten.
+
+QUELLEN
+  Wagnardsoft: Offizielle Bezugsquelle für Display Driver Uninstaller (DDU), https://www.wagnardsoft.com
+  Marvin700: Windows Optimisation Pack (Recherche und Skriptgrundlagen für Systemoptimierungen), https://github.com/Marvin700/Windows_Optimisation_Pack
+  Microsoft Docs: Boot Performance Monitoring & Windows Event Tracing Architecture.

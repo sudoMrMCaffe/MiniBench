@@ -319,7 +319,7 @@ try {
     New-Item -ItemType Directory -Path $work -Force | Out-Null
     $utf8Bom = New-Object Text.UTF8Encoding($true)
     $fPs1 = Join-Path $work 'LeosMinibench.ps1'; $fCs = Join-Path $work 'Launcher.cs'
-    $fMan = Join-Path $work 'app.manifest';    $fIco = Join-Path $work 'app.ico'; $fExe = Join-Path $work 'LeosMinibench.exe'
+    $fMan = Join-Path $work 'app.manifest';    $fIco = Join-Path $work 'app.ico'; $fExe = Join-Path $work 'LMB.exe'
     [IO.File]::WriteAllText($fPs1, $r.Text, $utf8Bom)
     [IO.File]::WriteAllText($fCs, $launcher.Replace('@@VERSION@@', $asmVer).Replace('@@VERSION_TEXT@@', $ver), $utf8Bom)
     [IO.File]::WriteAllText($fMan, $manifest, $utf8Bom)
@@ -337,16 +337,16 @@ try {
 
     # 4. in "Aktueller Build" übernehmen. Ein dort vorhandener Ordner Minibench-Daten bleibt unberührt.
     New-Item -ItemType Directory -Path $build -Force | Out-Null
-    $exe = Join-Path $build 'LeosMinibench.exe'
+    $exe = Join-Path $build 'LMB.exe'
     # ab v2.7: Der vorige Build (andere Version) wandert nach Archiv\v<alte Version>: exe, ps1, Stand und Änderungsdatei.
     # Gleiche Version (neuer Bau desselben Stands) wird wie bisher ersetzt.
     $oldVer = ''
     $oldStand = Join-Path $build 'Stand.txt'
     if (Test-Path -LiteralPath $oldStand) { $st0 = [IO.File]::ReadAllText($oldStand); if ($st0 -match 'Version\s*:\s*([\d.]+)') { $oldVer = $Matches[1] } }
-    if ($oldVer -and $oldVer -ne $ver -and (Test-Path -LiteralPath $exe)) {
+    if ($oldVer -and $oldVer -ne $ver) {
         $arc = Join-Path $Here ('Archiv\v{0}' -f $oldVer)
         New-Item -ItemType Directory -Path $arc -Force | Out-Null
-        $moves = @(@('LeosMinibench.exe', 'LeosMinibench.exe'), @('LeosMinibench.ps1', 'LeosMinibench.ps1'), @('Stand.txt', ('Stand_v{0}.txt' -f $oldVer)), @(('Änderungen_v{0}.txt' -f $oldVer), ('Änderungen_v{0}.txt' -f $oldVer)))
+        $moves = @(@('LMB.exe', 'LMB.exe'), @('LeosMinibench.exe', 'LeosMinibench.exe'), @('LeosMinibench.ps1', 'LeosMinibench.ps1'), @('Stand.txt', ('Stand_v{0}.txt' -f $oldVer)), @(('Änderungen_v{0}.txt' -f $oldVer), ('Änderungen_v{0}.txt' -f $oldVer)))
         foreach ($m in $moves) {
             $src = Join-Path $build $m[0]; $dst = Join-Path $arc $m[1]
             if (-not (Test-Path -LiteralPath $src)) { continue }
@@ -356,12 +356,17 @@ try {
         Write-Host ('  Archiv   : Version {0} nach {1} verschoben' -f $oldVer, $arc)
     }
     if (Test-Path $exe) { try { Remove-Item $exe -Force -ErrorAction Stop } catch { throw ('{0} ist noch geöffnet. Leos Minibench schließen und erneut bauen.' -f $exe) } }
+    $oldExe = Join-Path $build 'LeosMinibench.exe'
+    if (Test-Path $oldExe) { try { Remove-Item $oldExe -Force -ErrorAction SilentlyContinue } catch { } }
     Copy-Item -LiteralPath $fExe -Destination $exe -Force
     Copy-Item -LiteralPath $fPs1 -Destination (Join-Path $build 'LeosMinibench.ps1') -Force
     Copy-Item -LiteralPath (Join-Path $srcDir 'LeosMinibench.cmd') -Destination (Join-Path $build 'LeosMinibench.cmd') -Force
+    if (Test-Path -LiteralPath (Join-Path $srcDir 'LMB.cmd')) {
+        Copy-Item -LiteralPath (Join-Path $srcDir 'LMB.cmd') -Destination (Join-Path $build 'LMB.cmd') -Force
+    }
     # ab v2.7 ohne Änderungsdatei: Sie liegt in Doku, die Versionshistorie steht im Programm (Seite Versionen)
     Get-ChildItem -LiteralPath $build -Filter 'Änderungen_v*.txt' -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-    $files = @('LeosMinibench.exe', 'LeosMinibench.ps1', 'LeosMinibench.cmd')
+    $files = @('LMB.exe', 'LeosMinibench.ps1', 'LeosMinibench.cmd', 'LMB.cmd') | Where-Object { Test-Path -LiteralPath (Join-Path $build $_) }
     $st = New-Object System.Text.StringBuilder
     [void]$st.AppendLine('LEOS MINIBENCH: AKTUELLER BUILD')
     [void]$st.AppendLine('===============================')
@@ -388,7 +393,7 @@ try {
     }
     [void]$st.AppendLine('')
     [void]$st.AppendLine('Für den USB-Stick: den Inhalt dieses Ordners auf den Stick kopieren und vorhandene Dateien ersetzen.')
-    [void]$st.AppendLine('LeosMinibench.exe genügt allein; LeosMinibench.ps1 und .cmd sind für den Start ohne exe.')
+    [void]$st.AppendLine('LMB.exe genügt allein; LeosMinibench.ps1 und .cmd sind für den Start ohne exe.')
     [void]$st.AppendLine(('Änderungen dieser Version: Doku\Änderungen_v{0}.txt; alle Versionen: Seite Versionen im Programm und Doku\Versionshistorie.txt.' -f $ver))
     [void]$st.AppendLine('Der Ordner Minibench-Daten auf dem Stick (Berichte, Datenbank, Tools, Änderungsprotokoll) bleibt dabei erhalten.')
     [void]$st.AppendLine('Ein Ordner Minibench-Daten hier im Aktuellen Build entsteht nur, wenn das Programm von hier gestartet wurde; er gehört nicht auf den Stick.')
@@ -400,7 +405,7 @@ try {
     if (Test-Path -LiteralPath $readmeFile) {
         $rmText = [IO.File]::ReadAllText($readmeFile, [Text.Encoding]::UTF8)
         $rmText = [regex]::Replace($rmText, '(?i)(https://img\.shields\.io/badge/Version-)[^-\s]+(-[0-9a-fA-F]+\.svg)', ('${1}' + $ver + '${2}'))
-        $rmText = [regex]::Replace($rmText, '(?i)(Download-LeosMinibench\.exe%20\(v)[^\)]+(\))', ('${1}' + $ver + '${2}'))
+        $rmText = [regex]::Replace($rmText, '(?i)(Download-(?:LMB|LeosMinibench)\.exe%20\(v)[^\)]+(\))', ('${1}' + $ver + '${2}'))
         $rmText = [regex]::Replace($rmText, 'alt="Leos Minibench [0-9.]+', ('alt="Leos Minibench ' + $ver))
         if ($testInfo -match '(\d+)\s+bestanden') {
             $passCount = [int]$Matches[1]

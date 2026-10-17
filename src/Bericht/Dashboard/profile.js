@@ -5,7 +5,7 @@
     const profiles = [
       { key: 'Gaming', icon: '🎮', title: 'Gaming', desc: 'GPU- & Single-Thread-Fokus', tip: 'Gaming-Profil: 70 % GPU-Bildrate, 20 % CPU Single-Core, 10 % RAM und SSD (Kerne > 8 neutral)' },
       { key: 'Desktop', icon: '💼', title: 'Büro / Desktop', desc: 'Reaktionszeit & SSD-Leistung', tip: 'Büro- und Desktop-Profil: 45 % SSD-Reaktionszeit (4K), 35 % CPU Single-Core, 20 % RAM-Latenz (0 % GPU/Multi-Core)' },
-      { key: 'Workstation', icon: '🚀', title: 'Workstation', desc: 'Mehrkern- & RAM-Durchsatz', tip: 'Workstation-Profil: 45 % CPU Multi-Core, 20 % Instruktionen/Kompression, 20 % RAM-Bandbreite, 15 % Dauertransfer' }
+      { key: 'Workstation', icon: '🚀', title: 'Workstation', desc: 'Mehrkern- & RAM-Durchsatz', tip: 'Workstation-Profil: 60 % CPU Multi-Core, 15 % RAM, 10 % Datenträger (I/O), 10 % GPU-Beschleunigung, 5 % CPU Single-Core' }
     ];
 
     let html = '';

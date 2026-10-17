@@ -811,7 +811,29 @@ function Get-SystemPowerProfile($Entry = $null) {
     if ($null -eq $eff.Gpu_PerWatt -and $null -ne $gpuFps -and $gpuFps -gt 0 -and $null -ne $gpuWMax -and $gpuWMax -gt 0) {
         $eff.Gpu_PerWatt = [math]::Round($gpuFps / $gpuWMax, 2)
     }
-    if ($null -eq $eff.System_PerWatt -and $overallScore -gt 0 -and $pLoad.Verfuegbar -and $pLoad.P_AC -gt 0) {
+
+    # Gesamtsystem-Effizienz: gewichtetes harmonisches Mittel der gemessenen Teillast-/Benchmark-Effizienzen
+    $pCpuLoad = Get-EstimatedSystemPower -CpuW $cpuWMax -GpuW $gpuWIdle -IsNotebook:$isNb -GpuName $gpuName -DimmCount $dimmCount -RamOc:$ramOc -Disks $disksList -DiskCount $diskCount -FanCount $fanCount -Stage 'CpuLoad' -PsuWattage $psuWatt -PsuRating $psuRate
+    $pCpuAc = if ($pCpuLoad.Verfuegbar -and $pCpuLoad.P_AC -gt 0) { $pCpuLoad.P_AC } elseif ($null -ne $cpuWMax -and $cpuWMax -gt 0) { $cpuWMax * 1.25 + 25.0 } else { $null }
+    $pGpuAc = if ($pGaming.Verfuegbar -and $pGaming.P_AC -gt 0) { $pGaming.P_AC } elseif ($null -ne $gpuWMax -and $gpuWMax -gt 0) { ($gpuWMax + 50.0) * 1.25 + 25.0 } else { $null }
+
+    $effCpuNorm = if ($cpuMtScore -gt 0 -and $null -ne $pCpuAc -and $pCpuAc -gt 0) { (($cpuMtScore / 28000.0) * 100.0 / $pCpuAc) * 100.0 } else { $null }
+    $sGpu = if ($null -ne $gpuFps -and $gpuFps -gt 0) { ($gpuFps / 100.0) * 100.0 } elseif ($null -ne $gpuPoints -and $gpuPoints -gt 0) { ($gpuPoints / 10000.0) * 100.0 } elseif ($Entry -and $Entry.Werte -and $Entry.Werte['GPU|VMB'] -gt 0) { ([double]$Entry.Werte['GPU|VMB'] / 300.0) * 100.0 } else { $null }
+    $effGpuNorm = if ($null -ne $sGpu -and $sGpu -gt 0 -and $null -ne $pGpuAc -and $pGpuAc -gt 0) { ($sGpu / $pGpuAc) * 100.0 } else { $null }
+
+    $newSysEff = $null
+    if ($null -ne $effCpuNorm -and $effCpuNorm -gt 0 -and $null -ne $effGpuNorm -and $effGpuNorm -gt 0) {
+        $wCpu = 1.0; $wGpu = 1.0
+        $newSysEff = ($wCpu + $wGpu) / (($wCpu / $effCpuNorm) + ($wGpu / $effGpuNorm))
+    } elseif ($null -ne $effCpuNorm -and $effCpuNorm -gt 0) {
+        $newSysEff = $effCpuNorm
+    } elseif ($null -ne $effGpuNorm -and $effGpuNorm -gt 0) {
+        $newSysEff = $effGpuNorm
+    }
+
+    if ($null -ne $newSysEff -and $newSysEff -gt 0) {
+        $eff.System_PerWatt = [math]::Round($newSysEff, 1)
+    } elseif ($null -eq $eff.System_PerWatt -and $overallScore -gt 0 -and $pLoad.Verfuegbar -and $pLoad.P_AC -gt 0) {
         $eff.System_PerWatt = [math]::Round(($overallScore / $pLoad.P_AC) * 100.0, 1)
     }
 

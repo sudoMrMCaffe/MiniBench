@@ -6,7 +6,7 @@
 
 .DESCRIPTION
     Gedacht für den Betrieb von einem USB-Stick. Alles, was das Werkzeug schreibt, landet im Ordner
-    "Minibench-Daten" neben LeosMinibench.exe bzw. LeosMinibench.ps1:
+    "Minibench-Daten" neben LMB.exe bzw. LeosMinibench.ps1:
 
       Minibench-Daten\Berichte\<PC>_<Datum>   Bericht (HTML, TXT), KI-Dateien, Anhang.zip
       Minibench-Daten\Berichte\Vergleiche     Systemvergleiche aus der Datenbank
@@ -23,7 +23,7 @@
     Lasttest (CPU, RAM, Grafik, Datenträger mit eigener Dauer, Temperaturkurven, Drosselnachweis, Abbruchschwelle),
     Reparatur (SFC, DISM und weitere), Optimierung (ab v2.8: Windows Optimisation Pack nativ, in Kategorien wählbar),
     Sensoren live (Temperatur, Takt, Lüfter, Spannung, Leistung).
-    Die Seite Vergleichsdatenbank vergleicht bereits geprüfte Systeme ohne neuen Benchmark.
+    Die Seite Datenbank vergleicht bereits geprüfte Systeme ohne neuen Benchmark.
     Die Seite Änderungen zeigt, was das Werkzeug an einem PC verändert hat, und nimmt Änderungen zurück.
 
     Aufbau: Jedes Modul beschreibt sich in einem Modulvertrag (src\Module\<Name>\Vertrag.psd1) mit Risikostufe je Schritt:
@@ -32,7 +32,7 @@
     Alle Parameter verwendet die Oberfläche intern für den Arbeitsprozess (-EventMode).
 
 .EXAMPLE
-    LeosMinibench.exe oder LeosMinibench.cmd starten.
+    LMB.exe oder LeosMinibench.cmd starten.
 #>
 [CmdletBinding()]
 param(

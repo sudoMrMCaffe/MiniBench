@@ -67,12 +67,26 @@
       const sName = escapeHtml(s.DisplayName || s.Computer);
       const label = (isBase ? 'Basis: ' : '') + sName;
       const hasSeries = (s.Telemetry?.Series && s.Telemetry.Series.length > 0);
-      const testType = hasSeries ? (s.Telemetry?.TestType || 'Lasttest') : 'keine Zeitreihe';
+      let testType = hasSeries ? (s.Telemetry?.TestType || 'Lasttest') : 'keine Zeitreihe';
+      if (testType === 'Benchmark') testType = 'Benchmark-Messung';
       html += `<div class="legend-item">
         <div class="legend-color" style="background: ${color};"></div>
         <span>${label} (${escapeHtml(testType)})</span>
       </div>`;
     });
+
+    const subTitleEl = document.querySelector('.dash-card .card-head p');
+    if (subTitleEl) {
+      const anyBenchmark = comparedSystems.some(s => s.Telemetry?.TestType === 'Benchmark');
+      const allBenchmark = comparedSystems.length > 0 && comparedSystems.every(s => s.Telemetry?.TestType === 'Benchmark' || !s.Telemetry?.Series?.length);
+      if (allBenchmark && anyBenchmark) {
+        subTitleEl.textContent = 'Sensorverlauf (Benchmark-Messung) über die Messphasen mit Farbcodierung je System.';
+      } else if (anyBenchmark) {
+        subTitleEl.textContent = 'Sensorverlauf (Lasttest & Benchmark-Messung) über die Belastungsdauer mit Farbcodierung je System.';
+      } else {
+        subTitleEl.textContent = 'Sensorverlauf über die Belastungsdauer mit Farbcodierung je System.';
+      }
+    }
 
     if (chartMode !== 'watt') {
       html += `<div class="legend-item" style="margin-left: auto; gap: 12px; font-weight: 500;">
@@ -413,7 +427,9 @@
         const isBase = (String(s.Id) === String(baseSystem?.Id));
         const color = getSysColor(idx, isDark);
         const sName = getShortSysName(s);
-        const name = (isBase ? 'Basis: ' : '') + sName;
+        const isBench = s.Telemetry?.TestType === 'Benchmark';
+        const typeBadge = isBench ? ' [Benchmark-Messung]' : '';
+        const name = (isBase ? 'Basis: ' : '') + sName + typeBadge;
 
         const srs = s.Telemetry?.Series || [];
         if (srs.length === 0) {

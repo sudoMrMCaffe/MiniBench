@@ -1,9 +1,26 @@
-LEOS MINIBENCH: VERSIONSHISTORIE
+﻿LEOS MINIBENCH: VERSIONSHISTORIE
 ================================
 
 Neueste Version zuerst. Einzelheiten je Version in Doku\Änderungen_vX.Y.txt (ab 2.2). Für 1.0 bis 2.1 gibt es
 keine Änderungsdateien mehr; die Einträge nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
 Die Liste steht auch im Programm (Info-Knopf oben rechts, Quelle: src\Oberflaeche\Versionen.cs).
+
+VERSION 3.73   (17.10.2026)  KOMPAKTE MODULNAMEN, LMB.EXE, MATHEMATISCHE MODELLKORREKTUR, DASHBOARD-FALLBACK & BEREINIGUNG EXTERNER QUELLEN
+====================================================================================================
+Kompakte Modulnamen & LMB.exe: Straffung der Bezeichnungen in Seitenleiste und Kopfzeilen („Datenbank“ statt
+„Vergleichsdatenbank“, „Änderungen“ statt „Systemänderungen“); Umstellung der Haupt-Binärdatei auf LMB.exe
+(unter Beibehaltung von LMB.cmd und LeosMinibench.cmd zur Abwärtskompatibilität).
+Dashboard-Optimierungen: Chronologische Sortierung der Systemauswahl und Vergleichs-Chips standardmäßig absteigend
+nach Messdatum (neueste Systeme zuerst); automatisches Fallback auf Benchmark-Sensordaten bei fehlender
+Lasttest-Zeitreihe verhindert leere Diagramme.
+Mathematische Modellkorrektur: Gesamtsystem-Effizienzscore auf gewichtetes harmonisches Mittel der gemessenen
+Benchmark-Effizienzen von CPU und GPU umgestellt, sodass höhere Einzelkomponenten-Effizienz stets zu einem höheren
+Gesamtscore führt; Nutzungsprofil „Workstation“ durch deutliche Stärkung der Mehrkern-Rechenleistung (CPU_MT 6,0)
+auf realistische Skalierung kalibriert.
+Bereinigung externer Quellen: Vollständige Entfernung inoffizieller Drittanbieter-Mirrors im Optimierungsmodul;
+Download externer Hilfswerkzeuge ausschließlich über offizielle Herstellerquellen, GitHub-Releases oder winget.
+Dokumentation & GitHub-Präsenz: Umfassende Aktualisierung von README.md, neuen Bildschirmfotos und strukturierter
+CHANGELOG.md sowie Aufnahme einer respektvollen Würdigung des Projekts Windows Optimisation Pack von Marvin700.
 
 VERSION 3.72   (16.10.2026)  NEUE DREITEILIGE STARTSEITE, INTERAKTIVER SCHNELLSTART & SYSTEM-FEINSCHLIFF
 ====================================================================================================

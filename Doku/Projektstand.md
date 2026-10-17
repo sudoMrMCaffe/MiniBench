@@ -2,10 +2,18 @@
 
 Gemeinsamer Stand für alle Agenten (Claude, Antigravity). Wird am Ende jeder Version aktualisiert (siehe AGENTS.md).
 
-## Stand: Version 3.72 (16.10.2026)
-Release-Commit "Release v3.72: Neue dreiteilige Startseite, interaktiver Schnellstart & System-Feinschliff" (Commit fafb4b2).
+## Stand: Version 3.73 (17.10.2026)
+Release-Commit "Release v3.73: Kompakte Modulnamen, LMB.exe, mathematische Modellkorrektur, Dashboard-Fallback & Bereinigung externer Quellen".
 Getestet und gebaut unter Windows mit Windows PowerShell 5.1 und Pester 6.2.0.
 
+Inhalt von 3.73 (Einzelheiten in Doku\Änderungen_v3.73.txt):
+1. Kompakte Modulnamen & LMB.exe: Straffung der Bezeichnungen in Seitenleiste und Fenstertiteln von „Vergleichsdatenbank“ zu „Datenbank“ und von „Systemänderungen“ zu „Änderungen“; Umstellung der ausführbaren Hauptdatei auf LMB.exe (inklusive LMB.cmd und Abwärtskompatibilitäts-Starter LeosMinibench.cmd).
+2. Dashboard-Optimierungen: Chronologische Sortierung der Systemauswahl und Vergleichschips standardmäßig absteigend nach Messdatum (neueste Systeme zuerst); automatisches Fallback auf Benchmark-Sensortelemetrie bei fehlender Lasttest-Zeitreihe (Sensorverlauf (Benchmark-Messung)) verhindert leere Diagramme.
+3. Mathematische Modellkorrektur: Gesamtsystem-Effizienzscore auf gewichtetes harmonisches Mittel der gemessenen Benchmark-Effizienzen von Prozessor und Grafikkarte umgestellt (strikte Monotonie, Behebung der Marvin-vs-TORRENT-Anomalie); Nutzungsprofil Workstation durch Anhebung des Mehrkern-Gewichts (CPU_MT auf 6,0 bzw. 60–65 % Gesamteinfluss) praxisgerecht kalibriert.
+4. Bereinigung externer Quellen: Sämtliche inoffiziellen Drittanbieter-Mirrors im Optimierungsmodul entfernt; Bezug von Fremdwerkzeugen ausschließlich von offiziellen Herstellerseiten, GitHub-Releases oder winget mit fester SHA-256-Prüfsumme im Manifest (Tools.json).
+5. Dokumentation & GitHub-Außenwirkung: Neugestaltung der README.md mit vollständiger Modulübersicht, aktualisierten Bildschirmfotos (Startseite_Neu.png, Dashboard_Neu.png) und sichtbarer Danksagung an das Projekt Windows Optimisation Pack von Marvin700; strukturierte CHANGELOG.md (Neu, Verbessert, Behoben).
+
+## Vorher: Version 3.72
 Inhalt von 3.72 (Einzelheiten in Doku\Änderungen_v3.72.txt):
 1. Neue dreiteilige Startseite (Drei-Fragen-Prinzip): Aufgeräumte Einstiegsseite als Standardansicht ganz oben in der Seitenleiste. Zwei dynamische Zustände: Zustand A (Erststart ohne Datenbankläufe) mit Begrüßung, Hardware-Steckbrief („DIESER PC“) inkl. Inventar-Link, vier interaktiven Aufgabenkarten, Schritt-für-Schritt-Ablauf und Werkzeug-Verweisen; Zustand B (Folgestart mit vorhandener Datenbank) mit Schlüsseldaten in Badges („Willkommen zurück“), 2x2-Kachelmatrix für den letzten Lauf (KPIs, Bericht öffnen, Dashboard-Vergleich), asynchroner Kachel „Schnell behebbar“ für Konfigurationsprüfungen, Aufgabenliste mit Datum des letzten Laufs sowie Werkzeuge-Live-Status. Abschlussleiste mit Option „Beim Start diese Seite zeigen“, Kurzanleitung und „Was ist neu“ (dynamisches Neu-Badge bei Versionswechsel).
 2. Interaktiver Schnellstart & Ablaufsteuerung: Klick auf eine Aufgabenkachel wählt die zuständigen Module in der Seitenleiste an, lädt Standardvorgaben und springt zur ersten Seite; Fußleiste zeigt im Leerzustand den deaktivierten Startknopf „Ablauf wählen“ und aktiviert sich automatisch nach Modulauswahl.
@@ -70,4 +78,4 @@ Inhalt von 3.64 (Einzelheiten in Doku\Änderungen_v3.64.txt):
 Keine offenen Befunde.
 
 ## Letzter Commit
-Release-Commit v3.72 (Commit fafb4b2)
+Release-Commit v3.73 (Release v3.73: Kompakte Modulnamen, LMB.exe, mathematische Modellkorrektur, Dashboard-Fallback & Bereinigung externer Quellen)

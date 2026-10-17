@@ -273,12 +273,53 @@
     return 'Schwach';
   }
 
+  function parseDateScore(dStr) {
+    if (!dStr || typeof dStr !== 'string') return 0;
+    const str = dStr.trim();
+    // 1. dd.MM.yyyy HH:mm[:ss] oder dd.MM.yyyy
+    const mDe = str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+    if (mDe) {
+      const day = parseInt(mDe[1], 10);
+      const month = parseInt(mDe[2], 10) - 1;
+      const year = parseInt(mDe[3], 10);
+      const hour = mDe[4] ? parseInt(mDe[4], 10) : 0;
+      const min = mDe[5] ? parseInt(mDe[5], 10) : 0;
+      const sec = mDe[6] ? parseInt(mDe[6], 10) : 0;
+      const dt = new Date(year, month, day, hour, min, sec);
+      return isNaN(dt.getTime()) ? 0 : dt.getTime();
+    }
+    // 2. yyyy-MM-dd HH:mm[:ss] oder yyyy-MM-dd
+    const mIso = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[\sT]+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+    if (mIso) {
+      const year = parseInt(mIso[1], 10);
+      const month = parseInt(mIso[2], 10) - 1;
+      const day = parseInt(mIso[3], 10);
+      const hour = mIso[4] ? parseInt(mIso[4], 10) : 0;
+      const min = mIso[5] ? parseInt(mIso[5], 10) : 0;
+      const sec = mIso[6] ? parseInt(mIso[6], 10) : 0;
+      const dt = new Date(year, month, day, hour, min, sec);
+      return isNaN(dt.getTime()) ? 0 : dt.getTime();
+    }
+    const t = Date.parse(str);
+    return isNaN(t) ? 0 : t;
+  }
+
   // INITIALISIERUNG
   function init() {
     initTheme();
     if (!data || (!data.Systems && !data.References)) {
       console.warn('Keine Benchmark-Daten eingebettet.');
       return;
+    }
+
+    // Gespeicherte Systeme standardmäßig absteigend nach Datum sortieren (neuestes zuerst)
+    if (data.Systems && Array.isArray(data.Systems)) {
+      data.Systems.sort((itemA, itemB) => {
+        const ta = parseDateScore(itemA.Datum);
+        const tb = parseDateScore(itemB.Datum);
+        if (tb !== ta) return tb - ta;
+        return String(itemB.Id || '').localeCompare(String(itemA.Id || ''));
+      });
     }
 
     populateBaseSelect();

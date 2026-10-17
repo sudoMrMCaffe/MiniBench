@@ -1,6 +1,25 @@
-# Changelog - Leos Minibench
+﻿# Changelog - Leos Minibench
 
 Alle wesentlichen Änderungen an Leos Minibench werden in diesem Dokument festgehalten.
+
+## v3.73 (17.10.2026)
+
+### Neu
+* **Kompakte Benennung in der Benutzeroberfläche:** Menüpunkt und Kopfzeilen von „Vergleichsdatenbank“ zu prägnantem „Datenbank“ und von „Systemänderungen“ zu „Änderungen“ gestrafft.
+* **Neue ausführbare Hauptdatei `LMB.exe`:** Kompaktierung des Binärdateinamens von `LeosMinibench.exe` auf `LMB.exe`. Zur nahtlosen Abwärtskompatibilität stehen weiterhin `LMB.cmd` und `LeosMinibench.cmd` als Starter bereit.
+* **Sensor-Fallback im Dashboard:** Liegt für ein System keine Lasttest-Verlaufsreihe vor, bindet das interaktive Dashboard automatisch die Sensortelemetrie des Benchmarks (`Sensorverlauf (Benchmark-Messung)`) ein, sodass Diagramme nicht mehr leer bleiben.
+
+### Verbessert
+* **Chronologische Systemauswahl im Dashboard:** Die System-Dropdowns und Vergleichschips sortieren gespeicherte Systeme standardmäßig absteigend nach Datum (neueste Messung ganz oben) mit Unterstützung für deutsche und ISO-Datumsformate.
+* **Mathematische Modellierung der Gesamtsystem-Effizienz:** Berechnung des Gesamteffizienzindex über das gewichtete harmonische Mittel der gemessenen Benchmark-Effizienzen von Prozessor und Grafikkarte unter Berücksichtigung der 230V-Wirkleistung. Systeme mit höherer CPU- und GPU-Einzeleffizienz erzielen mathematisch garantiert stets einen höheren Gesamtindex (Behebung der Marvin-vs-TORRENT-Anomalie).
+* **Workstation-Nutzungsprofil kalibriert:** Anhebung der Gewichtung für Mehrkern-Rechenleistung (`CPU_MT`) von 3,0 auf 6,0 (ca. 60–65 % Gesamteinfluss), wodurch 8- und 12-Kern-Systeme bei rechenintensiven Aufgaben den realen Leistungsvorsprung widerspiegeln.
+* **Bereinigung externer Quellen:** Vollständige Entfernung privater Repository-Mirrors im Optimierungsmodul; Bezug von Fremdwerkzeugen (wie DDU) ausschließlich über offizielle Herstellerseiten, GitHub-Releases oder `winget` mit fester SHA-256-Prüfsumme im Manifest.
+* **GitHub-Außenwirkung:** Vollständige Überarbeitung der `README.md` mit detaillierter Feature-Übersicht, aktualisierten Bildschirmfotos sowie respektvoller Danksagung an das Projekt Windows Optimisation Pack von Marvin700.
+
+### Behoben
+* **Leere Graphen bei reinen Benchmark-Systemen:** Dashboard zeigt nun Telemetriekurven auch dann an, wenn ausschließlich ein Benchmarklauf durchgeführt wurde.
+* **Verzerrte Gesamteffizienz bei High-End-Grafikkarten:** Bisherige Spitzenlast-Nennerverzerrung durch harmonische Mittelwertbildung bereinigt.
+* **Unterschätzte Mehrkernleistung bei Workstation-Workloads:** Workstation-Index spiegelt nun das reale Multithreading-Potenzial wider.
 
 ## v3.72 (16.10.2026)
 

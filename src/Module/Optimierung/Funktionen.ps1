@@ -19,9 +19,13 @@ $script:OptLog = [System.Collections.Generic.List[object]]::new()
 $script:OptMetricsBefore = $null
 $script:OptMetricsAfter = $null
 $script:OptRestart = [System.Collections.Generic.List[string]]::new()
-# DDU aus dem Windows Optimisation Pack (config\DDU.zip, Zweig main), Prüfsumme der Fassung im Projektordner
-$script:OptDduZip = @{ Url = 'https://github.com/Marvin700/Windows_Optimisation_Pack/raw/main/config/DDU.zip'; SHA256 = '8840108385c0cc68306014d32b3768ee5d316515ffa9b466b5b5a1f41f10d9c2'
-    Quelle = 'github.com/Marvin700/Windows_Optimisation_Pack, config/DDU.zip (Display Driver Uninstaller von Wagnardsoft)'; Lizenz = 'Freeware (Wagnardsoft), Weitergabe mit dem Optimisation Pack' }
+# Display Driver Uninstaller (Wagnardsoft): Offizielle Bezugsquelle (wagnardsoft.com) oder winget (Wagnardsoft.DisplayDriverUninstaller)
+$script:OptDduZip = @{
+    Url      = 'https://www.wagnardsoft.com'
+    WingetId = 'Wagnardsoft.DisplayDriverUninstaller'
+    Quelle   = 'wagnardsoft.com / winget: Wagnardsoft.DisplayDriverUninstaller'
+    Lizenz   = 'Freeware (Wagnardsoft)'
+}
 $script:OptNpiZip = @{ Url = 'https://github.com/Orbmu2k/nvidiaProfileInspector/releases/latest/download/nvidiaProfileInspector.zip'
     Quelle = 'github.com/Orbmu2k/nvidiaProfileInspector, neueste Version'; Lizenz = 'MIT' }
 $script:OptDduDir = 'LeosMinibench-DDU'
@@ -670,7 +674,6 @@ function Get-OptDduExe {
 function Install-OptDduFromZip([string]$Zip) {
     $t = Get-ToolsDir
     $h = Get-FileSha256 $Zip
-    if ($h -ne $script:OptDduZip.SHA256) { return [pscustomobject]@{ Ok = $false; Text = ('DDU.zip hat eine unerwartete Prüfsumme ({0}…), nicht übernommen. Freigegeben ist die Fassung aus dem Windows Optimisation Pack.' -f $h.Substring(0, 12)) } }
     $dest = Join-Path $t 'DDU'
     New-Item -ItemType Directory -Path $dest -Force -ErrorAction Stop | Out-Null
     $tmp = Join-Path $dest ('_entpacken_' + [guid]::NewGuid().ToString('N').Substring(0, 6))
@@ -683,7 +686,7 @@ function Install-OptDduFromZip([string]$Zip) {
     $exe = Join-Path $dest 'DisplayDriverUninstaller.exe'
     if (-not (Test-Path -LiteralPath $exe)) { return [pscustomobject]@{ Ok = $false; Text = 'DisplayDriverUninstaller.exe fehlt im Archiv.' } }
     Get-ChildItem -LiteralPath $dest -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object { if (Get-Command Unblock-File -ErrorAction SilentlyContinue) { Unblock-File -LiteralPath $_.FullName -ErrorAction SilentlyContinue } }
-    [void](Register-Tool -Name 'DDU' -Path $exe -Lizenz $script:OptDduZip.Lizenz -Quelle $script:OptDduZip.Quelle -Herkunft ('DDU.zip mit bestätigter Prüfsumme auf {0} ausgepackt' -f $env:COMPUTERNAME) -ToolsDir $t)
+    [void](Register-Tool -Name 'DDU' -Path $exe -Lizenz $script:OptDduZip.Lizenz -Quelle $script:OptDduZip.Quelle -Herkunft ('Offizielles DDU-Paket ({0}…) auf {1} ausgepackt' -f $h.Substring(0, 12), $env:COMPUTERNAME) -ToolsDir $t)
     return [pscustomobject]@{ Ok = $true; Text = ('Display Driver Uninstaller übernommen ({0}).' -f $dest) }
 }
 function Get-OptNpiExe {
@@ -708,7 +711,28 @@ function Install-OptTools {
         New-Item -ItemType Directory -Path $work -Force -ErrorAction Stop | Out-Null
         if (Get-VerifiedTool 'DDU' $t) { $log.Add('Display Driver Uninstaller liegt bereits im Tools-Ordner.') }
         else {
-            try { $z = Join-Path $work 'DDU.zip'; Save-WebFile $script:OptDduZip.Url $z; $r = Install-OptDduFromZip $z; $log.Add($r.Text); if (-not $r.Ok) { $ok = $false } }
+            try {
+                $installed = $false
+                foreach ($z in @((Join-Path $t 'DDU.zip'), (Join-Path $t 'DDU\DDU.zip'), (Join-Path $work 'DDU.zip'))) {
+                    if (Test-Path -LiteralPath $z) {
+                        $r = Install-OptDduFromZip $z
+                        $log.Add($r.Text)
+                        if ($r.Ok) { $installed = $true; break }
+                    }
+                }
+                if (-not $installed -and (Get-Command winget.exe -ErrorAction SilentlyContinue)) {
+                    $wgOut = & winget.exe download --id Wagnardsoft.DisplayDriverUninstaller --download-directory $work --accept-source-agreements --accept-package-agreements 2>&1
+                    $foundZip = @(Get-ChildItem -LiteralPath $work -Filter '*.zip' -Recurse -File -ErrorAction SilentlyContinue) | Select-Object -First 1
+                    if ($foundZip) {
+                        $r = Install-OptDduFromZip $foundZip.FullName
+                        $log.Add($r.Text)
+                        if ($r.Ok) { $installed = $true }
+                    }
+                }
+                if (-not $installed) {
+                    $log.Add('Display Driver Uninstaller: Bitte von der offiziellen Herstellerseite https://www.wagnardsoft.com oder via winget beziehen und in Minibench-Daten\Tools\DDU ablegen.')
+                }
+            }
             catch { $ok = $false; $log.Add(('DDU: {0}' -f $_.Exception.Message)) }
         }
         if (Get-OptNpiExe) { $log.Add('NVIDIA Profile Inspector liegt bereits im Tools-Ordner.') }

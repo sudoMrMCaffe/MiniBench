@@ -3,7 +3,7 @@
 #   START|2026-10-02 10:15:03|2.6|Stick|E:|3420
 #   PHASE|0|L|Programm gestartet
 #   PHASE|180|L|Startfenster sichtbar ...
-# Quelle L = LeosMinibench.exe, S = Skript, O = Oberfläche (C#). ms zählen ab dem Start des exe-Prozesses.
+# Quelle L = LMB.exe (bzw. LeosMinibench.exe), S = Skript, O = Oberfläche (C#). ms zählen ab dem Start des exe-Prozesses.
 function ConvertFrom-StartLog([string[]]$Lines) {
     $res = New-Object System.Collections.Generic.List[object]
     $cur = $null

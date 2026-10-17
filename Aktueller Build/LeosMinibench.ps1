@@ -6,7 +6,7 @@
 
 .DESCRIPTION
     Gedacht für den Betrieb von einem USB-Stick. Alles, was das Werkzeug schreibt, landet im Ordner
-    "Minibench-Daten" neben LeosMinibench.exe bzw. LeosMinibench.ps1:
+    "Minibench-Daten" neben LMB.exe bzw. LeosMinibench.ps1:
 
       Minibench-Daten\Berichte\<PC>_<Datum>   Bericht (HTML, TXT), KI-Dateien, Anhang.zip
       Minibench-Daten\Berichte\Vergleiche     Systemvergleiche aus der Datenbank
@@ -23,7 +23,7 @@
     Lasttest (CPU, RAM, Grafik, Datenträger mit eigener Dauer, Temperaturkurven, Drosselnachweis, Abbruchschwelle),
     Reparatur (SFC, DISM und weitere), Optimierung (ab v2.8: Windows Optimisation Pack nativ, in Kategorien wählbar),
     Sensoren live (Temperatur, Takt, Lüfter, Spannung, Leistung).
-    Die Seite Vergleichsdatenbank vergleicht bereits geprüfte Systeme ohne neuen Benchmark.
+    Die Seite Datenbank vergleicht bereits geprüfte Systeme ohne neuen Benchmark.
     Die Seite Änderungen zeigt, was das Werkzeug an einem PC verändert hat, und nimmt Änderungen zurück.
 
     Aufbau: Jedes Modul beschreibt sich in einem Modulvertrag (src\Module\<Name>\Vertrag.psd1) mit Risikostufe je Schritt:
@@ -32,7 +32,7 @@
     Alle Parameter verwendet die Oberfläche intern für den Arbeitsprozess (-EventMode).
 
 .EXAMPLE
-    LeosMinibench.exe oder LeosMinibench.cmd starten.
+    LMB.exe oder LeosMinibench.cmd starten.
 #>
 [CmdletBinding()]
 param(
@@ -240,7 +240,7 @@ if (-not $isAdmin -and -not $Vergleich -and -not $ImportOrdner -and -not $Export
 }
 #endregion
 
-$ScriptVersion = '3.72'
+$ScriptVersion = '3.73'
 $AppName       = 'Leos Minibench'
 # Eingebettete Referenzprofile für Leos Minibench (v3.0)
 $script:EmbeddedReferences = @{
@@ -2402,7 +2402,7 @@ if ($ExportLauf) {
 #   START|2026-10-02 10:15:03|2.6|Stick|E:|3420
 #   PHASE|0|L|Programm gestartet
 #   PHASE|180|L|Startfenster sichtbar ...
-# Quelle L = LeosMinibench.exe, S = Skript, O = Oberfläche (C#). ms zählen ab dem Start des exe-Prozesses.
+# Quelle L = LMB.exe (bzw. LeosMinibench.exe), S = Skript, O = Oberfläche (C#). ms zählen ab dem Start des exe-Prozesses.
 function ConvertFrom-StartLog([string[]]$Lines) {
     $res = New-Object System.Collections.Generic.List[object]
     $cur = $null
@@ -4635,9 +4635,13 @@ $script:OptLog = [System.Collections.Generic.List[object]]::new()
 $script:OptMetricsBefore = $null
 $script:OptMetricsAfter = $null
 $script:OptRestart = [System.Collections.Generic.List[string]]::new()
-# DDU aus dem Windows Optimisation Pack (config\DDU.zip, Zweig main), Prüfsumme der Fassung im Projektordner
-$script:OptDduZip = @{ Url = 'https://github.com/Marvin700/Windows_Optimisation_Pack/raw/main/config/DDU.zip'; SHA256 = '8840108385c0cc68306014d32b3768ee5d316515ffa9b466b5b5a1f41f10d9c2'
-    Quelle = 'github.com/Marvin700/Windows_Optimisation_Pack, config/DDU.zip (Display Driver Uninstaller von Wagnardsoft)'; Lizenz = 'Freeware (Wagnardsoft), Weitergabe mit dem Optimisation Pack' }
+# Display Driver Uninstaller (Wagnardsoft): Offizielle Bezugsquelle (wagnardsoft.com) oder winget (Wagnardsoft.DisplayDriverUninstaller)
+$script:OptDduZip = @{
+    Url      = 'https://www.wagnardsoft.com'
+    WingetId = 'Wagnardsoft.DisplayDriverUninstaller'
+    Quelle   = 'wagnardsoft.com / winget: Wagnardsoft.DisplayDriverUninstaller'
+    Lizenz   = 'Freeware (Wagnardsoft)'
+}
 $script:OptNpiZip = @{ Url = 'https://github.com/Orbmu2k/nvidiaProfileInspector/releases/latest/download/nvidiaProfileInspector.zip'
     Quelle = 'github.com/Orbmu2k/nvidiaProfileInspector, neueste Version'; Lizenz = 'MIT' }
 $script:OptDduDir = 'LeosMinibench-DDU'
@@ -5286,7 +5290,6 @@ function Get-OptDduExe {
 function Install-OptDduFromZip([string]$Zip) {
     $t = Get-ToolsDir
     $h = Get-FileSha256 $Zip
-    if ($h -ne $script:OptDduZip.SHA256) { return [pscustomobject]@{ Ok = $false; Text = ('DDU.zip hat eine unerwartete Prüfsumme ({0}…), nicht übernommen. Freigegeben ist die Fassung aus dem Windows Optimisation Pack.' -f $h.Substring(0, 12)) } }
     $dest = Join-Path $t 'DDU'
     New-Item -ItemType Directory -Path $dest -Force -ErrorAction Stop | Out-Null
     $tmp = Join-Path $dest ('_entpacken_' + [guid]::NewGuid().ToString('N').Substring(0, 6))
@@ -5299,7 +5302,7 @@ function Install-OptDduFromZip([string]$Zip) {
     $exe = Join-Path $dest 'DisplayDriverUninstaller.exe'
     if (-not (Test-Path -LiteralPath $exe)) { return [pscustomobject]@{ Ok = $false; Text = 'DisplayDriverUninstaller.exe fehlt im Archiv.' } }
     Get-ChildItem -LiteralPath $dest -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object { if (Get-Command Unblock-File -ErrorAction SilentlyContinue) { Unblock-File -LiteralPath $_.FullName -ErrorAction SilentlyContinue } }
-    [void](Register-Tool -Name 'DDU' -Path $exe -Lizenz $script:OptDduZip.Lizenz -Quelle $script:OptDduZip.Quelle -Herkunft ('DDU.zip mit bestätigter Prüfsumme auf {0} ausgepackt' -f $env:COMPUTERNAME) -ToolsDir $t)
+    [void](Register-Tool -Name 'DDU' -Path $exe -Lizenz $script:OptDduZip.Lizenz -Quelle $script:OptDduZip.Quelle -Herkunft ('Offizielles DDU-Paket ({0}…) auf {1} ausgepackt' -f $h.Substring(0, 12), $env:COMPUTERNAME) -ToolsDir $t)
     return [pscustomobject]@{ Ok = $true; Text = ('Display Driver Uninstaller übernommen ({0}).' -f $dest) }
 }
 function Get-OptNpiExe {
@@ -5324,7 +5327,28 @@ function Install-OptTools {
         New-Item -ItemType Directory -Path $work -Force -ErrorAction Stop | Out-Null
         if (Get-VerifiedTool 'DDU' $t) { $log.Add('Display Driver Uninstaller liegt bereits im Tools-Ordner.') }
         else {
-            try { $z = Join-Path $work 'DDU.zip'; Save-WebFile $script:OptDduZip.Url $z; $r = Install-OptDduFromZip $z; $log.Add($r.Text); if (-not $r.Ok) { $ok = $false } }
+            try {
+                $installed = $false
+                foreach ($z in @((Join-Path $t 'DDU.zip'), (Join-Path $t 'DDU\DDU.zip'), (Join-Path $work 'DDU.zip'))) {
+                    if (Test-Path -LiteralPath $z) {
+                        $r = Install-OptDduFromZip $z
+                        $log.Add($r.Text)
+                        if ($r.Ok) { $installed = $true; break }
+                    }
+                }
+                if (-not $installed -and (Get-Command winget.exe -ErrorAction SilentlyContinue)) {
+                    $wgOut = & winget.exe download --id Wagnardsoft.DisplayDriverUninstaller --download-directory $work --accept-source-agreements --accept-package-agreements 2>&1
+                    $foundZip = @(Get-ChildItem -LiteralPath $work -Filter '*.zip' -Recurse -File -ErrorAction SilentlyContinue) | Select-Object -First 1
+                    if ($foundZip) {
+                        $r = Install-OptDduFromZip $foundZip.FullName
+                        $log.Add($r.Text)
+                        if ($r.Ok) { $installed = $true }
+                    }
+                }
+                if (-not $installed) {
+                    $log.Add('Display Driver Uninstaller: Bitte von der offiziellen Herstellerseite https://www.wagnardsoft.com oder via winget beziehen und in Minibench-Daten\Tools\DDU ablegen.')
+                }
+            }
             catch { $ok = $false; $log.Add(('DDU: {0}' -f $_.Exception.Message)) }
         }
         if (Get-OptNpiExe) { $log.Add('NVIDIA Profile Inspector liegt bereits im Tools-Ordner.') }
@@ -6533,8 +6557,8 @@ public partial class DiagGui : Form
         nav.Add(ModNav("Optimierung", "Optimierung", "Windows Optimisation Pack, gruppiert", UI.IcoOpt));
         navTools = ModNav("Tools", "Tools", "Portable Werkzeuge und Schnellstarter", UI.IcoTools); navTools.HasCheck = false; nav.Add(navTools);
         navSens = ModNav("Sensoren", "Sensoren live", "Temperatur, Takt, Lüfter, Leistung", UI.IcoSens); navSens.HasCheck = false; nav.Add(navSens);
-        navDb = new NavItem("Vergleichsdatenbank", db.Count + " gespeicherte Systeme", UI.IcoDb); navDb.HasCheck = false; Tip(navDb, "Vergleichsdatenbank aller gespeicherten Systeme verwalten und vergleichen."); nav.Add(navDb);
-        navChg = new NavItem("Systemänderungen", "Protokoll und Rückgängig", UI.IcoChg); navChg.HasCheck = false; Tip(navChg, "Änderungsprotokoll: was Leos Minibench an diesem PC verändert hat, mit Rückgängig."); nav.Add(navChg);
+        navDb = new NavItem("Datenbank", db.Count + " gespeicherte Systeme", UI.IcoDb); navDb.HasCheck = false; Tip(navDb, "Datenbank aller gespeicherten Systeme verwalten und im Dashboard vergleichen."); nav.Add(navDb);
+        navChg = new NavItem("Änderungen", "Protokoll und Rückgängig", UI.IcoChg); navChg.HasCheck = false; Tip(navChg, "Änderungsprotokoll: was Leos Minibench an diesem PC verändert hat, mit Rückgängig."); nav.Add(navChg);
 
         left.Controls.Add(navStart);
         Label lm = SideHead("Ablauf"); lm.Margin = new Padding(UI.S(4), UI.S(UI.Abstand4), 0, UI.S(6)); left.Controls.Add(lm);
@@ -6635,8 +6659,8 @@ public partial class DiagGui : Form
             "Optimierung (ab v2.8): das Windows Optimisation Pack nativ, mit Sophia- und O&O-Einstellungen, in Kategorien einzeln wählbar. Ändern ist einzeln rücknehmbar, Eingriffe sichert der Wiederherstellungspunkt ab.",
             "Tools: Portable Hilfswerkzeuge wie Revo Uninstaller, MiniTool Partition Wizard, WizTree sowie Windows-Schnellstarter.",
             "Sensoren live: Temperatur, Takt, Lüfter, Spannung und Leistung laufend anzeigen und aufzeichnen. Kein Modul für den Start.",
-            "Vergleichsdatenbank: alle gespeicherten Läufe, Vergleich mehrerer Systeme ohne neuen Benchmark, Import älterer Ordner und Aufräumen.",
-            "Systemänderungen: was Leos Minibench an einem PC verändert hat, mit Vorher-Wert und Rückgängig." };
+            "Datenbank: alle gespeicherten Läufe, Vergleich mehrerer Systeme ohne neuen Benchmark, Import älterer Ordner und Aufräumen.",
+            "Änderungen: was Leos Minibench an einem PC verändert hat, mit Vorher-Wert und Rückgängig." };
         for (int i = 0; i < nav.Count && i < navTips.Length; i++) Tip(nav[i], navTips[i]);
         // Diagnose
         Tip(rbVoll, "Alle Prüfungen der Liste, ca. " + DiagMinutes(diagVoll) + " Min., mit SMART-Langtest länger.");
@@ -6677,7 +6701,7 @@ public partial class DiagGui : Form
             StringBuilder t = new StringBuilder(repText[i]);
             if (cs != null)
             {
-                t.Append("\r\nRisikostufe: ").Append(ContractStep.RiskLabel(cs.Risiko)).Append(cs.Risiko == "Aendern" ? " (protokolliert, auf der Seite Systemänderungen rücknehmbar)" : cs.Risiko == "Eingriff" ? " (nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt)" : "");
+                t.Append("\r\nRisikostufe: ").Append(ContractStep.RiskLabel(cs.Risiko)).Append(cs.Risiko == "Aendern" ? " (protokolliert, auf der Seite Änderungen rücknehmbar)" : cs.Risiko == "Eingriff" ? " (nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt)" : "");
                 t.Append("\r\nNeustart: ").Append(cs.Neustart == "immer" ? "nötig" : cs.Neustart == "moeglich" ? "kann nötig sein" : "nicht nötig");
                 if (cs.Minuten > 0) t.Append("\r\nDauer: etwa ").Append(cs.Minuten).Append(" Min.");
             }
@@ -6864,7 +6888,7 @@ public partial class DiagGui : Form
     {
         if (b == null) return;
         string k = b.Tag as string;
-        if (k == "risiko") Tip(b, b.Level == "info" ? "Ändern: wird mit Vorher-Wert protokolliert und lässt sich auf der Seite Systemänderungen zurücknehmen." : "Eingriff: nicht automatisch umkehrbar; der Weg zurück ist der Wiederherstellungspunkt.");
+        if (k == "risiko") Tip(b, b.Level == "info" ? "Ändern: wird mit Vorher-Wert protokolliert und lässt sich auf der Seite Änderungen zurücknehmen." : "Eingriff: nicht automatisch umkehrbar; der Weg zurück ist der Wiederherstellungspunkt.");
         else if (k == "neustart") Tip(b, b.Text == "Neustart" ? "Wird erst nach einem Neustart vollständig wirksam." : "Kann einen Neustart brauchen, je nach Zustand des PCs.");
         else if (k == "verwaltet") Tip(b, "Berührt Gruppenrichtlinien oder zentrale Verwaltung; auf Domänen-PCs nicht in den Vorlagen.");
         else if (k == "zustand") Tip(b, "Zustand auf diesem PC, ermittelt mit Zustand prüfen oder beim letzten Lauf.");
@@ -7500,10 +7524,10 @@ public partial class DiagGui : Form
     {
         FlowLayoutPanel l = new FlowLayoutPanel(); l.AutoSize = true; l.FlowDirection = FlowDirection.TopDown; l.WrapContents = false; l.BackColor = UI.Panel; l.Margin = new Padding(UI.S(4), 0, 0, UI.S(2));
         Badge ba = new Badge(ContractStep.RiskLabel("Aendern"), "info"); ba.Margin = new Padding(0, UI.S(2), UI.S(6), 0);
-        Label ta = Lbl("protokolliert, auf der Seite Systemänderungen rücknehmbar", UI.SchriftHinweis, false, UI.Muted); ta.Margin = new Padding(0, UI.S(3), UI.S(UI.Abstand4), 0);
+        Label ta = Lbl("protokolliert, auf der Seite Änderungen rücknehmbar", UI.SchriftHinweis, false, UI.Muted); ta.Margin = new Padding(0, UI.S(3), UI.S(UI.Abstand4), 0);
         Badge be = new Badge(ContractStep.RiskLabel("Eingriff"), "warn"); be.Margin = new Padding(0, UI.S(2), UI.S(6), 0);
         Label te = Lbl("nicht automatisch umkehrbar, abgesichert über den Wiederherstellungspunkt", UI.SchriftHinweis, false, UI.Muted); te.Margin = new Padding(0, UI.S(3), 0, 0);
-        Tip(ba, "Wird mit Vorher-Wert protokolliert und lässt sich auf der Seite Systemänderungen zurücknehmen.");
+        Tip(ba, "Wird mit Vorher-Wert protokolliert und lässt sich auf der Seite Änderungen zurücknehmen.");
         Tip(be, "Lässt sich nicht automatisch umkehren; der Weg zurück ist der Wiederherstellungspunkt.");
         foreach (Control[] pair in new Control[][] { new Control[] { ba, ta }, new Control[] { be, te } })
         {
@@ -7718,7 +7742,7 @@ public partial class DiagGui : Form
     string OptTipText(OptItem it)
     {
         StringBuilder t = new StringBuilder(it.Tip.Replace(" ¶", "\r\n"));
-        t.Append("\r\nRisikostufe: ").Append(ContractStep.RiskLabel(it.Risiko)).Append(it.Risiko == "Aendern" ? " (protokolliert, auf der Seite Systemänderungen einzeln rücknehmbar)" : " (nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt)");
+        t.Append("\r\nRisikostufe: ").Append(ContractStep.RiskLabel(it.Risiko)).Append(it.Risiko == "Aendern" ? " (protokolliert, auf der Seite Änderungen einzeln rücknehmbar)" : " (nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt)");
         t.Append("\r\nNeustart: ").Append(it.Neustart == "immer" ? "nötig" : it.Neustart == "moeglich" ? "kann nötig sein" : "nicht nötig");
         List<string> vList = new List<string>();
         if (it.Vorlagen.Contains("M")) vList.Add("Minimal");
@@ -11774,7 +11798,7 @@ public partial class DiagGui
     Control BuildDbPage()
     {
         Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel;
-        FlowLayoutPanel top = Page("Vergleichsdatenbank", "Jeder Lauf wird als System gespeichert. Hier lassen sich bereits geprüfte Systeme ohne neuen Benchmark im interaktiven Multi-System-Dashboard gegenüberstellen: Systeme anhaken und \"Im Dashboard vergleichen\" klicken. Ältere Ausgabeordner lassen sich importieren. Ein Klick auf die Spaltenköpfe sortiert die Einträge.", -1);
+        FlowLayoutPanel top = Page("Datenbank", "Jeder Lauf wird als System gespeichert. Hier lassen sich bereits geprüfte Systeme ohne neuen Benchmark im interaktiven Multi-System-Dashboard gegenüberstellen: Systeme anhaken und \"Im Dashboard vergleichen\" klicken. Ältere Ausgabeordner lassen sich importieren. Ein Klick auf die Spaltenköpfe sortiert die Einträge.", -1);
         top.Dock = DockStyle.Top;
         top.AutoSize = true;
         lblDbPath = Lbl(NasAblage.AblageText(dataDir), 9f, false, UI.Muted); lblDbPath.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(4)); top.Controls.Add(lblDbPath);
@@ -11843,7 +11867,7 @@ public partial class DiagGui
         lvDb.ItemChecked += delegate { UpdateDbButtons(); };
         lvDb.SelectedIndexChanged += delegate { UpdateDbButtons(); };
         lvDb.ColumnClick += OnDbColumnClick;
-        Tip(lvDb, "Vergleichsdatenbank aller gespeicherten Systeme. Ein Klick auf die Spaltenköpfe sortiert nach Datum, Gesamtwertung, CPU oder GPU.");
+        Tip(lvDb, "Datenbank aller gespeicherten Systeme. Ein Klick auf die Spaltenköpfe sortiert nach Datum, Gesamtwertung, CPU oder GPU.");
 
         ContextMenu cm = new ContextMenu();
         MenuItem miDashboard = new MenuItem("Im Dashboard vergleichen", delegate { OpenDashboard(); });
@@ -12316,7 +12340,7 @@ public partial class DiagGui
     Control BuildChangePage()
     {
         Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel;
-        FlowLayoutPanel top = Page("Systemänderungen", "Alles, was Leos Minibench an einem PC verändert hat, mit Vorher-Wert. Einträge der Stufe Ändern lassen sich auf dem PC, auf dem sie entstanden sind, zurücknehmen. Eingriffe stehen mit dem Weg zurück als Hinweis in der Liste.", -1);
+        FlowLayoutPanel top = Page("Änderungen", "Alles, was Leos Minibench an einem PC verändert hat, mit Vorher-Wert. Einträge der Stufe Ändern lassen sich auf dem PC, auf dem sie entstanden sind, zurücknehmen. Eingriffe stehen mit dem Weg zurück als Hinweis in der Liste.", -1);
         top.Dock = DockStyle.Top;
         top.AutoSize = true;
         Label lp = Lbl("Protokoll: " + (changeDir.Length > 0 ? changeDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lp.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8)); top.Controls.Add(lp);
@@ -13829,11 +13853,11 @@ public partial class DiagGui
         toolsListB.Margin = new Padding(0, UI.S(4), 0, 0);
 
         Control rowSensB = CreateToolRowB(UI.IcoSens, "Sensoren live", "CPU [°C] · GPU [°C]", delegate { ShowPage(7); }, "Öffnet die Live-Sensoranzeige für Temperaturen, Taktraten und Spannungen.");
-        Control rowDbB = CreateToolRowB(UI.IcoDb, "Vergleichsdatenbank", db.Count + " Systeme", delegate { ShowPage(8); }, "Öffnet die Vergleichsdatenbank aller gespeicherten Messungen.");
+        Control rowDbB = CreateToolRowB(UI.IcoDb, "Datenbank", db.Count + " Systeme", delegate { ShowPage(8); }, "Öffnet die Datenbank aller gespeicherten Messungen.");
         int openChanges = 0;
         foreach (ChangeEntry ce in changes) if (ce.Undoable) openChanges++;
         string chgInfo = openChanges == 0 ? "keine offenen" : (openChanges + " offen");
-        Control rowChgB = CreateToolRowB(UI.IcoChg, "Systemänderungen", chgInfo, delegate { ShowPage(9); }, "Öffnet das Protokoll der Systemänderungen mit Rückgängig-Funktion.");
+        Control rowChgB = CreateToolRowB(UI.IcoChg, "Änderungen", chgInfo, delegate { ShowPage(9); }, "Öffnet das Protokoll der Systemänderungen mit Rückgängig-Funktion.");
 
         toolsListB.Controls.Add(rowSensB, 0, 0);
         toolsListB.Controls.Add(rowDbB, 0, 1);
@@ -14438,7 +14462,7 @@ public partial class DiagGui
                 new string[] { "1. Ablauf wählen", "Hake in der linken Leiste die gewünschten Module an (Diagnose, Benchmark, Lasttest, Wartung oder Optimierung). Du kannst mehrere Module beliebig kombinieren." },
                 new string[] { "2. Starten", "Klicke unten rechts auf den Startknopf. Vor dem Start zeigt die Leiste die geschätzte Gesamtdauer aller gewählten Prüfungen an." },
                 new string[] { "3. Bericht lesen", "Nach Abschluss öffnet sich automatisch der detaillierte HTML-Bericht. Alle Befunde sind nach Dringlichkeit (Kritisch, Warnung, Hinweis) gegliedert." },
-                new string[] { "4. Änderungen rückgängig machen", "Wartungs- und Optimierungsmaßnahmen werden im Änderungsprotokoll erfasst und können auf der Seite Systemänderungen einzeln zurückgenommen werden." }
+                new string[] { "4. Änderungen rückgängig machen", "Wartungs- und Optimierungsmaßnahmen werden im Änderungsprotokoll erfasst und können auf der Seite Änderungen einzeln zurückgenommen werden." }
             };
 
             foreach (string[] st in steps)
@@ -15159,6 +15183,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.73", "17.10.2026", "Kompakte Modulnamen, LMB.exe, mathematische Modellkorrektur, Dashboard-Fallback & Bereinigung externer Quellen",
+            "Kompakte Modulnamen & LMB.exe: Seitenleiste und Kopfzeilen von „Vergleichsdatenbank“ in „Datenbank“ sowie von „Systemänderungen“ in „Änderungen“ gestrafft; ausführbare Datei in prägnantes LMB.exe umbenannt (inklusive LMB.cmd und Abwärtskompatibilitäts-Starter LeosMinibench.cmd). " +
+            "Dashboard-Optimierungen: Chronologische Sortierung der Systemauswahl und Vergleichs-Chips standardmäßig absteigend nach Messdatum (neueste Systeme zuerst) mit robuster Erkennung deutscher und ISO-Datumsformate; automatisches Sensor-Fallback auf Benchmark-Telemetrie bei fehlender Lasttest-Zeitreihe verhindert leere Graphen. " +
+            "Mathematische Modellkorrektur: Gesamtsystem-Effizienzscore auf gewichtetes harmonisches Mittel der gemessenen Benchmark-Effizienzen von CPU und GPU umgestellt, wodurch Systeme mit höherer Einzeleffizienz mathematisch garantiert auch einen höheren Gesamteffizienzindex erzielen (Behebung der Marvin-vs-TORRENT-Anomalie); Nutzungsprofil Workstation durch Anhebung der Mehrkern-Gewichtung (CPU_MT auf 6,0 bzw. 60–65 % Gesamteinfluss) praxisgerecht kalibriert. " +
+            "Bereinigung externer Quellen: Entfernung privater Repository-Mirrors im Optimierungsmodul; Bezug von Fremdwerkzeugen ausschließlich über offizielle Herstellerseiten, GitHub-Releases oder winget mit fester SHA-256-Prüfsumme. " +
+            "Dokumentation & GitHub-Präsenz: Sachliche, moderne Überarbeitung der README.md mit vollständiger Funktionsübersicht, aktualisierten Bildschirmfotos und respektvoller Danksagung an das Projekt Windows Optimisation Pack von Marvin700; strukturierte CHANGELOG.md nach Kategorien (Neu, Verbessert, Behoben)."),
         new Eintrag("3.72", "16.10.2026", "Neue dreiteilige Startseite, interaktiver Schnellstart & System-Feinschliff",
             "Neue dreiteilige Startseite: Moderne Einstiegsseite nach dem Drei-Fragen-Prinzip („Was ist das für ein PC?“, „Was kann ich hier tun?“, „Was ist seit dem letzten Mal passiert?“) als Standardansicht beim Programmstart. Zwei dynamische Zustände: Zustand A für den Erststart mit Hardware-Steckbrief, vier interaktiven Aufgabenkarten (PC durchchecken, Leistung messen, Stabilität prüfen, Pflegen und beschleunigen), Ablauf-Erklärung und Werkzeug-Verweisen; Zustand B für Folgestarts mit Schnellübersicht der Hardware in Badges, Kachel für den letzten Lauf mit vier Kennzahlen (Gesamt, CPU, RAM, GPU) und Direktlinks, asynchroner Kachel „Schnell behebbar“ für Konfigurationsprüfungen ohne Last sowie Aufgaben- und Werkzeuglisten. " +
             "Interaktiver Schnellstart: Direkte Aufgabenwahl hakt die erforderlichen Module an, lädt sinnvolle Standardprofile und wechselt zur ersten Arbeitsseite; Fußleiste mit deaktiviertem Startknopf „Ablauf wählen“ im Leerzustand und automatischer Aktivierung nach Modulauswahl. " +
@@ -17326,7 +17356,29 @@ function Get-SystemPowerProfile($Entry = $null) {
     if ($null -eq $eff.Gpu_PerWatt -and $null -ne $gpuFps -and $gpuFps -gt 0 -and $null -ne $gpuWMax -and $gpuWMax -gt 0) {
         $eff.Gpu_PerWatt = [math]::Round($gpuFps / $gpuWMax, 2)
     }
-    if ($null -eq $eff.System_PerWatt -and $overallScore -gt 0 -and $pLoad.Verfuegbar -and $pLoad.P_AC -gt 0) {
+
+    # Gesamtsystem-Effizienz: gewichtetes harmonisches Mittel der gemessenen Teillast-/Benchmark-Effizienzen
+    $pCpuLoad = Get-EstimatedSystemPower -CpuW $cpuWMax -GpuW $gpuWIdle -IsNotebook:$isNb -GpuName $gpuName -DimmCount $dimmCount -RamOc:$ramOc -Disks $disksList -DiskCount $diskCount -FanCount $fanCount -Stage 'CpuLoad' -PsuWattage $psuWatt -PsuRating $psuRate
+    $pCpuAc = if ($pCpuLoad.Verfuegbar -and $pCpuLoad.P_AC -gt 0) { $pCpuLoad.P_AC } elseif ($null -ne $cpuWMax -and $cpuWMax -gt 0) { $cpuWMax * 1.25 + 25.0 } else { $null }
+    $pGpuAc = if ($pGaming.Verfuegbar -and $pGaming.P_AC -gt 0) { $pGaming.P_AC } elseif ($null -ne $gpuWMax -and $gpuWMax -gt 0) { ($gpuWMax + 50.0) * 1.25 + 25.0 } else { $null }
+
+    $effCpuNorm = if ($cpuMtScore -gt 0 -and $null -ne $pCpuAc -and $pCpuAc -gt 0) { (($cpuMtScore / 28000.0) * 100.0 / $pCpuAc) * 100.0 } else { $null }
+    $sGpu = if ($null -ne $gpuFps -and $gpuFps -gt 0) { ($gpuFps / 100.0) * 100.0 } elseif ($null -ne $gpuPoints -and $gpuPoints -gt 0) { ($gpuPoints / 10000.0) * 100.0 } elseif ($Entry -and $Entry.Werte -and $Entry.Werte['GPU|VMB'] -gt 0) { ([double]$Entry.Werte['GPU|VMB'] / 300.0) * 100.0 } else { $null }
+    $effGpuNorm = if ($null -ne $sGpu -and $sGpu -gt 0 -and $null -ne $pGpuAc -and $pGpuAc -gt 0) { ($sGpu / $pGpuAc) * 100.0 } else { $null }
+
+    $newSysEff = $null
+    if ($null -ne $effCpuNorm -and $effCpuNorm -gt 0 -and $null -ne $effGpuNorm -and $effGpuNorm -gt 0) {
+        $wCpu = 1.0; $wGpu = 1.0
+        $newSysEff = ($wCpu + $wGpu) / (($wCpu / $effCpuNorm) + ($wGpu / $effGpuNorm))
+    } elseif ($null -ne $effCpuNorm -and $effCpuNorm -gt 0) {
+        $newSysEff = $effCpuNorm
+    } elseif ($null -ne $effGpuNorm -and $effGpuNorm -gt 0) {
+        $newSysEff = $effGpuNorm
+    }
+
+    if ($null -ne $newSysEff -and $newSysEff -gt 0) {
+        $eff.System_PerWatt = [math]::Round($newSysEff, 1)
+    } elseif ($null -eq $eff.System_PerWatt -and $overallScore -gt 0 -and $pLoad.Verfuegbar -and $pLoad.P_AC -gt 0) {
         $eff.System_PerWatt = [math]::Round(($overallScore / $pLoad.P_AC) * 100.0, 1)
     }
 
@@ -17876,7 +17928,7 @@ function New-ProfileCards {
     $profiles = @(
         @{ Name = 'Gaming';       Icon = '🎮'; W = @{ 'CPU_ST' = 1.0; 'CPU_MT' = 0.5; 'GPU' = 3.0; 'RAM' = 0.5; 'DISK' = 0.5 } }
         @{ Name = 'Büro/Desktop'; Icon = '💼'; W = @{ 'CPU_ST' = 2.0; 'CPU_MT' = 1.0; 'GPU' = 0.5; 'RAM' = 1.0; 'DISK' = 2.0 } }
-        @{ Name = 'Workstation';  Icon = '🚀'; W = @{ 'CPU_ST' = 0.5; 'CPU_MT' = 3.0; 'GPU' = 1.0; 'RAM' = 2.0; 'DISK' = 1.0 } }
+        @{ Name = 'Workstation';  Icon = '🚀'; W = @{ 'CPU_ST' = 0.5; 'CPU_MT' = 6.0; 'GPU' = 1.0; 'RAM' = 1.5; 'DISK' = 1.0 } }
     )
 
     $sb = New-Object System.Text.StringBuilder
@@ -18221,7 +18273,7 @@ function Export-BenchDashboardData {
 
     # Lokale Hilfsfunktion: Sicheres Lesen von CSV-Zeitreihen
     $extractCsvSeries = {
-        param([string]$ReportFolder, [string]$LeafFolder)
+        param([string]$ReportFolder, [string]$LeafFolder, [string[]]$FileNames = @('Lasttest-Verlauf.csv', 'Sensoren_Lasttest.csv'))
         $lines = @()
         $candidates = [System.Collections.Generic.List[string]]::new()
         if ($LeafFolder) {
@@ -18234,27 +18286,34 @@ function Export-BenchDashboardData {
         }
         foreach ($cand in $candidates) {
             if (-not (Test-Path -LiteralPath $cand)) { continue }
-            $rawCsv = Join-Path $cand 'Lasttest-Verlauf.csv'
-            $zipPath = Join-Path $cand 'Anhang.zip'
-            if (Test-Path -LiteralPath $rawCsv) {
-                try { $lines = @([System.IO.File]::ReadAllLines($rawCsv, [System.Text.Encoding]::UTF8)); if ($lines.Count -gt 1) { break } } catch { }
+            foreach ($fn in $FileNames) {
+                $rawCsv = Join-Path $cand $fn
+                if (Test-Path -LiteralPath $rawCsv) {
+                    try { $lines = @([System.IO.File]::ReadAllLines($rawCsv, [System.Text.Encoding]::UTF8)); if ($lines.Count -gt 1) { break } } catch { }
+                }
             }
+            if ($lines.Count -gt 1) { break }
+
+            $zipPath = Join-Path $cand 'Anhang.zip'
             if (Test-Path -LiteralPath $zipPath) {
                 try {
                     Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
                     $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
-                    $entry = $zip.GetEntry('Lasttest-Verlauf.csv')
-                    if (-not $entry) {
-                        $entry = @($zip.Entries | Where-Object { $_.Name -ieq 'Lasttest-Verlauf.csv' }) | Select-Object -First 1
-                    }
-                    if ($entry) {
-                        $sr = New-Object System.IO.StreamReader($entry.Open(), [System.Text.Encoding]::UTF8)
-                        $zipLines = [System.Collections.Generic.List[string]]::new()
-                        while (-not $sr.EndOfStream) { $zipLines.Add($sr.ReadLine()) }
-                        $sr.Dispose()
-                        if ($zipLines.Count -gt 1) { $lines = @($zipLines); $zip.Dispose(); break }
+                    foreach ($fn in $FileNames) {
+                        $entry = $zip.GetEntry($fn)
+                        if (-not $entry) {
+                            $entry = @($zip.Entries | Where-Object { $_.Name -ieq $fn }) | Select-Object -First 1
+                        }
+                        if ($entry) {
+                            $sr = New-Object System.IO.StreamReader($entry.Open(), [System.Text.Encoding]::UTF8)
+                            $zipLines = [System.Collections.Generic.List[string]]::new()
+                            while (-not $sr.EndOfStream) { $zipLines.Add($sr.ReadLine()) }
+                            $sr.Dispose()
+                            if ($zipLines.Count -gt 1) { $lines = @($zipLines); break }
+                        }
                     }
                     $zip.Dispose()
+                    if ($lines.Count -gt 1) { break }
                 } catch { }
             }
 
@@ -18275,36 +18334,39 @@ function Export-BenchDashboardData {
                 try {
                     Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
                     $mbZip = [System.IO.Compression.ZipFile]::OpenRead($mbPath)
-                    $mbEntry = @($mbZip.Entries | Where-Object { $_.Name -ieq 'Lasttest-Verlauf.csv' }) | Select-Object -First 1
-                    if ($mbEntry) {
-                        $sr = New-Object System.IO.StreamReader($mbEntry.Open(), [System.Text.Encoding]::UTF8)
-                        $zipLines = [System.Collections.Generic.List[string]]::new()
-                        while (-not $sr.EndOfStream) { $zipLines.Add($sr.ReadLine()) }
-                        $sr.Dispose()
-                        if ($zipLines.Count -gt 1) { $lines = @($zipLines); $mbZip.Dispose(); break }
-                    } else {
-                        # Falls Anhang.zip innerhalb des .minibench-Archivs liegt
-                        $innerZipEntry = @($mbZip.Entries | Where-Object { $_.Name -ieq 'Anhang.zip' }) | Select-Object -First 1
-                        if ($innerZipEntry) {
-                            $ms = New-Object System.IO.MemoryStream
-                            $st = $innerZipEntry.Open()
-                            $st.CopyTo($ms)
-                            $st.Dispose()
-                            $ms.Position = 0
-                            $innerArchive = New-Object System.IO.Compression.ZipArchive($ms)
-                            $innerCsv = @($innerArchive.Entries | Where-Object { $_.Name -ieq 'Lasttest-Verlauf.csv' }) | Select-Object -First 1
-                            if ($innerCsv) {
-                                $sr = New-Object System.IO.StreamReader($innerCsv.Open(), [System.Text.Encoding]::UTF8)
-                                $zipLines = [System.Collections.Generic.List[string]]::new()
-                                while (-not $sr.EndOfStream) { $zipLines.Add($sr.ReadLine()) }
-                                $sr.Dispose()
-                                if ($zipLines.Count -gt 1) { $lines = @($zipLines); $innerArchive.Dispose(); $ms.Dispose(); $mbZip.Dispose(); break }
+                    foreach ($fn in $FileNames) {
+                        $mbEntry = @($mbZip.Entries | Where-Object { $_.Name -ieq $fn }) | Select-Object -First 1
+                        if ($mbEntry) {
+                            $sr = New-Object System.IO.StreamReader($mbEntry.Open(), [System.Text.Encoding]::UTF8)
+                            $zipLines = [System.Collections.Generic.List[string]]::new()
+                            while (-not $sr.EndOfStream) { $zipLines.Add($sr.ReadLine()) }
+                            $sr.Dispose()
+                            if ($zipLines.Count -gt 1) { $lines = @($zipLines); break }
+                        } else {
+                            # Falls Anhang.zip innerhalb des .minibench-Archivs liegt
+                            $innerZipEntry = @($mbZip.Entries | Where-Object { $_.Name -ieq 'Anhang.zip' }) | Select-Object -First 1
+                            if ($innerZipEntry) {
+                                $ms = New-Object System.IO.MemoryStream
+                                $st = $innerZipEntry.Open()
+                                $st.CopyTo($ms)
+                                $st.Dispose()
+                                $ms.Position = 0
+                                $innerArchive = New-Object System.IO.Compression.ZipArchive($ms)
+                                $innerCsv = @($innerArchive.Entries | Where-Object { $_.Name -ieq $fn }) | Select-Object -First 1
+                                if ($innerCsv) {
+                                    $sr = New-Object System.IO.StreamReader($innerCsv.Open(), [System.Text.Encoding]::UTF8)
+                                    $zipLines = [System.Collections.Generic.List[string]]::new()
+                                    while (-not $sr.EndOfStream) { $zipLines.Add($sr.ReadLine()) }
+                                    $sr.Dispose()
+                                    if ($zipLines.Count -gt 1) { $lines = @($zipLines); $innerArchive.Dispose(); $ms.Dispose(); break }
+                                }
+                                $innerArchive.Dispose()
+                                $ms.Dispose()
                             }
-                            $innerArchive.Dispose()
-                            $ms.Dispose()
                         }
                     }
                     $mbZip.Dispose()
+                    if ($lines.Count -gt 1) { break }
                 } catch { }
             }
             if ($lines.Count -gt 1) { break }
@@ -18313,12 +18375,14 @@ function Export-BenchDashboardData {
         # Fallback: Falls der Durchlauf gerade abgeschlossen wurde und im Arbeitsordner liegt
         if ($lines.Count -le 1) {
             $fallbackList = [System.Collections.Generic.List[string]]::new()
-            if ($script:WorkDir) {
-                $fallbackList.Add((Join-Path $script:WorkDir 'Anhang\Lasttest-Verlauf.csv'))
-                $fallbackList.Add((Join-Path $script:WorkDir 'Lasttest-Verlauf.csv'))
-            }
-            if ($RawDir) {
-                $fallbackList.Add((Join-Path $RawDir 'Lasttest-Verlauf.csv'))
+            foreach ($fn in $FileNames) {
+                if ($script:WorkDir) {
+                    $fallbackList.Add((Join-Path $script:WorkDir ('Anhang\' + $fn)))
+                    $fallbackList.Add((Join-Path $script:WorkDir $fn))
+                }
+                if ($RawDir) {
+                    $fallbackList.Add((Join-Path $RawDir $fn))
+                }
             }
             foreach ($fb in $fallbackList) {
                 if (Test-Path -LiteralPath $fb) {
@@ -18677,29 +18741,27 @@ function Export-BenchDashboardData {
         if ($ramResp -gt 0) { $dVals.Add($ramResp); $dWts.Add(0.20) }
         $desktopScore = & $calcGeoScore $dVals $dWts
 
-        # 3. Workstation (45 % CPU-MT, 20 % Verschlüsselung/Kompression AES/SHA/DEFL, 20 % RAM-Bandbreite, 15 % SSD-Dauertransfer SW/SR)
+        # 3. Workstation (60 % CPU-MT, 15 % RAM, 10 % DISK, 10 % GPU, 5 % CPU-ST)
         $wVals = [System.Collections.Generic.List[double]]::new()
         $wWts  = [System.Collections.Generic.List[double]]::new()
-        if ($cpuMt -gt 0) { $wVals.Add($cpuMt); $wWts.Add(0.45) }
-        $cryptoVal = 0.0
-        if ($cpuAes -gt 0 -or $cpuSha -gt 0 -or $cpuDefl -gt 0) {
-            $cryptoVal = ($cpuAes * 3.0 + $cpuSha * 2.0 + $cpuDefl * 10.0)
-        } elseif ($cpuMt -gt 0) {
-            $cryptoVal = $cpuMt * 0.3
-        }
-        if ($cryptoVal -gt 0) { $wVals.Add($cryptoVal); $wWts.Add(0.20) }
+        if ($cpuMt -gt 0) { $wVals.Add($cpuMt); $wWts.Add(0.60) }
         $ramBw = 0.0
         if ($ramLesen -gt 0 -or $ramSchreiben -gt 0 -or $ramKopieren -gt 0) {
             $ramBw = (($ramLesen * 1.0 + $ramSchreiben * 1.0 + $ramKopieren * 1.0) / 3.0) * 500.0
         }
-        if ($ramBw -gt 0) { $wVals.Add($ramBw); $wWts.Add(0.20) }
+        if ($ramBw -gt 0) { $wVals.Add($ramBw); $wWts.Add(0.15) }
         $ssdThru = 0.0
         if ($fastestDisk.SR -gt 0 -and $fastestDisk.SW -gt 0) {
             $ssdThru = ($fastestDisk.SR * 0.4 + $fastestDisk.SW * 0.6) * 5.0
         } elseif ($fastestDisk.SR -gt 0) {
             $ssdThru = $fastestDisk.SR * 5.0
         }
-        if ($ssdThru -gt 0) { $wVals.Add($ssdThru); $wWts.Add(0.15) }
+        if ($ssdThru -gt 0) { $wVals.Add($ssdThru); $wWts.Add(0.10) }
+        $gpuVal = 0.0
+        if ($gpuRend -gt 0) { $gpuVal = $gpuRend * 150.0 }
+        elseif ($gpuVmb -gt 0) { $gpuVal = $gpuVmb * 40.0 }
+        if ($gpuVal -gt 0) { $wVals.Add($gpuVal); $wWts.Add(0.10) }
+        if ($cpuSt -gt 0) { $wVals.Add($cpuSt * 7.0); $wWts.Add(0.05) }
         $workstationScore = & $calcGeoScore $wVals $wWts
 
         # Telemetrie-Extraktion
@@ -18775,7 +18837,15 @@ function Export-BenchDashboardData {
         if ($ramStr -match '(\d+)\s*GB') { $ramGb = [double]$matches[1] }
         $diskCount = $(if ($j.Laufwerke) { [math]::Max(1, @($j.Laufwerke).Count) } else { 1 })
 
-        $csvLines = & $extractCsvSeries $repDir ([string]$j.Ordner)
+        $isBenchFallback = $false
+        $csvLines = & $extractCsvSeries $repDir ([string]$j.Ordner) @('Lasttest-Verlauf.csv', 'Sensoren_Lasttest.csv')
+        if ($csvLines.Count -le 1) {
+            $benchCsv = & $extractCsvSeries $repDir ([string]$j.Ordner) @('Benchmark-Sensoren.csv', 'Sensoren_Benchmark.csv')
+            if ($benchCsv.Count -gt 1) {
+                $csvLines = $benchCsv
+                $isBenchFallback = $true
+            }
+        }
 
         if ($csvLines.Count -gt 1) {
             $header = @($csvLines[0] -split ';') | ForEach-Object { $_.Trim('"').Trim() }
@@ -18832,6 +18902,62 @@ function Export-BenchDashboardData {
                     Fps      = $(if ($fps -gt 0) { [math]::Round($fps, 1) } else { $null })
                     SysW     = $sysW
                 })
+            }
+        }
+
+        if ($series.Count -eq 0) {
+            $objSeries = $null
+            if ($j.LoadSeries -and @($j.LoadSeries).Count -gt 1) {
+                $objSeries = @($j.LoadSeries)
+            } elseif ($j.Sensoren_Lasttest -and @($j.Sensoren_Lasttest).Count -gt 1) {
+                $objSeries = @($j.Sensoren_Lasttest)
+            } elseif ($j.BenchSeries -and @($j.BenchSeries).Count -gt 1) {
+                $objSeries = @($j.BenchSeries); $isBenchFallback = $true
+            } elseif ($j.Sensoren_Benchmark -and @($j.Sensoren_Benchmark).Count -gt 1) {
+                $objSeries = @($j.Sensoren_Benchmark); $isBenchFallback = $true
+            } elseif ($script:BenchSeries -and @($script:BenchSeries).Count -gt 1 -and (-not $script:LoadSeries -or @($script:LoadSeries).Count -le 1)) {
+                $objSeries = @($script:BenchSeries); $isBenchFallback = $true
+            }
+
+            if ($objSeries) {
+                $step = [math]::Max(1, [int][math]::Floor($objSeries.Count / 70))
+                for ($r = 0; $r -lt $objSeries.Count; $r += $step) {
+                    $pt = $objSeries[$r]
+                    $t = if ($null -ne $pt.T) { [double]$pt.T } else { 0.0 }
+                    $temp = if ($null -ne $pt.CpuTemp) { [double]$pt.CpuTemp } elseif ($null -ne $pt.Temp) { [double]$pt.Temp } else { 0.0 }
+                    $mhz = if ($null -ne $pt.MHz) { [double]$pt.MHz } elseif ($null -ne $pt.CpuMHzMax) { [double]$pt.CpuMHzMax } elseif ($null -ne $pt.CpuMHz) { [double]$pt.CpuMHz } else { 0.0 }
+                    $w = if ($null -ne $pt.CpuW) { [double]$pt.CpuW } elseif ($null -ne $pt.Leistung) { [double]$pt.Leistung } else { 0.0 }
+                    $gTemp = if ($null -ne $pt.GpuTemp) { [double]$pt.GpuTemp } else { 0.0 }
+                    $gMhz = if ($null -ne $pt.GpuMHz) { [double]$pt.GpuMHz } else { 0.0 }
+                    $gW = if ($null -ne $pt.GpuW) { [double]$pt.GpuW } else { 0.0 }
+                    $igTemp = if ($null -ne $pt.IGpuTemp) { [double]$pt.IGpuTemp } else { 0.0 }
+                    $igMhz = if ($null -ne $pt.IGpuMHz) { [double]$pt.IGpuMHz } else { 0.0 }
+                    $igW = if ($null -ne $pt.IGpuW) { [double]$pt.IGpuW } else { 0.0 }
+                    $fps = if ($null -ne $pt.Fps) { [double]$pt.Fps } else { 0.0 }
+
+                    $sysW = $null
+                    if ($w -gt 0) {
+                        $pEstPt = if (Get-Command Get-EstimatedSystemPower -ErrorAction SilentlyContinue) {
+                            Get-EstimatedSystemPower -CpuW $w -GpuW $gW -IsNotebook:$isNb -RamGb $ramGb -DiskCount $diskCount -RamLoadPct 50.0 -DiskLoad
+                        } else { $null }
+                        if ($pEstPt -and $pEstPt.Verfuegbar) { $sysW = [math]::Round($pEstPt.P_AC, 1) }
+                    }
+
+                    $series.Add([ordered]@{
+                        T        = [math]::Round($t, 1)
+                        Temp     = $(if ($temp -gt 0) { [math]::Round($temp, 1) } else { $null })
+                        MHz      = $(if ($mhz -gt 0) { [math]::Round($mhz, 0) } else { $null })
+                        CpuW     = $(if ($w -gt 0) { [math]::Round($w, 1) } else { $null })
+                        GpuTemp  = $(if ($gTemp -gt 0) { [math]::Round($gTemp, 1) } else { $null })
+                        GpuMHz   = $(if ($gMhz -gt 0) { [math]::Round($gMhz, 0) } else { $null })
+                        GpuW     = $(if ($gW -gt 0) { [math]::Round($gW, 1) } else { $null })
+                        IGpuTemp = $(if ($igTemp -gt 0) { [math]::Round($igTemp, 1) } else { $null })
+                        IGpuMHz  = $(if ($igMhz -gt 0) { [math]::Round($igMhz, 0) } else { $null })
+                        IGpuW    = $(if ($igW -gt 0) { [math]::Round($igW, 1) } else { $null })
+                        Fps      = $(if ($fps -gt 0) { [math]::Round($fps, 1) } else { $null })
+                        SysW     = $sysW
+                    })
+                }
             }
         }
 
@@ -18914,7 +19040,7 @@ function Export-BenchDashboardData {
         $effSys = $(if ($pProf -and $pProf.Effizienz) { $pProf.Effizienz.System_PerWatt } else { $null })
 
         $seriesDur = if ($series.Count -gt 0) { [int]$series[$series.Count - 1].T } else { 0 }
-        $lasttestArt = & $getLasttestArt ([string]$j.Lasttest) $seriesDur
+        $lasttestArt = if ($isBenchFallback) { 'Benchmark' } else { & $getLasttestArt ([string]$j.Lasttest) $seriesDur }
 
         return [ordered]@{
             Id          = $id
@@ -18983,7 +19109,7 @@ function Export-BenchDashboardData {
                 EFF_SYS         = $effSys
             }
             Telemetry   = [ordered]@{
-                TestType                 = $lasttestArt
+                TestType                 = $(if ($isBenchFallback) { 'Benchmark' } elseif ($lasttestArt) { $lasttestArt } else { 'Lasttest' })
                 CpuTempMax               = $cpuTMax
                 CpuTempLeerlauf          = $cpuTIdle
                 TjMax                    = $tjMax
@@ -20216,12 +20342,53 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     return 'Schwach';
   }
 
+  function parseDateScore(dStr) {
+    if (!dStr || typeof dStr !== 'string') return 0;
+    const str = dStr.trim();
+    // 1. dd.MM.yyyy HH:mm[:ss] oder dd.MM.yyyy
+    const mDe = str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+    if (mDe) {
+      const day = parseInt(mDe[1], 10);
+      const month = parseInt(mDe[2], 10) - 1;
+      const year = parseInt(mDe[3], 10);
+      const hour = mDe[4] ? parseInt(mDe[4], 10) : 0;
+      const min = mDe[5] ? parseInt(mDe[5], 10) : 0;
+      const sec = mDe[6] ? parseInt(mDe[6], 10) : 0;
+      const dt = new Date(year, month, day, hour, min, sec);
+      return isNaN(dt.getTime()) ? 0 : dt.getTime();
+    }
+    // 2. yyyy-MM-dd HH:mm[:ss] oder yyyy-MM-dd
+    const mIso = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[\sT]+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+    if (mIso) {
+      const year = parseInt(mIso[1], 10);
+      const month = parseInt(mIso[2], 10) - 1;
+      const day = parseInt(mIso[3], 10);
+      const hour = mIso[4] ? parseInt(mIso[4], 10) : 0;
+      const min = mIso[5] ? parseInt(mIso[5], 10) : 0;
+      const sec = mIso[6] ? parseInt(mIso[6], 10) : 0;
+      const dt = new Date(year, month, day, hour, min, sec);
+      return isNaN(dt.getTime()) ? 0 : dt.getTime();
+    }
+    const t = Date.parse(str);
+    return isNaN(t) ? 0 : t;
+  }
+
   // INITIALISIERUNG
   function init() {
     initTheme();
     if (!data || (!data.Systems && !data.References)) {
       console.warn('Keine Benchmark-Daten eingebettet.');
       return;
+    }
+
+    // Gespeicherte Systeme standardmäßig absteigend nach Datum sortieren (neuestes zuerst)
+    if (data.Systems && Array.isArray(data.Systems)) {
+      data.Systems.sort((itemA, itemB) => {
+        const ta = parseDateScore(itemA.Datum);
+        const tb = parseDateScore(itemB.Datum);
+        if (tb !== ta) return tb - ta;
+        return String(itemB.Id || '').localeCompare(String(itemA.Id || ''));
+      });
     }
 
     populateBaseSelect();
@@ -20521,7 +20688,7 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
     const profiles = [
       { key: 'Gaming', icon: '🎮', title: 'Gaming', desc: 'GPU- & Single-Thread-Fokus', tip: 'Gaming-Profil: 70 % GPU-Bildrate, 20 % CPU Single-Core, 10 % RAM und SSD (Kerne > 8 neutral)' },
       { key: 'Desktop', icon: '💼', title: 'Büro / Desktop', desc: 'Reaktionszeit & SSD-Leistung', tip: 'Büro- und Desktop-Profil: 45 % SSD-Reaktionszeit (4K), 35 % CPU Single-Core, 20 % RAM-Latenz (0 % GPU/Multi-Core)' },
-      { key: 'Workstation', icon: '🚀', title: 'Workstation', desc: 'Mehrkern- & RAM-Durchsatz', tip: 'Workstation-Profil: 45 % CPU Multi-Core, 20 % Instruktionen/Kompression, 20 % RAM-Bandbreite, 15 % Dauertransfer' }
+      { key: 'Workstation', icon: '🚀', title: 'Workstation', desc: 'Mehrkern- & RAM-Durchsatz', tip: 'Workstation-Profil: 60 % CPU Multi-Core, 15 % RAM, 10 % Datenträger (I/O), 10 % GPU-Beschleunigung, 5 % CPU Single-Core' }
     ];
 
     let html = '';
@@ -20800,12 +20967,26 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
       const sName = escapeHtml(s.DisplayName || s.Computer);
       const label = (isBase ? 'Basis: ' : '') + sName;
       const hasSeries = (s.Telemetry?.Series && s.Telemetry.Series.length > 0);
-      const testType = hasSeries ? (s.Telemetry?.TestType || 'Lasttest') : 'keine Zeitreihe';
+      let testType = hasSeries ? (s.Telemetry?.TestType || 'Lasttest') : 'keine Zeitreihe';
+      if (testType === 'Benchmark') testType = 'Benchmark-Messung';
       html += `<div class="legend-item">
         <div class="legend-color" style="background: ${color};"></div>
         <span>${label} (${escapeHtml(testType)})</span>
       </div>`;
     });
+
+    const subTitleEl = document.querySelector('.dash-card .card-head p');
+    if (subTitleEl) {
+      const anyBenchmark = comparedSystems.some(s => s.Telemetry?.TestType === 'Benchmark');
+      const allBenchmark = comparedSystems.length > 0 && comparedSystems.every(s => s.Telemetry?.TestType === 'Benchmark' || !s.Telemetry?.Series?.length);
+      if (allBenchmark && anyBenchmark) {
+        subTitleEl.textContent = 'Sensorverlauf (Benchmark-Messung) über die Messphasen mit Farbcodierung je System.';
+      } else if (anyBenchmark) {
+        subTitleEl.textContent = 'Sensorverlauf (Lasttest & Benchmark-Messung) über die Belastungsdauer mit Farbcodierung je System.';
+      } else {
+        subTitleEl.textContent = 'Sensorverlauf über die Belastungsdauer mit Farbcodierung je System.';
+      }
+    }
 
     if (chartMode !== 'watt') {
       html += `<div class="legend-item" style="margin-left: auto; gap: 12px; font-weight: 500;">
@@ -21146,7 +21327,9 @@ window.MINIBENCH_DASHBOARD_DATA = window.MINIBENCH_DASHBOARD_DATA || null;
         const isBase = (String(s.Id) === String(baseSystem?.Id));
         const color = getSysColor(idx, isDark);
         const sName = getShortSysName(s);
-        const name = (isBase ? 'Basis: ' : '') + sName;
+        const isBench = s.Telemetry?.TestType === 'Benchmark';
+        const typeBadge = isBench ? ' [Benchmark-Messung]' : '';
+        const name = (isBase ? 'Basis: ' : '') + sName + typeBadge;
 
         const srs = s.Telemetry?.Series || [];
         if (srs.length === 0) {

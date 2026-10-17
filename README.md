@@ -2,34 +2,31 @@
 
 <img src="src/Oberflaeche/Symbol.png" alt="Minibench Symbol" width="96" />
 
-# Minibench
+# Leos Minibench (LMB)
 
 **Portable Diagnose-, Benchmark-, Stresstest-, Reparatur- und Optimierungs-Suite für Windows 10 & 11.**
 
-> 💡 **Hinweis:** *Minibench* ist mein erstes **Vibe Coding**-Projekt – von der Konzeption über die native PowerShell 5.1- & C# 5-Architektur bis hin zum modernen Fluent 2-Look vollständig im interaktiven Pair-Programming mit KI entwickelt.
-
-[![Version](https://img.shields.io/badge/Version-3.72-0284c7.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-3.73-0284c7.svg)](CHANGELOG.md)
 [![Changelog](https://img.shields.io/badge/Changelog-MD-6366f1.svg)](CHANGELOG.md)
 [![Plattform](https://img.shields.io/badge/Windows-10%20%7C%2011%20(x64)-0078d4.svg)]()
 [![Laufzeit](https://img.shields.io/badge/PowerShell-5.1%20%7C%20C%23%205-1e293b.svg)]()
 [![Tests](https://img.shields.io/badge/Tests-830%2B%20bestanden-22c55e.svg)](tests/)
-[![Vibe Coding](https://img.shields.io/badge/Built%20With-Vibe%20Coding-7c3aed.svg)]()
 [![Portabel](https://img.shields.io/badge/USB-Zero--Footprint-f59e0b.svg)]()
 
 <br/>
 
-<a href="https://github.com/sudoMrMCaffe/MiniBench/raw/main/Aktueller%20Build/LeosMinibench.exe">
-  <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20Download-LeosMinibench.exe%20(v3.72)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Download LeosMinibench.exe" />
+<a href="https://github.com/sudoMrMCaffe/MiniBench/raw/main/Aktueller%20Build/LMB.exe">
+  <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20Download-LMB.exe%20(v3.73)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Download LMB.exe" />
 </a>
 
 <br/><br/>
 
-<img src="Doku/Screenshots/Oberflaeche.png" alt="Leos Minibench 3.72 Oberfläche" width="850" />
+<img src="Doku/Screenshots/Startseite_Neu.png" alt="Leos Minibench 3.73 Oberfläche" width="850" />
 
 <br/><br/>
 
 <p align="center">
-  <img src="Doku/Screenshots/Dashboard.png" alt="Interaktives Multi-System Dashboard" width="415" />
+  <img src="Doku/Screenshots/Dashboard_Neu.png" alt="Interaktives Multi-System Dashboard" width="415" />
   &nbsp;
   <img src="Doku/Screenshots/Diagnosebericht.png" alt="Interaktiver Diagnosebericht mit Sensor-Charts" width="415" />
 </p>
@@ -40,46 +37,53 @@
 
 ## 🚀 Schnellstart
 
+1. **[LMB.exe herunterladen](https://github.com/sudoMrMCaffe/MiniBench/raw/main/Aktueller%20Build/LMB.exe)** (oder direkt auf einen USB-Stick kopieren).
+2. Per Doppelklick als **Administrator** starten (UAC bestätigen).
+3. Gewünschte Module wählen und **Start** klicken. Alle Berichte, Datenbankeinträge und Änderungsprotokolle landen im Ordner `Minibench-Daten\` neben der Programmdatei.
 
-1. **[LeosMinibench.exe herunterladen](https://github.com/sudoMrMCaffe/MiniBench/raw/main/Aktueller%20Build/LeosMinibench.exe)** (oder auf den USB-Stick kopieren).
-2. Per Doppelklick als **Administrator** starten (UAC bestätigen, die App ist nicht bei Micosoft registriert).
-3. Gewünschte Module wählen und **Start** klicken. Alle Berichte landen sauber unter `Minibench-Daten\Berichte\`.
-
----
-
-## Kernmerkmale
-
-* **100 % Portabel (Zero-Footprint):** Startet direkt vom USB-Stick ohne Installation. Hinterlässt keine Dateien auf dem geprüften PC; eine automatische Rückstandskontrolle räumt temporäre Reste am Ende ab.
-* **Autarke Single-File-EXE:** Baut per `csc.exe` in eine eigenständige `LeosMinibench.exe` mit integriertem Startfenster und UAC-Rechteerhöhung (Fallback über `.cmd` oder `.ps1`).
-* **Sicher & Reversibel:** Jede Systemänderung wird protokolliert und kann selektiv zurückgenommen werden. Automatischer Systemwiederherstellungspunkt vor tiefen Eingriffen.
-* **KI-Diagnosedatei:** Erzeugt neben HTML-/TXT-Berichten eine anonymisierte `KI-Datei.txt` mit System-Prompt für Ursachen- und Reparaturanalysen in LLMs (Gemini, Claude, ChatGPT).
-* **Interaktives HTML5-Dashboard:** 100 % offline-fähiges Fluent 2-Dashboard für flexible Multi-System-Vergleiche ($N \ge 2$) mit Hardware-Gegenüberstellung, vollständiger Benchmark-Matrix (Bestwert-Hervorhebung) und 2-Achsen Canvas-Telemetriekurven (Temperatur & Taktung) samt Drosselungsanzeige.
-* **Nativer GUI Dark Mode:** Modernes Dark/Light-Theme für das WinForms-Hauptprogramm mit DWM Immersive Dark Mode in der Titelleiste, flüssigem Umschalter und optimierten Kontrasten.
+Alternativ kann die Suite ohne Binärdatei direkt per PowerShell über `LMB.cmd` bzw. `LeosMinibench.cmd` gestartet werden.
 
 ---
 
-## Module
+## 🌟 Funktionsübersicht
 
-* **Diagnose:** Vollständiges Hardware- & OS-Inventar, SMART-Werte, Akku-Verschleiß, Ereignisprotokolle, Absturzanalyse und Drosselnachweis.
-* **Benchmark:** CPU (Single/Multi, Krypto, Deflate), RAM (Bandbreite & Latenz), Datenträger (NVMe/SSD/USB), Direct3D 11 GPU-Rendertest (FPS, Frametimes, Punkte) und WinSAT.
-* **Lasttest:** Isolierte CPU- und RAM-Last ohne GC-Einfluss, GPU-Rendertest, thermischer Drosselnachweis und konfigurierbare Abbruchschwellen (°C).
-* **Wartung & Reparatur:** SFC, DISM, Netzwerk-Reset, Windows Update Reset, Bereinigung von Caches/Komponentenspeicher und DDU-Treiberbereinigung.
-* **Optimierung:** 163 native Windows-Einstellungen in 14 Kategorien, inklusive Preset *Leos Empfehlung* und Einzel-Rollback.
-* **Sensoren Live & Vergleich:** Echtzeit-Monitoring von Temperatur, Takt, Lüfter und Leistung; historische Vergleichsdatenbank mit aufgeräumter Toolbar und editierbaren Systemnamen; interaktives Multi-System-Dashboard für Systemvergleiche und Lasttest-Telemetrie.
-
----
-
-## Beispielberichte
-
-Das Werkzeug erzeugt nach jedem Lauf detaillierte, interaktive HTML-Berichte mit SVG-Diagrammen:
-
-* 📊 **[Beispiel-Dashboard (HTML)](Doku/Beispiele/Beispiel_Dashboard.html)** – Interaktives Benchmark- & Diagnose-Dashboard mit Systemvergleich gegen 5 Referenzprofile, Dual-Axis Lasttest-Telemetrie und Fluent 2 Dark/Light Mode.
-* 📈 **[Beispiel-Systemvergleich (HTML)](Doku/Beispiele/Beispiel_Systemvergleich.html)** – Interaktiver Gegenüberstellungsbericht mehrerer Rechner aus der Datenbank.
+* **Startseite & Hardware-Steckbrief:** Sofortige Erkennung aller Schlüsselkomponenten (CPU, GPU, RAM, Datenträger, Mainboard) beim Start. Automatische Konfigurationsprüfung deckt typische Leistungsbremsen ohne Klick auf: inaktive Speicherprofile (XMP/EXPO), auf 60 Hz limitierte Gaming-Monitore, falsche Display-Anschlüsse (Mainboard-iGPU statt dGPU) sowie veraltete BIOS-Versionen mit Hersteller-Links.
+* **Diagnose:** Vollständiges Hardware- und System-Audit, Festplatten-Gesundheit (SMART-Werte über smartctl), Akku-Verschleiß, BlueScreen- und Absturzanalyse sowie Ereignisprotokoll-Inspektion. Beinhaltet eine detaillierte Windows-Startzeit-Analyse (Event ID 100) mit Trennung von `MainPathBootTime`, `BootPostBootTime` und UEFI-POST-Dauer.
+* **Benchmark:** Echte Messungen ohne WinSAT-Altlasten. CPU-Performance (Single- und Multi-Core, Hardware-Krypto AES/SHA, Deflate), realer RAM-Durchsatz (Lesen, Schreiben, Kopieren) samt Latenzmessung in Nanosekunden, Datenträger-Dauertransferraten und sequenzielle/zufällige I/O sowie nativer Direct3D 11 GPU-Rendertest mit präziser Erfassung von FPS, Frametimes und 0,1 %-Lows.
+* **Lasttest & Telemetrie:** Isolierte oder kombinierte Stresstests für Prozessor, Arbeitsspeicher und Grafikkarte. Echtzeit-Erfassung von Temperaturkurven, Taktraten und Leistungsaufnahme mit automatischem Drosselungsnachweis (thermisch, VRM, Leistungsbudget) und konfigurierbaren Notabschalt-Schwellen.
+* **Wartung & Reparatur:** Integrierte Systemdateireparatur (SFC, DISM), Windows-Update-Reset, Netzwerk- und Winsock-Rücksetzung, Freigabe von Speicherplatz durch Bereinigung veralteter Komponentenspeicher (WinSxS) sowie saubere Grafikkartentreiber-Vorbereitung (DDU).
+* **Optimierung:** Über 160 praxisnahe Windows-Tuning-Optionen in 14 Kategorien (Datenschutz, Telemetrie, Gaming-Latenzen, Dienste und visuelle Effekte). Jede Maßnahme besitzt eine definierte Risikostufe, wird im Änderungsprotokoll erfasst und kann jederzeit einzeln oder als Gruppe wieder rückgängig gemacht werden.
+* **Interaktives HTML5-Dashboard:** 100 % offline-fähiges Fluent 2-Dashboard für flexible Multi-System-Vergleiche. Ermöglicht die synoptische Gegenüberstellung beliebiger Systeme aus der Datenbank gegen hinterlegte Referenzprofile (Desktop High-End, Mittelklasse, Notebook, Mini-PC), inklusive Bestwert-Hervorhebung, Canvas-Sensorverlaufskurven (mit Benchmark-Fallback) und physikalischem 230V-Netzteil-Effizienzkalkulator mit EU-Wirkungsgradkurven (80 PLUS).
 
 ---
 
-## Für Entwickler
+## 🔒 Sicherheit & Zero-Footprint
 
-* **Tests ausführen:** `Testen.cmd` (über 800 Pester-Tests für Modulverträge, Risikostufen, Dashboard-Logik und AST-Syntax).
-* **Programm bauen:** `Bauen.cmd` (Syntaxprüfung, Testlauf, EXE-Kompilierung und automatische Archivierung nach `Aktueller Build/`).
-* **Vorgaben:** Quellcode-Änderungen nur in `src/`, UTF-8 mit BOM + CRLF, Modulverträge in `Vertrag.psd1` einhalten (Details in [AGENTS.md](AGENTS.md)).
+* **Keine Rückstände (Zero-Footprint):** Alle erzeugten Daten verbleiben im Ordner `Minibench-Daten\` auf dem Stick. Am Ende jedes Durchlaufs prüft eine Rückstandskontrolle das Zielsystem und entfernt temporäre Spuren vollständig.
+* **Vollständiges Rollback:** Jede Systemänderung wird mit Zeitstempel, Originalwert und Gegenbefehl im Änderungsprotokoll dokumentiert. Über die Seite *Änderungen* können Anpassungen gezielt zurückgesetzt werden.
+* **Sicherheitseingriffe:** Vor tiefgreifenden Eingriffen wird automatisch ein Windows-Systemwiederherstellungspunkt angelegt. Zerstörende Aktionen (z. B. Laufwerksbereinigungen) erfordern die Bestätigung der Seriennummer.
+* **Anonymisierte KI-Diagnosedatei:** Erzeugt zu jedem Lauf eine datenschutzkonforme `KI-Datei.txt`, die direkt in moderne Sprachmodelle (Gemini, Claude, ChatGPT) eingefügt werden kann, um gezielte Handlungsempfehlungen zu erhalten.
+
+---
+
+## 📊 Beispielberichte
+
+* 📊 **[Beispiel-Dashboard (HTML)](Doku/Beispiele/Beispiel_Dashboard.html)** – Interaktives Benchmark- & Diagnose-Dashboard mit Multi-System-Vergleich, 230V-Netzteil-Kalkulator und Sensor-Zeitreihen.
+* 📈 **[Beispiel-Systemvergleich (HTML)](Doku/Beispiele/Beispiel_Systemvergleich.html)** – Synoptische Gegenüberstellung mehrerer Rechner aus der Datenbank.
+
+---
+
+## 🛠️ Für Entwickler
+
+* **Architektur:** Windows PowerShell 5.1 und C# 5 (Add-Type / `csc.exe`). Keine externen Laufzeitabhängigkeiten, keine Cloud- oder CDN-Erfordernisse.
+* **Testsuite:** `Testen.cmd` führt über 840 Pester-Tests aus (kompatibel mit Pester 5 und Pester 6).
+* **Build-Prozess:** `Bauen.cmd` prüft den Quelltext laut `src\Bauplan.txt`, führt die Pester-Tests aus, kompiliert `LMB.exe` mit eingebetteten Ressourcen und führt nach erfolgreichen Tests einen automatischen Git-Commit durch.
+* **Richtlinien:** Details zu Codestil, Modulverträgen und Beitragsrichtlinien sind in [AGENTS.md](AGENTS.md) dokumentiert.
+
+---
+
+## 👏 Danksagung & Quellen
+
+> Das Modul *Optimierung* basiert auf der hervorragenden Recherche und Skriptsammlung des Projekts [Windows Optimisation Pack von Marvin700](https://github.com/Marvin700/Windows_Optimisation_Pack). Die Maßnahmen wurden in Leos Minibench mit detaillierten Risikostufen, Änderungsprotokollen und vollständiger Rollback-Funktion nativ integriert.
+
+Externe Hilfswerkzeuge werden ausschließlich im Original von den offiziellen Upstreams bezogen und über feste SHA-256-Prüfsummen im Werkzeugmanifest `Tools.json` validiert (LibreHardwareMonitor, PawnIO, smartmontools, Wagnardsoft DDU via winget).

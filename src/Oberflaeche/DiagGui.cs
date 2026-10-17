@@ -929,8 +929,8 @@ public partial class DiagGui : Form
         nav.Add(ModNav("Optimierung", "Optimierung", "Windows Optimisation Pack, gruppiert", UI.IcoOpt));
         navTools = ModNav("Tools", "Tools", "Portable Werkzeuge und Schnellstarter", UI.IcoTools); navTools.HasCheck = false; nav.Add(navTools);
         navSens = ModNav("Sensoren", "Sensoren live", "Temperatur, Takt, Lüfter, Leistung", UI.IcoSens); navSens.HasCheck = false; nav.Add(navSens);
-        navDb = new NavItem("Vergleichsdatenbank", db.Count + " gespeicherte Systeme", UI.IcoDb); navDb.HasCheck = false; Tip(navDb, "Vergleichsdatenbank aller gespeicherten Systeme verwalten und vergleichen."); nav.Add(navDb);
-        navChg = new NavItem("Systemänderungen", "Protokoll und Rückgängig", UI.IcoChg); navChg.HasCheck = false; Tip(navChg, "Änderungsprotokoll: was Leos Minibench an diesem PC verändert hat, mit Rückgängig."); nav.Add(navChg);
+        navDb = new NavItem("Datenbank", db.Count + " gespeicherte Systeme", UI.IcoDb); navDb.HasCheck = false; Tip(navDb, "Datenbank aller gespeicherten Systeme verwalten und im Dashboard vergleichen."); nav.Add(navDb);
+        navChg = new NavItem("Änderungen", "Protokoll und Rückgängig", UI.IcoChg); navChg.HasCheck = false; Tip(navChg, "Änderungsprotokoll: was Leos Minibench an diesem PC verändert hat, mit Rückgängig."); nav.Add(navChg);
 
         left.Controls.Add(navStart);
         Label lm = SideHead("Ablauf"); lm.Margin = new Padding(UI.S(4), UI.S(UI.Abstand4), 0, UI.S(6)); left.Controls.Add(lm);
@@ -1031,8 +1031,8 @@ public partial class DiagGui : Form
             "Optimierung (ab v2.8): das Windows Optimisation Pack nativ, mit Sophia- und O&O-Einstellungen, in Kategorien einzeln wählbar. Ändern ist einzeln rücknehmbar, Eingriffe sichert der Wiederherstellungspunkt ab.",
             "Tools: Portable Hilfswerkzeuge wie Revo Uninstaller, MiniTool Partition Wizard, WizTree sowie Windows-Schnellstarter.",
             "Sensoren live: Temperatur, Takt, Lüfter, Spannung und Leistung laufend anzeigen und aufzeichnen. Kein Modul für den Start.",
-            "Vergleichsdatenbank: alle gespeicherten Läufe, Vergleich mehrerer Systeme ohne neuen Benchmark, Import älterer Ordner und Aufräumen.",
-            "Systemänderungen: was Leos Minibench an einem PC verändert hat, mit Vorher-Wert und Rückgängig." };
+            "Datenbank: alle gespeicherten Läufe, Vergleich mehrerer Systeme ohne neuen Benchmark, Import älterer Ordner und Aufräumen.",
+            "Änderungen: was Leos Minibench an einem PC verändert hat, mit Vorher-Wert und Rückgängig." };
         for (int i = 0; i < nav.Count && i < navTips.Length; i++) Tip(nav[i], navTips[i]);
         // Diagnose
         Tip(rbVoll, "Alle Prüfungen der Liste, ca. " + DiagMinutes(diagVoll) + " Min., mit SMART-Langtest länger.");
@@ -1073,7 +1073,7 @@ public partial class DiagGui : Form
             StringBuilder t = new StringBuilder(repText[i]);
             if (cs != null)
             {
-                t.Append("\r\nRisikostufe: ").Append(ContractStep.RiskLabel(cs.Risiko)).Append(cs.Risiko == "Aendern" ? " (protokolliert, auf der Seite Systemänderungen rücknehmbar)" : cs.Risiko == "Eingriff" ? " (nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt)" : "");
+                t.Append("\r\nRisikostufe: ").Append(ContractStep.RiskLabel(cs.Risiko)).Append(cs.Risiko == "Aendern" ? " (protokolliert, auf der Seite Änderungen rücknehmbar)" : cs.Risiko == "Eingriff" ? " (nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt)" : "");
                 t.Append("\r\nNeustart: ").Append(cs.Neustart == "immer" ? "nötig" : cs.Neustart == "moeglich" ? "kann nötig sein" : "nicht nötig");
                 if (cs.Minuten > 0) t.Append("\r\nDauer: etwa ").Append(cs.Minuten).Append(" Min.");
             }
@@ -1260,7 +1260,7 @@ public partial class DiagGui : Form
     {
         if (b == null) return;
         string k = b.Tag as string;
-        if (k == "risiko") Tip(b, b.Level == "info" ? "Ändern: wird mit Vorher-Wert protokolliert und lässt sich auf der Seite Systemänderungen zurücknehmen." : "Eingriff: nicht automatisch umkehrbar; der Weg zurück ist der Wiederherstellungspunkt.");
+        if (k == "risiko") Tip(b, b.Level == "info" ? "Ändern: wird mit Vorher-Wert protokolliert und lässt sich auf der Seite Änderungen zurücknehmen." : "Eingriff: nicht automatisch umkehrbar; der Weg zurück ist der Wiederherstellungspunkt.");
         else if (k == "neustart") Tip(b, b.Text == "Neustart" ? "Wird erst nach einem Neustart vollständig wirksam." : "Kann einen Neustart brauchen, je nach Zustand des PCs.");
         else if (k == "verwaltet") Tip(b, "Berührt Gruppenrichtlinien oder zentrale Verwaltung; auf Domänen-PCs nicht in den Vorlagen.");
         else if (k == "zustand") Tip(b, "Zustand auf diesem PC, ermittelt mit Zustand prüfen oder beim letzten Lauf.");
@@ -1896,10 +1896,10 @@ public partial class DiagGui : Form
     {
         FlowLayoutPanel l = new FlowLayoutPanel(); l.AutoSize = true; l.FlowDirection = FlowDirection.TopDown; l.WrapContents = false; l.BackColor = UI.Panel; l.Margin = new Padding(UI.S(4), 0, 0, UI.S(2));
         Badge ba = new Badge(ContractStep.RiskLabel("Aendern"), "info"); ba.Margin = new Padding(0, UI.S(2), UI.S(6), 0);
-        Label ta = Lbl("protokolliert, auf der Seite Systemänderungen rücknehmbar", UI.SchriftHinweis, false, UI.Muted); ta.Margin = new Padding(0, UI.S(3), UI.S(UI.Abstand4), 0);
+        Label ta = Lbl("protokolliert, auf der Seite Änderungen rücknehmbar", UI.SchriftHinweis, false, UI.Muted); ta.Margin = new Padding(0, UI.S(3), UI.S(UI.Abstand4), 0);
         Badge be = new Badge(ContractStep.RiskLabel("Eingriff"), "warn"); be.Margin = new Padding(0, UI.S(2), UI.S(6), 0);
         Label te = Lbl("nicht automatisch umkehrbar, abgesichert über den Wiederherstellungspunkt", UI.SchriftHinweis, false, UI.Muted); te.Margin = new Padding(0, UI.S(3), 0, 0);
-        Tip(ba, "Wird mit Vorher-Wert protokolliert und lässt sich auf der Seite Systemänderungen zurücknehmen.");
+        Tip(ba, "Wird mit Vorher-Wert protokolliert und lässt sich auf der Seite Änderungen zurücknehmen.");
         Tip(be, "Lässt sich nicht automatisch umkehren; der Weg zurück ist der Wiederherstellungspunkt.");
         foreach (Control[] pair in new Control[][] { new Control[] { ba, ta }, new Control[] { be, te } })
         {
@@ -2114,7 +2114,7 @@ public partial class DiagGui : Form
     string OptTipText(OptItem it)
     {
         StringBuilder t = new StringBuilder(it.Tip.Replace(" ¶", "\r\n"));
-        t.Append("\r\nRisikostufe: ").Append(ContractStep.RiskLabel(it.Risiko)).Append(it.Risiko == "Aendern" ? " (protokolliert, auf der Seite Systemänderungen einzeln rücknehmbar)" : " (nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt)");
+        t.Append("\r\nRisikostufe: ").Append(ContractStep.RiskLabel(it.Risiko)).Append(it.Risiko == "Aendern" ? " (protokolliert, auf der Seite Änderungen einzeln rücknehmbar)" : " (nicht automatisch umkehrbar, Absicherung über den Wiederherstellungspunkt)");
         t.Append("\r\nNeustart: ").Append(it.Neustart == "immer" ? "nötig" : it.Neustart == "moeglich" ? "kann nötig sein" : "nicht nötig");
         List<string> vList = new List<string>();
         if (it.Vorlagen.Contains("M")) vList.Add("Minimal");

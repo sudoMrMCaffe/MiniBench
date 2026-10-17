@@ -365,7 +365,7 @@ Describe 'Bewertungswort und Profilkarten' {
         Set-Bench @{ 'CPU|ST' = 100; 'CPU|MT' = 100; 'GPU|REND' = 200; 'RAM|Lesen' = 100; 'DISK' = 100 }
         $k = Get-Karten (MinibenchTest\New-ProfileCards)
         $k['Gaming'][0] | Should -Be 146
-        $k['Workstation'][0] | Should -Be 110
+        $k['Workstation'][0] | Should -Be 107
         $k['Büro/Desktop'][0] | Should -Be 105
         $k['Gaming'][1] | Should -Be 'Hervorragend'
     }

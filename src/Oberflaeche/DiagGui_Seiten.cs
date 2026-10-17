@@ -30,7 +30,7 @@ public partial class DiagGui
     Control BuildChangePage()
     {
         Panel f = new Panel(); f.Dock = DockStyle.Fill; f.BackColor = UI.Panel;
-        FlowLayoutPanel top = Page("Systemänderungen", "Alles, was Leos Minibench an einem PC verändert hat, mit Vorher-Wert. Einträge der Stufe Ändern lassen sich auf dem PC, auf dem sie entstanden sind, zurücknehmen. Eingriffe stehen mit dem Weg zurück als Hinweis in der Liste.", -1);
+        FlowLayoutPanel top = Page("Änderungen", "Alles, was Leos Minibench an einem PC verändert hat, mit Vorher-Wert. Einträge der Stufe Ändern lassen sich auf dem PC, auf dem sie entstanden sind, zurücknehmen. Eingriffe stehen mit dem Weg zurück als Hinweis in der Liste.", -1);
         top.Dock = DockStyle.Top;
         top.AutoSize = true;
         Label lp = Lbl("Protokoll: " + (changeDir.Length > 0 ? changeDir : "(nicht verfügbar)"), 9f, false, UI.Muted); lp.Margin = new Padding(UI.S(4), 0, UI.S(4), UI.S(8)); top.Controls.Add(lp);
@@ -1543,11 +1543,11 @@ public partial class DiagGui
         toolsListB.Margin = new Padding(0, UI.S(4), 0, 0);
 
         Control rowSensB = CreateToolRowB(UI.IcoSens, "Sensoren live", "CPU [°C] · GPU [°C]", delegate { ShowPage(7); }, "Öffnet die Live-Sensoranzeige für Temperaturen, Taktraten und Spannungen.");
-        Control rowDbB = CreateToolRowB(UI.IcoDb, "Vergleichsdatenbank", db.Count + " Systeme", delegate { ShowPage(8); }, "Öffnet die Vergleichsdatenbank aller gespeicherten Messungen.");
+        Control rowDbB = CreateToolRowB(UI.IcoDb, "Datenbank", db.Count + " Systeme", delegate { ShowPage(8); }, "Öffnet die Datenbank aller gespeicherten Messungen.");
         int openChanges = 0;
         foreach (ChangeEntry ce in changes) if (ce.Undoable) openChanges++;
         string chgInfo = openChanges == 0 ? "keine offenen" : (openChanges + " offen");
-        Control rowChgB = CreateToolRowB(UI.IcoChg, "Systemänderungen", chgInfo, delegate { ShowPage(9); }, "Öffnet das Protokoll der Systemänderungen mit Rückgängig-Funktion.");
+        Control rowChgB = CreateToolRowB(UI.IcoChg, "Änderungen", chgInfo, delegate { ShowPage(9); }, "Öffnet das Protokoll der Systemänderungen mit Rückgängig-Funktion.");
 
         toolsListB.Controls.Add(rowSensB, 0, 0);
         toolsListB.Controls.Add(rowDbB, 0, 1);
@@ -2152,7 +2152,7 @@ public partial class DiagGui
                 new string[] { "1. Ablauf wählen", "Hake in der linken Leiste die gewünschten Module an (Diagnose, Benchmark, Lasttest, Wartung oder Optimierung). Du kannst mehrere Module beliebig kombinieren." },
                 new string[] { "2. Starten", "Klicke unten rechts auf den Startknopf. Vor dem Start zeigt die Leiste die geschätzte Gesamtdauer aller gewählten Prüfungen an." },
                 new string[] { "3. Bericht lesen", "Nach Abschluss öffnet sich automatisch der detaillierte HTML-Bericht. Alle Befunde sind nach Dringlichkeit (Kritisch, Warnung, Hinweis) gegliedert." },
-                new string[] { "4. Änderungen rückgängig machen", "Wartungs- und Optimierungsmaßnahmen werden im Änderungsprotokoll erfasst und können auf der Seite Systemänderungen einzeln zurückgenommen werden." }
+                new string[] { "4. Änderungen rückgängig machen", "Wartungs- und Optimierungsmaßnahmen werden im Änderungsprotokoll erfasst und können auf der Seite Änderungen einzeln zurückgenommen werden." }
             };
 
             foreach (string[] st in steps)

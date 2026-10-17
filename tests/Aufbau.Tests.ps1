@@ -140,13 +140,13 @@ Describe 'Launcher, Startfenster und Anwendungsmanifest' {
         ) -join "`n"
         $neu = & $f $alt '3.6' 'Tests: 612 bestanden, 0 fehlgeschlagen, 4 übersprungen'
         $neu | Should -Match 'badge/Version-3\.6-0284c7\.svg'
-        $neu | Should -Match 'Download-LeosMinibench\.exe%20\(v3\.6\)'
+        $neu | Should -Match 'Download-(?:LMB|LeosMinibench)\.exe%20\(v3\.6\)'
         $neu | Should -Match 'alt="Leos Minibench 3\.6 Oberfläche"'
         $neu | Should -Match 'badge/Tests-610%2B%20bestanden-22c55e\.svg'
         # README.md enthält die Stellen, die Bauen.cmd ersetzt
         $rm = Get-RepoText 'README.md'
         $rm | Should -Match 'img\.shields\.io/badge/Version-[^-\s]+-[0-9a-fA-F]+\.svg'
-        $rm | Should -Match 'Download-LeosMinibench\.exe%20\(v[^\)]+\)'
+        $rm | Should -Match 'Download-(?:LMB|LeosMinibench)\.exe%20\(v[^\)]+\)'
     }
     It 'Datenpflege ist eingebunden: Parameter, ohne Adminrechte, vor der Oberfläche, Start der Oberfläche, Bauen.cmd' {
         Get-ScriptParameters | Should -Contain 'Datenpflege'

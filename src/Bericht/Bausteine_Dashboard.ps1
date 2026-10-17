@@ -38,7 +38,7 @@ function Export-BenchDashboardData {
 
     # Lokale Hilfsfunktion: Sicheres Lesen von CSV-Zeitreihen
     $extractCsvSeries = {
-        param([string]$ReportFolder, [string]$LeafFolder)
+        param([string]$ReportFolder, [string]$LeafFolder, [string[]]$FileNames = @('Lasttest-Verlauf.csv', 'Sensoren_Lasttest.csv'))
         $lines = @()
         $candidates = [System.Collections.Generic.List[string]]::new()
         if ($LeafFolder) {
@@ -51,27 +51,34 @@ function Export-BenchDashboardData {
         }
         foreach ($cand in $candidates) {
             if (-not (Test-Path -LiteralPath $cand)) { continue }
-            $rawCsv = Join-Path $cand 'Lasttest-Verlauf.csv'
-            $zipPath = Join-Path $cand 'Anhang.zip'
-            if (Test-Path -LiteralPath $rawCsv) {
-                try { $lines = @([System.IO.File]::ReadAllLines($rawCsv, [System.Text.Encoding]::UTF8)); if ($lines.Count -gt 1) { break } } catch { }
+            foreach ($fn in $FileNames) {
+                $rawCsv = Join-Path $cand $fn
+                if (Test-Path -LiteralPath $rawCsv) {
+                    try { $lines = @([System.IO.File]::ReadAllLines($rawCsv, [System.Text.Encoding]::UTF8)); if ($lines.Count -gt 1) { break } } catch { }
+                }
             }
+            if ($lines.Count -gt 1) { break }
+
+            $zipPath = Join-Path $cand 'Anhang.zip'
             if (Test-Path -LiteralPath $zipPath) {
                 try {
                     Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
                     $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
-                    $entry = $zip.GetEntry('Lasttest-Verlauf.csv')
-                    if (-not $entry) {
-                        $entry = @($zip.Entries | Where-Object { $_.Name -ieq 'Lasttest-Verlauf.csv' }) | Select-Object -First 1
-                    }
-                    if ($entry) {
-                        $sr = New-Object System.IO.StreamReader($entry.Open(), [System.Text.Encoding]::UTF8)
-                        $zipLines = [System.Collections.Generic.List[string]]::new()
-                        while (-not $sr.EndOfStream) { $zipLines.Add($sr.ReadLine()) }
-                        $sr.Dispose()
-                        if ($zipLines.Count -gt 1) { $lines = @($zipLines); $zip.Dispose(); break }
+                    foreach ($fn in $FileNames) {
+                        $entry = $zip.GetEntry($fn)
+                        if (-not $entry) {
+                            $entry = @($zip.Entries | Where-Object { $_.Name -ieq $fn }) | Select-Object -First 1
+                        }
+                        if ($entry) {
+                            $sr = New-Object System.IO.StreamReader($entry.Open(), [System.Text.Encoding]::UTF8)
+                            $zipLines = [System.Collections.Generic.List[string]]::new()
+                            while (-not $sr.EndOfStream) { $zipLines.Add($sr.ReadLine()) }
+                            $sr.Dispose()
+                            if ($zipLines.Count -gt 1) { $lines = @($zipLines); break }
+                        }
                     }
                     $zip.Dispose()
+                    if ($lines.Count -gt 1) { break }
                 } catch { }
             }
 
@@ -92,36 +99,39 @@ function Export-BenchDashboardData {
                 try {
                     Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
                     $mbZip = [System.IO.Compression.ZipFile]::OpenRead($mbPath)
-                    $mbEntry = @($mbZip.Entries | Where-Object { $_.Name -ieq 'Lasttest-Verlauf.csv' }) | Select-Object -First 1
-                    if ($mbEntry) {
-                        $sr = New-Object System.IO.StreamReader($mbEntry.Open(), [System.Text.Encoding]::UTF8)
-                        $zipLines = [System.Collections.Generic.List[string]]::new()
-                        while (-not $sr.EndOfStream) { $zipLines.Add($sr.ReadLine()) }
-                        $sr.Dispose()
-                        if ($zipLines.Count -gt 1) { $lines = @($zipLines); $mbZip.Dispose(); break }
-                    } else {
-                        # Falls Anhang.zip innerhalb des .minibench-Archivs liegt
-                        $innerZipEntry = @($mbZip.Entries | Where-Object { $_.Name -ieq 'Anhang.zip' }) | Select-Object -First 1
-                        if ($innerZipEntry) {
-                            $ms = New-Object System.IO.MemoryStream
-                            $st = $innerZipEntry.Open()
-                            $st.CopyTo($ms)
-                            $st.Dispose()
-                            $ms.Position = 0
-                            $innerArchive = New-Object System.IO.Compression.ZipArchive($ms)
-                            $innerCsv = @($innerArchive.Entries | Where-Object { $_.Name -ieq 'Lasttest-Verlauf.csv' }) | Select-Object -First 1
-                            if ($innerCsv) {
-                                $sr = New-Object System.IO.StreamReader($innerCsv.Open(), [System.Text.Encoding]::UTF8)
-                                $zipLines = [System.Collections.Generic.List[string]]::new()
-                                while (-not $sr.EndOfStream) { $zipLines.Add($sr.ReadLine()) }
-                                $sr.Dispose()
-                                if ($zipLines.Count -gt 1) { $lines = @($zipLines); $innerArchive.Dispose(); $ms.Dispose(); $mbZip.Dispose(); break }
+                    foreach ($fn in $FileNames) {
+                        $mbEntry = @($mbZip.Entries | Where-Object { $_.Name -ieq $fn }) | Select-Object -First 1
+                        if ($mbEntry) {
+                            $sr = New-Object System.IO.StreamReader($mbEntry.Open(), [System.Text.Encoding]::UTF8)
+                            $zipLines = [System.Collections.Generic.List[string]]::new()
+                            while (-not $sr.EndOfStream) { $zipLines.Add($sr.ReadLine()) }
+                            $sr.Dispose()
+                            if ($zipLines.Count -gt 1) { $lines = @($zipLines); break }
+                        } else {
+                            # Falls Anhang.zip innerhalb des .minibench-Archivs liegt
+                            $innerZipEntry = @($mbZip.Entries | Where-Object { $_.Name -ieq 'Anhang.zip' }) | Select-Object -First 1
+                            if ($innerZipEntry) {
+                                $ms = New-Object System.IO.MemoryStream
+                                $st = $innerZipEntry.Open()
+                                $st.CopyTo($ms)
+                                $st.Dispose()
+                                $ms.Position = 0
+                                $innerArchive = New-Object System.IO.Compression.ZipArchive($ms)
+                                $innerCsv = @($innerArchive.Entries | Where-Object { $_.Name -ieq $fn }) | Select-Object -First 1
+                                if ($innerCsv) {
+                                    $sr = New-Object System.IO.StreamReader($innerCsv.Open(), [System.Text.Encoding]::UTF8)
+                                    $zipLines = [System.Collections.Generic.List[string]]::new()
+                                    while (-not $sr.EndOfStream) { $zipLines.Add($sr.ReadLine()) }
+                                    $sr.Dispose()
+                                    if ($zipLines.Count -gt 1) { $lines = @($zipLines); $innerArchive.Dispose(); $ms.Dispose(); break }
+                                }
+                                $innerArchive.Dispose()
+                                $ms.Dispose()
                             }
-                            $innerArchive.Dispose()
-                            $ms.Dispose()
                         }
                     }
                     $mbZip.Dispose()
+                    if ($lines.Count -gt 1) { break }
                 } catch { }
             }
             if ($lines.Count -gt 1) { break }
@@ -130,12 +140,14 @@ function Export-BenchDashboardData {
         # Fallback: Falls der Durchlauf gerade abgeschlossen wurde und im Arbeitsordner liegt
         if ($lines.Count -le 1) {
             $fallbackList = [System.Collections.Generic.List[string]]::new()
-            if ($script:WorkDir) {
-                $fallbackList.Add((Join-Path $script:WorkDir 'Anhang\Lasttest-Verlauf.csv'))
-                $fallbackList.Add((Join-Path $script:WorkDir 'Lasttest-Verlauf.csv'))
-            }
-            if ($RawDir) {
-                $fallbackList.Add((Join-Path $RawDir 'Lasttest-Verlauf.csv'))
+            foreach ($fn in $FileNames) {
+                if ($script:WorkDir) {
+                    $fallbackList.Add((Join-Path $script:WorkDir ('Anhang\' + $fn)))
+                    $fallbackList.Add((Join-Path $script:WorkDir $fn))
+                }
+                if ($RawDir) {
+                    $fallbackList.Add((Join-Path $RawDir $fn))
+                }
             }
             foreach ($fb in $fallbackList) {
                 if (Test-Path -LiteralPath $fb) {
@@ -494,29 +506,27 @@ function Export-BenchDashboardData {
         if ($ramResp -gt 0) { $dVals.Add($ramResp); $dWts.Add(0.20) }
         $desktopScore = & $calcGeoScore $dVals $dWts
 
-        # 3. Workstation (45 % CPU-MT, 20 % Verschlüsselung/Kompression AES/SHA/DEFL, 20 % RAM-Bandbreite, 15 % SSD-Dauertransfer SW/SR)
+        # 3. Workstation (60 % CPU-MT, 15 % RAM, 10 % DISK, 10 % GPU, 5 % CPU-ST)
         $wVals = [System.Collections.Generic.List[double]]::new()
         $wWts  = [System.Collections.Generic.List[double]]::new()
-        if ($cpuMt -gt 0) { $wVals.Add($cpuMt); $wWts.Add(0.45) }
-        $cryptoVal = 0.0
-        if ($cpuAes -gt 0 -or $cpuSha -gt 0 -or $cpuDefl -gt 0) {
-            $cryptoVal = ($cpuAes * 3.0 + $cpuSha * 2.0 + $cpuDefl * 10.0)
-        } elseif ($cpuMt -gt 0) {
-            $cryptoVal = $cpuMt * 0.3
-        }
-        if ($cryptoVal -gt 0) { $wVals.Add($cryptoVal); $wWts.Add(0.20) }
+        if ($cpuMt -gt 0) { $wVals.Add($cpuMt); $wWts.Add(0.60) }
         $ramBw = 0.0
         if ($ramLesen -gt 0 -or $ramSchreiben -gt 0 -or $ramKopieren -gt 0) {
             $ramBw = (($ramLesen * 1.0 + $ramSchreiben * 1.0 + $ramKopieren * 1.0) / 3.0) * 500.0
         }
-        if ($ramBw -gt 0) { $wVals.Add($ramBw); $wWts.Add(0.20) }
+        if ($ramBw -gt 0) { $wVals.Add($ramBw); $wWts.Add(0.15) }
         $ssdThru = 0.0
         if ($fastestDisk.SR -gt 0 -and $fastestDisk.SW -gt 0) {
             $ssdThru = ($fastestDisk.SR * 0.4 + $fastestDisk.SW * 0.6) * 5.0
         } elseif ($fastestDisk.SR -gt 0) {
             $ssdThru = $fastestDisk.SR * 5.0
         }
-        if ($ssdThru -gt 0) { $wVals.Add($ssdThru); $wWts.Add(0.15) }
+        if ($ssdThru -gt 0) { $wVals.Add($ssdThru); $wWts.Add(0.10) }
+        $gpuVal = 0.0
+        if ($gpuRend -gt 0) { $gpuVal = $gpuRend * 150.0 }
+        elseif ($gpuVmb -gt 0) { $gpuVal = $gpuVmb * 40.0 }
+        if ($gpuVal -gt 0) { $wVals.Add($gpuVal); $wWts.Add(0.10) }
+        if ($cpuSt -gt 0) { $wVals.Add($cpuSt * 7.0); $wWts.Add(0.05) }
         $workstationScore = & $calcGeoScore $wVals $wWts
 
         # Telemetrie-Extraktion
@@ -592,7 +602,15 @@ function Export-BenchDashboardData {
         if ($ramStr -match '(\d+)\s*GB') { $ramGb = [double]$matches[1] }
         $diskCount = $(if ($j.Laufwerke) { [math]::Max(1, @($j.Laufwerke).Count) } else { 1 })
 
-        $csvLines = & $extractCsvSeries $repDir ([string]$j.Ordner)
+        $isBenchFallback = $false
+        $csvLines = & $extractCsvSeries $repDir ([string]$j.Ordner) @('Lasttest-Verlauf.csv', 'Sensoren_Lasttest.csv')
+        if ($csvLines.Count -le 1) {
+            $benchCsv = & $extractCsvSeries $repDir ([string]$j.Ordner) @('Benchmark-Sensoren.csv', 'Sensoren_Benchmark.csv')
+            if ($benchCsv.Count -gt 1) {
+                $csvLines = $benchCsv
+                $isBenchFallback = $true
+            }
+        }
 
         if ($csvLines.Count -gt 1) {
             $header = @($csvLines[0] -split ';') | ForEach-Object { $_.Trim('"').Trim() }
@@ -649,6 +667,62 @@ function Export-BenchDashboardData {
                     Fps      = $(if ($fps -gt 0) { [math]::Round($fps, 1) } else { $null })
                     SysW     = $sysW
                 })
+            }
+        }
+
+        if ($series.Count -eq 0) {
+            $objSeries = $null
+            if ($j.LoadSeries -and @($j.LoadSeries).Count -gt 1) {
+                $objSeries = @($j.LoadSeries)
+            } elseif ($j.Sensoren_Lasttest -and @($j.Sensoren_Lasttest).Count -gt 1) {
+                $objSeries = @($j.Sensoren_Lasttest)
+            } elseif ($j.BenchSeries -and @($j.BenchSeries).Count -gt 1) {
+                $objSeries = @($j.BenchSeries); $isBenchFallback = $true
+            } elseif ($j.Sensoren_Benchmark -and @($j.Sensoren_Benchmark).Count -gt 1) {
+                $objSeries = @($j.Sensoren_Benchmark); $isBenchFallback = $true
+            } elseif ($script:BenchSeries -and @($script:BenchSeries).Count -gt 1 -and (-not $script:LoadSeries -or @($script:LoadSeries).Count -le 1)) {
+                $objSeries = @($script:BenchSeries); $isBenchFallback = $true
+            }
+
+            if ($objSeries) {
+                $step = [math]::Max(1, [int][math]::Floor($objSeries.Count / 70))
+                for ($r = 0; $r -lt $objSeries.Count; $r += $step) {
+                    $pt = $objSeries[$r]
+                    $t = if ($null -ne $pt.T) { [double]$pt.T } else { 0.0 }
+                    $temp = if ($null -ne $pt.CpuTemp) { [double]$pt.CpuTemp } elseif ($null -ne $pt.Temp) { [double]$pt.Temp } else { 0.0 }
+                    $mhz = if ($null -ne $pt.MHz) { [double]$pt.MHz } elseif ($null -ne $pt.CpuMHzMax) { [double]$pt.CpuMHzMax } elseif ($null -ne $pt.CpuMHz) { [double]$pt.CpuMHz } else { 0.0 }
+                    $w = if ($null -ne $pt.CpuW) { [double]$pt.CpuW } elseif ($null -ne $pt.Leistung) { [double]$pt.Leistung } else { 0.0 }
+                    $gTemp = if ($null -ne $pt.GpuTemp) { [double]$pt.GpuTemp } else { 0.0 }
+                    $gMhz = if ($null -ne $pt.GpuMHz) { [double]$pt.GpuMHz } else { 0.0 }
+                    $gW = if ($null -ne $pt.GpuW) { [double]$pt.GpuW } else { 0.0 }
+                    $igTemp = if ($null -ne $pt.IGpuTemp) { [double]$pt.IGpuTemp } else { 0.0 }
+                    $igMhz = if ($null -ne $pt.IGpuMHz) { [double]$pt.IGpuMHz } else { 0.0 }
+                    $igW = if ($null -ne $pt.IGpuW) { [double]$pt.IGpuW } else { 0.0 }
+                    $fps = if ($null -ne $pt.Fps) { [double]$pt.Fps } else { 0.0 }
+
+                    $sysW = $null
+                    if ($w -gt 0) {
+                        $pEstPt = if (Get-Command Get-EstimatedSystemPower -ErrorAction SilentlyContinue) {
+                            Get-EstimatedSystemPower -CpuW $w -GpuW $gW -IsNotebook:$isNb -RamGb $ramGb -DiskCount $diskCount -RamLoadPct 50.0 -DiskLoad
+                        } else { $null }
+                        if ($pEstPt -and $pEstPt.Verfuegbar) { $sysW = [math]::Round($pEstPt.P_AC, 1) }
+                    }
+
+                    $series.Add([ordered]@{
+                        T        = [math]::Round($t, 1)
+                        Temp     = $(if ($temp -gt 0) { [math]::Round($temp, 1) } else { $null })
+                        MHz      = $(if ($mhz -gt 0) { [math]::Round($mhz, 0) } else { $null })
+                        CpuW     = $(if ($w -gt 0) { [math]::Round($w, 1) } else { $null })
+                        GpuTemp  = $(if ($gTemp -gt 0) { [math]::Round($gTemp, 1) } else { $null })
+                        GpuMHz   = $(if ($gMhz -gt 0) { [math]::Round($gMhz, 0) } else { $null })
+                        GpuW     = $(if ($gW -gt 0) { [math]::Round($gW, 1) } else { $null })
+                        IGpuTemp = $(if ($igTemp -gt 0) { [math]::Round($igTemp, 1) } else { $null })
+                        IGpuMHz  = $(if ($igMhz -gt 0) { [math]::Round($igMhz, 0) } else { $null })
+                        IGpuW    = $(if ($igW -gt 0) { [math]::Round($igW, 1) } else { $null })
+                        Fps      = $(if ($fps -gt 0) { [math]::Round($fps, 1) } else { $null })
+                        SysW     = $sysW
+                    })
+                }
             }
         }
 
@@ -731,7 +805,7 @@ function Export-BenchDashboardData {
         $effSys = $(if ($pProf -and $pProf.Effizienz) { $pProf.Effizienz.System_PerWatt } else { $null })
 
         $seriesDur = if ($series.Count -gt 0) { [int]$series[$series.Count - 1].T } else { 0 }
-        $lasttestArt = & $getLasttestArt ([string]$j.Lasttest) $seriesDur
+        $lasttestArt = if ($isBenchFallback) { 'Benchmark' } else { & $getLasttestArt ([string]$j.Lasttest) $seriesDur }
 
         return [ordered]@{
             Id          = $id
@@ -800,7 +874,7 @@ function Export-BenchDashboardData {
                 EFF_SYS         = $effSys
             }
             Telemetry   = [ordered]@{
-                TestType                 = $lasttestArt
+                TestType                 = $(if ($isBenchFallback) { 'Benchmark' } elseif ($lasttestArt) { $lasttestArt } else { 'Lasttest' })
                 CpuTempMax               = $cpuTMax
                 CpuTempLeerlauf          = $cpuTIdle
                 TjMax                    = $tjMax

@@ -1,4 +1,4 @@
-// Versionshistorie (ab v2.7): Seite Versionen der Oberfläche und Doku\Versionshistorie.txt.
+﻿// Versionshistorie (ab v2.7): Seite Versionen der Oberfläche und Doku\Versionshistorie.txt.
 // Jede neue Version bekommt hier oben einen Eintrag (ein Test prüft, dass es einen für $ScriptVersion gibt).
 // Einzelheiten stehen in Doku\Änderungen_vX.Y.txt. Für 1.0 bis 2.1 gibt es keine Änderungsdateien mehr; die Einträge
 // nennen nur, was im Quelltext und in den Änderungen zu 2.2 belegt ist.
@@ -11,6 +11,12 @@ public static class Versionshistorie
     }
 
     public static readonly Eintrag[] Liste = new Eintrag[] {
+        new Eintrag("3.73", "17.10.2026", "Kompakte Modulnamen, LMB.exe, mathematische Modellkorrektur, Dashboard-Fallback & Bereinigung externer Quellen",
+            "Kompakte Modulnamen & LMB.exe: Seitenleiste und Kopfzeilen von „Vergleichsdatenbank“ in „Datenbank“ sowie von „Systemänderungen“ in „Änderungen“ gestrafft; ausführbare Datei in prägnantes LMB.exe umbenannt (inklusive LMB.cmd und Abwärtskompatibilitäts-Starter LeosMinibench.cmd). " +
+            "Dashboard-Optimierungen: Chronologische Sortierung der Systemauswahl und Vergleichs-Chips standardmäßig absteigend nach Messdatum (neueste Systeme zuerst) mit robuster Erkennung deutscher und ISO-Datumsformate; automatisches Sensor-Fallback auf Benchmark-Telemetrie bei fehlender Lasttest-Zeitreihe verhindert leere Graphen. " +
+            "Mathematische Modellkorrektur: Gesamtsystem-Effizienzscore auf gewichtetes harmonisches Mittel der gemessenen Benchmark-Effizienzen von CPU und GPU umgestellt, wodurch Systeme mit höherer Einzeleffizienz mathematisch garantiert auch einen höheren Gesamteffizienzindex erzielen (Behebung der Marvin-vs-TORRENT-Anomalie); Nutzungsprofil Workstation durch Anhebung der Mehrkern-Gewichtung (CPU_MT auf 6,0 bzw. 60–65 % Gesamteinfluss) praxisgerecht kalibriert. " +
+            "Bereinigung externer Quellen: Entfernung privater Repository-Mirrors im Optimierungsmodul; Bezug von Fremdwerkzeugen ausschließlich über offizielle Herstellerseiten, GitHub-Releases oder winget mit fester SHA-256-Prüfsumme. " +
+            "Dokumentation & GitHub-Präsenz: Sachliche, moderne Überarbeitung der README.md mit vollständiger Funktionsübersicht, aktualisierten Bildschirmfotos und respektvoller Danksagung an das Projekt Windows Optimisation Pack von Marvin700; strukturierte CHANGELOG.md nach Kategorien (Neu, Verbessert, Behoben)."),
         new Eintrag("3.72", "16.10.2026", "Neue dreiteilige Startseite, interaktiver Schnellstart & System-Feinschliff",
             "Neue dreiteilige Startseite: Moderne Einstiegsseite nach dem Drei-Fragen-Prinzip („Was ist das für ein PC?“, „Was kann ich hier tun?“, „Was ist seit dem letzten Mal passiert?“) als Standardansicht beim Programmstart. Zwei dynamische Zustände: Zustand A für den Erststart mit Hardware-Steckbrief, vier interaktiven Aufgabenkarten (PC durchchecken, Leistung messen, Stabilität prüfen, Pflegen und beschleunigen), Ablauf-Erklärung und Werkzeug-Verweisen; Zustand B für Folgestarts mit Schnellübersicht der Hardware in Badges, Kachel für den letzten Lauf mit vier Kennzahlen (Gesamt, CPU, RAM, GPU) und Direktlinks, asynchroner Kachel „Schnell behebbar“ für Konfigurationsprüfungen ohne Last sowie Aufgaben- und Werkzeuglisten. " +
             "Interaktiver Schnellstart: Direkte Aufgabenwahl hakt die erforderlichen Module an, lädt sinnvolle Standardprofile und wechselt zur ersten Arbeitsseite; Fußleiste mit deaktiviertem Startknopf „Ablauf wählen“ im Leerzustand und automatischer Aktivierung nach Modulauswahl. " +
